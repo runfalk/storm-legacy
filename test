@@ -31,21 +31,19 @@ def test_with_trial():
 
 def test_with_py_test():
     import py
+    dirname = os.path.dirname(__file__)
     if not [x for x in sys.argv[1:] if not x.startswith("-")]:
-        tests_dir = os.path.join(os.path.dirname(__file__), "tests/")
+        tests_dir = os.path.join(dirname, "tests/")
         # For timestamp checking when looping:
-        landscape_dir = os.path.join(lib_dir, "landscape")
-        sys.argv.extend([tests_dir, landscape_dir])
+        storm_dir = os.path.join(dirname, "storm/")
+        sys.argv.extend([tests_dir, storm_dir])
     py.test.cmdline.main()
 
 def test_with_unittest():
 
     usage = "test.py [options] [<test filename>, ...]"
-    description = ("If the environment variables %s and %s are present,\n"
-                   "unittests will be run against the specified databases."
-                   % (MAIN_DB_URI, RESOURCE_DB_URI))
 
-    parser = optparse.OptionParser(description=description, usage=usage)
+    parser = optparse.OptionParser(usage=usage)
 
     parser.add_option('--verbose', action='store_true')
     opts, args = parser.parse_args()

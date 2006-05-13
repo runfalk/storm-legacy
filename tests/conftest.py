@@ -9,8 +9,6 @@ import py.test.collect
 import py.test.compat
 import py.test
 
-from landscape.lib.security import safe
-
 
 class PyTestResult(TestResult):
     def addFailure(self, test, exc_info):
@@ -99,7 +97,6 @@ class UnitTestDirectory(py.test.collect.Directory):
     def __init__(self, *args, **kwargs):
         if getattr(self.__class__, "__first_run__", True):
             self.__class__.__first_run__ = False
-            safe.install()
         super(UnitTestDirectory, self).__init__(*args, **kwargs)
 
     def filefilter(self, path):
