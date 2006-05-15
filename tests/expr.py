@@ -28,6 +28,18 @@ class ExprTest(TestHelper):
         self.assertEquals(select.order_by, objects[7:9])
         self.assertEquals(select.group_by, objects[9:11])
 
+    def test_and(self):
+        and_ = And("elem1", "elem2", "elem3")
+        self.assertEquals(and_.elements, ["elem1", "elem2", "elem3"])
+
+    def test_or(self):
+        or_ = Or("elem1", "elem2", "elem3")
+        self.assertEquals(or_.elements, ["elem1", "elem2", "elem3"])
+
+    def test_parameter(self):
+        param = Parameter("value")
+        self.assertEquals(param.value, "value")
+
 
 class CompilerTest(TestHelper):
 
@@ -36,26 +48,47 @@ class CompilerTest(TestHelper):
         self.compiler = Compiler()
 
     def test_literal(self):
-        result = self.compiler.compile("literal")
-        self.assertEquals(result, "literal")
+        statement, parameters = self.compiler.compile("literal")
+        self.assertEquals(statement, "literal")
+        self.assertEquals(parameters, [])
 
     def test_select_basic(self):
-        select = Select(["column1", "column2"], ["table1", "table2"])
-        result = self.compiler.compile(select)
-        self.assertEquals(result,
-                          "SELECT column1, column2 FROM table1, table2")
+        select = Select(["column1", "column2"])
+        statement, parameters = self.compiler.compile(select)
+        self.assertEquals(statement, "SELECT column1, column2")
+        self.assertEquals(parameters, [])
 
     def test_select_fancy(self):
         select = Select(["column1", "column2"], ["table1", "table2"],
                         where="where", limit=3, offset=4,
                         order_by=["column3", "column4"],
                         group_by=["column5", "column6"])
-        result = self.compiler.compile(select)
-        self.assertEquals(result,
-                          "SELECT column1, column2 FROM table1, table2 "
-                          "WHERE where LIMIT 3 OFFSET 4 "
-                          "ORDER BY column3, column4 "
-                          "GROUP BY column5, column6")
+        statement, parameters = self.compiler.compile(select)
+        self.assertEquals(statement, "SELECT column1, column2 "
+                                     "FROM table1, table2 "
+                                     "WHERE where LIMIT 3 OFFSET 4 "
+                                     "ORDER BY column3, column4 "
+                                     "GROUP BY column5, column6")
+        self.assertEquals(parameters, [])
+
+    def test_and(self):
+        and_ = And("elem1", "elem2", "elem3")
+        statement, parameters = self.compiler.compile(and_)
+        self.assertEquals(statement, "(elem1 AND elem2 AND elem3)")
+        self.assertEquals(parameters, [])
+
+    def test_or(self):
+        or_ = Or("elem1", "elem2", "elem3")
+        statement, parameters = self.compiler.compile(or_)
+        self.assertEquals(statement, "(elem1 OR elem2 OR elem3)")
+        self.assertEquals(parameters, [])
+
+    def test_parameter(self):
+        param = Parameter("value")
+        statement, parameters = self.compiler.compile(param)
+        self.assertEquals(statement, "?")
+        self.assertEquals(parameters, ["value"])
+
 
 # Column with "as" (do we want it?)
 # Select arguments (column == 'asd')

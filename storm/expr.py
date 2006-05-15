@@ -14,8 +14,29 @@ class Select(object):
         self.group_by = list(group_by)
 
 
+class And(object):
+
+    def __init__(self, *elements):
+        self.elements = list(elements)
+
+
+class Or(object):
+
+    def __init__(self, *elements):
+        self.elements = list(elements)
+
+
+class Parameter(object):
+
+    def __init__(self, value):
+        self.value = value
+
+
 def used_for(*types):
-    """Convenience decorator to fill the dispatch table."""
+    """Convenience decorator to fill the dispatch table.
+
+    Subclasses of Compiler don't need it.
+    """
     dispatch_table = sys._getframe(1).f_locals["_dispatch_table"]
     def decorator(method):
         for type in types:
@@ -29,35 +50,51 @@ class Compiler(object):
     _dispatch_table = {}
 
     @used_for(str)
-    def compile_literal(self, literal):
+    def compile_literal(self, literal, parameters):
         return literal
 
+    @used_for(Parameter)
+    def compile_parameter(self, param, parameters):
+        parameters.append(param.value)
+        return "?"
+
+    @used_for(And)
+    def compile_and(self, and_, parameters):
+        return "(%s)" % " AND ".join(and_.elements)
+
+    @used_for(Or)
+    def compile_or(self, or_, parameters):
+        return "(%s)" % " OR ".join(or_.elements)
 
     @used_for(Select)
-    def compile_select(self, select):
+    def compile_select(self, select, parameters):
         # XXX Must compile columns and tables. Test with func(column).
-        statement = ["SELECT %s FROM %s" % (", ".join(select.columns),
-                                            ", ".join(select.tables))]
+        tokens = ["SELECT %s" % (", ".join(select.columns))]
+        if select.tables:
+            tokens.append(" FROM ")
+            tokens.append(", ".join(select.tables))
         if select.where:
-            statement.append(" WHERE ")
-            statement.append(self.compile(select.where))
+            tokens.append(" WHERE ")
+            tokens.append(self._compile(select.where, parameters))
         if select.limit:
-            statement.append(" LIMIT %d" % select.limit)
+            tokens.append(" LIMIT %d" % select.limit)
         if select.offset:
-            statement.append(" OFFSET %d" % select.offset)
+            tokens.append(" OFFSET %d" % select.offset)
         if select.order_by:
-            statement.append(" ORDER BY ")
-            statement.append(", ".join(select.order_by))
+            tokens.append(" ORDER BY ")
+            tokens.append(", ".join(select.order_by))
         if select.group_by:
-            statement.append(" GROUP BY ")
-            statement.append(", ".join(select.group_by))
-        return "".join(statement)
+            tokens.append(" GROUP BY ")
+            tokens.append(", ".join(select.group_by))
+        return "".join(tokens)
 
-    def compile(self, obj):
-        handler_name = self._dispatch_table[type(obj)]
+    def _compile(self, expr, parameters):
+        handler_name = self._dispatch_table[type(expr)]
         handler = getattr(self, handler_name)
-        return handler(obj)
+        return handler(expr, parameters)
 
+    def compile(self, expr):
+        parameters = []
+        return self._compile(expr, parameters), parameters
 
 del used_for
-
