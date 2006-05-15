@@ -3,15 +3,15 @@ import sys
 
 class Select(object):
 
-    def __init__(self, columns=(), tables=(), where=None,
-                 limit=None, offset=None, order_by=(), group_by=()):
-        self.columns = list(columns)
-        self.tables = list(tables)
+    def __init__(self, columns=None, tables=None, where=None, limit=None,
+                 offset=None, order_by=None, group_by=None):
+        self.columns = list(columns or ())
+        self.tables = list(tables or ())
         self.where = where
         self.limit = limit
         self.offset = offset
-        self.order_by = list(order_by)
-        self.group_by = list(group_by)
+        self.order_by = list(order_by or ())
+        self.group_by = list(group_by or ())
 
 
 class And(object):
@@ -60,15 +60,17 @@ class Compiler(object):
 
     @used_for(And)
     def compile_and(self, and_, parameters):
+        # TODO: Compile elements rather than considering them as strings.
         return "(%s)" % " AND ".join(and_.elements)
 
     @used_for(Or)
     def compile_or(self, or_, parameters):
+        # TODO: Compile elements rather than considering them as strings.
         return "(%s)" % " OR ".join(or_.elements)
 
     @used_for(Select)
     def compile_select(self, select, parameters):
-        # XXX Must compile columns and tables. Test with func(column).
+        # TODO: Compile elements rather than considering them as strings.
         tokens = ["SELECT %s" % (", ".join(select.columns))]
         if select.tables:
             tokens.append(" FROM ")
