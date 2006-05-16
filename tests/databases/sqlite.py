@@ -65,5 +65,17 @@ class SQLiteFileTest(SQLiteMemoryTest):
     def setup_database(self):
         self.database = SQLite(self.make_path())
 
-    # Test iterating over two connections at the same time.
+    def test_simultaneous_iter(self):
+        connection = self.database.connect()
+        self.add_sample_data(connection)
+        result1 = connection.execute("SELECT * FROM test ORDER BY id ASC")
+        result2 = connection.execute("SELECT * FROM test ORDER BY id DESC")
+        iter1 = iter(result1)
+        iter2 = iter(result2)
+        self.assertEquals(iter1.next(), (1, "Title 1"))
+        self.assertEquals(iter2.next(), (2, "Title 2"))
+        self.assertEquals(iter1.next(), (2, "Title 2"))
+        self.assertEquals(iter2.next(), (1, "Title 1"))
+        self.assertRaises(StopIteration, iter1.next)
+        self.assertRaises(StopIteration, iter2.next)
 
