@@ -15,6 +15,12 @@ class RawConnection(object):
     def cursor(self):
         return RawCursor(executed=self.executed)
 
+    def commit(self):
+        self.executed.append("COMMIT")
+
+    def rollback(self):
+        self.executed.append("ROLLBACK")
+
 class RawCursor(object):
 
     def __init__(self, arraysize=1, executed=None):
@@ -100,6 +106,14 @@ class ConnectionTest(TestHelper):
         self.assertEquals(self.executed,
                           [("SELECT column1, column2 FROM table1, table2",
                             marker)])
+
+    def test_commit(self):
+        self.connection.commit()
+        self.assertEquals(self.executed, ["COMMIT"])
+
+    def test_rollback(self):
+        self.connection.rollback()
+        self.assertEquals(self.executed, ["ROLLBACK"])
 
 
 class ResultTest(TestHelper):

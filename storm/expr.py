@@ -115,15 +115,15 @@ class CompoundOper(CompoundExpr):
 
 class Select(Expr):
 
-    def __init__(self, columns=None, tables=None, where=None, limit=None,
-                 offset=None, order_by=None, group_by=None):
+    def __init__(self, columns=None, tables=None, where=None,
+                 order_by=None, group_by=None, limit=None, offset=None):
         self.columns = tuple(columns or ())
         self.tables = tuple(tables or ())
         self.where = where
-        self.limit = limit
-        self.offset = offset
         self.order_by = tuple(order_by or ())
         self.group_by = tuple(group_by or ())
+        self.limit = limit
+        self.offset = offset
 
 class Insert(Expr):
 
@@ -158,7 +158,6 @@ class Param(ComparableExpr):
         self.value = value
 
 class Func(ComparableExpr):
-
     name = "(unknown)"
 
     def __init__(self, *args):
@@ -215,6 +214,35 @@ class Mod(CompoundOper):
     oper = "%"
 
 
+class Count(Func):
+    name = "COUNT"
+
+class Max(Func):
+    name = "MAX"
+
+class Min(Func):
+    name = "MIN"
+
+class Avg(Func):
+    name = "AVG"
+
+class Sum(Func):
+    name = "SUM"
+
+
+class SuffixExpr(Expr):
+    suffix = "(unknown)"
+
+    def __init__(self, expr):
+        self.expr = expr
+
+class Asc(SuffixExpr):
+    suffix = "ASC"
+
+class Desc(SuffixExpr):
+    suffix = "DESC"
+
+
 def used_for(*types):
     """Convenience decorator to fill the dispatch table.
 
@@ -258,10 +286,6 @@ class Compiler(object):
         if select.where:
             tokens.append(" WHERE ")
             tokens.append(self._compile(select.where, parameters))
-        if select.limit:
-            tokens.append(" LIMIT %d" % select.limit)
-        if select.offset:
-            tokens.append(" OFFSET %d" % select.offset)
         if select.order_by:
             tokens.append(" ORDER BY ")
             tokens.append(", ".join([self._compile(expr, parameters)
@@ -270,6 +294,10 @@ class Compiler(object):
             tokens.append(" GROUP BY ")
             tokens.append(", ".join([self._compile(expr, parameters)
                                      for expr in select.group_by]))
+        if select.limit:
+            tokens.append(" LIMIT %d" % select.limit)
+        if select.offset:
+            tokens.append(" OFFSET %d" % select.offset)
         return "".join(tokens)
 
     @used_for(Insert)
@@ -314,15 +342,23 @@ class Compiler(object):
         return "%s.%s" % (self._compile(column.table, parameters), column.name)
 
     @used_for(Param)
-    def compile_parameter(self, param, parameters):
+    def compile_param(self, param, parameters):
         parameters.append(param.value)
         return "?"
 
     @used_for(Func)
-    def compile_function(self, func, parameters):
+    def compile_func(self, func, parameters):
         return "%s(%s)" % (func.name,
                            ", ".join([self._compile(expr, parameters)
                                       for expr in func.args]))
+
+    @used_for(Count)
+    def compile_count(self, count, parameters):
+        if count.args:
+            return "COUNT(%s)" % (", ".join([self._compile(expr, parameters)
+                                             for expr in count.args]))
+        else:
+            return "COUNT(*)"
 
     @used_for(type(None))
     def compile_none(self, none, parameters):
@@ -339,6 +375,10 @@ class Compiler(object):
         return "(%s)" % \
                oper.oper.join([self._compile(expr, parameters)
                                for expr in oper.exprs])
+
+    @used_for(SuffixExpr)
+    def compile_suffix_expr(self, expr, parameters):
+        return "%s %s" % (self._compile(expr.expr, parameters), expr.suffix)
 
     @used_for(Eq)
     def compile_eq(self, eq, parameters):

@@ -11,16 +11,35 @@ class ClassInfo(object):
         except AttributeError:
             pass
 
-        info = cls.__class_info = object.__new__(class_)
+        __table__ = getattr(cls, "__table__", ())
+        if len(__table__) != 2:
+            raise RuntimeError("%s.__table__ must be (<table name>, "
+                               "<primary key(s)>) tuple." % repr(cls))
 
-        info.properties = []
+        pairs = []
+        names = {}
+        prop_dict = {}
         for name in cls.__dict__:
             attr = getattr(cls, name)
             if isinstance(attr, Property):
-                info.properties.append((name, attr))
-        info.properties.sort()
+                pairs.append((name, attr))
+                names[attr.name] = attr
+                prop_dict[name] = attr
+        pairs.sort()
 
-        return cls.__class_info # Reduce race condition.
+        info = object.__new__(class_)
+        info.cls = cls
+        info.prop_names = tuple(pair[0] for pair in pairs)
+        info.prop_insts = tuple(pair[1] for pair in pairs)
+        info.prop_dict = prop_dict
+        info.table = __table__[0]
+        if type(__table__[1]) in (list, tuple):
+            info.primary_key = tuple(names[name] for name in __table__[1])
+        else:
+            info.primary_key = (names[__table__[1]],)
+
+        cls.__class_info = info
+        return info
 
 
 class ObjectInfo(object):
@@ -30,32 +49,32 @@ class ObjectInfo(object):
         if info is not None:
             return info
         info = object.__new__(class_)
-        info._obj = obj
-        info._props = {}
+        info.obj = obj
+        info._values = {}
         info._states = []
         return obj.__dict__.setdefault("__object_info", info)
 
     def push_state(self):
-        self._states.append((self._props.copy(), self._obj.__dict__.copy()))
+        self._states.append((self._values.copy(), self.obj.__dict__.copy()))
 
     def pop_state(self):
-        self._props, self._obj.__dict__ = self._states.pop(-1)
+        self._values, self.obj.__dict__ = self._states.pop(-1)
 
     def check_changed(self, props=False, attrs=False):
         if not self._states:
             return None
         last_props, last_attrs = self._states[-1]
-        return (props and last_props != self._props or
-                attrs and last_attrs != self._obj.__dict__)
+        return (props and last_props != self._values or
+                attrs and last_attrs != self.obj.__dict__)
 
     def set_prop(self, prop, value):
         if value is None:
-            self._props.pop(prop, None)
+            self._values.pop(prop, None)
         else:
-            self._props[prop] = value
+            self._values[prop] = value
 
     def get_prop(self, prop):
-        return self._props.get(prop)
+        return self._values.get(prop)
 
 
 class Property(Column):
@@ -66,7 +85,7 @@ class Property(Column):
     def __get__(self, obj, cls=None):
         if obj is None:
             if self.table is None:
-                self.table = getattr(cls, "__table__", None)
+                self.table = getattr(cls, "__table__", (None,))[0]
             if self.name is None:
                 self.name = object()
                 for name in cls.__dict__:

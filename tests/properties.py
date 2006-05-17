@@ -11,18 +11,36 @@ class ClassInfoTest(TestHelper):
     def setUp(self):
         TestHelper.setUp(self)
         class Class(object):
+            __table__ = "table", "prop1"
             prop1 = Property("prop1")
             prop2 = Property("prop2")
         self.Class = Class
+        self.info = ClassInfo(Class)
 
     def test_singleton(self):
-        self.assertTrue(ClassInfo(self.Class) is ClassInfo(self.Class))
+        self.assertTrue(self.info is ClassInfo(self.Class))
 
-    def test_properties(self):
-        info = ClassInfo(self.Class)
-        self.assertEquals(info.properties,
-                          [("prop1", self.Class.prop1),
-                           ("prop2", self.Class.prop2)])
+    def test_table(self):
+        self.assertTrue(self.info.table, "table")
+
+    def test_primary_key(self):
+        self.assertTrue(self.info.primary_key[0] is self.Class.prop1)
+
+    def test_primary_key_composed(self):
+        class Class(object):
+            __table__ = "table", ("prop2", "prop1")
+            prop1 = Property("prop1")
+            prop2 = Property("prop2")
+        info = ClassInfo(Class)
+        self.assertTrue(info.primary_key[0] is Class.prop2)
+        self.assertTrue(info.primary_key[1] is Class.prop1)
+
+    def test_prop_insts(self):
+        self.assertEquals(self.info.prop_insts,
+                          (self.Class.prop1, self.Class.prop2))
+
+    def test_prop_names(self):
+        self.assertEquals(self.info.prop_names, ("prop1", "prop2"))
 
 
 class ObjectInfoTest(TestHelper):
@@ -30,6 +48,7 @@ class ObjectInfoTest(TestHelper):
     def setUp(self):
         TestHelper.setUp(self)
         class Class(object):
+            __table__ = "table", "prop1"
             prop1 = Property("prop1")
             prop2 = Property("prop2")
         self.Class = Class
@@ -83,11 +102,13 @@ class PropertyTest(TestHelper):
 
     def test_name_auto(self):
         class Class(object):
+            __table__ = "table", "foobar"
             foobar = Property()
         self.assertEquals(Class.foobar.name, "foobar")
 
     def test_set_get(self):
         class Class(object):
+            __table__ = "table", "prop1"
             prop1 = Property("prop1")
             prop2 = Property("prop2")
         obj = Class()
@@ -98,7 +119,7 @@ class PropertyTest(TestHelper):
 
     def test_comparable_expr(self):
         class Class(object):
-            __table__ = "table"
+            __table__ = "table", "prop"
             prop = Property()
         expr = Class.prop == "value"
         statement, parameters = Compiler().compile(expr)
@@ -110,6 +131,7 @@ class PropertyTypesTest(TestHelper):
 
     def test_bool(self):
         class Class(object):
+            __table__ = "table", "prop"
             prop = Bool()
         obj = Class()
         obj.prop = 1
@@ -119,6 +141,7 @@ class PropertyTypesTest(TestHelper):
 
     def test_int(self):
         class Class(object):
+            __table__ = "table", "prop"
             prop = Int()
         obj = Class()
         obj.prop = False
@@ -128,6 +151,7 @@ class PropertyTypesTest(TestHelper):
 
     def test_float(self):
         class Class(object):
+            __table__ = "table", "prop"
             prop = Float()
         obj = Class()
         obj.prop = 1
@@ -135,6 +159,7 @@ class PropertyTypesTest(TestHelper):
 
     def test_str(self):
         class Class(object):
+            __table__ = "table", "prop"
             prop = Str()
         obj = Class()
         obj.prop = u"str"
@@ -142,6 +167,7 @@ class PropertyTypesTest(TestHelper):
 
     def test_unicode(self):
         class Class(object):
+            __table__ = "table", "prop"
             prop = Unicode()
         obj = Class()
         obj.prop = "unicode"
@@ -149,6 +175,7 @@ class PropertyTypesTest(TestHelper):
 
     def test_datetime(self):
         class Class(object):
+            __table__ = "table", "prop"
             prop = DateTime()
         obj = Class()
         obj.prop = 0.0

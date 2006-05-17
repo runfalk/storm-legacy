@@ -10,23 +10,23 @@ class ExprTest(TestHelper):
         self.assertEquals(expr.columns, ())
         self.assertEquals(expr.tables, ())
         self.assertEquals(expr.where, None)
-        self.assertEquals(expr.limit, None)
-        self.assertEquals(expr.offset, None)
         self.assertEquals(expr.order_by, ())
         self.assertEquals(expr.group_by, ())
+        self.assertEquals(expr.limit, None)
+        self.assertEquals(expr.offset, None)
 
     def test_select_constructor(self):
         objects = [object() for i in range(11)]
-        select = Select(objects[0:2], objects[2:4], objects[4], objects[5],
-                        objects[6], objects[7:9], objects[9:11])
+        select = Select(objects[0:2], objects[2:4], objects[4], objects[5:7],
+                        objects[7:9], objects[9], objects[10])
         objects = tuple(objects)
         self.assertEquals(select.columns, objects[0:2])
         self.assertEquals(select.tables, objects[2:4])
         self.assertEquals(select.where, objects[4])
-        self.assertEquals(select.limit, objects[5])
-        self.assertEquals(select.offset, objects[6])
-        self.assertEquals(select.order_by, objects[7:9])
-        self.assertEquals(select.group_by, objects[9:11])
+        self.assertEquals(select.order_by, objects[5:7])
+        self.assertEquals(select.group_by, objects[7:9])
+        self.assertEquals(select.limit, objects[9])
+        self.assertEquals(select.offset, objects[10])
 
     def test_insert_default(self):
         expr = Insert()
@@ -134,15 +134,17 @@ class CompilerTest(TestHelper):
     def test_select_where(self):
         expr = Select(["column1", Func1()],
                       ["table1", Func1()],
-                      where=Func1(), limit=3, offset=4,
+                      where=Func1(),
                       order_by=["column2", Func1()],
-                      group_by=["column3", Func1()])
+                      group_by=["column3", Func1()],
+                      limit=3, offset=4)
         statement, parameters = self.compiler.compile(expr)
         self.assertEquals(statement, "SELECT column1, func1() "
                                      "FROM table1, func1() "
-                                     "WHERE func1() LIMIT 3 OFFSET 4 "
+                                     "WHERE func1() "
                                      "ORDER BY column2, func1() "
-                                     "GROUP BY column3, func1()")
+                                     "GROUP BY column3, func1() "
+                                     "LIMIT 3 OFFSET 4")
         self.assertEquals(parameters, [])
 
     def test_insert(self):
@@ -397,3 +399,51 @@ class CompilerTest(TestHelper):
         statement, parameters = self.compiler.compile(expr)
         self.assertEquals(statement, "(func1()%?)")
         self.assertEquals(parameters, ["value"])
+
+    def test_count(self):
+        expr = Count(Func1())
+        statement, parameters = self.compiler.compile(expr)
+        self.assertEquals(statement, "COUNT(func1())")
+        self.assertEquals(parameters, [])
+
+    def test_count_all(self):
+        expr = Count()
+        statement, parameters = self.compiler.compile(expr)
+        self.assertEquals(statement, "COUNT(*)")
+        self.assertEquals(parameters, [])
+
+    def test_max(self):
+        expr = Max(Func1())
+        statement, parameters = self.compiler.compile(expr)
+        self.assertEquals(statement, "MAX(func1())")
+        self.assertEquals(parameters, [])
+
+    def test_min(self):
+        expr = Min(Func1())
+        statement, parameters = self.compiler.compile(expr)
+        self.assertEquals(statement, "MIN(func1())")
+        self.assertEquals(parameters, [])
+
+    def test_avg(self):
+        expr = Avg(Func1())
+        statement, parameters = self.compiler.compile(expr)
+        self.assertEquals(statement, "AVG(func1())")
+        self.assertEquals(parameters, [])
+
+    def test_sum(self):
+        expr = Sum(Func1())
+        statement, parameters = self.compiler.compile(expr)
+        self.assertEquals(statement, "SUM(func1())")
+        self.assertEquals(parameters, [])
+
+    def test_asc(self):
+        expr = Asc(Func1())
+        statement, parameters = self.compiler.compile(expr)
+        self.assertEquals(statement, "func1() ASC")
+        self.assertEquals(parameters, [])
+
+    def test_desc(self):
+        expr = Desc(Func1())
+        statement, parameters = self.compiler.compile(expr)
+        self.assertEquals(statement, "func1() DESC")
+        self.assertEquals(parameters, [])

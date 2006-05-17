@@ -58,6 +58,12 @@ class Connection(object):
         statement, parameters = self._compiler.compile(expr)
         return self.execute(statement, parameters or None)
 
+    def commit(self):
+        self._raw_connection.commit()
+
+    def rollback(self):
+        self._raw_connection.rollback()
+
 
 class Database(object):
 
