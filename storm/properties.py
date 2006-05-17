@@ -34,10 +34,14 @@ class ClassInfo(object):
         info.columns = tuple(Column(name) for name in info.prop_names)
         info.table = __table__[0]
         info.tables = (__table__[0],)
-        if type(__table__[1]) in (list, tuple):
-            info.primary_key = tuple(names[name] for name in __table__[1])
-        else:
-            info.primary_key = (names[__table__[1]],)
+
+        prop_names = list(info.prop_names)
+        names = __table__[1]
+        if type(names) not in (list, tuple):
+            names = (names,)
+        info.pk_prop_idx = tuple(prop_names.index(name) for name in names)
+        info.pk_prop_insts = tuple(info.prop_insts[i]
+                                   for i in info.pk_prop_idx)
 
         cls.__class_info = info
         return info
@@ -51,31 +55,49 @@ class ObjectInfo(object):
             return info
         info = object.__new__(class_)
         info.obj = obj
+        info._saved = None
         info._values = {}
-        info._states = []
+        info._notify_change = None
         return obj.__dict__.setdefault("__object_info", info)
 
-    def push_state(self):
-        self._states.append((self._values.copy(), self.obj.__dict__.copy()))
+    def save_state(self):
+        self._saved = self._values.copy(), self.obj.__dict__.copy()
 
-    def pop_state(self):
-        self._values, self.obj.__dict__ = self._states.pop(-1)
-
-    def check_changed(self, props=False, attrs=False):
-        if not self._states:
-            return None
-        last_props, last_attrs = self._states[-1]
-        return (props and last_props != self._values or
-                attrs and last_attrs != self.obj.__dict__)
+    def restore_state(self):
+        self._values, self.obj.__dict__ = self._saved
 
     def set_prop(self, prop, value):
         if value is None:
-            self._values.pop(prop, None)
+            old_value = self._values.pop(prop, None)
         else:
+            old_value = self._values.get(prop)
             self._values[prop] = value
+        if self._notify_change is not None and old_value != value:
+            self._notify_change(self.obj, self, old_value, value)
 
     def get_prop(self, prop):
         return self._values.get(prop)
+
+    def check_changed(self):
+        return self._saved[0] != self._values
+
+    def get_changes(self):
+        changes = {}
+        old_values = self._saved[0]
+        new_values = self._values
+        for prop in old_values:
+            new_value = new_values.get(prop)
+            if new_value is None:
+                changes[prop] = None
+            elif old_values[prop] != new_value:
+                changes[prop] = new_value
+        for prop in new_values:
+            if prop not in old_values:
+                changes[prop] = new_values[prop]
+        return changes
+
+    def set_change_notification(self, callback=None):
+        self._notify_change = callback
 
 
 class Property(Column):

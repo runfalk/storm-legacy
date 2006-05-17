@@ -1,5 +1,7 @@
-from storm.expr import Select, Insert, Delete
-from storm.expr import Param, Count, Max, Min, Avg, Sum
+from weakref import WeakValueDictionary
+
+from storm.expr import Select, Insert, Update, Delete
+from storm.expr import Column, Param, Count, Max, Min, Avg, Sum
 from storm.properties import ClassInfo, ObjectInfo
 
 
@@ -16,13 +18,14 @@ from storm.properties import ClassInfo, ObjectInfo
 class Store(object):
 
     def __init__(self, database):
-        self._database = database
         self._connection = database.connect()
+        self._cache = WeakValueDictionary()
+        self._dirty = {}
 
     @staticmethod
     def of(obj):
         try:
-            return ObjectInfo(obj).__store
+            return ObjectInfo(obj).store
         except AttributeError:
             return None
 
@@ -30,19 +33,22 @@ class Store(object):
         return self._connection
 
     def commit(self):
+        self.flush()
         self._connection.commit()
 
     def rollback(self):
         self._connection.rollback()
 
     def get(self, cls, key):
+        self.flush()
+
         if type(key) != tuple:
             key = (key,)
 
         cls_info = ClassInfo(cls)
 
         where = None
-        for i, prop in enumerate(cls_info.primary_key):
+        for i, prop in enumerate(cls_info.pk_prop_insts):
             if where is None:
                 where = (prop == key[i])
             else:
@@ -57,6 +63,8 @@ class Store(object):
         return self._build_object(cls_info, prop_values)
 
     def find(self, cls, *args, **kwargs):
+        self.flush()
+
         cls_info = ClassInfo(cls)
 
         where = None
@@ -69,9 +77,9 @@ class Store(object):
         if kwargs:
             for key in kwargs:
                 if where is None:
-                    where = cls_info.prop_dict[key] == kwargs[key]
+                    where = cls_info.attr_dict[key] == kwargs[key]
                 else:
-                    where &= cls_info.prop_dict[key] == kwargs[key]
+                    where &= cls_info.attr_dict[key] == kwargs[key]
 
         return ResultSet(self._connection.execute,
                          lambda vals: self._build_object(cls_info, vals),
@@ -80,32 +88,73 @@ class Store(object):
 
     def add(self, obj):
         # TODO: Check if object is in some store already. force=True could
-        #       make it accept, unless the store is already self.
+        #       make it accept anyway, unless the store is already self.
         cls_info = ClassInfo(obj)
         insert = Insert(cls_info.table, cls_info.columns,
                         [Param(prop.__get__(obj))
                          for prop in cls_info.prop_insts])
         self._connection.execute(insert)
+        self._reset_info(cls_info, ObjectInfo(obj), obj)
 
     def remove(self, obj):
         cls_info = ClassInfo(obj)
-        where = None
-        for prop in cls_info.primary_key:
-            if where is None:
-                where = (prop == prop.__get__(obj))
-            else:
-                where &= (prop == prop.__get__(obj))
-        delete = Delete(cls_info.table, where)
+        obj_info = ObjectInfo(obj)
+        delete = Delete(cls_info.table,
+                        self._build_key_where(cls_info, obj_info, obj))
         self._connection.execute(delete)
-        ObjectInfo(obj).__store = None
+        ObjectInfo(obj).store = None
+
+    def flush(self):
+        if not self._dirty:
+            return
+        for obj in self._dirty.values():
+            obj_info = ObjectInfo(obj)
+            if obj_info.check_changed():
+                cls_info = ClassInfo(obj.__class__)
+                sets = [(Column(prop.name), Param(value))
+                        for prop, value in obj_info.get_changes().items()]
+                update = Update(cls_info.table, sets,
+                                self._build_key_where(cls_info, obj_info, obj))
+                self._connection.execute(update)
+                self._reset_info(cls_info, obj_info, obj)
+        self._dirty.clear()
+
+    def _build_key_where(self, cls_info, obj_info, obj):
+        where = None
+        for prop, value in zip(cls_info.pk_prop_insts, obj_info.pk_values):
+            if where is None:
+                where = (prop == value)
+            else:
+                where &= (prop == value)
+        return where
 
     def _build_object(self, cls_info, prop_values):
-        obj = object.__new__(cls_info.cls)
-        ObjectInfo(obj).__store = self
+        cls = cls_info.cls
+        obj = self._cache.get((cls,)+tuple(prop_values[i]
+                                           for i in cls_info.pk_prop_idx))
+        if obj is not None:
+            return obj
+        obj = object.__new__(cls)
         for name, value in zip(cls_info.attr_names, prop_values):
             setattr(obj, name, value)
+        self._reset_info(cls_info, ObjectInfo(obj), obj)
         return obj
-        
+
+    def _reset_info(self, cls_info, obj_info, obj):
+        #pk_values = getattr(obj_info, "pk_values", None)
+        #if pk_values:
+        #    self._cache.pop(pk_values)
+        obj_info.store = self
+        obj_info.pk_values = tuple(prop.__get__(obj)
+                                   for prop in cls_info.pk_prop_insts)
+        obj_info.save_state()
+        obj_info.set_change_notification(self._object_changed)
+        self._cache[(cls_info.cls,)+obj_info.pk_values] = obj
+        return obj_info
+
+    def _object_changed(self, obj, prop, old_value, new_value):
+        self._dirty[id(obj)] = obj
+
 
 class ResultSet(object):
 
@@ -126,7 +175,9 @@ class ResultSet(object):
         kwargs = self._kwargs.copy()
         kwargs["limit"] = 1
         values = self._execute(Select(**kwargs)).fetch_one()
-        return self._object_factory(values)
+        if values:
+            return self._object_factory(values)
+        return None
 
     def order_by(self, *args):
         kwargs = self._kwargs.copy()

@@ -1,4 +1,7 @@
+import gc
+
 from storm.databases.sqlite import SQLite
+from storm.properties import ObjectInfo
 from storm.database import Connection
 from storm.properties import Int, Str
 from storm.expr import Asc, Desc
@@ -32,6 +35,16 @@ class StoreTest(TestHelper):
         connection.execute("INSERT INTO test VALUES (4, 'Title 7')")
         connection.commit()
 
+    def get_items(self):
+        connection = self.store.get_connection()
+        result = connection.execute("SELECT * FROM test DATABASE ORDER BY id")
+        return list(result)
+
+    def get_committed_items(self):
+        connection = self.database.connect()
+        result = connection.execute("SELECT * FROM test DATABASE ORDER BY id")
+        return list(result)
+
     def test_get_connection(self):
         self.assertTrue(isinstance(self.store.get_connection(), Connection))
 
@@ -46,6 +59,20 @@ class StoreTest(TestHelper):
 
         obj = self.store.get(Class, 3)
         self.assertEquals(obj, None)
+
+    def test_get_from_cache(self):
+        obj = self.store.get(Class, 1)
+        self.assertTrue(self.store.get(Class, 1) is obj)
+
+    def test_cache_cleanup(self):
+        obj = self.store.get(Class, 1)
+        obj.taint = True
+
+        del obj
+        gc.collect()
+
+        obj = self.store.get(Class, 1)
+        self.assertFalse(getattr(obj, "taint", False))
 
     def test_get_tuple(self):
         class Class(object):
@@ -72,6 +99,28 @@ class StoreTest(TestHelper):
         self.assertEquals(lst, [(1, "Title 9"),
                                 (2, "Title 8"),
                                 (4, "Title 7")])
+
+    def test_find_from_cache(self):
+        obj = self.store.get(Class, 1)
+        self.assertTrue(self.store.find(Class, id=1).one() is obj)
+
+    def test_find_expr(self):
+        result = self.store.find(Class, Class.id == 2,
+                                 Class.title == "Title 8")
+        self.assertEquals([(obj.id, obj.title) for obj in result],
+                          [(2, "Title 8")])
+
+        result = self.store.find(Class, Class.id == 1,
+                                 Class.title == "Title 8")
+        self.assertEquals([(obj.id, obj.title) for obj in result], [])
+
+    def test_find_keywords(self):
+        result = self.store.find(Class, id=2, title="Title 8")
+        self.assertEquals([(obj.id, obj.title) for obj in result],
+                          [(2, "Title 8")])
+
+        result = self.store.find(Class, id=1, title="Title 8")
+        self.assertEquals([(obj.id, obj.title) for obj in result], [])
 
     def test_find_order_by(self, *args):
         result = self.store.find(Class).order_by(Class.title)
@@ -103,6 +152,9 @@ class StoreTest(TestHelper):
         self.assertEquals(obj.id, 1)
         self.assertEquals(obj.title, "Title 9")
 
+        obj = self.store.find(Class, id=3).one()
+        self.assertEquals(obj, None)
+
     def test_find_count(self):
         self.assertEquals(self.store.find(Class).count(), 3)
 
@@ -133,17 +185,14 @@ class StoreTest(TestHelper):
 
         self.store.add(obj)
 
-        connection = self.database.connect()
-        result = connection.execute("SELECT * FROM test DATABASE ORDER BY id")
-        self.assertEquals(list(result), [(1, "Title 9"), (2, "Title 8"),
-                                         (4, "Title 7")])
+        self.assertEquals(self.get_committed_items(),
+                          [(1, "Title 9"), (2, "Title 8"), (4, "Title 7")])
 
         self.store.commit()
 
-        connection = self.database.connect()
-        result = connection.execute("SELECT * FROM test DATABASE ORDER BY id")
-        self.assertEquals(list(result), [(1, "Title 9"), (2, "Title 8"),
-                                         (3, "Title 6"), (4, "Title 7")])
+        self.assertEquals(self.get_committed_items(),
+                          [(1, "Title 9"), (2, "Title 8"), (3, "Title 6"),
+                           (4, "Title 7")])
 
     def test_add_rollback_commit(self):
         obj = Class()
@@ -154,13 +203,14 @@ class StoreTest(TestHelper):
         self.store.rollback()
 
         self.assertEquals(self.store.get(Class, 3), None)
+
+        self.assertEquals(self.get_items(),
+                          [(1, "Title 9"), (2, "Title 8"), (4, "Title 7")])
         
         self.store.commit()
 
-        connection = self.database.connect()
-        result = connection.execute("SELECT * FROM test DATABASE ORDER BY id")
-        self.assertEquals(list(result), [(1, "Title 9"), (2, "Title 8"),
-                                         (4, "Title 7")])
+        self.assertEquals(self.get_committed_items(),
+                          [(1, "Title 9"), (2, "Title 8"), (4, "Title 7")])
 
     def test_add_get(self):
         obj = Class()
@@ -174,8 +224,7 @@ class StoreTest(TestHelper):
         self.assertEquals(get_obj.id, 3)
         self.assertEquals(get_obj.title, "Title 6")
 
-        # TODO: Needs caching.
-        #self.assertTrue(get_obj is obj)
+        self.assertTrue(get_obj is obj)
 
     def test_add_find(self):
         obj = Class()
@@ -189,8 +238,7 @@ class StoreTest(TestHelper):
         self.assertEquals(get_obj.id, 3)
         self.assertEquals(get_obj.title, "Title 6")
 
-        # TODO: Needs caching.
-        #self.assertTrue(get_obj is obj)
+        self.assertTrue(get_obj is obj)
 
     def test_remove_commit(self):
         obj = self.store.get(Class, 2)
@@ -199,13 +247,116 @@ class StoreTest(TestHelper):
 
         self.assertEquals(Store.of(obj), None)
 
-        connection = self.database.connect()
-        result = connection.execute("SELECT * FROM test DATABASE ORDER BY id")
-        self.assertEquals(list(result), [(1, "Title 9"), (2, "Title 8"),
-                                         (4, "Title 7")])
+        self.assertEquals(self.get_items(),
+                          [(1, "Title 9"), (4, "Title 7")])
+        self.assertEquals(self.get_committed_items(),
+                          [(1, "Title 9"), (2, "Title 8"), (4, "Title 7")])
 
         self.store.commit()
 
-        connection = self.database.connect()
-        result = connection.execute("SELECT * FROM test DATABASE ORDER BY id")
-        self.assertEquals(list(result), [(1, "Title 9"), (4, "Title 7")])
+        self.assertEquals(self.get_committed_items(),
+                          [(1, "Title 9"), (4, "Title 7")])
+
+    def test_update_flush_commit(self):
+        obj = self.store.get(Class, 2)
+
+        obj.title = "Title 2"
+
+        self.assertEquals(self.get_items(),
+                          [(1, "Title 9"), (2, "Title 8"), (4, "Title 7")])
+        self.assertEquals(self.get_committed_items(),
+                          [(1, "Title 9"), (2, "Title 8"), (4, "Title 7")])
+
+        self.store.flush()
+
+        self.assertEquals(self.get_items(),
+                          [(1, "Title 9"), (2, "Title 2"), (4, "Title 7")])
+        self.assertEquals(self.get_committed_items(),
+                          [(1, "Title 9"), (2, "Title 8"), (4, "Title 7")])
+
+        self.store.commit()
+
+        self.assertEquals(self.get_committed_items(),
+                          [(1, "Title 9"), (2, "Title 2"), (4, "Title 7")])
+
+    def test_update_commit(self):
+
+        obj = self.store.get(Class, 2)
+
+        obj.title = "Title 2"
+
+        self.assertEquals(self.get_items(),
+                          [(1, "Title 9"), (2, "Title 8"), (4, "Title 7")])
+        self.assertEquals(self.get_committed_items(),
+                          [(1, "Title 9"), (2, "Title 8"), (4, "Title 7")])
+
+        # Does it work without flush?
+
+        self.store.commit()
+
+        self.assertEquals(self.get_committed_items(),
+                          [(1, "Title 9"), (2, "Title 2"), (4, "Title 7")])
+
+    def test_update_primary_key(self):
+        obj = self.store.get(Class, 2)
+
+        obj.id = 8
+
+        self.store.commit()
+
+        self.assertEquals(self.get_committed_items(),
+                          [(1, "Title 9"), (4, "Title 7"), (8, "Title 8")])
+
+        # Update twice to see if the notion of primary key for the
+        # existent object was updated as well.
+        
+        obj.id = 18
+
+        self.store.commit()
+
+        self.assertEquals(self.get_committed_items(),
+                          [(1, "Title 9"), (4, "Title 7"), (18, "Title 8")])
+
+    def test_update_flush_flush(self):
+        obj = self.store.get(Class, 2)
+
+        obj.title = "Title 2"
+
+        self.store.flush()
+
+        # If changes get committed even with the notification disabled,
+        # it means the dirty flag isn't being cleared.
+
+        ObjectInfo(obj).set_change_notification(None)
+
+        obj.title = "Title 12"
+
+        self.store.flush()
+
+        self.assertEquals(self.get_items(),
+                          [(1, "Title 9"), (2, "Title 2"), (4, "Title 7")])
+
+    def test_update_find(self):
+        obj = self.store.get(Class, 2)
+        obj.title = "Title 2"
+        self.assertTrue(self.store.find(Class, Class.title == "Title 2").one())
+
+    def test_update_get(self):
+        obj = self.store.get(Class, 2)
+        obj.id = 3
+        self.assertTrue(self.store.get(Class, 3))
+
+    def test_add_update(self):
+        obj = Class()
+        obj.id = 3
+        obj.title = "Title 6"
+
+        self.store.add(obj)
+
+        obj.title = "Title 3"
+
+        self.store.flush()
+
+        self.assertEquals(self.get_items(),
+                          [(1, "Title 9"), (2, "Title 8"), (3, "Title 3"),
+                           (4, "Title 7")])
