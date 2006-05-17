@@ -99,13 +99,18 @@ class ConnectionTest(TestHelper):
         #                  [("'?' %s '?' %s '?'", marker),
         #                   ("$$?$$ %s $asd'?$asd$ %s '?'", marker)])
 
-    def test_execute_expr_select(self):
+    def test_execute_select(self):
         select = Select(["column1", "column2"], ["table1", "table2"])
-        result = self.connection.execute_expr(select)
+        result = self.connection.execute(select)
         self.assertTrue(isinstance(result, Result))
         self.assertEquals(self.executed,
                           [("SELECT column1, column2 FROM table1, table2",
-                            marker)])
+                            [])])
+
+    def test_execute_select_and_params(self):
+        select = Select(["column1", "column2"], ["table1", "table2"])
+        self.assertRaises(ValueError, self.connection.execute,
+                          select, ("something",))
 
     def test_commit(self):
         self.connection.commit()

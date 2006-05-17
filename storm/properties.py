@@ -18,21 +18,22 @@ class ClassInfo(object):
 
         pairs = []
         names = {}
-        prop_dict = {}
-        for name in cls.__dict__:
+        for name in dir(cls):
             attr = getattr(cls, name)
             if isinstance(attr, Property):
                 pairs.append((name, attr))
                 names[attr.name] = attr
-                prop_dict[name] = attr
         pairs.sort()
 
         info = object.__new__(class_)
         info.cls = cls
-        info.prop_names = tuple(pair[0] for pair in pairs)
         info.prop_insts = tuple(pair[1] for pair in pairs)
-        info.prop_dict = prop_dict
+        info.prop_names = tuple(prop.name for prop in info.prop_insts)
+        info.attr_names = tuple(pair[0] for pair in pairs)
+        info.attr_dict = dict(pairs)
+        info.columns = tuple(Column(name) for name in info.prop_names)
         info.table = __table__[0]
+        info.tables = (__table__[0],)
         if type(__table__[1]) in (list, tuple):
             info.primary_key = tuple(names[name] for name in __table__[1])
         else:

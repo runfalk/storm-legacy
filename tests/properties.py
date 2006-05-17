@@ -11,36 +11,54 @@ class ClassInfoTest(TestHelper):
     def setUp(self):
         TestHelper.setUp(self)
         class Class(object):
-            __table__ = "table", "prop1"
-            prop1 = Property("prop1")
-            prop2 = Property("prop2")
+            __table__ = "table", "column1"
+            prop1 = Property("column1")
+            prop2 = Property("column2")
         self.Class = Class
         self.info = ClassInfo(Class)
 
     def test_singleton(self):
         self.assertTrue(self.info is ClassInfo(self.Class))
 
-    def test_table(self):
-        self.assertTrue(self.info.table, "table")
-
-    def test_primary_key(self):
-        self.assertTrue(self.info.primary_key[0] is self.Class.prop1)
-
-    def test_primary_key_composed(self):
-        class Class(object):
-            __table__ = "table", ("prop2", "prop1")
-            prop1 = Property("prop1")
-            prop2 = Property("prop2")
-        info = ClassInfo(Class)
-        self.assertTrue(info.primary_key[0] is Class.prop2)
-        self.assertTrue(info.primary_key[1] is Class.prop1)
+    def test_cls(self):
+        self.assertEquals(self.info.cls, self.Class)
 
     def test_prop_insts(self):
         self.assertEquals(self.info.prop_insts,
                           (self.Class.prop1, self.Class.prop2))
 
     def test_prop_names(self):
-        self.assertEquals(self.info.prop_names, ("prop1", "prop2"))
+        self.assertEquals(self.info.prop_names, ("column1", "column2"))
+
+    def test_attr_names(self):
+        self.assertEquals(self.info.attr_names, ("prop1", "prop2"))
+
+    def test_attr_dict(self):
+        self.assertEquals(self.info.attr_dict, {"prop1": self.Class.prop1,
+                                                "prop2": self.Class.prop2})
+
+    def test_columns(self):
+        self.assertEquals([(column.name, column.table)
+                           for column in self.info.columns],
+                          [("column1", None), ("column2", None)])
+
+    def test_table(self):
+        self.assertEquals(self.info.table, "table")
+
+    def test_table(self):
+        self.assertEquals(self.info.tables, ("table",))
+
+    def test_primary_key(self):
+        self.assertTrue(self.info.primary_key[0] is self.Class.prop1)
+
+    def test_primary_key_composed(self):
+        class Class(object):
+            __table__ = "table", ("column2", "column1")
+            prop1 = Property("column1")
+            prop2 = Property("column2")
+        info = ClassInfo(Class)
+        self.assertTrue(info.primary_key[0] is Class.prop2)
+        self.assertTrue(info.primary_key[1] is Class.prop1)
 
 
 class ObjectInfoTest(TestHelper):
@@ -48,9 +66,9 @@ class ObjectInfoTest(TestHelper):
     def setUp(self):
         TestHelper.setUp(self)
         class Class(object):
-            __table__ = "table", "prop1"
-            prop1 = Property("prop1")
-            prop2 = Property("prop2")
+            __table__ = "table", "column1"
+            prop1 = Property("column1")
+            prop2 = Property("column2")
         self.Class = Class
         self.obj = Class()
 
@@ -109,8 +127,8 @@ class PropertyTest(TestHelper):
     def test_set_get(self):
         class Class(object):
             __table__ = "table", "prop1"
-            prop1 = Property("prop1")
-            prop2 = Property("prop2")
+            prop1 = Property()
+            prop2 = Property()
         obj = Class()
         obj.prop1 = 10
         obj.prop2 = 20

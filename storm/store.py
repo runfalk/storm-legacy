@@ -1,9 +1,16 @@
-from storm.expr import Select, Count, Max, Min, Avg, Sum
+from storm.expr import Select, Insert, Delete
+from storm.expr import Param, Count, Max, Min, Avg, Sum
 from storm.properties import ClassInfo, ObjectInfo
 
 
-class InvalidKey(Exception):
-    pass
+#class InvalidKeyError(Exception):
+#    pass
+#
+#class WrongStoreError(Exception):
+#    pass
+#
+#class AlreadyInStoreError(Exception):
+#    pass
 
 
 class Store(object):
@@ -14,7 +21,19 @@ class Store(object):
 
     @staticmethod
     def of(obj):
-        return ObjectInfo(obj).__store
+        try:
+            return ObjectInfo(obj).__store
+        except AttributeError:
+            return None
+
+    def get_connection(self):
+        return self._connection
+
+    def commit(self):
+        self._connection.commit()
+
+    def rollback(self):
+        self._connection.rollback()
 
     def get(self, cls, key):
         if type(key) != tuple:
@@ -29,9 +48,9 @@ class Store(object):
             else:
                 where &= (prop == key[i])
 
-        select = Select(cls_info.prop_insts, (cls_info.table,), where, limit=1)
+        select = Select(cls_info.prop_insts, cls_info.tables, where, limit=1)
 
-        prop_values = self._connection.execute_expr(select).fetch_one()
+        prop_values = self._connection.execute(select).fetch_one()
         if prop_values is None:
             return None
 
@@ -39,23 +58,7 @@ class Store(object):
 
     def find(self, cls, *args, **kwargs):
         cls_info = ClassInfo(cls)
-        return DynamicSelect(self._connection.execute_expr,
-                             lambda vals: self._build_object(cls_info, vals),
-                             columns=cls_info.prop_insts,
-                             tables=(cls_info.table,),
-                             where=self._build_where(cls_info, args, kwargs))
 
-    def _build_object(self, cls_info, prop_values):
-        obj = object.__new__(cls_info.cls)
-        ObjectInfo(obj).__store = self
-        for name, value in zip(cls_info.prop_names, prop_values):
-            setattr(obj, name, value)
-        #load = getattr(obj, "__load__", None)
-        #if load is not None:
-        #    load()
-        return obj
-
-    def _build_where(self, cls_info, args, kwargs):
         where = None
         if args:
             for arg in args:
@@ -69,37 +72,71 @@ class Store(object):
                     where = cls_info.prop_dict[key] == kwargs[key]
                 else:
                     where &= cls_info.prop_dict[key] == kwargs[key]
-        return where
+
+        return ResultSet(self._connection.execute,
+                         lambda vals: self._build_object(cls_info, vals),
+                         columns=cls_info.prop_insts,
+                         tables=cls_info.tables, where=where)
+
+    def add(self, obj):
+        # TODO: Check if object is in some store already. force=True could
+        #       make it accept, unless the store is already self.
+        cls_info = ClassInfo(obj)
+        insert = Insert(cls_info.table, cls_info.columns,
+                        [Param(prop.__get__(obj))
+                         for prop in cls_info.prop_insts])
+        self._connection.execute(insert)
+
+    def remove(self, obj):
+        cls_info = ClassInfo(obj)
+        where = None
+        for prop in cls_info.primary_key:
+            if where is None:
+                where = (prop == prop.__get__(obj))
+            else:
+                where &= (prop == prop.__get__(obj))
+        delete = Delete(cls_info.table, where)
+        self._connection.execute(delete)
+        ObjectInfo(obj).__store = None
+
+    def _build_object(self, cls_info, prop_values):
+        obj = object.__new__(cls_info.cls)
+        ObjectInfo(obj).__store = self
+        for name, value in zip(cls_info.attr_names, prop_values):
+            setattr(obj, name, value)
+        return obj
         
 
-class DynamicSelect(object):
+class ResultSet(object):
 
-    def __init__(self, result_factory, object_factory, **kwargs):
-        self._result_factory = result_factory
+    def __init__(self, execute, object_factory, **kwargs):
+        self._execute = execute
         self._object_factory = object_factory
         self._kwargs = kwargs
 
     def __iter__(self):
-        for values in self._result_factory(Select(**self._kwargs)):
+        for values in self._execute(Select(**self._kwargs)):
             yield self._object_factory(values)
 
     def _aggregate(self, column):
-        return self._result_factory(Select((column,),
-                                           self._kwargs.get("tables"),
-                                           self._kwargs.get("where"))
-                                   ).fetch_one()[0]
+        return self._execute(Select((column,), self._kwargs.get("tables"),
+                                    self._kwargs.get("where"))).fetch_one()[0]
 
     def one(self):
         kwargs = self._kwargs.copy()
         kwargs["limit"] = 1
-        values = self._result_factory(Select(**kwargs)).fetch_one()
+        values = self._execute(Select(**kwargs)).fetch_one()
         return self._object_factory(values)
 
     def order_by(self, *args):
         kwargs = self._kwargs.copy()
         kwargs["order_by"] = args
-        return self.__class__(self._result_factory, self._object_factory,
-                              **kwargs)
+        return self.__class__(self._execute, self._object_factory, **kwargs)
+
+    def remove(self):
+        delete = Delete(self._kwargs.get("tables")[0],
+                        self._kwargs.get("where"))
+        self._execute(delete)
 
     def count(self):
         return self._aggregate(Count())

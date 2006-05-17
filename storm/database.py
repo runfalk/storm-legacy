@@ -1,4 +1,4 @@
-from storm.expr import compile
+from storm.expr import Expr, compile
 
 
 __all__ = ["Database", "Connection", "Result", "convert_param_marks"]
@@ -46,6 +46,10 @@ class Connection(object):
         return self._raw_connection.cursor()
 
     def execute(self, statement, params=None):
+        if isinstance(statement, Expr):
+            if params is not None:
+                raise ValueError("Can't pass parameters with expressions")
+            statement, params = self._compile(statement)
         raw_cursor = self._build_raw_cursor()
         statement = convert_param_marks(statement, "?", self._param_mark)
         if params is None:
@@ -53,10 +57,6 @@ class Connection(object):
         else:
             raw_cursor.execute(statement, params)
         return self._result_factory(self, raw_cursor)
-
-    def execute_expr(self, expr):
-        statement, parameters = self._compile(expr)
-        return self.execute(statement, parameters or None)
 
     def commit(self):
         self._raw_connection.commit()
