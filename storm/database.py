@@ -1,4 +1,4 @@
-from storm.expr import Compiler
+from storm.expr import compile
 
 
 __all__ = ["Database", "Connection", "Result", "convert_param_marks"]
@@ -36,7 +36,7 @@ class Connection(object):
 
     _result_factory = Result
     _param_mark = "?"
-    _compiler = Compiler()
+    _compile = compile
 
     def __init__(self, database, raw_connection):
         self._database = database # Ensures deallocation order.
@@ -55,7 +55,7 @@ class Connection(object):
         return self._result_factory(self, raw_cursor)
 
     def execute_expr(self, expr):
-        statement, parameters = self._compiler.compile(expr)
+        statement, parameters = self._compile(expr)
         return self.execute(statement, parameters or None)
 
     def commit(self):

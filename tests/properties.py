@@ -1,7 +1,7 @@
 from datetime import datetime
 
-from storm.expr import Compiler
 from storm.properties import *
+from storm.expr import compile
 
 from tests.helpers import TestHelper
 
@@ -122,7 +122,7 @@ class PropertyTest(TestHelper):
             __table__ = "table", "prop"
             prop = Property()
         expr = Class.prop == "value"
-        statement, parameters = Compiler().compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "(table.prop = ?)")
         self.assertEquals(parameters, ["value"])
 

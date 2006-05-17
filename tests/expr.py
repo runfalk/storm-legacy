@@ -97,14 +97,14 @@ class ExprTest(TestHelper):
         self.assertEquals(expr.args, ("arg1", "arg2"))
 
     def test_like(self):
-        like = Like("arg1", "arg2")
-        self.assertEquals(like.expr1, "arg1")
-        self.assertEquals(like.expr2, "arg2")
+        expr = Like("arg1", "arg2")
+        self.assertEquals(expr.expr1, "arg1")
+        self.assertEquals(expr.expr2, "arg2")
 
-    def test_equals(self):
-        equals = Eq("arg1", "arg2")
-        self.assertEquals(equals.expr1, "arg1")
-        self.assertEquals(equals.expr2, "arg2")
+    def test_eq(self):
+        expr = Eq("arg1", "arg2")
+        self.assertEquals(expr.expr1, "arg1")
+        self.assertEquals(expr.expr2, "arg2")
 
 
 class Func1(Func):
@@ -114,20 +114,29 @@ class Func2(Func):
     name = "func2"
 
 
-class CompilerTest(TestHelper):
+class CompileTest(TestHelper):
 
-    def setUp(self):
-        TestHelper.setUp(self)
-        self.compiler = Compiler()
+    def test_customize(self):
+        custom_compile = compile.copy()
+        @custom_compile.when(type(None))
+        def compile_none(compile, expr, parameters):
+            return "None"
+        statement, parameters = custom_compile(Func1(None))
+        self.assertEquals(statement, "func1(None)")
 
-    def test_literal(self):
-        statement, parameters = self.compiler.compile("literal")
-        self.assertEquals(statement, "literal")
+    def test_str(self):
+        statement, parameters = compile("str")
+        self.assertEquals(statement, "str")
+        self.assertEquals(parameters, [])
+
+    def test_none(self):
+        statement, parameters = compile(None)
+        self.assertEquals(statement, "NULL")
         self.assertEquals(parameters, [])
 
     def test_select(self):
         expr = Select(["column1", "column2"])
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "SELECT column1, column2")
         self.assertEquals(parameters, [])
 
@@ -138,7 +147,7 @@ class CompilerTest(TestHelper):
                       order_by=["column2", Func1()],
                       group_by=["column3", Func1()],
                       limit=3, offset=4)
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "SELECT column1, func1() "
                                      "FROM table1, func1() "
                                      "WHERE func1() "
@@ -149,14 +158,14 @@ class CompilerTest(TestHelper):
 
     def test_insert(self):
         expr = Insert(Func1(), ["column1", Func1()], ["value1", Func1()])
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "INSERT INTO func1() (column1, func1()) "
                                      "VALUES (value1, func1())")
         self.assertEquals(parameters, [])
 
     def test_update(self):
         expr = Update(Func1(), [("column1", Func1()), ("column2", Func2())])
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "UPDATE func1() SET column1=func1(), "
                                      "column2=func2()")
         self.assertEquals(parameters, [])
@@ -164,67 +173,49 @@ class CompilerTest(TestHelper):
     def test_update_where(self):
         expr = Update(Func1(), [("column1", Func1()), ("column2", Func2())],
                       Func1())
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "UPDATE func1() SET column1=func1(), "
                                      "column2=func2() WHERE func1()")
         self.assertEquals(parameters, [])
 
     def test_delete(self):
         expr = Delete(Func1())
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "DELETE FROM func1()")
         self.assertEquals(parameters, [])
 
     def test_delete_where(self):
         expr = Delete(Func1(), Func2())
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "DELETE FROM func1() WHERE func2()")
         self.assertEquals(parameters, [])
 
     def test_column(self):
         expr = Column("name")
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "name")
         self.assertEquals(parameters, [])
 
     def test_column_table(self):
         expr = Column("name", Func1())
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "func1().name")
         self.assertEquals(parameters, [])
 
     def test_param(self):
         expr = Param("value")
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "?")
         self.assertEquals(parameters, ["value"])
 
-    def test_func(self):
-        expr = Func1("arg1", Func2("arg2"))
-        statement, parameters = self.compiler.compile(expr)
-        self.assertEquals(statement, "func1(arg1, func2(arg2))")
-        self.assertEquals(parameters, [])
-
-    def test_none(self):
-        expr = None
-        statement, parameters = self.compiler.compile(expr)
-        self.assertEquals(statement, "NULL")
-        self.assertEquals(parameters, [])
-
-    def test_like(self):
-        expr = Like(Func1(), Func2())
-        statement, parameters = self.compiler.compile(expr)
-        self.assertEquals(statement, "(func1() LIKE func2())")
-        self.assertEquals(parameters, [])
-
     def test_eq(self):
         expr = Eq(Func1(), Func2())
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "(func1() = func2())")
         self.assertEquals(parameters, [])
 
         expr = Func1() == "value"
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "(func1() = ?)")
         self.assertEquals(parameters, ["value"])
 
@@ -233,18 +224,18 @@ class CompilerTest(TestHelper):
 
         self.assertTrue(expr.expr2 is None)
 
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "(func1() IS NULL)")
         self.assertEquals(parameters, [])
 
     def test_ne(self):
         expr = Ne(Func1(), Func2())
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "(func1() != func2())")
         self.assertEquals(parameters, [])
 
         expr = Func1() != "value"
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "(func1() != ?)")
         self.assertEquals(parameters, ["value"])
 
@@ -253,197 +244,209 @@ class CompilerTest(TestHelper):
 
         self.assertTrue(expr.expr2 is None)
 
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "(func1() IS NOT NULL)")
         self.assertEquals(parameters, [])
 
     def test_gt(self):
         expr = Gt(Func1(), Func2())
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "(func1() > func2())")
         self.assertEquals(parameters, [])
 
         expr = Func1() > "value"
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "(func1() > ?)")
         self.assertEquals(parameters, ["value"])
 
     def test_ge(self):
         expr = Ge(Func1(), Func2())
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "(func1() >= func2())")
         self.assertEquals(parameters, [])
 
         expr = Func1() >= "value"
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "(func1() >= ?)")
         self.assertEquals(parameters, ["value"])
 
     def test_lt(self):
         expr = Lt(Func1(), Func2())
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "(func1() < func2())")
         self.assertEquals(parameters, [])
 
         expr = Func1() < "value"
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "(func1() < ?)")
         self.assertEquals(parameters, ["value"])
 
     def test_le(self):
         expr = Le(Func1(), Func2())
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "(func1() <= func2())")
         self.assertEquals(parameters, [])
 
         expr = Func1() <= "value"
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "(func1() <= ?)")
         self.assertEquals(parameters, ["value"])
 
     def test_lshift(self):
         expr = LShift(Func1(), Func2())
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "(func1()<<func2())")
         self.assertEquals(parameters, [])
 
         expr = Func1() << "value"
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "(func1()<<?)")
         self.assertEquals(parameters, ["value"])
 
     def test_rshift(self):
         expr = RShift(Func1(), Func2())
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "(func1()>>func2())")
         self.assertEquals(parameters, [])
 
         expr = Func1() >> "value"
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "(func1()>>?)")
         self.assertEquals(parameters, ["value"])
 
+    def test_like(self):
+        expr = Like(Func1(), Func2())
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "(func1() LIKE func2())")
+        self.assertEquals(parameters, [])
+
     def test_and(self):
         expr = And("elem1", "elem2", And("elem3", "elem4"))
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "(elem1 AND elem2 AND (elem3 AND elem4))")
         self.assertEquals(parameters, [])
 
         expr = Func1() & "value"
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "(func1() AND ?)")
         self.assertEquals(parameters, ["value"])
 
     def test_or(self):
         expr = Or("elem1", "elem2", Or("elem3", "elem4"))
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "(elem1 OR elem2 OR (elem3 OR elem4))")
         self.assertEquals(parameters, [])
 
         expr = Func1() | "value"
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "(func1() OR ?)")
         self.assertEquals(parameters, ["value"])
 
     def test_add(self):
         expr = Add("elem1", "elem2", Add("elem3", "elem4"))
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "(elem1+elem2+(elem3+elem4))")
         self.assertEquals(parameters, [])
 
         expr = Func1() + "value"
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "(func1()+?)")
         self.assertEquals(parameters, ["value"])
 
     def test_sub(self):
         expr = Sub("elem1", "elem2", Sub("elem3", "elem4"))
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "(elem1-elem2-(elem3-elem4))")
         self.assertEquals(parameters, [])
 
         expr = Func1() - "value"
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "(func1()-?)")
         self.assertEquals(parameters, ["value"])
 
     def test_mul(self):
         expr = Mul("elem1", "elem2", Mul("elem3", "elem4"))
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "(elem1*elem2*(elem3*elem4))")
         self.assertEquals(parameters, [])
 
         expr = Func1() * "value"
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "(func1()*?)")
         self.assertEquals(parameters, ["value"])
 
     def test_div(self):
         expr = Div("elem1", "elem2", Div("elem3", "elem4"))
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "(elem1/elem2/(elem3/elem4))")
         self.assertEquals(parameters, [])
 
         expr = Func1() / "value"
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "(func1()/?)")
         self.assertEquals(parameters, ["value"])
 
     def test_mod(self):
         expr = Mod("elem1", "elem2", Mod("elem3", "elem4"))
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "(elem1%elem2%(elem3%elem4))")
         self.assertEquals(parameters, [])
 
         expr = Func1() % "value"
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "(func1()%?)")
         self.assertEquals(parameters, ["value"])
 
+    def test_func(self):
+        expr = Func1("arg1", Func2("arg2"))
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "func1(arg1, func2(arg2))")
+        self.assertEquals(parameters, [])
+
     def test_count(self):
         expr = Count(Func1())
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "COUNT(func1())")
         self.assertEquals(parameters, [])
 
     def test_count_all(self):
         expr = Count()
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "COUNT(*)")
         self.assertEquals(parameters, [])
 
     def test_max(self):
         expr = Max(Func1())
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "MAX(func1())")
         self.assertEquals(parameters, [])
 
     def test_min(self):
         expr = Min(Func1())
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "MIN(func1())")
         self.assertEquals(parameters, [])
 
     def test_avg(self):
         expr = Avg(Func1())
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "AVG(func1())")
         self.assertEquals(parameters, [])
 
     def test_sum(self):
         expr = Sum(Func1())
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "SUM(func1())")
         self.assertEquals(parameters, [])
 
     def test_asc(self):
         expr = Asc(Func1())
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "func1() ASC")
         self.assertEquals(parameters, [])
 
     def test_desc(self):
         expr = Desc(Func1())
-        statement, parameters = self.compiler.compile(expr)
+        statement, parameters = compile(expr)
         self.assertEquals(statement, "func1() DESC")
         self.assertEquals(parameters, [])

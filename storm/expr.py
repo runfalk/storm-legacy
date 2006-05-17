@@ -1,6 +1,60 @@
 import sys
 
 
+# --------------------------------------------------------------------
+# Basic compiler infrastructure
+
+class Compile(object):
+    """Compiler based on the concept of generic functions."""
+
+    def __init__(self):
+        self._dispatch_table = {}
+
+    def copy(self):
+        copy = self.__class__()
+        copy._dispatch_table = self._dispatch_table.copy()
+        return copy
+
+    def when(self, *types):
+        def decorator(method):
+            for type in types:
+                self._dispatch_table[type] = method
+            return method
+        return decorator
+
+    def _compile(self, expr, parameters):
+        for class_ in expr.__class__.__mro__:
+            handler = self._dispatch_table.get(class_)
+            if handler is not None:
+                return handler(self._compile, expr, parameters)
+        raise RuntimeError, "Don't know how to compile %r" % expr.__class__
+
+    def __call__(self, expr):
+        parameters = []
+        return self._compile(expr, parameters), parameters
+
+
+compile = Compile()
+
+
+# --------------------------------------------------------------------
+# Builtin type support
+
+@compile.when(str)
+def compile_str(compile, expr, parameters):
+    return expr
+
+@compile.when(type(None))
+def compile_none(compile, expr, parameters):
+    return "NULL"
+
+
+# --------------------------------------------------------------------
+# Base classes for expressions
+
+class Expr(object):
+    pass
+
 class Comparable(object):
 
     def __eq__(self, other):
@@ -78,18 +132,13 @@ class Comparable(object):
             other = Param(other)
         return Mod(self, other)
 
-
-class Expr(object):
-    pass
-
 class ComparableExpr(Expr, Comparable):
     pass
 
-
-class UnaryExpr(ComparableExpr):
-
-    def __init__(self, expr):
-        self.expr = expr
+#class UnaryExpr(ComparableExpr):
+#
+#    def __init__(self, expr):
+#        self.expr = expr
 
 class BinaryExpr(ComparableExpr):
 
@@ -103,15 +152,8 @@ class CompoundExpr(ComparableExpr):
         self.exprs = exprs
 
 
-class UnaryOper(UnaryExpr):
-    oper = " (unknown) "
-
-class BinaryOper(BinaryExpr):
-    oper = " (unknown) "
-
-class CompoundOper(CompoundExpr):
-    oper = " (unknown) "
-
+# --------------------------------------------------------------------
+# Statement expressions
 
 class Select(Expr):
 
@@ -125,12 +167,52 @@ class Select(Expr):
         self.limit = limit
         self.offset = offset
 
+@compile.when(Select)
+def compile_select(compile, select, parameters):
+    tokens = ["SELECT ", ", ".join([compile(expr, parameters)
+                                    for expr in select.columns])]
+    if select.tables:
+        tokens.append(" FROM ")
+        tokens.append(", ".join([compile(expr, parameters)
+                                 for expr in select.tables]))
+    if select.where:
+        tokens.append(" WHERE ")
+        tokens.append(compile(select.where, parameters))
+    if select.order_by:
+        tokens.append(" ORDER BY ")
+        tokens.append(", ".join([compile(expr, parameters)
+                                 for expr in select.order_by]))
+    if select.group_by:
+        tokens.append(" GROUP BY ")
+        tokens.append(", ".join([compile(expr, parameters)
+                                 for expr in select.group_by]))
+    if select.limit:
+        tokens.append(" LIMIT %d" % select.limit)
+    if select.offset:
+        tokens.append(" OFFSET %d" % select.offset)
+    return "".join(tokens)
+
+
 class Insert(Expr):
 
     def __init__(self, table=None, columns=None, values=None):
         self.table = table
         self.columns = tuple(columns or ())
         self.values = tuple(values or ())
+
+@compile.when(Insert)
+def compile_insert(compile, insert, parameters):
+    tokens = ["INSERT INTO ",
+              compile(insert.table, parameters),
+              " (",
+              ", ".join([compile(expr, parameters)
+                         for expr in insert.columns]),
+              ") VALUES (",
+              ", ".join([compile(expr, parameters)
+                         for expr in insert.values]),
+              ")"]
+    return "".join(tokens)
+
 
 class Update(Expr):
 
@@ -139,12 +221,35 @@ class Update(Expr):
         self.sets = tuple(sets or ())
         self.where = where
 
+@compile.when(Update)
+def compile_update(compile, update, parameters):
+    tokens = ["UPDATE ", compile(update.table, parameters),
+              " SET ", ", ".join(["%s=%s" % (compile(expr1, parameters),
+                                             compile(expr2, parameters))
+                                  for (expr1, expr2) in update.sets])]
+    if update.where:
+        tokens.append(" WHERE ")
+        tokens.append(compile(update.where, parameters))
+    return "".join(tokens)
+
+
 class Delete(Expr):
 
     def __init__(self, table=None, where=None):
         self.table = table
         self.where = where
 
+@compile.when(Delete)
+def compile_delete(compile, delete, parameters):
+    tokens = ["DELETE FROM ", compile(delete.table, parameters)]
+    if delete.where:
+        tokens.append(" WHERE ")
+        tokens.append(compile(delete.where, parameters))
+    return "".join(tokens)
+
+
+# --------------------------------------------------------------------
+# Columns and parameters
 
 class Column(ComparableExpr):
 
@@ -152,23 +257,69 @@ class Column(ComparableExpr):
         self.name = name
         self.table = table
 
+@compile.when(Column)
+def compile_column(compile, column, parameters):
+    if not column.table:
+        return column.name
+    return "%s.%s" % (compile(column.table, parameters), column.name)
+
+
 class Param(ComparableExpr):
 
     def __init__(self, value):
         self.value = value
 
-class Func(ComparableExpr):
-    name = "(unknown)"
+@compile.when(Param)
+def compile_param(compile, param, parameters):
+    parameters.append(param.value)
+    return "?"
 
-    def __init__(self, *args):
-        self.args = args
+
+# --------------------------------------------------------------------
+# Operators
+
+#class UnaryOper(UnaryExpr):
+#    oper = " (unknown) "
+
+
+class BinaryOper(BinaryExpr):
+    oper = " (unknown) "
+
+@compile.when(BinaryOper)
+def compile_binary_oper(compile, oper, parameters):
+    return "(%s%s%s)" % (compile(oper.expr1, parameters), oper.oper,
+                         compile(oper.expr2, parameters))
+
+
+class CompoundOper(CompoundExpr):
+    oper = " (unknown) "
+
+@compile.when(CompoundOper)
+def compile_compound_oper(compile, oper, parameters):
+    return "(%s)" % oper.oper.join([compile(expr, parameters)
+                                    for expr in oper.exprs])
 
 
 class Eq(BinaryOper):
     oper = " = "
 
+@compile.when(Eq)
+def compile_eq(compile, eq, parameters):
+    if eq.expr2 is None:
+        return "(%s IS NULL)" % compile(eq.expr1, parameters)
+    return "(%s = %s)" % (compile(eq.expr1, parameters),
+                          compile(eq.expr2, parameters))
+
 class Ne(BinaryOper):
     oper = " != "
+
+@compile.when(Ne)
+def compile_ne(compile, ne, parameters):
+    if ne.expr2 is None:
+        return "(%s IS NOT NULL)" % compile(ne.expr1, parameters)
+    return "(%s != %s)" % (compile(ne.expr1, parameters),
+                           compile(ne.expr2, parameters))
+
 
 class Gt(BinaryOper):
     oper = " > "
@@ -182,14 +333,14 @@ class Lt(BinaryOper):
 class Le(BinaryOper):
     oper = " <= "
 
-class Like(BinaryOper):
-    oper = " LIKE "
-
 class RShift(BinaryOper):
     oper = ">>"
 
 class LShift(BinaryOper):
     oper = "<<"
+
+class Like(BinaryOper):
+    oper = " LIKE "
 
 
 class And(CompoundOper):
@@ -197,6 +348,7 @@ class And(CompoundOper):
 
 class Or(CompoundOper):
     oper = " OR "
+
 
 class Add(CompoundOper):
     oper = "+"
@@ -214,8 +366,31 @@ class Mod(CompoundOper):
     oper = "%"
 
 
+# --------------------------------------------------------------------
+# Functions
+
+class Func(ComparableExpr):
+    name = "(unknown)"
+
+    def __init__(self, *args):
+        self.args = args
+
+@compile.when(Func)
+def compile_func(compile, func, parameters):
+    return "%s(%s)" % (func.name, ", ".join([compile(expr, parameters)
+                                             for expr in func.args]))
+
+
 class Count(Func):
     name = "COUNT"
+
+@compile.when(Count)
+def compile_count(compile, count, parameters):
+    if count.args:
+        return "COUNT(%s)" % ", ".join([compile(expr, parameters)
+                                        for expr in count.args])
+    return "COUNT(*)"
+
 
 class Max(Func):
     name = "MAX"
@@ -230,168 +405,22 @@ class Sum(Func):
     name = "SUM"
 
 
+# --------------------------------------------------------------------
+# Suffix expressions
+
 class SuffixExpr(Expr):
     suffix = "(unknown)"
 
     def __init__(self, expr):
         self.expr = expr
 
+@compile.when(SuffixExpr)
+def compile_suffix_expr(compile, expr, parameters):
+    return "%s %s" % (compile(expr.expr, parameters), expr.suffix)
+
+
 class Asc(SuffixExpr):
     suffix = "ASC"
 
 class Desc(SuffixExpr):
     suffix = "DESC"
-
-
-def used_for(*types):
-    """Convenience decorator to fill the dispatch table.
-
-    Subclasses of Compiler don't need it.
-    """
-    dispatch_table = sys._getframe(1).f_locals["_dispatch_table"]
-    def decorator(method):
-        for type in types:
-            dispatch_table[type] = method
-        return method
-    return decorator
-
-
-class Compiler(object):
-
-    _dispatch_table = {}
-
-    def compile(self, expr):
-        parameters = []
-        return self._compile(expr, parameters), parameters
-
-    def _compile(self, expr, parameters):
-        for class_ in expr.__class__.__mro__:
-            handler = self._dispatch_table.get(class_)
-            if handler is not None:
-                return handler(self, expr, parameters)
-        raise RuntimeError, "Don't know how to compile %r" % expr.__class__
-
-    @used_for(str)
-    def compile_literal(self, literal, parameters):
-        return literal
-
-    @used_for(Select)
-    def compile_select(self, select, parameters):
-        tokens = ["SELECT ", ", ".join([self._compile(expr, parameters)
-                                        for expr in select.columns])]
-        if select.tables:
-            tokens.append(" FROM ")
-            tokens.append(", ".join([self._compile(expr, parameters)
-                                     for expr in select.tables]))
-        if select.where:
-            tokens.append(" WHERE ")
-            tokens.append(self._compile(select.where, parameters))
-        if select.order_by:
-            tokens.append(" ORDER BY ")
-            tokens.append(", ".join([self._compile(expr, parameters)
-                                     for expr in select.order_by]))
-        if select.group_by:
-            tokens.append(" GROUP BY ")
-            tokens.append(", ".join([self._compile(expr, parameters)
-                                     for expr in select.group_by]))
-        if select.limit:
-            tokens.append(" LIMIT %d" % select.limit)
-        if select.offset:
-            tokens.append(" OFFSET %d" % select.offset)
-        return "".join(tokens)
-
-    @used_for(Insert)
-    def compile_insert(self, insert, parameters):
-        tokens = ["INSERT INTO ",
-                  self._compile(insert.table, parameters),
-                  " (",
-                  ", ".join([self._compile(expr, parameters)
-                             for expr in insert.columns]),
-                  ") VALUES (",
-                  ", ".join([self._compile(expr, parameters)
-                             for expr in insert.values]),
-                  ")"]
-        return "".join(tokens)
-
-    @used_for(Update)
-    def compile_update(self, update, parameters):
-        tokens = ["UPDATE ",
-                  self._compile(update.table, parameters),
-                  " SET ",
-                  ", ".join(["%s=%s" % (self._compile(expr1, parameters),
-                                        self._compile(expr2, parameters))
-                             for (expr1, expr2) in update.sets])]
-        if update.where:
-            tokens.append(" WHERE ")
-            tokens.append(self._compile(update.where, parameters))
-        return "".join(tokens)
-
-    @used_for(Delete)
-    def compile_delete(self, delete, parameters):
-        tokens = ["DELETE FROM ",
-                  self._compile(delete.table, parameters)]
-        if delete.where:
-            tokens.append(" WHERE ")
-            tokens.append(self._compile(delete.where, parameters))
-        return "".join(tokens)
-
-    @used_for(Column)
-    def compile_column(self, column, parameters):
-        if not column.table:
-            return column.name
-        return "%s.%s" % (self._compile(column.table, parameters), column.name)
-
-    @used_for(Param)
-    def compile_param(self, param, parameters):
-        parameters.append(param.value)
-        return "?"
-
-    @used_for(Func)
-    def compile_func(self, func, parameters):
-        return "%s(%s)" % (func.name,
-                           ", ".join([self._compile(expr, parameters)
-                                      for expr in func.args]))
-
-    @used_for(Count)
-    def compile_count(self, count, parameters):
-        if count.args:
-            return "COUNT(%s)" % (", ".join([self._compile(expr, parameters)
-                                             for expr in count.args]))
-        else:
-            return "COUNT(*)"
-
-    @used_for(type(None))
-    def compile_none(self, none, parameters):
-        return "NULL"
-
-    @used_for(BinaryOper)
-    def compile_binary_oper(self, oper, parameters):
-        return "(%s%s%s)" % \
-               (self._compile(oper.expr1, parameters), oper.oper,
-                self._compile(oper.expr2, parameters))
-
-    @used_for(CompoundOper)
-    def compile_compound_oper(self, oper, parameters):
-        return "(%s)" % \
-               oper.oper.join([self._compile(expr, parameters)
-                               for expr in oper.exprs])
-
-    @used_for(SuffixExpr)
-    def compile_suffix_expr(self, expr, parameters):
-        return "%s %s" % (self._compile(expr.expr, parameters), expr.suffix)
-
-    @used_for(Eq)
-    def compile_eq(self, eq, parameters):
-        if eq.expr2 is None:
-            return "(%s IS NULL)" % self._compile(eq.expr1, parameters)
-        else:
-            return "(%s = %s)" % (self._compile(eq.expr1, parameters),
-                                  self._compile(eq.expr2, parameters))
-
-    @used_for(Ne)
-    def compile_eq(self, eq, parameters):
-        if eq.expr2 is None:
-            return "(%s IS NOT NULL)" % self._compile(eq.expr1, parameters)
-        else:
-            return "(%s != %s)" % (self._compile(eq.expr1, parameters),
-                                  self._compile(eq.expr2, parameters))
