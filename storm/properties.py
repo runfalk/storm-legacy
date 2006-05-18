@@ -6,10 +6,9 @@ from storm.expr import Column
 class ClassInfo(object):
 
     def __new__(class_, cls):
-        try:
-            return cls.__class_info
-        except AttributeError:
-            pass
+        info = cls.__dict__.get("__class_info")
+        if info is not None:
+            return info
 
         __table__ = getattr(cls, "__table__", ())
         if len(__table__) != 2:
@@ -43,7 +42,7 @@ class ClassInfo(object):
         info.pk_prop_insts = tuple(info.prop_insts[i]
                                    for i in info.pk_prop_idx)
 
-        cls.__class_info = info
+        setattr(cls, "__class_info", info)
         return info
 
 

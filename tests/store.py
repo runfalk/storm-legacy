@@ -511,3 +511,19 @@ class StoreTest(TestHelper):
         self.store.add(obj)
 
         self.assertTrue(id(obj) in self.store._dirty)
+
+    def test_sub_class(self):
+        class SubClass(Class):
+            title = Int()
+
+        obj = self.store.get(Class, 1)
+        obj.title = 9
+
+        sup_obj = self.store.get(Class, 1)
+        sub_obj = self.store.get(SubClass, 1)
+
+        self.assertEquals(sup_obj.id, 1)
+        self.assertEquals(sup_obj.title, "9")
+        self.assertEquals(sub_obj.id, 1)
+        self.assertEquals(sub_obj.title, 9)
+
