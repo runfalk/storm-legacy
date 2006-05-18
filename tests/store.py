@@ -245,6 +245,10 @@ class StoreTest(TestHelper):
 
         self.store.remove(obj)
 
+        self.assertEquals(Store.of(obj), self.store)
+
+        self.store.flush()
+        
         self.assertEquals(Store.of(obj), None)
 
         self.assertEquals(self.get_items(),
@@ -256,6 +260,56 @@ class StoreTest(TestHelper):
 
         self.assertEquals(self.get_committed_items(),
                           [(1, "Title 9"), (4, "Title 7")])
+
+    def test_remove_rollback_update(self):
+        obj = self.store.get(Class, 2)
+
+        self.store.remove(obj)
+        self.store.rollback()
+        
+        obj.title = "Title 2"
+
+        self.store.flush()
+
+        self.assertEquals(self.get_items(),
+                          [(1, "Title 9"), (2, "Title 2"), (4, "Title 7")])
+
+    def test_remove_add_update(self):
+        obj = self.store.get(Class, 2)
+
+        self.store.remove(obj)
+        self.store.add(obj)
+        
+        obj.title = "Title 2"
+
+        self.store.flush()
+
+        self.assertEquals(self.get_items(),
+                          [(1, "Title 9"), (2, "Title 2"), (4, "Title 7")])
+
+    def test_remove_flush_add_update(self):
+        obj = self.store.get(Class, 2)
+
+        self.store.remove(obj)
+        self.store.flush()
+        self.store.add(obj)
+        
+        obj.title = "Title 2"
+
+        self.store.flush()
+
+        self.assertEquals(self.get_items(),
+                          [(1, "Title 9"), (2, "Title 2"), (4, "Title 7")])
+
+    def test_wb_remove_flush_update_is_dirty(self):
+        obj = self.store.get(Class, 2)
+
+        self.store.remove(obj)
+        self.store.flush()
+        
+        obj.title = "Title 2"
+
+        self.assertFalse(id(obj) in self.store._dirty)
 
     def test_update_flush_commit(self):
         obj = self.store.get(Class, 2)
@@ -317,6 +371,28 @@ class StoreTest(TestHelper):
         self.assertEquals(self.get_committed_items(),
                           [(1, "Title 9"), (4, "Title 7"), (18, "Title 8")])
 
+        self.assertTrue(self.store.get(Class, 18) is obj)
+        self.assertTrue(self.store.get(Class, 2) is None)
+        self.assertTrue(self.store.get(Class, 8) is None)
+
+    def test_update_primary_key_exchange(self):
+        obj1 = self.store.get(Class, 1)
+        obj2 = self.store.get(Class, 2)
+
+        obj1.id = 3
+        self.store.flush()
+        obj2.id = 1
+        self.store.flush()
+        obj1.id = 2
+
+        self.assertTrue(self.store.get(Class, 2) is obj1)
+        self.assertTrue(self.store.get(Class, 1) is obj2)
+
+        self.store.commit()
+
+        self.assertEquals(self.get_committed_items(),
+                          [(1, "Title 8"), (2, "Title 9"), (4, "Title 7")])
+
     def test_update_flush_flush(self):
         obj = self.store.get(Class, 2)
 
@@ -360,3 +436,25 @@ class StoreTest(TestHelper):
         self.assertEquals(self.get_items(),
                           [(1, "Title 9"), (2, "Title 8"), (3, "Title 3"),
                            (4, "Title 7")])
+
+    def test_add_remove_add(self):
+        obj = Class()
+        obj.id = 3
+        obj.title = "Title 6"
+
+        self.store.add(obj)
+        self.store.remove(obj)
+
+        obj.title = "Title 3"
+
+        self.store.add(obj)
+
+        obj.id = 6
+
+        self.store.flush()
+
+        self.assertEquals(self.get_items(),
+                          [(1, "Title 9"), (2, "Title 8"), (4, "Title 7"),
+                           (6, "Title 3")])
+
+        self.assertTrue(self.store.get(Class, 6) is obj)
