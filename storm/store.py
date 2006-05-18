@@ -134,13 +134,13 @@ class Store(object):
                 expr = Insert(cls_info.table, cls_info.properties,
                               [Param(prop.__get__(obj))
                                for prop in cls_info.properties])
-                self._connection.execute(expr)
+                self._connection.execute(expr, noresult=True)
                 self._reset_info(cls_info, obj_info, obj)
                 obj_info.state = STATE_LOADED
             elif state is STATE_REMOVED:
                 expr = Delete(cls_info.table,
                               self._build_key_where(cls_info, obj_info, obj))
-                self._connection.execute(expr)
+                self._connection.execute(expr, noresult=True)
                 del obj_info.state
                 del obj_info.store
                 obj_info.set_change_notification(None)
@@ -150,7 +150,7 @@ class Store(object):
                     changes[column] = Param(changes[column])
                 expr = Update(cls_info.table, changes,
                               self._build_key_where(cls_info, obj_info, obj))
-                self._connection.execute(expr)
+                self._connection.execute(expr, noresult=True)
                 self._reset_info(cls_info, obj_info, obj)
         self._dirty.clear()
 
