@@ -5,14 +5,9 @@ from storm.expr import Column, Param, Count, Max, Min, Avg, Sum
 from storm.properties import ClassInfo, ObjectInfo
 
 
-#class InvalidKeyError(Exception):
-#    pass
-#
-#class WrongStoreError(Exception):
-#    pass
-#
-#class AlreadyInStoreError(Exception):
-#    pass
+class StoreError(Exception):
+    pass
+
 
 STATE_ADDED = 1
 STATE_LOADED = 2
@@ -44,10 +39,10 @@ class Store(object):
         dirty = self._dirty
         for id in dirty.keys():
             obj_info = ObjectInfo(dirty[id])
-            if obj_info.state == STATE_REMOVED:
+            if obj_info.state is STATE_REMOVED:
                 obj_info.state = STATE_LOADED
                 del dirty[id]
-            elif obj_info.state == STATE_ADDED:
+            elif obj_info.state is STATE_ADDED:
                 obj_info.state = None
                 del dirty[id]
         self._connection.rollback()
@@ -100,25 +95,29 @@ class Store(object):
                          tables=cls_info.tables, where=where)
 
     def add(self, obj):
-        # TODO: Check if object is in some store already. force=True could
-        #       make it accept anyway, unless the store is already self.
         obj_info = ObjectInfo(obj)
+        if getattr(obj_info, "store", self) is not self:
+            raise StoreError("%r is already in another store" % obj)
         state = getattr(obj_info, "state", None)
-        if state == STATE_REMOVED:
+        if state is STATE_REMOVED:
             obj_info.state = STATE_LOADED
-        else:
-            #obj_info.store = self
+        elif state is None:
+            obj_info.store = self
             obj_info.state = STATE_ADDED
             self._dirty[id(obj)] = obj
 
     def remove(self, obj):
         obj_info = ObjectInfo(obj)
+        if getattr(obj_info, "store", None) is not self:
+            raise StoreError("%r is not in this store" % obj)
         state = getattr(obj_info, "state", None)
-        if state == STATE_ADDED:
-            obj_info.state = None
-        else:
+        if state is STATE_ADDED:
+            del obj_info.state
+            del obj_info.store
+            del self._dirty[id(obj)]
+        elif state is STATE_LOADED:
             obj_info.state = STATE_REMOVED
-        self._dirty[id(obj)] = obj
+            self._dirty[id(obj)] = obj
 
     def flush(self):
         if not self._dirty:
@@ -127,21 +126,21 @@ class Store(object):
             cls_info = ClassInfo(obj.__class__)
             obj_info = ObjectInfo(obj)
             state = obj_info.state
-            if state == STATE_ADDED:
+            if state is STATE_ADDED:
                 expr = Insert(cls_info.table, cls_info.columns,
                               [Param(prop.__get__(obj))
                                for prop in cls_info.prop_insts])
                 self._connection.execute(expr)
                 self._reset_info(cls_info, obj_info, obj)
                 obj_info.state = STATE_LOADED
-            elif state == STATE_REMOVED:
+            elif state is STATE_REMOVED:
                 expr = Delete(cls_info.table,
                               self._build_key_where(cls_info, obj_info, obj))
                 self._connection.execute(expr)
-                obj_info.state = None
-                obj_info.store = None
+                del obj_info.state
+                del obj_info.store
                 obj_info.set_change_notification(None)
-            elif state == STATE_LOADED and obj_info.check_changed():
+            elif state is STATE_LOADED and obj_info.check_changed():
                 sets = [(Column(prop.name), Param(value))
                         for prop, value in obj_info.get_changes().items()]
                 expr = Update(cls_info.table, sets,

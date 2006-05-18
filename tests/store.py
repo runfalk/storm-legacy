@@ -5,7 +5,7 @@ from storm.properties import ObjectInfo
 from storm.database import Connection
 from storm.properties import Int, Str
 from storm.expr import Asc, Desc
-from storm.store import Store
+from storm.store import *
 
 from tests.helper import TestHelper, MakePath
 
@@ -240,6 +240,23 @@ class StoreTest(TestHelper):
 
         self.assertTrue(get_obj is obj)
 
+    def test_add_twice(self):
+        obj = Class()
+        obj.id = 3
+        obj.title = "Title 3"
+
+        self.store.add(obj)
+        self.store.add(obj)
+
+    def test_add_twice_to_wrong_store(self):
+        obj = Class()
+        obj.id = 3
+        obj.title = "Title 3"
+
+        self.store.add(obj)
+        
+        self.assertRaises(StoreError, Store(self.database).add, obj)
+
     def test_remove_commit(self):
         obj = self.store.get(Class, 2)
 
@@ -300,6 +317,10 @@ class StoreTest(TestHelper):
 
         self.assertEquals(self.get_items(),
                           [(1, "Title 9"), (2, "Title 2"), (4, "Title 7")])
+
+    def test_remove_from_wrong_store(self):
+        obj = self.store.get(Class, 1)
+        self.assertRaises(StoreError, Store(self.database).remove, obj)
 
     def test_wb_remove_flush_update_is_dirty(self):
         obj = self.store.get(Class, 2)
@@ -443,7 +464,10 @@ class StoreTest(TestHelper):
         obj.title = "Title 6"
 
         self.store.add(obj)
+
         self.store.remove(obj)
+
+        self.assertEquals(Store.of(obj), None)
 
         obj.title = "Title 3"
 
@@ -458,3 +482,32 @@ class StoreTest(TestHelper):
                            (6, "Title 3")])
 
         self.assertTrue(self.store.get(Class, 6) is obj)
+
+    def test_wb_add_remove_add(self):
+        obj = Class()
+        obj.id = 3
+        obj.title = "Title 6"
+
+        self.store.add(obj)
+
+        self.assertTrue(id(obj) in self.store._dirty)
+        self.assertTrue(Store.of(obj) is self.store)
+
+        self.store.remove(obj)
+
+        self.assertTrue(id(obj) not in self.store._dirty)
+        self.assertTrue(Store.of(obj) is None)
+
+        self.store.add(obj)
+
+        self.assertTrue(id(obj) in self.store._dirty)
+        self.assertTrue(Store.of(obj) is self.store)
+
+    def test_wb_update_remove_add(self):
+        obj = self.store.get(Class, 1)
+        obj.title = "Title 1"
+
+        self.store.remove(obj)
+        self.store.add(obj)
+
+        self.assertTrue(id(obj) in self.store._dirty)
