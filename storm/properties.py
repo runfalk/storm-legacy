@@ -26,7 +26,6 @@ class ClassInfo(object):
         info.cls = cls
         info.attributes = tuple(pair[0] for pair in pairs)
         info.properties = tuple(pair[1] for pair in pairs)
-        info.columns = tuple(Column(prop.name) for prop in info.properties)
         info.tables = (__table__[0],)
         info.table = __table__[0]
 

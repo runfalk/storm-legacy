@@ -129,7 +129,7 @@ class Store(object):
             obj_info = ObjectInfo(obj)
             state = obj_info.state
             if state is STATE_ADDED:
-                expr = Insert(cls_info.table, cls_info.columns,
+                expr = Insert(cls_info.table, cls_info.properties,
                               [Param(prop.__get__(obj))
                                for prop in cls_info.properties])
                 self._connection.execute(expr)
@@ -143,9 +143,10 @@ class Store(object):
                 del obj_info.store
                 obj_info.set_change_notification(None)
             elif state is STATE_LOADED and obj_info.check_changed():
-                sets = [(Column(prop.name), Param(value))
-                        for prop, value in obj_info.get_changes().items()]
-                expr = Update(cls_info.table, sets,
+                changes = obj_info.get_changes().items()
+                columns = tuple(change[0] for change in changes)
+                values = tuple(Param(change[1]) for change in changes)
+                expr = Update(cls_info.table, columns, values,
                               self._build_key_where(cls_info, obj_info, obj))
                 self._connection.execute(expr)
                 self._reset_info(cls_info, obj_info, obj)

@@ -45,16 +45,18 @@ class ExprTest(TestHelper):
     def test_update_default(self):
         expr = Update()
         self.assertEquals(expr.table, None)
-        self.assertEquals(expr.sets, ())
+        self.assertEquals(expr.columns, ())
+        self.assertEquals(expr.values, ())
         self.assertEquals(expr.where, None)
 
     def test_update_constructor(self):
-        objects = [object() for i in range(4)]
-        expr = Update(objects[0], objects[1:3], objects[3])
+        objects = [object() for i in range(6)]
+        expr = Update(objects[0], objects[1:3], objects[3:5], objects[5])
         objects = tuple(objects)
         self.assertEquals(expr.table, objects[0])
-        self.assertEquals(expr.sets, objects[1:3])
-        self.assertEquals(expr.where, objects[3])
+        self.assertEquals(expr.columns, objects[1:3])
+        self.assertEquals(expr.values, objects[3:5])
+        self.assertEquals(expr.where, objects[5])
 
     def test_delete_default(self):
         expr = Delete()
@@ -195,19 +197,33 @@ class CompileTest(TestHelper):
                                      "VALUES (value1, func1())")
         self.assertEquals(parameters, [])
 
-    def test_update(self):
-        expr = Update(Func1(), [("column1", Func1()), ("column2", Func2())])
+    def test_insert_with_columns(self):
+        expr = Insert("table", [Column("a", "table"), Column("b", "table")],
+                      ["1", "2"])
         statement, parameters = compile(expr)
-        self.assertEquals(statement, "UPDATE func1() SET column1=func1(), "
-                                     "column2=func2()")
+        self.assertEquals(statement, "INSERT INTO table (a, b) VALUES (1, 2)")
+        self.assertEquals(parameters, [])
+
+    def test_update(self):
+        expr = Update(Func1(), ["column1", Func1()], ["value1", Func2()])
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "UPDATE func1() SET column1=value1, "
+                                     "func1()=func2()")
+        self.assertEquals(parameters, [])
+
+    def test_update_with_columns(self):
+        expr = Update("table", [Column("a", "table"), Column("b", "table")],
+                      ["1", "2"])
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "UPDATE table SET a=1, b=2")
         self.assertEquals(parameters, [])
 
     def test_update_where(self):
-        expr = Update(Func1(), [("column1", Func1()), ("column2", Func2())],
+        expr = Update(Func1(), ["column1", Func1()], ["value1", Func2()],
                       Func1())
         statement, parameters = compile(expr)
-        self.assertEquals(statement, "UPDATE func1() SET column1=func1(), "
-                                     "column2=func2() WHERE func1()")
+        self.assertEquals(statement, "UPDATE func1() SET column1=value1, "
+                                     "func1()=func2() WHERE func1()")
         self.assertEquals(parameters, [])
 
     def test_delete(self):

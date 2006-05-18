@@ -224,11 +224,12 @@ class Insert(Expr):
 
 @compile.when(Insert)
 def compile_insert(compile, state, insert):
+    state.push("omit_column_tables", True)
+    columns = ", ".join([compile(state, expr) for expr in insert.columns])
+    state.pop()
     tokens = ["INSERT INTO ",
               compile(state, insert.table),
-              " (",
-              ", ".join([compile(state, expr) for expr in insert.columns]),
-              ") VALUES (",
+              " (", columns, ") VALUES (",
               ", ".join([compile(state, expr) for expr in insert.values]),
               ")"]
     return "".join(tokens)
@@ -236,17 +237,20 @@ def compile_insert(compile, state, insert):
 
 class Update(Expr):
 
-    def __init__(self, table=None, sets=None, where=None):
+    def __init__(self, table=None, columns=None, values=None, where=None):
         self.table = table
-        self.sets = tuple(sets or ())
+        self.columns = tuple(columns or ())
+        self.values = tuple(values or ())
         self.where = where
 
 @compile.when(Update)
 def compile_update(compile, state, update):
+    state.push("omit_column_tables", True)
+    columns = [compile(state, expr) for expr in update.columns]
+    state.pop()
+    values = [compile(state, expr) for expr in update.values]
     tokens = ["UPDATE ", compile(state, update.table),
-              " SET ", ", ".join(["%s=%s" % (compile(state, expr1),
-                                             compile(state, expr2))
-                                  for (expr1, expr2) in update.sets])]
+              " SET ", ", ".join(["%s=%s" % x for x in zip(columns, values)])]
     if update.where:
         tokens.append(" WHERE ")
         tokens.append(compile(state, update.where))
@@ -279,7 +283,7 @@ class Column(ComparableExpr):
 
 @compile.when(Column)
 def compile_column(compile, state, column):
-    if not column.table:
+    if not column.table or state.omit_column_tables:
         return column.name
     return "%s.%s" % (compile(state, column.table), column.name)
 
