@@ -417,6 +417,12 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, "(func1() LIKE func2())")
         self.assertEquals(parameters, [])
 
+    def test_in(self):
+        expr = In(Func1(), Func2())
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "(func1()) IN (func2())")
+        self.assertEquals(parameters, [])
+
     def test_and(self):
         expr = And("elem1", "elem2", And("elem3", "elem4"))
         statement, parameters = compile(expr)

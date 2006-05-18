@@ -21,6 +21,34 @@ class StoreTest(TestHelper):
 
     helpers = [MakePath]
 
+    def test_join(self):
+        self.store.execute("CREATE TABLE other "
+                           "(id INT PRIMARY KEY, other_title VARCHAR)")
+
+        class Other(object):
+            __table__ = "other", "id"
+            id = Int()
+            other_title = Str()
+
+        other = Other()
+        other.id = 3
+        other.other_title = "Title 9"
+
+        self.store.add(other)
+
+        # Add another object with the same title to ensure DISTINCT
+        # is in place.
+        other = Other()
+        other.id = 4
+        other.other_title = "Title 9"
+
+        self.store.add(other)
+
+        result = self.store.find(Class, Class.title == Other.other_title)
+
+        self.assertEquals([(obj.id, obj.title) for obj in result],
+                          [(1, "Title 9")])
+
     def setUp(self):
         TestHelper.setUp(self)
         self.filename = self.make_path()

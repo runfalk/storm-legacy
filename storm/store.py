@@ -96,7 +96,8 @@ class Store(object):
         return ResultSet(self._connection.execute,
                          lambda values: self._load_object(cls_info, values),
                          columns=cls_info.properties,
-                         tables=AutoTable(cls_info.table), where=where)
+                         tables=AutoTable(cls_info.table),
+                         where=where, distinct=True)
 
     def add(self, obj):
         obj_info = ObjectInfo(obj)

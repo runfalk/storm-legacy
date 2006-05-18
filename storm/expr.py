@@ -411,6 +411,13 @@ class LShift(BinaryOper):
 class Like(BinaryOper):
     oper = " LIKE "
 
+class In(BinaryOper):
+    oper = " IN "
+
+@compile.when(In)
+def compile_in(compile, state, expr):
+    return "(%s) IN (%s)" % (compile(state, expr.expr1),
+                             compile(state, expr.expr2))
 
 class And(CompoundOper):
     oper = " AND "
