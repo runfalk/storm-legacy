@@ -16,31 +16,31 @@ class ClassInfo(object):
                                "<primary key(s)>) tuple." % repr(cls))
 
         pairs = []
-        names = {}
-        for name in dir(cls):
-            attr = getattr(cls, name)
-            if isinstance(attr, Property):
-                pairs.append((name, attr))
-                names[attr.name] = attr
+        for attr in dir(cls):
+            prop = getattr(cls, attr)
+            if isinstance(prop, Property):
+                pairs.append((attr, prop))
         pairs.sort()
 
         info = object.__new__(class_)
         info.cls = cls
-        info.prop_insts = tuple(pair[1] for pair in pairs)
-        info.prop_names = tuple(prop.name for prop in info.prop_insts)
-        info.attr_names = tuple(pair[0] for pair in pairs)
-        info.attr_dict = dict(pairs)
-        info.columns = tuple(Column(name) for name in info.prop_names)
-        info.table = __table__[0]
+        info.attributes = tuple(pair[0] for pair in pairs)
+        info.properties = tuple(pair[1] for pair in pairs)
+        info.columns = tuple(Column(prop.name) for prop in info.properties)
         info.tables = (__table__[0],)
+        info.table = __table__[0]
 
-        prop_names = list(info.prop_names)
-        names = __table__[1]
-        if type(names) not in (list, tuple):
-            names = (names,)
-        info.pk_prop_idx = tuple(prop_names.index(name) for name in names)
-        info.pk_prop_insts = tuple(info.prop_insts[i]
-                                   for i in info.pk_prop_idx)
+        name_positions = dict((prop.name, i)
+                              for i, prop in enumerate(info.properties))
+
+        primary_key_names = __table__[1]
+        if type(primary_key_names) not in (list, tuple):
+            primary_key_names = (primary_key_names,)
+
+        info.primary_key_pos = tuple(name_positions[name]
+                                     for name in primary_key_names)
+        info.primary_key = tuple(info.properties[i]
+                                 for i in info.primary_key_pos)
 
         setattr(cls, "__class_info", info)
         return info
@@ -59,13 +59,7 @@ class ObjectInfo(object):
         info._notify_change = None
         return obj.__dict__.setdefault("__object_info", info)
 
-    def save_state(self):
-        self._saved = self._values.copy(), self.obj.__dict__.copy()
-
-    def restore_state(self):
-        self._values, self.obj.__dict__ = self._saved
-
-    def set_prop(self, prop, value):
+    def set(self, prop, value):
         if value is None:
             old_value = self._values.pop(prop, None)
         else:
@@ -74,8 +68,14 @@ class ObjectInfo(object):
         if self._notify_change is not None and old_value != value:
             self._notify_change(self.obj, self, old_value, value)
 
-    def get_prop(self, prop):
+    def get(self, prop):
         return self._values.get(prop)
+
+    def save(self):
+        self._saved = self._values.copy(), self.obj.__dict__.copy()
+
+    def restore(self):
+        self._values, self.obj.__dict__ = self._saved
 
     def check_changed(self):
         return self._saved[0] != self._values
@@ -115,36 +115,36 @@ class Property(Column):
                         self.name = name
                         break
             return self
-        return ObjectInfo(obj).get_prop(self)
+        return ObjectInfo(obj).get(self)
 
     def __set__(self, obj, value):
-        ObjectInfo(obj).set_prop(self, value)
+        ObjectInfo(obj).set(self, value)
 
 
 class Bool(Property):
 
     def __set__(self, obj, value):
-        ObjectInfo(obj).set_prop(self, bool(value))
+        ObjectInfo(obj).set(self, bool(value))
 
 class Int(Property):
 
     def __set__(self, obj, value):
-        ObjectInfo(obj).set_prop(self, int(value))
+        ObjectInfo(obj).set(self, int(value))
 
 class Float(Property):
 
     def __set__(self, obj, value):
-        ObjectInfo(obj).set_prop(self, float(value))
+        ObjectInfo(obj).set(self, float(value))
 
 class Str(Property):
 
     def __set__(self, obj, value):
-        ObjectInfo(obj).set_prop(self, str(value))
+        ObjectInfo(obj).set(self, str(value))
 
 class Unicode(Property):
 
     def __set__(self, obj, value):
-        ObjectInfo(obj).set_prop(self, unicode(value))
+        ObjectInfo(obj).set(self, unicode(value))
 
 class DateTime(Property):
 
@@ -153,4 +153,4 @@ class DateTime(Property):
             value = datetime.utcfromtimestamp(value)
         elif not isinstance(value, datetime):
             raise TypeError("Expected datetime, found %s" % repr(value))
-        ObjectInfo(obj).set_prop(self, value)
+        ObjectInfo(obj).set(self, value)

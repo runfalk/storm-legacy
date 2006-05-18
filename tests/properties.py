@@ -23,35 +23,28 @@ class ClassInfoTest(TestHelper):
     def test_cls(self):
         self.assertEquals(self.info.cls, self.Class)
 
-    def test_prop_insts(self):
-        self.assertEquals(self.info.prop_insts,
+    def test_properties(self):
+        self.assertEquals(self.info.properties,
                           (self.Class.prop1, self.Class.prop2))
 
-    def test_prop_names(self):
-        self.assertEquals(self.info.prop_names, ("column1", "column2"))
-
-    def test_attr_names(self):
-        self.assertEquals(self.info.attr_names, ("prop1", "prop2"))
-
-    def test_attr_dict(self):
-        self.assertEquals(self.info.attr_dict, {"prop1": self.Class.prop1,
-                                                "prop2": self.Class.prop2})
+    def test_attributes(self):
+        self.assertEquals(self.info.attributes, ("prop1", "prop2"))
 
     def test_columns(self):
         self.assertEquals([(column.name, column.table)
                            for column in self.info.columns],
                           [("column1", None), ("column2", None)])
 
+    def test_tables(self):
+        self.assertEquals(self.info.tables, ("table",))
+
     def test_table(self):
         self.assertEquals(self.info.table, "table")
 
-    def test_table(self):
-        self.assertEquals(self.info.tables, ("table",))
-
     def test_primary_key(self):
         # Can't use == for props.
-        self.assertTrue(self.info.pk_prop_insts[0] is self.Class.prop1)
-        self.assertEquals(len(self.info.pk_prop_insts), 1)
+        self.assertTrue(self.info.primary_key[0] is self.Class.prop1)
+        self.assertEquals(len(self.info.primary_key), 1)
 
     def test_primary_key_composed(self):
         class Class(object):
@@ -61,18 +54,18 @@ class ClassInfoTest(TestHelper):
         info = ClassInfo(Class)
 
         # Can't use == for props.
-        self.assertTrue(info.pk_prop_insts[0] is Class.prop2)
-        self.assertTrue(info.pk_prop_insts[1] is Class.prop1)
-        self.assertEquals(len(info.pk_prop_insts), 2)
+        self.assertTrue(info.primary_key[0] is Class.prop2)
+        self.assertTrue(info.primary_key[1] is Class.prop1)
+        self.assertEquals(len(info.primary_key), 2)
 
-    def test_primary_key_index(self):
+    def test_primary_key_pos(self):
         class Class(object):
             __table__ = "table", ("column3", "column1")
             prop1 = Property("column1")
             prop2 = Property("column2")
             prop3 = Property("column3")
         info = ClassInfo(Class)
-        self.assertEquals(info.pk_prop_idx, (2, 0))
+        self.assertEquals(info.primary_key_pos, (2, 0))
 
 
 class ObjectInfoTest(TestHelper):
@@ -89,18 +82,18 @@ class ObjectInfoTest(TestHelper):
     def test_singleton(self):
         self.assertTrue(ObjectInfo(self.obj) is ObjectInfo(self.obj))
 
-    def test_save_restore_state(self):
+    def test_save_restore(self):
         info = ObjectInfo(self.obj)
         self.obj.prop1 = 10
         self.obj.attr1 = 100
-        info.save_state()
+        info.save()
         self.assertEquals(self.obj.prop1, 10)
         self.assertEquals(self.obj.attr1, 100)
         self.obj.prop1 = 20
         self.obj.attr1 = 200
         self.assertEquals(self.obj.prop1, 20)
         self.assertEquals(self.obj.attr1, 200)
-        info.restore_state()
+        info.restore()
         self.assertEquals(self.obj.prop1, 10)
         self.assertEquals(self.obj.attr1, 100)
 
@@ -108,30 +101,30 @@ class ObjectInfoTest(TestHelper):
         info = ObjectInfo(self.obj)
         self.obj.prop1 = 10
         self.obj.attr1 = 100
-        info.save_state()
+        info.save()
         self.assertEquals(info.check_changed(), False)
         self.obj.attr1 = 200
         self.assertEquals(info.check_changed(), False)
         self.obj.prop1 = 20
         self.assertEquals(info.check_changed(), True)
-        info.restore_state()
+        info.restore()
         self.assertEquals(info.check_changed(), False)
 
     def test_get_changes(self):
         info = ObjectInfo(self.obj)
-        info.save_state()
+        info.save()
         self.assertEquals(info.get_changes(), {})
         self.obj.prop1 = 10
         self.obj.attr1 = 100
         self.assertEquals(info.get_changes(), {self.Class.prop1: 10})
-        info.save_state()
+        info.save()
         self.obj.prop1 = 20
         self.assertEquals(info.get_changes(), {self.Class.prop1: 20})
         self.obj.prop1 = None
         self.assertEquals(info.get_changes(), {self.Class.prop1: None})
         self.obj.prop1 = 10
         self.assertEquals(info.get_changes(), {})
-        info.restore_state()
+        info.restore()
         self.assertEquals(info.get_changes(), {})
         self.obj.prop1 = None
         self.assertEquals(info.get_changes(), {})
@@ -144,7 +137,7 @@ class ObjectInfoTest(TestHelper):
             changes.append((obj, prop, old_value, new_value))
 
         info.set_change_notification(object_changed)
-        info.save_state()
+        info.save()
 
         self.obj.prop2 = 10
         self.obj.prop1 = 20

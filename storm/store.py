@@ -55,20 +55,22 @@ class Store(object):
 
         cls_info = ClassInfo(cls)
 
+        # TODO: Assert same size
+
         where = None
-        for i, prop in enumerate(cls_info.pk_prop_insts):
+        for i, prop in enumerate(cls_info.primary_key):
             if where is None:
                 where = (prop == key[i])
             else:
                 where &= (prop == key[i])
 
-        select = Select(cls_info.prop_insts, cls_info.tables, where, limit=1)
+        select = Select(cls_info.properties, cls_info.tables, where, limit=1)
 
-        prop_values = self._connection.execute(select).fetch_one()
-        if prop_values is None:
+        values = self._connection.execute(select).fetch_one()
+        if values is None:
             return None
 
-        return self._load_object(cls_info, prop_values)
+        return self._load_object(cls_info, values)
 
     def find(self, cls, *args, **kwargs):
         self.flush()
@@ -85,13 +87,13 @@ class Store(object):
         if kwargs:
             for key in kwargs:
                 if where is None:
-                    where = cls_info.attr_dict[key] == kwargs[key]
+                    where = getattr(cls, key) == kwargs[key]
                 else:
-                    where &= cls_info.attr_dict[key] == kwargs[key]
+                    where &= getattr(cls, key) == kwargs[key]
 
         return ResultSet(self._connection.execute,
                          lambda values: self._load_object(cls_info, values),
-                         columns=cls_info.prop_insts,
+                         columns=cls_info.properties,
                          tables=cls_info.tables, where=where)
 
     def add(self, obj):
@@ -129,7 +131,7 @@ class Store(object):
             if state is STATE_ADDED:
                 expr = Insert(cls_info.table, cls_info.columns,
                               [Param(prop.__get__(obj))
-                               for prop in cls_info.prop_insts])
+                               for prop in cls_info.properties])
                 self._connection.execute(expr)
                 self._reset_info(cls_info, obj_info, obj)
                 obj_info.state = STATE_LOADED
@@ -151,34 +153,34 @@ class Store(object):
 
     def _build_key_where(self, cls_info, obj_info, obj):
         where = None
-        for prop, value in zip(cls_info.pk_prop_insts, obj_info.pk_values):
+        for prop, value in zip(cls_info.primary_key, obj_info.primary_key):
             if where is None:
                 where = (prop == value)
             else:
                 where &= (prop == value)
         return where
 
-    def _load_object(self, cls_info, prop_values):
+    def _load_object(self, cls_info, values):
         cls = cls_info.cls
-        obj = self._cache.get((cls,)+tuple(prop_values[i]
-                                           for i in cls_info.pk_prop_idx))
+        obj = self._cache.get((cls,)+tuple(values[i]
+                                           for i in cls_info.primary_key_pos))
         if obj is not None:
             return obj
         obj = object.__new__(cls)
         obj_info = ObjectInfo(obj)
         obj_info.state = STATE_LOADED
-        for name, value in zip(cls_info.attr_names, prop_values):
-            setattr(obj, name, value)
+        for attr, value in zip(cls_info.attributes, values):
+            setattr(obj, attr, value)
         self._reset_info(cls_info, obj_info, obj)
         return obj
 
     def _reset_info(self, cls_info, obj_info, obj):
         obj_info.store = self
-        obj_info.pk_values = tuple(prop.__get__(obj)
-                                   for prop in cls_info.pk_prop_insts)
-        obj_info.save_state()
+        obj_info.primary_key = tuple(prop.__get__(obj)
+                                     for prop in cls_info.primary_key)
+        obj_info.save()
         obj_info.set_change_notification(self._object_changed)
-        self._cache[(cls_info.cls,)+obj_info.pk_values] = obj
+        self._cache[(cls_info.cls,)+obj_info.primary_key] = obj
         return obj_info
 
     def _object_changed(self, obj, prop, old_value, new_value):
