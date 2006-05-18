@@ -107,6 +107,38 @@ class ExprTest(TestHelper):
         self.assertEquals(expr.expr2, "arg2")
 
 
+class StateTest(TestHelper):
+
+    def setUp(self):
+        TestHelper.setUp(self)
+        self.state = State()
+
+    def test_attrs(self):
+        self.assertEquals(self.state.parameters, [])
+        self.assertEquals(self.state.tables, [])
+        self.assertEquals(self.state.omit_column_tables, False)
+
+    def test_push_pop(self):
+        self.state.parameters.extend([1, 2])
+        self.state.push("parameters", [])
+        self.assertEquals(self.state.parameters, [])
+        self.state.pop()
+        self.assertEquals(self.state.parameters, [1, 2])
+        self.state.push("parameters")
+        self.assertEquals(self.state.parameters, [1, 2])
+        self.state.parameters.append(3)
+        self.assertEquals(self.state.parameters, [1, 2, 3])
+        self.state.pop()
+        self.assertEquals(self.state.parameters, [1, 2])
+
+    def test_push_pop_unexistent(self):
+        self.state.push("nonexistent")
+        self.assertEquals(self.state.nonexistent, None)
+        self.state.nonexistent = "something"
+        self.state.pop()
+        self.assertEquals(self.state.nonexistent, None)
+
+
 class Func1(Func):
     name = "func1"
 
@@ -119,7 +151,7 @@ class CompileTest(TestHelper):
     def test_customize(self):
         custom_compile = compile.copy()
         @custom_compile.when(type(None))
-        def compile_none(compile, expr, parameters):
+        def compile_none(compile, state, expr):
             return "None"
         statement, parameters = custom_compile(Func1(None))
         self.assertEquals(statement, "func1(None)")
