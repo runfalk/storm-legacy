@@ -45,7 +45,7 @@ class Connection(object):
     def _build_raw_cursor(self):
         return self._raw_connection.cursor()
 
-    def execute(self, statement, params=None):
+    def execute(self, statement, params=None, noresult=False):
         if isinstance(statement, Expr):
             if params is not None:
                 raise ValueError("Can't pass parameters with expressions")
@@ -56,6 +56,9 @@ class Connection(object):
             raw_cursor.execute(statement)
         else:
             raw_cursor.execute(statement, params)
+        if noresult:
+            raw_cursor.close()
+            return None
         return self._result_factory(self, raw_cursor)
 
     def commit(self):

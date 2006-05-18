@@ -34,6 +34,9 @@ class RawCursor(object):
         self._fetchall_data = [("fetchall%d" % i,) for i in range(2)]
         self._fetchmany_data = [("fetchmany%d" % i,) for i in range(5)]
 
+    def close(self):
+        self.executed.append("CLOSE")
+
     def execute(self, statement, params=marker):
         self.executed.append((statement, params))
 
@@ -81,6 +84,11 @@ class ConnectionTest(TestHelper):
         result = self.connection.execute("something", (1,2,3))
         self.assertTrue(isinstance(result, Result))
         self.assertEquals(self.executed, [("something", (1,2,3))])
+
+    def test_execute_noresult(self):
+        result = self.connection.execute("something", noresult=True)
+        self.assertEquals(result, None)
+        self.assertEquals(self.executed, [("something", marker), "CLOSE"])
 
     def test_execute_convert_param_style(self):
         self.connection.execute("'?' ? '?' ? '?'")

@@ -2,7 +2,7 @@ import gc
 
 from storm.databases.sqlite import SQLite
 from storm.properties import ObjectInfo
-from storm.database import Connection
+from storm.database import Result
 from storm.properties import Int, Str
 from storm.expr import Asc, Desc
 from storm.store import *
@@ -36,7 +36,8 @@ class StoreTest(TestHelper):
         connection.commit()
 
     def get_items(self):
-        connection = self.store.get_connection()
+        # Bypass the store to avoid flushing.
+        connection = self.store._connection
         result = connection.execute("SELECT * FROM test DATABASE ORDER BY id")
         return list(result)
 
@@ -45,8 +46,25 @@ class StoreTest(TestHelper):
         result = connection.execute("SELECT * FROM test DATABASE ORDER BY id")
         return list(result)
 
-    def test_get_connection(self):
-        self.assertTrue(isinstance(self.store.get_connection(), Connection))
+    def test_execute(self):
+        result = self.store.execute("SELECT 1")
+        self.assertTrue(isinstance(result, Result))
+        self.assertEquals(result.fetch_one(), (1,))
+        
+        result = self.store.execute("SELECT 1", noresult=True)
+        self.assertEquals(result, None)
+
+    def test_execute_params(self):
+        result = self.store.execute("SELECT ?", [1])
+        self.assertTrue(isinstance(result, Result))
+        self.assertEquals(result.fetch_one(), (1,))
+
+    def test_execute_flushes(self):
+        obj = self.store.get(Class, 1)
+        obj.title = "New Title"
+        
+        result = self.store.execute("SELECT title FROM test WHERE id=1")
+        self.assertEquals(result.fetch_one(), ("New Title",))
 
     def test_get(self):
         obj = self.store.get(Class, 1)

@@ -28,8 +28,9 @@ class Store(object):
         except AttributeError:
             return None
 
-    def get_connection(self):
-        return self._connection
+    def execute(self, statement, params=None, noresult=False):
+        self.flush()
+        return self._connection.execute(statement, params, noresult)
 
     def commit(self):
         self.flush()
