@@ -1,6 +1,6 @@
 from weakref import WeakValueDictionary
 
-from storm.expr import Select, Insert, Update, Delete
+from storm.expr import Select, Insert, Update, Delete, Undef
 from storm.expr import Column, Param, Count, Max, Min, Avg, Sum
 from storm.properties import ClassInfo, ObjectInfo
 
@@ -64,7 +64,7 @@ class Store(object):
             else:
                 where &= (prop == key[i])
 
-        select = Select(cls_info.properties, cls_info.tables, where, limit=1)
+        select = Select(cls_info.properties, cls_info.table, where, limit=1)
 
         values = self._connection.execute(select).fetch_one()
         if values is None:
@@ -77,16 +77,16 @@ class Store(object):
 
         cls_info = ClassInfo(cls)
 
-        where = None
+        where = Undef
         if args:
             for arg in args:
-                if where is None:
+                if where is Undef:
                     where = arg
                 else:
                     where &= arg
         if kwargs:
             for key in kwargs:
-                if where is None:
+                if where is Undef:
                     where = getattr(cls, key) == kwargs[key]
                 else:
                     where &= getattr(cls, key) == kwargs[key]
@@ -94,7 +94,7 @@ class Store(object):
         return ResultSet(self._connection.execute,
                          lambda values: self._load_object(cls_info, values),
                          columns=cls_info.properties,
-                         tables=cls_info.tables, where=where)
+                         tables=cls_info.table, where=where)
 
     def add(self, obj):
         obj_info = ObjectInfo(obj)
@@ -143,19 +143,19 @@ class Store(object):
                 del obj_info.store
                 obj_info.set_change_notification(None)
             elif state is STATE_LOADED and obj_info.check_changed():
-                changes = obj_info.get_changes().items()
-                columns = tuple(change[0] for change in changes)
-                values = tuple(Param(change[1]) for change in changes)
-                expr = Update(cls_info.table, columns, values,
+                changes = obj_info.get_changes().copy()
+                for column in changes:
+                    changes[column] = Param(changes[column])
+                expr = Update(cls_info.table, changes,
                               self._build_key_where(cls_info, obj_info, obj))
                 self._connection.execute(expr)
                 self._reset_info(cls_info, obj_info, obj)
         self._dirty.clear()
 
     def _build_key_where(self, cls_info, obj_info, obj):
-        where = None
+        where = Undef
         for prop, value in zip(cls_info.primary_key, obj_info.primary_key):
-            if where is None:
+            if where is Undef:
                 where = (prop == value)
             else:
                 where &= (prop == value)
@@ -217,8 +217,7 @@ class ResultSet(object):
         return self.__class__(self._execute, self._object_factory, **kwargs)
 
     def remove(self):
-        delete = Delete(self._kwargs.get("tables")[0],
-                        self._kwargs.get("where"))
+        delete = Delete(self._kwargs.get("tables"), self._kwargs.get("where"))
         self._execute(delete)
 
     def count(self):

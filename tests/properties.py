@@ -30,9 +30,6 @@ class ClassInfoTest(TestHelper):
     def test_attributes(self):
         self.assertEquals(self.info.attributes, ("prop1", "prop2"))
 
-    def test_tables(self):
-        self.assertEquals(self.info.tables, ("table",))
-
     def test_table(self):
         self.assertEquals(self.info.table, "table")
 

@@ -5,6 +5,9 @@ import sys
 # --------------------------------------------------------------------
 # Basic compiler infrastructure
 
+class CompileError(Exception):
+    pass
+
 class Compile(object):
     """Compiler based on the concept of generic functions."""
 
@@ -23,19 +26,35 @@ class Compile(object):
             return method
         return decorator
 
-    def _compile(self, state, expr):
-        for class_ in expr.__class__.__mro__:
-            handler = self._dispatch_table.get(class_)
-            if handler is not None:
-                return handler(self._compile, state, expr)
-        raise RuntimeError, "Don't know how to compile %r" % expr.__class__
+    def _compile(self, state, expr, join=", "):
+        if type(expr) in (tuple, list):
+            compiled = []
+            for subexpr in expr:
+                if type(subexpr) in (tuple, list):
+                    compiled.append(self._compile(state, subexpr, join))
+                    continue
+                for class_ in subexpr.__class__.__mro__:
+                    handler = self._dispatch_table.get(class_)
+                    if handler is not None:
+                        compiled.append(handler(self._compile, state, subexpr))
+                        break
+                else:
+                    raise CompileError("Don't know how to compile %r"
+                                       % subexpr.__class__)
+            return join.join(compiled)
+        else:
+            for class_ in expr.__class__.__mro__:
+                handler = self._dispatch_table.get(class_)
+                if handler is not None:
+                    return handler(self._compile, state, expr)
+            raise CompileError, "Don't know how to compile %r" % expr.__class__
 
     def __call__(self, expr):
         state = State()
         return self._compile(state, expr), state.parameters
 
 
-marker = object()
+Undef = object()
 
 class State(object):
 
@@ -45,10 +64,10 @@ class State(object):
         self.tables = []
         self.omit_column_tables = False
 
-    def push(self, attr, new_value=marker):
+    def push(self, attr, new_value=Undef):
         old_value = getattr(self, attr, None)
         self._stack.append((attr, old_value))
-        if new_value is marker:
+        if new_value is Undef:
             new_value = copy(old_value)
         setattr(self, attr, new_value)
 
@@ -179,79 +198,79 @@ class CompoundExpr(ComparableExpr):
 
 class Select(Expr):
 
-    def __init__(self, columns=None, tables=None, where=None,
-                 order_by=None, group_by=None, limit=None, offset=None):
-        self.columns = tuple(columns or ())
-        self.tables = tuple(tables or ())
+    def __init__(self, columns, tables=Undef, where=Undef, order_by=Undef,
+                 group_by=Undef, limit=Undef, offset=Undef, distinct=False):
+        self.columns = columns
+        self.tables = tables
         self.where = where
-        self.order_by = tuple(order_by or ())
-        self.group_by = tuple(group_by or ())
+        self.order_by = order_by
+        self.group_by = group_by
         self.limit = limit
         self.offset = offset
+        self.distinct = distinct
 
 @compile.when(Select)
 def compile_select(compile, state, select):
-    tokens = ["SELECT ", ", ".join([compile(state, expr)
-                                    for expr in select.columns])]
-    if select.tables:
+    tokens = ["SELECT "]
+
+    if select.distinct:
+        tokens.append("DISTINCT ")
+    
+    tokens.append(compile(state, select.columns))
+
+    if select.tables is not Undef:
         tokens.append(" FROM ")
-        tokens.append(", ".join([compile(state, expr)
-                                 for expr in select.tables]))
-    if select.where:
+        tokens.append(compile(state, select.tables))
+    if select.where is not Undef:
         tokens.append(" WHERE ")
         tokens.append(compile(state, select.where))
-    if select.order_by:
+    if select.order_by is not Undef:
         tokens.append(" ORDER BY ")
-        tokens.append(", ".join([compile(state, expr)
-                                 for expr in select.order_by]))
-    if select.group_by:
+        tokens.append(compile(state, select.order_by))
+    if select.group_by is not Undef:
         tokens.append(" GROUP BY ")
-        tokens.append(", ".join([compile(state, expr)
-                                 for expr in select.group_by]))
-    if select.limit:
+        tokens.append(compile(state, select.group_by))
+    if select.limit is not Undef:
         tokens.append(" LIMIT %d" % select.limit)
-    if select.offset:
+    if select.offset is not Undef:
         tokens.append(" OFFSET %d" % select.offset)
     return "".join(tokens)
 
 
 class Insert(Expr):
 
-    def __init__(self, table=None, columns=None, values=None):
+    def __init__(self, table, columns, values):
         self.table = table
-        self.columns = tuple(columns or ())
-        self.values = tuple(values or ())
+        self.columns = columns
+        self.values = values
 
 @compile.when(Insert)
 def compile_insert(compile, state, insert):
     state.push("omit_column_tables", True)
-    columns = ", ".join([compile(state, expr) for expr in insert.columns])
+    columns = compile(state, insert.columns)
     state.pop()
-    tokens = ["INSERT INTO ",
-              compile(state, insert.table),
-              " (", columns, ") VALUES (",
-              ", ".join([compile(state, expr) for expr in insert.values]),
-              ")"]
+    tokens = ["INSERT INTO ", compile(state, insert.table),
+              " (", columns, ") VALUES (", compile(state, insert.values), ")"]
     return "".join(tokens)
 
 
 class Update(Expr):
 
-    def __init__(self, table=None, columns=None, values=None, where=None):
+    def __init__(self, table, set, where=Undef):
         self.table = table
-        self.columns = tuple(columns or ())
-        self.values = tuple(values or ())
+        self.set = set
         self.where = where
 
 @compile.when(Update)
 def compile_update(compile, state, update):
     state.push("omit_column_tables", True)
-    columns = [compile(state, expr) for expr in update.columns]
+    set = update.set
+    sets = ["%s=%s" % (compile(state, col), compile(state, set[col]))
+            for col in set]
     state.pop()
-    values = [compile(state, expr) for expr in update.values]
     tokens = ["UPDATE ", compile(state, update.table),
-              " SET ", ", ".join(["%s=%s" % x for x in zip(columns, values)])]
-    if update.where:
+              " SET ", ", ".join(sets)]
+    if update.where is not Undef:
         tokens.append(" WHERE ")
         tokens.append(compile(state, update.where))
     return "".join(tokens)
@@ -259,14 +278,14 @@ def compile_update(compile, state, update):
 
 class Delete(Expr):
 
-    def __init__(self, table=None, where=None):
+    def __init__(self, table, where=Undef):
         self.table = table
         self.where = where
 
 @compile.when(Delete)
 def compile_delete(compile, state, delete):
     tokens = ["DELETE FROM ", compile(state, delete.table)]
-    if delete.where:
+    if delete.where is not Undef:
         tokens.append(" WHERE ")
         tokens.append(compile(state, delete.where))
     return "".join(tokens)
@@ -320,8 +339,7 @@ class CompoundOper(CompoundExpr):
 
 @compile.when(CompoundOper)
 def compile_compound_oper(compile, state, oper):
-    return "(%s)" % oper.oper.join([compile(state, expr)
-                                    for expr in oper.exprs])
+    return "(%s)" % compile(state, oper.exprs, oper.oper)
 
 
 class Eq(BinaryOper):
@@ -399,8 +417,7 @@ class Func(ComparableExpr):
 
 @compile.when(Func)
 def compile_func(compile, state, func):
-    return "%s(%s)" % (func.name, ", ".join([compile(state, expr)
-                                             for expr in func.args]))
+    return "%s(%s)" % (func.name, compile(state, func.args))
 
 
 class Count(Func):
@@ -409,8 +426,7 @@ class Count(Func):
 @compile.when(Count)
 def compile_count(compile, state, count):
     if count.args:
-        return "COUNT(%s)" % ", ".join([compile(state, expr)
-                                        for expr in count.args])
+        return "COUNT(%s)" % compile(state, count.args)
     return "COUNT(*)"
 
 

@@ -6,66 +6,56 @@ from storm.expr import *
 class ExprTest(TestHelper):
 
     def test_select_default(self):
-        expr = Select()
+        expr = Select(())
         self.assertEquals(expr.columns, ())
-        self.assertEquals(expr.tables, ())
-        self.assertEquals(expr.where, None)
-        self.assertEquals(expr.order_by, ())
-        self.assertEquals(expr.group_by, ())
-        self.assertEquals(expr.limit, None)
-        self.assertEquals(expr.offset, None)
+        self.assertEquals(expr.tables, Undef)
+        self.assertEquals(expr.where, Undef)
+        self.assertEquals(expr.order_by, Undef)
+        self.assertEquals(expr.group_by, Undef)
+        self.assertEquals(expr.limit, Undef)
+        self.assertEquals(expr.offset, Undef)
+        self.assertEquals(expr.distinct, False)
 
     def test_select_constructor(self):
-        objects = [object() for i in range(11)]
-        select = Select(objects[0:2], objects[2:4], objects[4], objects[5:7],
-                        objects[7:9], objects[9], objects[10])
-        objects = tuple(objects)
-        self.assertEquals(select.columns, objects[0:2])
-        self.assertEquals(select.tables, objects[2:4])
-        self.assertEquals(select.where, objects[4])
-        self.assertEquals(select.order_by, objects[5:7])
-        self.assertEquals(select.group_by, objects[7:9])
-        self.assertEquals(select.limit, objects[9])
-        self.assertEquals(select.offset, objects[10])
-
-    def test_insert_default(self):
-        expr = Insert()
-        self.assertEquals(expr.table, None)
-        self.assertEquals(expr.columns, ())
-        self.assertEquals(expr.values, ())
+        objects = [object() for i in range(8)]
+        select = Select(*objects)
+        self.assertEquals(select.columns, objects[0])
+        self.assertEquals(select.tables, objects[1])
+        self.assertEquals(select.where, objects[2])
+        self.assertEquals(select.order_by, objects[3])
+        self.assertEquals(select.group_by, objects[4])
+        self.assertEquals(select.limit, objects[5])
+        self.assertEquals(select.offset, objects[6])
+        self.assertEquals(select.distinct, objects[7])
 
     def test_insert_constructor(self):
-        objects = [object() for i in range(5)]
-        expr = Insert(objects[0], objects[1:3], objects[3:5])
-        objects = tuple(objects)
+        objects = [object() for i in range(3)]
+        expr = Insert(*objects)
         self.assertEquals(expr.table, objects[0])
-        self.assertEquals(expr.columns, objects[1:3])
-        self.assertEquals(expr.values, objects[3:5])
+        self.assertEquals(expr.columns, objects[1])
+        self.assertEquals(expr.values, objects[2])
 
     def test_update_default(self):
-        expr = Update()
+        expr = Update(None, None)
         self.assertEquals(expr.table, None)
-        self.assertEquals(expr.columns, ())
-        self.assertEquals(expr.values, ())
-        self.assertEquals(expr.where, None)
+        self.assertEquals(expr.set, None)
+        self.assertEquals(expr.where, Undef)
 
     def test_update_constructor(self):
-        objects = [object() for i in range(6)]
-        expr = Update(objects[0], objects[1:3], objects[3:5], objects[5])
-        objects = tuple(objects)
+        objects = [object() for i in range(3)]
+        expr = Update(*objects)
         self.assertEquals(expr.table, objects[0])
-        self.assertEquals(expr.columns, objects[1:3])
-        self.assertEquals(expr.values, objects[3:5])
-        self.assertEquals(expr.where, objects[5])
+        self.assertEquals(expr.set, objects[1])
+        self.assertEquals(expr.where, objects[2])
 
     def test_delete_default(self):
-        expr = Delete()
+        expr = Delete(None)
         self.assertEquals(expr.table, None)
-        self.assertEquals(expr.where, None)
+        self.assertEquals(expr.where, Undef)
 
     def test_delete_constructor(self):
         objects = [object() for i in range(2)]
-        expr = Delete(objects[0], objects[1])
+        expr = Delete(*objects)
         self.assertEquals(expr.table, objects[0])
         self.assertEquals(expr.where, objects[1])
 
@@ -158,6 +148,15 @@ class CompileTest(TestHelper):
         statement, parameters = custom_compile(Func1(None))
         self.assertEquals(statement, "func1(None)")
 
+    def test_compile_sequence(self):
+        expr = ["str", Func1(), (Func2(), None)]
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "str, func1(), func2(), NULL")
+
+    def test_compile_invalid(self):
+        self.assertRaises(CompileError, compile, object())
+        self.assertRaises(CompileError, compile, [object()])
+
     def test_str(self):
         statement, parameters = compile("str")
         self.assertEquals(statement, "str")
@@ -172,6 +171,13 @@ class CompileTest(TestHelper):
         expr = Select(["column1", "column2"])
         statement, parameters = compile(expr)
         self.assertEquals(statement, "SELECT column1, column2")
+        self.assertEquals(parameters, [])
+
+    def test_select_distinct(self):
+        expr = Select(["column1", "column2"], ["table"], distinct=True)
+        statement, parameters = compile(expr)
+        self.assertEquals(statement,
+                          "SELECT DISTINCT column1, column2 FROM table")
         self.assertEquals(parameters, [])
 
     def test_select_where(self):
@@ -205,25 +211,24 @@ class CompileTest(TestHelper):
         self.assertEquals(parameters, [])
 
     def test_update(self):
-        expr = Update(Func1(), ["column1", Func1()], ["value1", Func2()])
+        expr = Update(Func1(), {"column1": "value1", Func1(): Func2()})
         statement, parameters = compile(expr)
-        self.assertEquals(statement, "UPDATE func1() SET column1=value1, "
-                                     "func1()=func2()")
+        self.assertTrue(statement in
+                        ["UPDATE func1() SET column1=value1, func1()=func2()",
+                         "UPDATE func1() SET func1()=func2(), column1=value1"])
         self.assertEquals(parameters, [])
 
     def test_update_with_columns(self):
-        expr = Update("table", [Column("a", "table"), Column("b", "table")],
-                      ["1", "2"])
+        expr = Update("table", {Column("column", "table"): "value"})
         statement, parameters = compile(expr)
-        self.assertEquals(statement, "UPDATE table SET a=1, b=2")
+        self.assertEquals(statement, "UPDATE table SET column=value")
         self.assertEquals(parameters, [])
 
     def test_update_where(self):
-        expr = Update(Func1(), ["column1", Func1()], ["value1", Func2()],
-                      Func1())
+        expr = Update(Func1(), {"column": "value"}, Func1())
         statement, parameters = compile(expr)
-        self.assertEquals(statement, "UPDATE func1() SET column1=value1, "
-                                     "func1()=func2() WHERE func1()")
+        self.assertEquals(statement,
+                          "UPDATE func1() SET column=value WHERE func1()")
         self.assertEquals(parameters, [])
 
     def test_delete(self):
