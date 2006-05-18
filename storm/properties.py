@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from storm.expr import Column
+from storm.expr import Column, Undef
 
 
 class ClassInfo(object):
@@ -104,7 +104,7 @@ class Property(Column):
 
     def __get__(self, obj, cls=None):
         if obj is None:
-            if self.table is None:
+            if self.table is Undef:
                 self.table = getattr(cls, "__table__", (None,))[0]
             if self.name is None:
                 self.name = object()

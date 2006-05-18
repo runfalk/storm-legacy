@@ -94,6 +94,7 @@ class StoreTest(TestHelper):
 
     def test_find_iter(self):
         result = self.store.find(Class)
+
         lst = [(obj.id, obj.title) for obj in result]
         lst.sort()
         self.assertEquals(lst, [(1, "Title 9"),

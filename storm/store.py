@@ -1,7 +1,7 @@
 from weakref import WeakValueDictionary
 
 from storm.expr import Select, Insert, Update, Delete, Undef
-from storm.expr import Column, Param, Count, Max, Min, Avg, Sum
+from storm.expr import Column, AutoTable, Param, Count, Max, Min, Avg, Sum
 from storm.properties import ClassInfo, ObjectInfo
 
 
@@ -64,7 +64,8 @@ class Store(object):
             else:
                 where &= (prop == key[i])
 
-        select = Select(cls_info.properties, cls_info.table, where, limit=1)
+        select = Select(cls_info.properties,
+                        AutoTable(cls_info.table), where, limit=1)
 
         values = self._connection.execute(select).fetch_one()
         if values is None:
@@ -94,7 +95,7 @@ class Store(object):
         return ResultSet(self._connection.execute,
                          lambda values: self._load_object(cls_info, values),
                          columns=cls_info.properties,
-                         tables=cls_info.table, where=where)
+                         tables=AutoTable(cls_info.table), where=where)
 
     def add(self, obj):
         obj_info = ObjectInfo(obj)

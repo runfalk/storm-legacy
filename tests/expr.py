@@ -68,9 +68,9 @@ class ExprTest(TestHelper):
         self.assertEquals(expr.exprs, ("elem1", "elem2", "elem3"))
 
     def test_column_default(self):
-        expr = Column()
+        expr = Column(None)
         self.assertEquals(expr.name, None)
-        self.assertEquals(expr.table, None)
+        self.assertEquals(expr.table, Undef)
 
     def test_column_constructor(self):
         expr = Column("name", "table")
@@ -107,7 +107,7 @@ class StateTest(TestHelper):
 
     def test_attrs(self):
         self.assertEquals(self.state.parameters, [])
-        self.assertEquals(self.state.tables, [])
+        self.assertEquals(self.state.auto_tables, [])
         self.assertEquals(self.state.omit_column_tables, False)
 
     def test_push_pop(self):
@@ -167,6 +167,21 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, "NULL")
         self.assertEquals(parameters, [])
 
+    def test_auto_table(self):
+        expr = (Column("column", "table"), Column("column", "table"),
+                AutoTable())
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "table.column, table.column, table")
+
+    def test_auto_table_default(self):
+        expr = (Column("column"), AutoTable("table1", "table2"))
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "column, table1, table2")
+
+    def test_auto_table_none(self):
+        expr = (Column("column"), AutoTable())
+        self.assertRaises(CompileError, compile, expr)
+
     def test_select(self):
         expr = Select(["column1", "column2"])
         statement, parameters = compile(expr)
@@ -196,6 +211,15 @@ class CompileTest(TestHelper):
                                      "LIMIT 3 OFFSET 4")
         self.assertEquals(parameters, [])
 
+    def test_select_auto_table(self):
+        expr = Select(Column("column1", "table1"), AutoTable("none"),
+                      Column("column2", "table2") == 1),
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "SELECT table1.column1 "
+                                     "FROM table1, table2 "
+                                     "WHERE (table2.column2 = ?)")
+        self.assertEquals(parameters, [1])
+
     def test_insert(self):
         expr = Insert(Func1(), ["column1", Func1()], ["value1", Func1()])
         statement, parameters = compile(expr)
@@ -208,6 +232,13 @@ class CompileTest(TestHelper):
                       ["1", "2"])
         statement, parameters = compile(expr)
         self.assertEquals(statement, "INSERT INTO table (a, b) VALUES (1, 2)")
+        self.assertEquals(parameters, [])
+
+    def test_insert_auto_table(self):
+        expr = Insert(AutoTable("none"), Column("column", "table"), "value")
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "INSERT INTO table (column) "
+                                     "VALUES (value)")
         self.assertEquals(parameters, [])
 
     def test_update(self):
@@ -231,6 +262,12 @@ class CompileTest(TestHelper):
                           "UPDATE func1() SET column=value WHERE func1()")
         self.assertEquals(parameters, [])
 
+    def test_update_auto_table(self):
+        expr = Update(AutoTable("none"), {Column("column", "table"): "value"})
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "UPDATE table SET column=value")
+        self.assertEquals(parameters, [])
+
     def test_delete(self):
         expr = Delete(Func1())
         statement, parameters = compile(expr)
@@ -242,6 +279,13 @@ class CompileTest(TestHelper):
         statement, parameters = compile(expr)
         self.assertEquals(statement, "DELETE FROM func1() WHERE func2()")
         self.assertEquals(parameters, [])
+
+    def test_delete_auto_table(self):
+        expr = Delete(AutoTable("none"), Column("column", "table") == 1)
+        statement, parameters = compile(expr)
+        self.assertEquals(statement,
+                          "DELETE FROM table WHERE (table.column = ?)")
+        self.assertEquals(parameters, [1])
 
     def test_column(self):
         expr = Column("name")

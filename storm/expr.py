@@ -61,7 +61,7 @@ class State(object):
     def __init__(self):
         self._stack = []
         self.parameters = []
-        self.tables = []
+        self.auto_tables = []
         self.omit_column_tables = False
 
     def push(self, attr, new_value=Undef):
@@ -220,7 +220,11 @@ def compile_select(compile, state, select):
 
     if select.tables is not Undef:
         tokens.append(" FROM ")
-        tokens.append(compile(state, select.tables))
+        # Add a placeholder and compile later to support AutoTable.
+        tables_pos = len(tokens)
+        tokens.append(None)
+    else:
+        tables_pos = None
     if select.where is not Undef:
         tokens.append(" WHERE ")
         tokens.append(compile(state, select.where))
@@ -234,6 +238,8 @@ def compile_select(compile, state, select):
         tokens.append(" LIMIT %d" % select.limit)
     if select.offset is not Undef:
         tokens.append(" OFFSET %d" % select.offset)
+    if tables_pos is not None:
+        tokens[tables_pos] = compile(state, select.tables)
     return "".join(tokens)
 
 
@@ -284,10 +290,12 @@ class Delete(Expr):
 
 @compile.when(Delete)
 def compile_delete(compile, state, delete):
-    tokens = ["DELETE FROM ", compile(state, delete.table)]
+    tokens = ["DELETE FROM ", None]
     if delete.where is not Undef:
         tokens.append(" WHERE ")
         tokens.append(compile(state, delete.where))
+    # Compile later for AutoTable support.
+    tokens[1] = compile(state, delete.table)
     return "".join(tokens)
 
 
@@ -296,15 +304,36 @@ def compile_delete(compile, state, delete):
 
 class Column(ComparableExpr):
 
-    def __init__(self, name=None, table=None):
+    def __init__(self, name, table=Undef):
         self.name = name
         self.table = table
 
 @compile.when(Column)
 def compile_column(compile, state, column):
-    if not column.table or state.omit_column_tables:
+    if column.table is not Undef:
+        state.auto_tables.append(column.table)
+    if column.table is Undef or state.omit_column_tables:
         return column.name
     return "%s.%s" % (compile(state, column.table), column.name)
+
+
+class AutoTable(Expr):
+
+    def __init__(self, *default_tables):
+        self.default_tables = default_tables
+
+@compile.when(AutoTable)
+def compile_auto_table(compile, state, auto_table):
+    if state.auto_tables:
+        tables = []
+        for expr in state.auto_tables:
+            table = compile(state, expr)
+            if table not in tables:
+                tables.append(table)
+        return ", ".join(tables)
+    elif auto_table.default_tables:
+        return compile(state, auto_table.default_tables)
+    raise CompileError("AutoTable can't provide any tables")
 
 
 class Param(ComparableExpr):
