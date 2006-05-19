@@ -1,7 +1,7 @@
 import gc
 
 from storm.databases.sqlite import SQLite
-from storm.properties import ObjectInfo
+from storm.properties import get_obj_info
 from storm.database import Result
 from storm.properties import Int, Str
 from storm.expr import Asc, Desc, Select
@@ -78,9 +78,14 @@ class StoreTest(TestHelper):
         obj = self.store.get(Class, 3)
         self.assertEquals(obj, None)
 
-    def test_get_from_cache(self):
+    def test_get_cached(self):
         obj = self.store.get(Class, 1)
         self.assertTrue(self.store.get(Class, 1) is obj)
+
+    #def test_wb_get_cached_doesnt_need_connection(self):
+    #    obj = self.store.get(Class, 1)
+    #    self.store._connection = None
+    #    self.store.get(Class, 1)
 
     def test_cache_cleanup(self):
         obj = self.store.get(Class, 1)
@@ -310,6 +315,20 @@ class StoreTest(TestHelper):
         self.assertEquals(self.get_items(),
                           [(1, "Title 9"), (2, "Title 2"), (4, "Title 7")])
 
+#    def test_remove_flush_rollback_update(self):
+#        obj = self.store.get(Class, 2)
+#
+#        self.store.remove(obj)
+#        self.store.flush()
+#        self.store.rollback()
+#        
+#        obj.title = "Title 2"
+#
+#        self.store.flush()
+#
+#        self.assertEquals(self.get_items(),
+#                          [(1, "Title 9"), (2, "Title 2"), (4, "Title 7")])
+
     def test_remove_add_update(self):
         obj = self.store.get(Class, 2)
 
@@ -443,7 +462,7 @@ class StoreTest(TestHelper):
         # If changes get committed even with the notification disabled,
         # it means the dirty flag isn't being cleared.
 
-        ObjectInfo(obj).set_change_notification(None)
+        get_obj_info(obj).set_change_notification(None)
 
         obj.title = "Title 12"
 

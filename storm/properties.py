@@ -3,13 +3,30 @@ from datetime import datetime
 from storm.expr import Column, Undef
 
 
-class ClassInfo(object):
+def get_obj_info(obj):
+    try:
+        return obj.__object_info
+    except AttributeError:
+        return obj.__dict__.setdefault("__object_info", ObjectInfo(obj))
 
-    def __new__(class_, cls):
-        info = cls.__dict__.get("__class_info")
-        if info is not None:
-            return info
+def get_cls_info(cls):
+    try:
+        # Can't use attribute access here, otherwise subclassing won't work.
+        return cls.__dict__["__class_info"]
+    except KeyError:
+        cls.__class_info = ClassInfo(cls)
+        return cls.__class_info
 
+def get_info(obj):
+    try:
+        return obj.__object_info, obj.__class__.__class__info
+    except AttributeError:
+        return get_obj_info(obj), get_cls_info(obj.__class__)
+
+
+class ClassInfo(dict):
+
+    def __init__(self, cls):
         __table__ = getattr(cls, "__table__", ())
         if len(__table__) != 2:
             raise RuntimeError("%s.__table__ must be (<table name>, "
@@ -22,42 +39,35 @@ class ClassInfo(object):
                 pairs.append((attr, prop))
         pairs.sort()
 
-        info = object.__new__(class_)
-        info.cls = cls
-        info.attributes = tuple(pair[0] for pair in pairs)
-        info.properties = tuple(pair[1] for pair in pairs)
-        info.table = __table__[0]
+        self.cls = cls
+        self.attributes = tuple(pair[0] for pair in pairs)
+        self.properties = tuple(pair[1] for pair in pairs)
+        self.table = __table__[0]
 
         name_positions = dict((prop.name, i)
-                              for i, prop in enumerate(info.properties))
+                              for i, prop in enumerate(self.properties))
 
         primary_key_names = __table__[1]
         if type(primary_key_names) not in (list, tuple):
             primary_key_names = (primary_key_names,)
 
-        info.primary_key_pos = tuple(name_positions[name]
+        self.primary_key_pos = tuple(name_positions[name]
                                      for name in primary_key_names)
-        info.primary_key = tuple(info.properties[i]
-                                 for i in info.primary_key_pos)
-
-        setattr(cls, "__class_info", info)
-        return info
+        self.primary_key = tuple(self.properties[i]
+                                 for i in self.primary_key_pos)
 
 
-class ObjectInfo(object):
+class ObjectInfo(dict):
 
-    def __new__(class_, obj):
-        info = obj.__dict__.get("__object_info")
-        if info is not None:
-            return info
-        info = object.__new__(class_)
-        info.obj = obj
-        info._saved = None
-        info._values = {}
-        info._notify_change = None
-        return obj.__dict__.setdefault("__object_info", info)
+    def __init__(self, obj):
+        self.obj = obj
+        self._values = {}
+        self._notify_change = None
+        self._saved_values = None
+        self._saved_obj_dict = None
+        self._saved_self = None
 
-    def set(self, prop, value):
+    def set_prop(self, prop, value):
         if value is None:
             old_value = self._values.pop(prop, None)
         else:
@@ -66,21 +76,26 @@ class ObjectInfo(object):
         if self._notify_change is not None and old_value != value:
             self._notify_change(self.obj, self, old_value, value)
 
-    def get(self, prop):
+    def get_prop(self, prop):
         return self._values.get(prop)
 
     def save(self):
-        self._saved = self._values.copy(), self.obj.__dict__.copy()
+        self._saved_values = self._values.copy()
+        self._saved_obj_dict = self.obj.__dict__.copy()
+        self._saved_self = self.copy()
 
     def restore(self):
-        self._values, self.obj.__dict__ = self._saved
+        self._values = self._saved_values.copy()
+        self.obj.__dict__ = self._saved_obj_dict.copy()
+        self.clear()
+        self.update(self._saved_self)
 
     def check_changed(self):
-        return self._saved[0] != self._values
+        return self._saved_values != self._values
 
     def get_changes(self):
         changes = {}
-        old_values = self._saved[0]
+        old_values = self._saved_values
         new_values = self._values
         for prop in old_values:
             new_value = new_values.get(prop)
@@ -113,36 +128,36 @@ class Property(Column):
                         self.name = name
                         break
             return self
-        return ObjectInfo(obj).get(self)
+        return get_obj_info(obj).get_prop(self)
 
     def __set__(self, obj, value):
-        ObjectInfo(obj).set(self, value)
+        get_obj_info(obj).set_prop(self, value)
 
 
 class Bool(Property):
 
     def __set__(self, obj, value):
-        ObjectInfo(obj).set(self, bool(value))
+        get_obj_info(obj).set_prop(self, bool(value))
 
 class Int(Property):
 
     def __set__(self, obj, value):
-        ObjectInfo(obj).set(self, int(value))
+        get_obj_info(obj).set_prop(self, int(value))
 
 class Float(Property):
 
     def __set__(self, obj, value):
-        ObjectInfo(obj).set(self, float(value))
+        get_obj_info(obj).set_prop(self, float(value))
 
 class Str(Property):
 
     def __set__(self, obj, value):
-        ObjectInfo(obj).set(self, str(value))
+        get_obj_info(obj).set_prop(self, str(value))
 
 class Unicode(Property):
 
     def __set__(self, obj, value):
-        ObjectInfo(obj).set(self, unicode(value))
+        get_obj_info(obj).set_prop(self, unicode(value))
 
 class DateTime(Property):
 
@@ -151,4 +166,4 @@ class DateTime(Property):
             value = datetime.utcfromtimestamp(value)
         elif not isinstance(value, datetime):
             raise TypeError("Expected datetime, found %s" % repr(value))
-        ObjectInfo(obj).set(self, value)
+        get_obj_info(obj).set_prop(self, value)
