@@ -1,7 +1,7 @@
 from weakref import WeakValueDictionary
 
 from storm.expr import Select, Insert, Update, Delete, Undef
-from storm.expr import Column, AutoTable, Param, Count, Max, Min, Avg, Sum
+from storm.expr import Column, Param, Count, Max, Min, Avg, Sum
 from storm.properties import ClassInfo, ObjectInfo
 
 
@@ -65,8 +65,8 @@ class Store(object):
             else:
                 where &= (prop == key[i])
 
-        select = Select(cls_info.properties,
-                        AutoTable(cls_info.table), where, limit=1)
+        select = Select(cls_info.properties, where,
+                        default_tables=cls_info.table, limit=1)
 
         values = self._connection.execute(select).fetch_one()
         if values is None:
@@ -95,9 +95,7 @@ class Store(object):
 
         return ResultSet(self._connection.execute,
                          lambda values: self._load_object(cls_info, values),
-                         columns=cls_info.properties,
-                         tables=AutoTable(cls_info.table),
-                         where=where, distinct=True)
+                         cls_info.properties, where, cls_info.table)
 
     def add(self, obj):
         obj_info = ObjectInfo(obj)
@@ -132,15 +130,16 @@ class Store(object):
             obj_info = ObjectInfo(obj)
             state = obj_info.state
             if state is STATE_ADDED:
-                expr = Insert(cls_info.table, cls_info.properties,
+                expr = Insert(cls_info.properties,
                               [Param(prop.__get__(obj))
-                               for prop in cls_info.properties])
+                               for prop in cls_info.properties],
+                              cls_info.table)
                 self._connection.execute(expr, noresult=True)
                 self._reset_info(cls_info, obj_info, obj)
                 obj_info.state = STATE_LOADED
             elif state is STATE_REMOVED:
-                expr = Delete(cls_info.table,
-                              self._build_key_where(cls_info, obj_info, obj))
+                expr = Delete(self._build_key_where(cls_info, obj_info, obj),
+                              cls_info.table)
                 self._connection.execute(expr, noresult=True)
                 del obj_info.state
                 del obj_info.store
@@ -149,8 +148,9 @@ class Store(object):
                 changes = obj_info.get_changes().copy()
                 for column in changes:
                     changes[column] = Param(changes[column])
-                expr = Update(cls_info.table, changes,
-                              self._build_key_where(cls_info, obj_info, obj))
+                expr = Update(changes,
+                              self._build_key_where(cls_info, obj_info, obj),
+                              cls_info.table)
                 self._connection.execute(expr, noresult=True)
                 self._reset_info(cls_info, obj_info, obj)
         self._dirty.clear()
@@ -193,35 +193,40 @@ class Store(object):
 
 class ResultSet(object):
 
-    def __init__(self, execute, object_factory, **kwargs):
+    def __init__(self, execute, object_factory, columns, where, table,
+                 order_by=Undef):
         self._execute = execute
         self._object_factory = object_factory
-        self._kwargs = kwargs
+        self._columns = columns
+        self._where = where
+        self._table = table
+        self._order_by = order_by
 
     def __iter__(self):
-        for values in self._execute(Select(**self._kwargs)):
+        select = Select(self._columns, self._where, order_by=self._order_by,
+                        default_tables=self._table, distinct=True)
+        for values in self._execute(select):
             yield self._object_factory(values)
 
     def _aggregate(self, column):
-        return self._execute(Select((column,), self._kwargs.get("tables"),
-                                    self._kwargs.get("where"))).fetch_one()[0]
+        select = Select(column, self._where, order_by=self._order_by,
+                        default_tables=self._table, distinct=True)
+        return self._execute(select).fetch_one()[0]
 
     def one(self):
-        kwargs = self._kwargs.copy()
-        kwargs["limit"] = 1
-        values = self._execute(Select(**kwargs)).fetch_one()
+        select = Select(self._columns, self._where, order_by=self._order_by,
+                        limit=1, default_tables=self._table, distinct=True)
+        values = self._execute(select).fetch_one()
         if values:
             return self._object_factory(values)
         return None
 
     def order_by(self, *args):
-        kwargs = self._kwargs.copy()
-        kwargs["order_by"] = args
-        return self.__class__(self._execute, self._object_factory, **kwargs)
+        return self.__class__(self._execute, self._object_factory,
+                              self._columns, self._where, self._table, args)
 
     def remove(self):
-        delete = Delete(self._kwargs.get("tables"), self._kwargs.get("where"))
-        self._execute(delete)
+        self._execute(Delete(self._where, self._table), noresult=True)
 
     def count(self):
         return self._aggregate(Count())

@@ -225,13 +225,49 @@ class CompoundExpr(ComparableExpr):
 # --------------------------------------------------------------------
 # Statement expressions
 
+def has_tables(state, expr):
+    return (expr.tables is not Undef or
+            expr.default_tables is not Undef or
+            state.auto_tables)
+
+def build_tables(compile, state, expr):
+    if expr.tables is not Undef:
+        return compile(state, expr.tables)
+    elif state.auto_tables:
+        tables = []
+        for expr in state.auto_tables:
+            table = compile(state, expr)
+            if table not in tables:
+                tables.append(table)
+        return ", ".join(tables)
+    elif expr.default_tables is not Undef:
+        return compile(state, expr.default_tables)
+    raise CompileError("Couldn't find any tables")
+
+def build_table(compile, state, expr):
+    if expr.table is not Undef:
+        return compile(state, expr.table)
+    elif state.auto_tables:
+        tables = []
+        for expr in state.auto_tables:
+            table = compile(state, expr)
+            if table not in tables:
+                tables.append(table)
+        return ", ".join(tables)
+    elif expr.default_table is not Undef:
+        return compile(state, expr.default_table)
+    raise CompileError("Couldn't find any table")
+
+
 class Select(Expr):
 
-    def __init__(self, columns, tables=Undef, where=Undef, order_by=Undef,
-                 group_by=Undef, limit=Undef, offset=Undef, distinct=False):
+    def __init__(self, columns, where=Undef, tables=Undef,
+                 default_tables=Undef, order_by=Undef, group_by=Undef,
+                 limit=Undef, offset=Undef, distinct=False):
         self.columns = columns
-        self.tables = tables
         self.where = where
+        self.tables = tables
+        self.default_tables = default_tables
         self.order_by = order_by
         self.group_by = group_by
         self.limit = limit
@@ -240,13 +276,14 @@ class Select(Expr):
 
 @compile.when(Select)
 def compile_select(compile, state, select):
+    state.push("auto_tables", [])
     tokens = ["SELECT "]
     if select.distinct:
         tokens.append("DISTINCT ")
     tokens.append(compile(state, select.columns))
-    if select.tables is not Undef:
+    if has_tables(state, select):
         tokens.append(" FROM ")
-        # Add a placeholder and compile later to support AutoTable.
+        # Add a placeholder and compile later to support auto_tables.
         tables_pos = len(tokens)
         tokens.append(None)
     else:
@@ -265,33 +302,36 @@ def compile_select(compile, state, select):
     if select.offset is not Undef:
         tokens.append(" OFFSET %d" % select.offset)
     if tables_pos is not None:
-        tokens[tables_pos] = compile(state, select.tables)
+        tokens[tables_pos] = build_tables(compile, state, select)
+    state.pop()
     return "".join(tokens)
 
 
 class Insert(Expr):
 
-    def __init__(self, table, columns, values):
-        self.table = table
+    def __init__(self, columns, values, table=Undef, default_table=Undef):
         self.columns = columns
         self.values = values
+        self.table = table
+        self.default_table = default_table
 
 @compile.when(Insert)
 def compile_insert(compile, state, insert):
     state.push("omit_column_tables", True)
     columns = compile(state, insert.columns)
     state.pop()
-    tokens = ["INSERT INTO ", compile(state, insert.table),
+    tokens = ["INSERT INTO ", build_table(compile, state, insert),
               " (", columns, ") VALUES (", compile(state, insert.values), ")"]
     return "".join(tokens)
 
 
 class Update(Expr):
 
-    def __init__(self, table, set, where=Undef):
-        self.table = table
+    def __init__(self, set, where=Undef, table=Undef, default_table=Undef):
         self.set = set
         self.where = where
+        self.table = table
+        self.default_table = default_table
 
 @compile.when(Update)
 def compile_update(compile, state, update):
@@ -300,7 +340,7 @@ def compile_update(compile, state, update):
     sets = ["%s=%s" % (compile(state, col), compile(state, set[col]))
             for col in set]
     state.pop()
-    tokens = ["UPDATE ", compile(state, update.table),
+    tokens = ["UPDATE ", build_table(compile, state, update),
               " SET ", ", ".join(sets)]
     if update.where is not Undef:
         tokens.append(" WHERE ")
@@ -310,9 +350,10 @@ def compile_update(compile, state, update):
 
 class Delete(Expr):
 
-    def __init__(self, table, where=Undef):
-        self.table = table
+    def __init__(self, where=Undef, table=Undef, default_table=Undef):
         self.where = where
+        self.table = table
+        self.default_table = default_table
 
 @compile.when(Delete)
 def compile_delete(compile, state, delete):
@@ -320,8 +361,8 @@ def compile_delete(compile, state, delete):
     if delete.where is not Undef:
         tokens.append(" WHERE ")
         tokens.append(compile(state, delete.where))
-    # Compile later for AutoTable support.
-    tokens[1] = compile(state, delete.table)
+    # Compile later for auto_tables support.
+    tokens[1] = build_table(compile, state, delete)
     return "".join(tokens)
 
 
@@ -341,25 +382,6 @@ def compile_column(compile, state, column):
     if column.table is Undef or state.omit_column_tables:
         return column.name
     return "%s.%s" % (compile(state, column.table), column.name)
-
-
-class AutoTable(Expr):
-
-    def __init__(self, *default_tables):
-        self.default_tables = default_tables
-
-@compile.when(AutoTable)
-def compile_auto_table(compile, state, auto_table):
-    if state.auto_tables:
-        tables = []
-        for expr in state.auto_tables:
-            table = compile(state, expr)
-            if table not in tables:
-                tables.append(table)
-        return ", ".join(tables)
-    elif auto_table.default_tables:
-        return compile(state, auto_table.default_tables)
-    raise CompileError("AutoTable can't provide any tables")
 
 
 class Param(ComparableExpr):

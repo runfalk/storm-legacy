@@ -8,8 +8,9 @@ class ExprTest(TestHelper):
     def test_select_default(self):
         expr = Select(())
         self.assertEquals(expr.columns, ())
-        self.assertEquals(expr.tables, Undef)
         self.assertEquals(expr.where, Undef)
+        self.assertEquals(expr.tables, Undef)
+        self.assertEquals(expr.default_tables, Undef)
         self.assertEquals(expr.order_by, Undef)
         self.assertEquals(expr.group_by, Undef)
         self.assertEquals(expr.limit, Undef)
@@ -17,47 +18,59 @@ class ExprTest(TestHelper):
         self.assertEquals(expr.distinct, False)
 
     def test_select_constructor(self):
-        objects = [object() for i in range(8)]
+        objects = [object() for i in range(9)]
         select = Select(*objects)
         self.assertEquals(select.columns, objects[0])
-        self.assertEquals(select.tables, objects[1])
-        self.assertEquals(select.where, objects[2])
-        self.assertEquals(select.order_by, objects[3])
-        self.assertEquals(select.group_by, objects[4])
-        self.assertEquals(select.limit, objects[5])
-        self.assertEquals(select.offset, objects[6])
-        self.assertEquals(select.distinct, objects[7])
+        self.assertEquals(select.where, objects[1])
+        self.assertEquals(select.tables, objects[2])
+        self.assertEquals(select.default_tables, objects[3])
+        self.assertEquals(select.order_by, objects[4])
+        self.assertEquals(select.group_by, objects[5])
+        self.assertEquals(select.limit, objects[6])
+        self.assertEquals(select.offset, objects[7])
+        self.assertEquals(select.distinct, objects[8])
+
+    def test_insert_default(self):
+        expr = Insert(None, None)
+        self.assertEquals(expr.columns, None)
+        self.assertEquals(expr.values, None)
+        self.assertEquals(expr.table, Undef)
+        self.assertEquals(expr.default_table, Undef)
 
     def test_insert_constructor(self):
-        objects = [object() for i in range(3)]
+        objects = [object() for i in range(4)]
         expr = Insert(*objects)
-        self.assertEquals(expr.table, objects[0])
-        self.assertEquals(expr.columns, objects[1])
-        self.assertEquals(expr.values, objects[2])
+        self.assertEquals(expr.columns, objects[0])
+        self.assertEquals(expr.values, objects[1])
+        self.assertEquals(expr.table, objects[2])
+        self.assertEquals(expr.default_table, objects[3])
 
     def test_update_default(self):
-        expr = Update(None, None)
-        self.assertEquals(expr.table, None)
+        expr = Update(None)
         self.assertEquals(expr.set, None)
         self.assertEquals(expr.where, Undef)
+        self.assertEquals(expr.table, Undef)
+        self.assertEquals(expr.default_table, Undef)
 
     def test_update_constructor(self):
-        objects = [object() for i in range(3)]
+        objects = [object() for i in range(4)]
         expr = Update(*objects)
-        self.assertEquals(expr.table, objects[0])
-        self.assertEquals(expr.set, objects[1])
-        self.assertEquals(expr.where, objects[2])
+        self.assertEquals(expr.set, objects[0])
+        self.assertEquals(expr.where, objects[1])
+        self.assertEquals(expr.table, objects[2])
+        self.assertEquals(expr.default_table, objects[3])
 
     def test_delete_default(self):
-        expr = Delete(None)
-        self.assertEquals(expr.table, None)
+        expr = Delete()
         self.assertEquals(expr.where, Undef)
+        self.assertEquals(expr.table, Undef)
 
     def test_delete_constructor(self):
-        objects = [object() for i in range(2)]
+        objects = [object() for i in range(3)]
         expr = Delete(*objects)
-        self.assertEquals(expr.table, objects[0])
-        self.assertEquals(expr.where, objects[1])
+        self.assertEquals(expr.where, objects[0])
+        self.assertEquals(expr.table, objects[1])
+        self.assertEquals(expr.default_table, objects[2])
 
     def test_and(self):
         expr = And("elem1", "elem2", "elem3")
@@ -203,21 +216,6 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, "NULL")
         self.assertEquals(parameters, [])
 
-    def test_auto_table(self):
-        expr = (Column("column", "table"), Column("column", "table"),
-                AutoTable())
-        statement, parameters = compile(expr)
-        self.assertEquals(statement, "table.column, table.column, table")
-
-    def test_auto_table_default(self):
-        expr = (Column("column"), AutoTable("table1", "table2"))
-        statement, parameters = compile(expr)
-        self.assertEquals(statement, "column, table1, table2")
-
-    def test_auto_table_none(self):
-        expr = (Column("column"), AutoTable())
-        self.assertRaises(CompileError, compile, expr)
-
     def test_select(self):
         expr = Select(["column1", "column2"])
         statement, parameters = compile(expr)
@@ -225,7 +223,7 @@ class CompileTest(TestHelper):
         self.assertEquals(parameters, [])
 
     def test_select_distinct(self):
-        expr = Select(["column1", "column2"], ["table"], distinct=True)
+        expr = Select(["column1", "column2"], Undef, ["table"], distinct=True)
         statement, parameters = compile(expr)
         self.assertEquals(statement,
                           "SELECT DISTINCT column1, column2 FROM table")
@@ -233,8 +231,8 @@ class CompileTest(TestHelper):
 
     def test_select_where(self):
         expr = Select(["column1", Func1()],
+                      Func1(),
                       ["table1", Func1()],
-                      where=Func1(),
                       order_by=["column2", Func1()],
                       group_by=["column3", Func1()],
                       limit=3, offset=4)
@@ -248,7 +246,7 @@ class CompileTest(TestHelper):
         self.assertEquals(parameters, [])
 
     def test_select_auto_table(self):
-        expr = Select(Column("column1", "table1"), AutoTable("none"),
+        expr = Select(Column("column1", "table1"),
                       Column("column2", "table2") == 1),
         statement, parameters = compile(expr)
         self.assertEquals(statement, "SELECT table1.column1 "
@@ -256,29 +254,65 @@ class CompileTest(TestHelper):
                                      "WHERE table2.column2 = ?")
         self.assertEquals(parameters, [1])
 
+    def test_select_auto_table_default(self):
+        expr = Select(Column("column1"),
+                      Column("column2") == 1,
+                      default_tables="table"),
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "SELECT column1 "
+                                     "FROM table "
+                                     "WHERE column2 = ?")
+        self.assertEquals(parameters, [1])
+
+    def test_select_auto_table_unknown(self):
+        statement, parameters = compile(Select("1"))
+        self.assertEquals(statement, "SELECT 1")
+
+    def test_select_auto_table_sub(self):
+        column1 = Column("column1", "table1")
+        column2 = Column("column2", "table2")
+        expr = Select(column1, In("1", Select(column2, column1 == column2,
+                                              column2.table)))
+        statement, parameters = compile(expr)
+        self.assertEquals(statement,
+                          "SELECT table1.column1 FROM table1 WHERE "
+                          "1 IN (SELECT table2.column2 FROM table2 WHERE "
+                          "table1.column1 = table2.column2)")
+
     def test_insert(self):
-        expr = Insert(Func1(), ["column1", Func1()], ["value1", Func1()])
+        expr = Insert(["column1", Func1()], ["value1", Func1()], Func1())
         statement, parameters = compile(expr)
         self.assertEquals(statement, "INSERT INTO func1() (column1, func1()) "
                                      "VALUES (value1, func1())")
         self.assertEquals(parameters, [])
 
     def test_insert_with_columns(self):
-        expr = Insert("table", [Column("a", "table"), Column("b", "table")],
-                      ["1", "2"])
+        expr = Insert([Column("a", "table"), Column("b", "table")],
+                      ["1", "2"], "table")
         statement, parameters = compile(expr)
         self.assertEquals(statement, "INSERT INTO table (a, b) VALUES (1, 2)")
         self.assertEquals(parameters, [])
 
     def test_insert_auto_table(self):
-        expr = Insert(AutoTable("none"), Column("column", "table"), "value")
+        expr = Insert(Column("column", "table"), "value")
         statement, parameters = compile(expr)
         self.assertEquals(statement, "INSERT INTO table (column) "
                                      "VALUES (value)")
         self.assertEquals(parameters, [])
 
+    def test_insert_auto_table_default(self):
+        expr = Insert(Column("column"), "value", default_table="table")
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "INSERT INTO table (column) "
+                                     "VALUES (value)")
+        self.assertEquals(parameters, [])
+
+    def test_insert_auto_table_unknown(self):
+        expr = Insert(Column("column"), "value")
+        self.assertRaises(CompileError, compile, expr)
+
     def test_update(self):
-        expr = Update(Func1(), {"column1": "value1", Func1(): Func2()})
+        expr = Update({"column1": "value1", Func1(): Func2()}, table=Func1())
         statement, parameters = compile(expr)
         self.assertTrue(statement in
                         ["UPDATE func1() SET column1=value1, func1()=func2()",
@@ -286,26 +320,36 @@ class CompileTest(TestHelper):
         self.assertEquals(parameters, [])
 
     def test_update_with_columns(self):
-        expr = Update("table", {Column("column", "table"): "value"})
+        expr = Update({Column("column", "table"): "value"}, table="table")
         statement, parameters = compile(expr)
         self.assertEquals(statement, "UPDATE table SET column=value")
         self.assertEquals(parameters, [])
 
     def test_update_where(self):
-        expr = Update(Func1(), {"column": "value"}, Func1())
+        expr = Update({"column": "value"}, Func1(), Func2())
         statement, parameters = compile(expr)
         self.assertEquals(statement,
-                          "UPDATE func1() SET column=value WHERE func1()")
+                          "UPDATE func2() SET column=value WHERE func1()")
         self.assertEquals(parameters, [])
 
     def test_update_auto_table(self):
-        expr = Update(AutoTable("none"), {Column("column", "table"): "value"})
+        expr = Update({Column("column", "table"): "value"})
         statement, parameters = compile(expr)
         self.assertEquals(statement, "UPDATE table SET column=value")
         self.assertEquals(parameters, [])
 
+    def test_update_auto_table_default(self):
+        expr = Update({Column("column"): "value"}, default_table="table")
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "UPDATE table SET column=value")
+        self.assertEquals(parameters, [])
+
+    def test_update_auto_table_unknown(self):
+        expr = Update({Column("column"): "value"})
+        self.assertRaises(CompileError, compile, expr)
+
     def test_delete(self):
-        expr = Delete(Func1())
+        expr = Delete(table=Func1())
         statement, parameters = compile(expr)
         self.assertEquals(statement, "DELETE FROM func1()")
         self.assertEquals(parameters, [])
@@ -313,15 +357,26 @@ class CompileTest(TestHelper):
     def test_delete_where(self):
         expr = Delete(Func1(), Func2())
         statement, parameters = compile(expr)
-        self.assertEquals(statement, "DELETE FROM func1() WHERE func2()")
+        self.assertEquals(statement, "DELETE FROM func2() WHERE func1()")
         self.assertEquals(parameters, [])
 
     def test_delete_auto_table(self):
-        expr = Delete(AutoTable("none"), Column("column", "table") == 1)
+        expr = Delete(Column("column", "table") == 1)
         statement, parameters = compile(expr)
         self.assertEquals(statement,
                           "DELETE FROM table WHERE table.column = ?")
         self.assertEquals(parameters, [1])
+
+    def test_delete_auto_table_default(self):
+        expr = Delete(Column("column") == 1, default_table="table")
+        statement, parameters = compile(expr)
+        self.assertEquals(statement,
+                          "DELETE FROM table WHERE column = ?")
+        self.assertEquals(parameters, [1])
+
+    def test_delete_auto_table_unknown(self):
+        expr = Delete(Column("column") == 1)
+        self.assertRaises(CompileError, compile, expr)
 
     def test_column(self):
         expr = Column("name")
