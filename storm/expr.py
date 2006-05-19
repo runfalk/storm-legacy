@@ -13,10 +13,12 @@ class Compile(object):
 
     def __init__(self):
         self._dispatch_table = {}
+        self._precedence = {}
 
     def copy(self):
         copy = self.__class__()
         copy._dispatch_table = self._dispatch_table.copy()
+        copy._precedence = self._precedence.copy()
         return copy
 
     def when(self, *types):
@@ -26,28 +28,51 @@ class Compile(object):
             return method
         return decorator
 
+    def get_precedence(self, type):
+        return self._precedence.get(type, MAX_PRECEDENCE)
+
+    def set_precedence(self, precedence, *types):
+        for type in types:
+            self._precedence[type] = precedence
+
+    def _compile_single(self, state, expr, outer_precedence):
+        cls = expr.__class__
+        for class_ in cls.__mro__:
+            handler = self._dispatch_table.get(class_)
+            if handler is not None:
+                inner_precedence = state.precedence = \
+                                   self._precedence.get(cls, MAX_PRECEDENCE)
+                statement = handler(self._compile, state, expr)
+                if inner_precedence < outer_precedence:
+                    statement = "(%s)" % statement
+                return statement
+        else:
+            raise CompileError("Don't know how to compile %r"
+                               % expr.__class__)
+
     def _compile(self, state, expr, join=", "):
+        outer_precedence = state.precedence
+        if type(expr) is str:
+            if self._precedence.get(str, MAX_PRECEDENCE) < outer_precedence:
+                return "(%s)" % expr
+            return expr
         if type(expr) in (tuple, list):
             compiled = []
             for subexpr in expr:
-                if type(subexpr) in (tuple, list):
-                    compiled.append(self._compile(state, subexpr, join))
-                    continue
-                for class_ in subexpr.__class__.__mro__:
-                    handler = self._dispatch_table.get(class_)
-                    if handler is not None:
-                        compiled.append(handler(self._compile, state, subexpr))
-                        break
+                if type(subexpr) is str:
+                    statement = subexpr
+                elif type(subexpr) in (tuple, list):
+                    state.precedence = outer_precedence
+                    statement = self._compile(state, subexpr, join)
                 else:
-                    raise CompileError("Don't know how to compile %r"
-                                       % subexpr.__class__)
-            return join.join(compiled)
+                    statement = self._compile_single(state, subexpr,
+                                                     outer_precedence)
+                compiled.append(statement)
+            statement = join.join(compiled)
         else:
-            for class_ in expr.__class__.__mro__:
-                handler = self._dispatch_table.get(class_)
-                if handler is not None:
-                    return handler(self._compile, state, expr)
-            raise CompileError, "Don't know how to compile %r" % expr.__class__
+            statement = self._compile_single(state, expr, outer_precedence)
+        state.precedence = outer_precedence
+        return statement
 
     def __call__(self, expr):
         state = State()
@@ -60,6 +85,7 @@ class State(object):
 
     def __init__(self):
         self._stack = []
+        self.precedence = 0
         self.parameters = []
         self.auto_tables = []
         self.omit_column_tables = False
@@ -81,9 +107,10 @@ compile = Compile()
 # --------------------------------------------------------------------
 # Builtin type support
 
-@compile.when(str)
-def compile_str(compile, state, expr):
-    return expr
+# Most common case. Optimized in Compile._compile.
+#@compile.when(str)
+#def compile_str(compile, state, expr):
+#    return expr
 
 @compile.when(type(None))
 def compile_none(compile, state, expr):
@@ -92,6 +119,8 @@ def compile_none(compile, state, expr):
 
 # --------------------------------------------------------------------
 # Base classes for expressions
+
+MAX_PRECEDENCE = 1000
 
 class Expr(object):
     pass
@@ -212,12 +241,9 @@ class Select(Expr):
 @compile.when(Select)
 def compile_select(compile, state, select):
     tokens = ["SELECT "]
-
     if select.distinct:
         tokens.append("DISTINCT ")
-    
     tokens.append(compile(state, select.columns))
-
     if select.tables is not Undef:
         tokens.append(" FROM ")
         # Add a placeholder and compile later to support AutoTable.
@@ -359,8 +385,19 @@ class BinaryOper(BinaryExpr):
 
 @compile.when(BinaryOper)
 def compile_binary_oper(compile, state, oper):
-    return "(%s%s%s)" % (compile(state, oper.expr1), oper.oper,
-                         compile(state, oper.expr2))
+    return "%s%s%s" % (compile(state, oper.expr1), oper.oper,
+                       compile(state, oper.expr2))
+
+
+class NonAssocBinaryOper(BinaryOper):
+    oper = " (unknown) "
+
+@compile.when(NonAssocBinaryOper)
+def compile_non_assoc_binary_oper(compile, state, oper):
+    expr1 = compile(state, oper.expr1)
+    state.precedence += 0.5
+    expr2 = compile(state, oper.expr2)
+    return "%s%s%s" % (expr1, oper.oper, expr2)
 
 
 class CompoundOper(CompoundExpr):
@@ -368,7 +405,7 @@ class CompoundOper(CompoundExpr):
 
 @compile.when(CompoundOper)
 def compile_compound_oper(compile, state, oper):
-    return "(%s)" % compile(state, oper.exprs, oper.oper)
+    return "%s" % compile(state, oper.exprs, oper.oper)
 
 
 class Eq(BinaryOper):
@@ -377,8 +414,9 @@ class Eq(BinaryOper):
 @compile.when(Eq)
 def compile_eq(compile, state, eq):
     if eq.expr2 is None:
-        return "(%s IS NULL)" % compile(state, eq.expr1)
-    return "(%s = %s)" % (compile(state, eq.expr1), compile(state, eq.expr2))
+        return "%s IS NULL" % compile(state, eq.expr1)
+    return "%s = %s" % (compile(state, eq.expr1), compile(state, eq.expr2))
+
 
 class Ne(BinaryOper):
     oper = " != "
@@ -386,8 +424,8 @@ class Ne(BinaryOper):
 @compile.when(Ne)
 def compile_ne(compile, state, ne):
     if ne.expr2 is None:
-        return "(%s IS NOT NULL)" % compile(state, ne.expr1)
-    return "(%s != %s)" % (compile(state, ne.expr1), compile(state, ne.expr2))
+        return "%s IS NOT NULL" % compile(state, ne.expr1)
+    return "%s != %s" % (compile(state, ne.expr1), compile(state, ne.expr2))
 
 
 class Gt(BinaryOper):
@@ -411,13 +449,16 @@ class LShift(BinaryOper):
 class Like(BinaryOper):
     oper = " LIKE "
 
+
 class In(BinaryOper):
     oper = " IN "
 
 @compile.when(In)
 def compile_in(compile, state, expr):
-    return "(%s) IN (%s)" % (compile(state, expr.expr1),
-                             compile(state, expr.expr2))
+    expr1 = compile(state, expr.expr1)
+    state.precedence = MAX_PRECEDENCE+1 # Force parenthesis.
+    return "%s IN %s" % (expr1, compile(state, expr.expr2))
+
 
 class And(CompoundOper):
     oper = " AND "
@@ -429,16 +470,16 @@ class Or(CompoundOper):
 class Add(CompoundOper):
     oper = "+"
 
-class Sub(CompoundOper):
+class Sub(NonAssocBinaryOper):
     oper = "-"
 
 class Mul(CompoundOper):
     oper = "*"
 
-class Div(CompoundOper):
+class Div(NonAssocBinaryOper):
     oper = "/"
 
-class Mod(CompoundOper):
+class Mod(NonAssocBinaryOper):
     oper = "%"
 
 
@@ -498,3 +539,16 @@ class Asc(SuffixExpr):
 
 class Desc(SuffixExpr):
     suffix = "DESC"
+
+
+# --------------------------------------------------------------------
+# Set operator precedences and commutativity.
+
+compile.set_precedence(10, Select, Insert, Update, Delete)
+compile.set_precedence(20, Or)
+compile.set_precedence(30, And)
+compile.set_precedence(40, Eq, Ne, Gt, Ge, Lt, Le, Like, In)
+compile.set_precedence(50, LShift, RShift)
+compile.set_precedence(60, Add, Sub)
+compile.set_precedence(70, Mul, Div, Mod)
+

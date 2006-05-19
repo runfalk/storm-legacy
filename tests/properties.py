@@ -174,7 +174,7 @@ class PropertyTest(TestHelper):
             prop = Property()
         expr = Class.prop == "value"
         statement, parameters = compile(expr)
-        self.assertEquals(statement, "(table.prop = ?)")
+        self.assertEquals(statement, "table.prop = ?")
         self.assertEquals(parameters, ["value"])
 
 
