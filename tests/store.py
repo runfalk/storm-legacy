@@ -62,7 +62,7 @@ class StoreTest(TestHelper):
     def test_execute_flushes(self):
         obj = self.store.get(Class, 1)
         obj.title = "New Title"
-        
+
         result = self.store.execute("SELECT title FROM test WHERE id=1")
         self.assertEquals(result.fetch_one(), ("New Title",))
 
@@ -82,10 +82,10 @@ class StoreTest(TestHelper):
         obj = self.store.get(Class, 1)
         self.assertTrue(self.store.get(Class, 1) is obj)
 
-    #def test_wb_get_cached_doesnt_need_connection(self):
-    #    obj = self.store.get(Class, 1)
-    #    self.store._connection = None
-    #    self.store.get(Class, 1)
+    def test_wb_get_cached_doesnt_need_connection(self):
+        obj = self.store.get(Class, 1)
+        self.store._connection = None
+        self.store.get(Class, 1)
 
     def test_cache_cleanup(self):
         obj = self.store.get(Class, 1)
@@ -270,7 +270,11 @@ class StoreTest(TestHelper):
         obj.title = "Title 3"
 
         self.store.add(obj)
-        self.store.add(obj)
+        self.assertRaises(StoreError, self.store.add, obj)
+
+    def test_add_loaded(self):
+        obj = self.store.get(Class, 1)
+        self.assertRaises(StoreError, self.store.add, obj)
 
     def test_add_twice_to_wrong_store(self):
         obj = Class()
@@ -290,7 +294,7 @@ class StoreTest(TestHelper):
 
         self.store.flush()
         
-        self.assertEquals(Store.of(obj), None)
+        self.assertEquals(Store.of(obj), self.store)
 
         self.assertEquals(self.get_items(),
                           [(1, "Title 9"), (4, "Title 7")])
@@ -298,6 +302,8 @@ class StoreTest(TestHelper):
                           [(1, "Title 9"), (2, "Title 8"), (4, "Title 7")])
 
         self.store.commit()
+
+        self.assertEquals(Store.of(obj), None)
 
         self.assertEquals(self.get_committed_items(),
                           [(1, "Title 9"), (4, "Title 7")])
@@ -315,19 +321,19 @@ class StoreTest(TestHelper):
         self.assertEquals(self.get_items(),
                           [(1, "Title 9"), (2, "Title 2"), (4, "Title 7")])
 
-#    def test_remove_flush_rollback_update(self):
-#        obj = self.store.get(Class, 2)
-#
-#        self.store.remove(obj)
-#        self.store.flush()
-#        self.store.rollback()
-#        
-#        obj.title = "Title 2"
-#
-#        self.store.flush()
-#
-#        self.assertEquals(self.get_items(),
-#                          [(1, "Title 9"), (2, "Title 2"), (4, "Title 7")])
+    def test_remove_flush_rollback_update(self):
+        obj = self.store.get(Class, 2)
+
+        self.store.remove(obj)
+        self.store.flush()
+        self.store.rollback()
+
+        obj.title = "Title 2"
+
+        self.store.flush()
+
+        self.assertEquals(self.get_items(),
+                          [(1, "Title 9"), (2, "Title 2"), (4, "Title 7")])
 
     def test_remove_add_update(self):
         obj = self.store.get(Class, 2)
@@ -356,11 +362,21 @@ class StoreTest(TestHelper):
         self.assertEquals(self.get_items(),
                           [(1, "Title 9"), (2, "Title 2"), (4, "Title 7")])
 
+    def test_remove_twice(self):
+        obj = self.store.get(Class, 1)
+
+        self.store.remove(obj)
+        self.assertRaises(StoreError, self.store.remove, obj)
+
+    def test_remove_unknown(self):
+        obj = Class()
+        self.assertRaises(StoreError, self.store.remove, obj)
+
     def test_remove_from_wrong_store(self):
         obj = self.store.get(Class, 1)
         self.assertRaises(StoreError, Store(self.database).remove, obj)
 
-    def test_wb_remove_flush_update_is_dirty(self):
+    def test_wb_remove_flush_update_isnt_dirty(self):
         obj = self.store.get(Class, 2)
 
         self.store.remove(obj)
@@ -368,7 +384,36 @@ class StoreTest(TestHelper):
         
         obj.title = "Title 2"
 
-        self.assertFalse(id(obj) in self.store._dirty)
+        self.assertTrue(id(obj) not in self.store._dirty)
+
+    def test_wb_remove_rollback_isnt_dirty_or_ghost(self):
+        obj = self.store.get(Class, 2)
+
+        self.store.remove(obj)
+        self.store.rollback()
+
+        self.assertTrue(id(obj) not in self.store._dirty)
+        self.assertTrue(id(obj) not in self.store._ghosts)
+
+    def test_wb_remove_flush_rollback_isnt_dirty_or_ghost(self):
+        obj = self.store.get(Class, 2)
+
+        self.store.remove(obj)
+        self.store.flush()
+        self.store.rollback()
+
+        self.assertTrue(id(obj) not in self.store._dirty)
+        self.assertTrue(id(obj) not in self.store._ghosts)
+
+    def test_add_rollback_not_in_store(self):
+        obj = Class()
+        obj.id = 3
+        obj.title = "Title 3"
+
+        self.store.add(obj)
+        self.store.rollback()
+
+        self.assertEquals(Store.of(obj), None)
 
     def test_update_flush_commit(self):
         obj = self.store.get(Class, 2)
@@ -393,9 +438,7 @@ class StoreTest(TestHelper):
                           [(1, "Title 9"), (2, "Title 2"), (4, "Title 7")])
 
     def test_update_commit(self):
-
         obj = self.store.get(Class, 2)
-
         obj.title = "Title 2"
 
         self.assertEquals(self.get_items(),
@@ -403,12 +446,22 @@ class StoreTest(TestHelper):
         self.assertEquals(self.get_committed_items(),
                           [(1, "Title 9"), (2, "Title 8"), (4, "Title 7")])
 
-        # Does it work without flush?
+        # Ensure it works without flush.
 
         self.store.commit()
 
         self.assertEquals(self.get_committed_items(),
                           [(1, "Title 9"), (2, "Title 2"), (4, "Title 7")])
+
+    def test_update_commit_twice(self):
+        obj = self.store.get(Class, 2)
+        obj.title = "Title 2"
+        self.store.commit()
+        obj.title = "Title 3"
+        self.store.commit()
+
+        self.assertEquals(self.get_committed_items(),
+                          [(1, "Title 9"), (2, "Title 3"), (4, "Title 7")])
 
     def test_update_primary_key(self):
         obj = self.store.get(Class, 2)
@@ -505,7 +558,7 @@ class StoreTest(TestHelper):
 
         self.store.remove(obj)
 
-        self.assertEquals(Store.of(obj), None)
+        self.assertEquals(Store.of(obj), self.store)
 
         obj.title = "Title 3"
 
@@ -513,7 +566,9 @@ class StoreTest(TestHelper):
 
         obj.id = 6
 
-        self.store.flush()
+        self.store.commit()
+
+        self.assertEquals(Store.of(obj), self.store)
 
         self.assertEquals(self.get_items(),
                           [(1, "Title 9"), (2, "Title 8"), (4, "Title 7"),
@@ -527,17 +582,10 @@ class StoreTest(TestHelper):
         obj.title = "Title 6"
 
         self.store.add(obj)
-
         self.assertTrue(id(obj) in self.store._dirty)
-        self.assertTrue(Store.of(obj) is self.store)
-
         self.store.remove(obj)
-
         self.assertTrue(id(obj) not in self.store._dirty)
-        self.assertTrue(Store.of(obj) is None)
-
         self.store.add(obj)
-
         self.assertTrue(id(obj) in self.store._dirty)
         self.assertTrue(Store.of(obj) is self.store)
 
@@ -599,3 +647,40 @@ class StoreTest(TestHelper):
         self.assertEquals(obj.id, 1)
         self.assertEquals(obj.title, "Title 9")
 
+    def test_attribute_rollback(self):
+        obj = self.store.get(Class, 1)
+        obj.some_attribute = 1
+        self.store.rollback()
+        self.assertEquals(getattr(obj, "some_attribute", None), None)
+
+    def test_attribute_rollback_after_commit(self):
+        obj = self.store.get(Class, 1)
+        obj.some_attribute = 1
+        self.store.commit()
+        obj.some_attribute = 2
+        self.store.rollback()
+        self.assertEquals(getattr(obj, "some_attribute", None), 1)
+
+    def test_cache_has_improper_object(self):
+        obj = self.store.get(Class, 1)
+        self.store.remove(obj)
+        self.store.commit()
+
+        self.store.execute("INSERT INTO test VALUES (1, 'Title 1')")
+
+        self.assertTrue(self.store.get(Class, 1) is not obj)
+
+    def test_cache_has_improper_object_readded(self):
+        obj = self.store.get(Class, 1)
+        self.store.remove(obj)
+
+        self.store.flush()
+
+        readd_obj = Class()
+        readd_obj.id = 1
+        readd_obj.title = "Readded"
+        self.store.add(readd_obj)
+
+        self.store.commit()
+
+        self.assertTrue(self.store.get(Class, 1) is readd_obj)

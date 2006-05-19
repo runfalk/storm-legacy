@@ -9,9 +9,8 @@ class StoreError(Exception):
     pass
 
 
-STATE_ADDED = 1
-STATE_LOADED = 2
-STATE_REMOVED = 3
+PENDING_ADD = 1
+PENDING_REMOVE = 2
 
 
 class Store(object):
@@ -19,6 +18,7 @@ class Store(object):
     def __init__(self, database):
         self._connection = database.connect()
         self._cache = WeakValueDictionary()
+        self._ghosts = {}
         self._dirty = {}
 
     @staticmethod
@@ -35,33 +35,46 @@ class Store(object):
     def commit(self):
         self.flush()
         self._connection.commit()
+        for obj in self._iter_ghosts():
+            del get_obj_info(obj)["store"]
+        for obj in self._iter_cached():
+            get_obj_info(obj).save()
+        self._ghosts.clear()
 
     def rollback(self):
-        dirty = self._dirty
-        for id in dirty.keys():
-            obj_info = get_obj_info(dirty[id])
-            state = obj_info["state"]
-            if state is STATE_REMOVED:
-                obj_info["state"] = STATE_LOADED
-                del dirty[id]
-            elif state is STATE_ADDED:
-                obj_info["state"] = None
-                del dirty[id]
+        objects = {}
+        for obj in self._iter_dirty():
+            objects[id(obj)] = obj
+        for obj in self._iter_ghosts():
+            objects[id(obj)] = obj
+        for obj in self._iter_cached():
+            objects[id(obj)] = obj
+
+        for obj in objects.values():
+            self._remove_from_cache(obj)
+
+            obj_info = get_obj_info(obj)
+            obj_info.restore()
+
+            if obj_info.get("store") is self:
+                self._add_to_cache(obj)
+                self._enable_change_notification(obj)
+
+        self._ghosts.clear()
+        self._dirty.clear()
         self._connection.rollback()
 
     def get(self, cls, key):
         self.flush()
 
-        if type(key) != tuple:
+        if type(key) != tuple: # XXX: Assert same size
             key = (key,)
         
-        #cached = self._cache.get((cls,)+key)
-        #if cached is not None:
-        #    return cached
+        cached = self._cache.get((cls, key))
+        if cached is not None:
+            return cached
 
         cls_info = get_cls_info(cls)
-
-        # TODO: Assert same size
 
         where = None
         for i, prop in enumerate(cls_info.primary_key):
@@ -104,53 +117,82 @@ class Store(object):
 
     def add(self, obj):
         obj_info = get_obj_info(obj)
+
         store = obj_info.get("store")
-        if store and store is not self:
-            raise StoreError("%r is already in another store" % obj)
-        state = obj_info.get("state")
-        if state is STATE_REMOVED:
-            obj_info["state"] = STATE_LOADED
-        elif state is None:
-            obj_info["store"] = self
-            obj_info["state"] = STATE_ADDED
-            self._dirty[id(obj)] = obj
+        if store is not None and store is not self:
+            raise StoreError("%r is part of another store" % obj)
+
+        pending = obj_info.get("pending")
+
+        if pending is PENDING_ADD:
+            raise StoreError("%r is already scheduled to be added" % obj)
+        elif pending is PENDING_REMOVE:
+            del obj_info["pending"]
+        else:
+            if store is None:
+                obj_info.save()
+                obj_info["store"] = self
+            else:
+                if not self._is_ghost(obj):
+                    raise StoreError("%r is already in the store" % obj)
+                self._set_alive(obj)
+
+            obj_info["pending"] = PENDING_ADD
+            self._set_dirty(obj)
 
     def remove(self, obj):
         obj_info = get_obj_info(obj)
+
         store = obj_info.get("store")
-        if store and store is not self:
+        if store is None or store is not self:
             raise StoreError("%r is not in this store" % obj)
-        state = obj_info.get("state")
-        if state is STATE_ADDED:
-            obj_info["state"] = None
-            obj_info["store"] = None
-            del self._dirty[id(obj)]
-        elif state is STATE_LOADED:
-            obj_info["state"] = STATE_REMOVED
-            self._dirty[id(obj)] = obj
+
+        pending = obj_info.get("pending")
+
+        if pending is PENDING_REMOVE:
+            raise StoreError("%r is already scheduled to be removed" % obj)
+        elif pending is PENDING_ADD:
+            del obj_info["pending"]
+            self._set_ghost(obj)
+            self._set_clean(obj)
+        else:
+            obj_info["pending"] = PENDING_REMOVE
+            self._set_dirty(obj)
 
     def flush(self):
         if not self._dirty:
             return
-        for obj in self._dirty.values():
+        for obj in self._iter_dirty():
             obj_info, cls_info = get_info(obj)
-            state = obj_info.get("state")
-            if state is STATE_ADDED:
+
+            pending = obj_info.get("pending")
+
+            if pending is PENDING_REMOVE:
+                del obj_info["pending"]
+                
+                expr = Delete(self._build_key_where(cls_info, obj_info, obj),
+                              cls_info.table)
+                self._connection.execute(expr, noresult=True)
+
+                self._disable_change_notification(obj)
+                self._set_ghost(obj)
+                self._remove_from_cache(obj)
+
+            elif pending is PENDING_ADD:
+                del obj_info["pending"]
+
                 expr = Insert(cls_info.properties,
                               [Param(prop.__get__(obj))
                                for prop in cls_info.properties],
                               cls_info.table)
                 self._connection.execute(expr, noresult=True)
-                self._reset_info(cls_info, obj_info, obj)
-                obj_info["state"] = STATE_LOADED
-            elif state is STATE_REMOVED:
-                expr = Delete(self._build_key_where(cls_info, obj_info, obj),
-                              cls_info.table)
-                self._connection.execute(expr, noresult=True)
-                obj_info["state"] = None
-                obj_info["store"] = None
-                obj_info.set_change_notification(None)
-            elif state is STATE_LOADED and obj_info.check_changed():
+
+                self._enable_change_notification(obj)
+                self._set_alive(obj)
+                self._add_to_cache(obj)
+
+            elif obj_info.check_changed():
+
                 changes = obj_info.get_changes().copy()
                 for column in changes:
                     changes[column] = Param(changes[column])
@@ -158,7 +200,9 @@ class Store(object):
                               self._build_key_where(cls_info, obj_info, obj),
                               cls_info.table)
                 self._connection.execute(expr, noresult=True)
-                self._reset_info(cls_info, obj_info, obj)
+
+                self._add_to_cache(obj)
+
         self._dirty.clear()
 
     def _build_key_where(self, cls_info, obj_info, obj):
@@ -171,34 +215,82 @@ class Store(object):
         return where
 
     def _load_object(self, cls_info, values):
-        cls = cls_info.cls
-        obj = self._cache.get((cls,)+tuple(values[i]
-                                           for i in cls_info.primary_key_pos))
+        primary_key = tuple(values[i] for i in cls_info.primary_key_pos)
+        obj = self._cache.get((cls_info.cls, primary_key))
         if obj is not None:
-            # FIXME: Check if object was not removed.
             return obj
-        obj = object.__new__(cls)
+
+        obj = object.__new__(cls_info.cls)
         obj_info = get_obj_info(obj)
-        obj_info["state"] = STATE_LOADED
+        obj_info["store"] = self
+
         for attr, value in zip(cls_info.attributes, values):
             setattr(obj, attr, value)
-        self._reset_info(cls_info, obj_info, obj)
+
         obj_info.save()
+
+        self._add_to_cache(obj)
+        self._enable_change_notification(obj)
+
         return obj
 
-    def _reset_info(self, cls_info, obj_info, obj):
-        obj_info["store"] = self
-        obj_info["primary_key"] = tuple(prop.__get__(obj)
-                                        for prop in cls_info.primary_key)
-        obj_info["cache_key"] = (cls_info.cls,)+obj_info["primary_key"]
-        self._cache[obj_info["cache_key"]] = obj
-        obj_info.set_change_notification(self._object_changed)
-        return obj_info
+
+    def _is_dirty(self, obj):
+        return id(obj) in self._dirty
+
+    def _set_dirty(self, obj):
+        self._dirty[id(obj)] = obj
+
+    def _set_clean(self, obj):
+        self._dirty.pop(id(obj), None)
+
+    def _iter_dirty(self):
+        return self._dirty.itervalues()
+
+
+    def _is_ghost(self, obj):
+        return id(obj) in self._ghosts
+
+    def _set_ghost(self, obj):
+        self._ghosts[id(obj)] = obj
+
+    def _set_alive(self, obj):
+        self._ghosts.pop(id(obj), None)
+
+    def _iter_ghosts(self):
+        return self._ghosts.itervalues()
+
+
+    def _add_to_cache(self, obj):
+        obj_info, cls_info = get_info(obj)
+        old_primary_key = obj_info.get("primary_key")
+        new_primary_key = tuple(prop.__get__(obj)
+                                for prop in cls_info.primary_key)
+        if new_primary_key == old_primary_key:
+            return
+        if old_primary_key is not None:
+            del self._cache[obj.__class__, old_primary_key]
+        self._cache[obj.__class__, new_primary_key] = obj
+        obj_info["primary_key"] = new_primary_key
+
+    def _remove_from_cache(self, obj):
+        obj_info = get_obj_info(obj)
+        primary_key = obj_info.get("primary_key")
+        if primary_key is not None:
+            del self._cache[obj.__class__, primary_key]
+            del obj_info["primary_key"]
+
+    def _iter_cached(self):
+        return self._cache.itervalues()
+
+
+    def _enable_change_notification(self, obj):
+        get_obj_info(obj).set_change_notification(self._object_changed)
+
+    def _disable_change_notification(self, obj):
+        get_obj_info(obj).set_change_notification(None)
 
     def _object_changed(self, obj, prop, old_value, new_value):
-        # XXX: If prop is part of the primary key, the cache will
-        #      contain an invalid key from now on. Which will result
-        #      in get() acting wrong when using the cache.
         self._dirty[id(obj)] = obj
 
 
