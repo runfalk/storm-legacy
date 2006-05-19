@@ -695,13 +695,23 @@ class StoreTest(TestHelper):
             def __load__(self):
                 loaded.append((self.id, self.title))
                 self.title = "Title 1"
+                self.some_attribute = 1
 
         obj = self.store.get(MyClass, 1)
 
         self.assertEquals(loaded, [(1, "Title 9")])
         self.assertEquals(obj.title, "Title 1")
+        self.assertEquals(obj.some_attribute, 1)
+
+        obj.some_attribute = 2
 
         self.store.flush()
 
         self.assertEquals(self.get_items(),
                           [(1, "Title 1"), (2, "Title 8"), (4, "Title 7")])
+
+        self.store.rollback()
+
+        self.assertEquals(obj.title, "Title 9")
+        self.assertEquals(getattr(obj, "some_attribute", None), 1)
+

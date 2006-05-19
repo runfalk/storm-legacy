@@ -236,6 +236,8 @@ class Store(object):
         if load is not None:
             load()
 
+        obj_info.save_attributes()
+
         return obj
 
 

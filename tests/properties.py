@@ -118,6 +118,17 @@ class ObjectInfoTest(TestHelper):
         self.assertEquals(self.obj.attr1, 100)
         self.assertEquals(self.obj_info.get("key"), 1000)
 
+    def test_save_attributes(self):
+        self.obj.prop1 = 10
+        self.obj.attr1 = 100
+        self.obj_info.save()
+        self.obj.prop1 = 20
+        self.obj.attr1 = 200
+        self.obj_info.save_attributes()
+        self.obj_info.restore()
+        self.assertEquals(self.obj.prop1, 10)
+        self.assertEquals(self.obj.attr1, 200)
+
     def test_check_changed(self):
         self.obj.prop1 = 10
         self.obj.attr1 = 100

@@ -84,6 +84,9 @@ class ObjectInfo(dict):
         self._saved_obj_dict = self.obj.__dict__.copy()
         self._saved_self = self.copy()
 
+    def save_attributes(self):
+        self._saved_obj_dict = self.obj.__dict__.copy()
+
     def restore(self):
         self._values = self._saved_values.copy()
         self.obj.__dict__ = self._saved_obj_dict.copy()
