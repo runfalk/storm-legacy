@@ -53,8 +53,6 @@ class Compile(object):
     def _compile(self, state, expr, join=", "):
         outer_precedence = state.precedence
         if type(expr) is str:
-            if self._precedence.get(str, MAX_PRECEDENCE) < outer_precedence:
-                return "(%s)" % expr
             return expr
         if type(expr) in (tuple, list):
             compiled = []
@@ -478,8 +476,8 @@ class In(BinaryOper):
 @compile.when(In)
 def compile_in(compile, state, expr):
     expr1 = compile(state, expr.expr1)
-    state.precedence = MAX_PRECEDENCE+1 # Force parenthesis.
-    return "%s IN %s" % (expr1, compile(state, expr.expr2))
+    state.precedence = 0 # We're forcing parenthesis here.
+    return "%s IN (%s)" % (expr1, compile(state, expr.expr2))
 
 
 class And(CompoundOper):
