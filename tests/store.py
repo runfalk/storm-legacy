@@ -684,3 +684,24 @@ class StoreTest(TestHelper):
         self.store.commit()
 
         self.assertTrue(self.store.get(Class, 1) is readd_obj)
+
+    def test__load__(self):
+
+        loaded = []
+
+        class MyClass(Class):
+            def __init__(self):
+                loaded.append("NO!")
+            def __load__(self):
+                loaded.append((self.id, self.title))
+                self.title = "Title 1"
+
+        obj = self.store.get(MyClass, 1)
+
+        self.assertEquals(loaded, [(1, "Title 9")])
+        self.assertEquals(obj.title, "Title 1")
+
+        self.store.flush()
+
+        self.assertEquals(self.get_items(),
+                          [(1, "Title 1"), (2, "Title 8"), (4, "Title 7")])

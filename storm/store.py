@@ -232,6 +232,10 @@ class Store(object):
         self._add_to_cache(obj)
         self._enable_change_notification(obj)
 
+        load = getattr(obj, "__load__", None)
+        if load is not None:
+            load()
+
         return obj
 
 
