@@ -4,7 +4,7 @@ from storm.databases.sqlite import SQLite
 from storm.properties import ObjectInfo
 from storm.database import Result
 from storm.properties import Int, Str
-from storm.expr import Asc, Desc
+from storm.expr import Asc, Desc, Select
 from storm.store import *
 
 from tests.helper import TestHelper, MakePath
@@ -20,34 +20,6 @@ class Class(object):
 class StoreTest(TestHelper):
 
     helpers = [MakePath]
-
-    def test_join(self):
-        self.store.execute("CREATE TABLE other "
-                           "(id INT PRIMARY KEY, other_title VARCHAR)")
-
-        class Other(object):
-            __table__ = "other", "id"
-            id = Int()
-            other_title = Str()
-
-        other = Other()
-        other.id = 3
-        other.other_title = "Title 9"
-
-        self.store.add(other)
-
-        # Add another object with the same title to ensure DISTINCT
-        # is in place.
-        other = Other()
-        other.id = 4
-        other.other_title = "Title 9"
-
-        self.store.add(other)
-
-        result = self.store.find(Class, Class.title == Other.other_title)
-
-        self.assertEquals([(obj.id, obj.title) for obj in result],
-                          [(1, "Title 9")])
 
     def setUp(self):
         TestHelper.setUp(self)
@@ -573,4 +545,38 @@ class StoreTest(TestHelper):
         self.assertEquals(sup_obj.title, "9")
         self.assertEquals(sub_obj.id, 1)
         self.assertEquals(sub_obj.title, 9)
+
+    def test_join(self):
+        self.store.execute("CREATE TABLE other "
+                           "(id INT PRIMARY KEY, other_title VARCHAR)")
+
+        class Other(object):
+            __table__ = "other", "id"
+            id = Int()
+            other_title = Str()
+
+        other = Other()
+        other.id = 3
+        other.other_title = "Title 9"
+
+        self.store.add(other)
+
+        # Add another object with the same title to ensure DISTINCT
+        # is in place.
+        other = Other()
+        other.id = 4
+        other.other_title = "Title 9"
+
+        self.store.add(other)
+
+        result = self.store.find(Class, Class.title == Other.other_title)
+
+        self.assertEquals([(obj.id, obj.title) for obj in result],
+                          [(1, "Title 9")])
+
+    def test_sub_select(self):
+        obj = self.store.find(Class, Class.id == Select("1")).one()
+        self.assertTrue(obj)
+        self.assertEquals(obj.id, 1)
+        self.assertEquals(obj.title, "Title 9")
 
