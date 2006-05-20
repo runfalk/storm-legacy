@@ -81,8 +81,8 @@ class ExprTest(TestHelper):
         self.assertEquals(expr.exprs, ("elem1", "elem2", "elem3"))
 
     def test_column_default(self):
-        expr = Column(None)
-        self.assertEquals(expr.name, None)
+        expr = Column()
+        self.assertEquals(expr.name, Undef)
         self.assertEquals(expr.table, Undef)
 
     def test_column_constructor(self):

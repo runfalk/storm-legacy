@@ -128,6 +128,10 @@ class ConnectionTest(TestHelper):
         self.connection.rollback()
         self.assertEquals(self.executed, ["ROLLBACK"])
 
+    def test_get_insert_identity(self):
+        result = self.connection.execute("INSERT")
+        self.assertRaises(NotImplementedError,
+                          result.get_insert_identity, None, None)
 
 class ResultTest(TestHelper):
 

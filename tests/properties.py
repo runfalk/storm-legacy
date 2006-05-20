@@ -72,7 +72,7 @@ class ClassInfoTest(TestHelper):
             prop2 = Property("column2")
         cls_info = ClassInfo(Class)
 
-        # Can't use == for props.
+        # Can't use == for props, since they're columns.
         self.assertTrue(cls_info.primary_key[0] is Class.prop2)
         self.assertTrue(cls_info.primary_key[1] is Class.prop1)
         self.assertEquals(len(cls_info.primary_key), 2)
@@ -98,6 +98,13 @@ class ObjectInfoTest(TestHelper):
         self.Class = Class
         self.obj = Class()
         self.obj_info = get_obj_info(self.obj)
+
+    def test_has_prop(self):
+        self.assertEquals(self.obj_info.has_prop(self.Class.prop1), False)
+        self.obj.prop1 = None
+        self.assertEquals(self.obj_info.has_prop(self.Class.prop1), True)
+        del self.obj.prop1
+        self.assertEquals(self.obj_info.has_prop(self.Class.prop1), False)
 
     def test_save_restore(self):
         self.obj.prop1 = 10
@@ -153,6 +160,9 @@ class ObjectInfoTest(TestHelper):
         self.obj.prop1 = None
         self.assertEquals(self.obj_info.get_changes(),
                           {self.Class.prop1: None})
+        del self.obj.prop1
+        self.assertEquals(self.obj_info.get_changes(),
+                          {self.Class.prop1: Undef})
         self.obj.prop1 = 10
         self.assertEquals(self.obj_info.get_changes(), {})
         self.obj_info.restore()
@@ -171,8 +181,8 @@ class ObjectInfoTest(TestHelper):
         self.obj.prop2 = 10
         self.obj.prop1 = 20
 
-        self.assertEquals(changes, [(self.obj, self.Class.prop2, None, 10),
-                                    (self.obj, self.Class.prop1, None, 20)])
+        self.assertEquals(changes, [(self.obj, self.Class.prop2, Undef, 10),
+                                    (self.obj, self.Class.prop1, Undef, 20)])
 
         del changes[:]
 
@@ -182,93 +192,156 @@ class ObjectInfoTest(TestHelper):
         self.assertEquals(changes, [(self.obj, self.Class.prop1, 20, None),
                                     (self.obj, self.Class.prop2, 10, None)])
 
+        del changes[:]
+
+        del self.obj.prop1
+        del self.obj.prop2
+
+        self.assertEquals(changes, [(self.obj, self.Class.prop1, None, Undef),
+                                    (self.obj, self.Class.prop2, None, Undef)])
+
+
 
 class PropertyTest(TestHelper):
+
+    def setUp(self):
+        TestHelper.setUp(self)
+        class Class(object):
+            __table__ = "table", "prop1"
+            prop1 = Property()
+            prop2 = Property()
+        class SubClass(Class):
+            __table__ = "subtable", "prop1"
+        self.Class = Class
+        self.SubClass = SubClass
 
     def test_name(self):
         prop = Property("name")
         self.assertEquals(prop.name, "name")
 
-    def test_name_auto(self):
-        class Class(object):
-            __table__ = "table", "foobar"
-            foobar = Property()
-        self.assertEquals(Class.foobar.name, "foobar")
+    def test_auto_name(self):
+        self.assertEquals(self.Class.prop1.name, "prop1")
+
+    def test_auto_table(self):
+        self.assertEquals(self.Class.prop1.table, "table")
+
+    def test_auto_table_subclass(self):
+        self.assertEquals(self.Class.prop1.table, "table")
+        self.assertEquals(self.SubClass.prop1.table, "subtable")
+
+    def test_auto_table_subclass_reverse_initialization(self):
+        self.assertEquals(self.SubClass.prop1.table, "subtable")
+        self.assertEquals(self.Class.prop1.table, "table")
+
+    def test_property_owner(self):
+        self.assertEquals(id(self.Class.prop1),
+                          id(self.Class.__dict__.get("prop1")))
+        self.assertEquals(id(self.SubClass.prop1),
+                          id(self.SubClass.__dict__.get("prop1")))
+
+    def test_property_owner_reverse_initialization(self):
+        self.assertEquals(id(self.SubClass.prop1),
+                          id(self.SubClass.__dict__.get("prop1")))
+        self.assertEquals(id(self.Class.prop1),
+                          id(self.Class.__dict__.get("prop1")))
 
     def test_set_get(self):
-        class Class(object):
-            __table__ = "table", "prop1"
-            prop1 = Property()
-            prop2 = Property()
-        obj = Class()
+        obj = self.Class()
         obj.prop1 = 10
         obj.prop2 = 20
         self.assertEquals(obj.prop1, 10)
         self.assertEquals(obj.prop2, 20)
 
+    def test_set_get_subclass(self):
+        obj = self.SubClass()
+        obj.prop1 = 10
+        obj.prop2 = 20
+        self.assertEquals(obj.prop1, 10)
+        self.assertEquals(obj.prop2, 20)
+
+    def test_accept_undef(self):
+        obj = self.Class()
+        value = self.Class.prop1.__get__(obj)
+        self.assertEquals(value, None)
+        value = self.Class.prop1.__get__(obj, accept_undef=True)
+        self.assertEquals(value, Undef)
+
+    def test_del(self):
+        obj = self.Class()
+        obj.prop1 = 10
+        del obj.prop1
+        self.assertEquals(self.Class.prop1.__get__(obj),
+                          None)
+        self.assertEquals(self.Class.prop1.__get__(obj, accept_undef=True),
+                          Undef)
+
+    def test_del_subclass(self):
+        obj = self.SubClass()
+        obj.prop1 = 10
+        del obj.prop1
+        self.assertEquals(self.SubClass.prop1.__get__(obj),
+                          None)
+        self.assertEquals(self.SubClass.prop1.__get__(obj, accept_undef=True),
+                          Undef)
+
     def test_comparable_expr(self):
-        class Class(object):
-            __table__ = "table", "prop"
-            prop = Property()
-        expr = Class.prop == "value"
+        expr = self.Class.prop1 == "value"
         statement, parameters = compile(expr)
-        self.assertEquals(statement, "table.prop = ?")
+        self.assertEquals(statement, "table.prop1 = ?")
+        self.assertEquals(parameters, ["value"])
+
+    def test_comparable_expr_subclass(self):
+        expr = self.SubClass.prop1 == "value"
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "subtable.prop1 = ?")
         self.assertEquals(parameters, ["value"])
 
 
 class PropertyTypesTest(TestHelper):
 
-    def test_bool(self):
+    def setup(self, property):
         class Class(object):
             __table__ = "table", "prop"
-            prop = Bool()
-        obj = Class()
-        obj.prop = 1
-        self.assertEquals(obj.prop, True)
-        obj.prop = 0
-        self.assertEquals(obj.prop, False)
+            prop = property
+        class SubClass(Class):
+            pass
+        self.Class = Class
+        self.SubClass = SubClass
+        self.obj = SubClass()
+
+    def test_bool(self):
+        self.setup(Bool())
+        self.obj.prop = 1
+        self.assertTrue(self.obj.prop is True)
+        self.obj.prop = 0
+        self.assertTrue(self.obj.prop is False)
 
     def test_int(self):
-        class Class(object):
-            __table__ = "table", "prop"
-            prop = Int()
-        obj = Class()
-        obj.prop = False
-        self.assertEquals(obj.prop, 0)
-        obj.prop = True
-        self.assertEquals(obj.prop, 1)
+        self.setup(Int())
+        self.obj.prop = False
+        self.assertEquals(self.obj.prop, 0)
+        self.obj.prop = True
+        self.assertEquals(self.obj.prop, 1)
 
     def test_float(self):
-        class Class(object):
-            __table__ = "table", "prop"
-            prop = Float()
-        obj = Class()
-        obj.prop = 1
-        self.assertTrue(isinstance(obj.prop, float))
+        self.setup(Float())
+        self.obj.prop = 1
+        self.assertTrue(isinstance(self.obj.prop, float))
 
     def test_str(self):
-        class Class(object):
-            __table__ = "table", "prop"
-            prop = Str()
-        obj = Class()
-        obj.prop = u"str"
-        self.assertTrue(isinstance(obj.prop, str))
+        self.setup(Str())
+        self.obj.prop = u"str"
+        self.assertTrue(isinstance(self.obj.prop, str))
 
     def test_unicode(self):
-        class Class(object):
-            __table__ = "table", "prop"
-            prop = Unicode()
-        obj = Class()
-        obj.prop = "unicode"
-        self.assertTrue(isinstance(obj.prop, unicode))
+        self.setup(Unicode())
+        self.obj.prop = "unicode"
+        self.assertTrue(isinstance(self.obj.prop, unicode))
 
     def test_datetime(self):
-        class Class(object):
-            __table__ = "table", "prop"
-            prop = DateTime()
-        obj = Class()
-        obj.prop = 0.0
-        self.assertEquals(obj.prop, datetime.utcfromtimestamp(0))
-        obj.prop = datetime(2006, 1, 1)
-        self.assertEquals(obj.prop, datetime(2006, 1, 1))
-        self.assertRaises(TypeError, setattr, obj, "prop", object())
+        self.setup(DateTime())
+        self.obj.prop = 0.0
+        self.assertEquals(self.obj.prop, datetime.utcfromtimestamp(0))
+        self.obj.prop = datetime(2006, 1, 1)
+        self.assertEquals(self.obj.prop, datetime(2006, 1, 1))
+        self.assertRaises(TypeError, setattr, self.obj, "prop", object())

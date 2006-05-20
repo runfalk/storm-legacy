@@ -29,7 +29,7 @@ class StoreTest(TestHelper):
 
         connection = self.database.connect()
         connection.execute("CREATE TABLE test "
-                           "(id INT PRIMARY KEY, title VARCHAR)")
+                           "(id INTEGER PRIMARY KEY, title VARCHAR)")
         connection.execute("INSERT INTO test VALUES (1, 'Title 9')")
         connection.execute("INSERT INTO test VALUES (2, 'Title 8')")
         connection.execute("INSERT INTO test VALUES (4, 'Title 7')")
@@ -714,4 +714,53 @@ class StoreTest(TestHelper):
 
         self.assertEquals(obj.title, "Title 9")
         self.assertEquals(getattr(obj, "some_attribute", None), 1)
+
+    def test_retrieve_default_primary_key(self):
+        obj = Class()
+        obj.title = "Title 3"
+        self.store.add(obj)
+        self.store.flush()
+        self.assertEquals(obj.id, 5)
+        self.assertTrue(self.store.get(Class, 5) is obj)
+
+    def test_retrieve_default_value(self):
+        self.store.execute("CREATE TABLE new_test "
+                           "(id INTEGER PRIMARY KEY,"
+                           " title VARCHAR DEFAULT 'Default Title')")
+        class MyClass(Class):
+            __table__ = "new_test", "id"
+        obj = MyClass()
+        obj.id = 5
+        self.store.add(obj)
+        self.store.flush()
+        self.assertEquals(obj.title, "Default Title")
+
+    def test_wb_flush_with_removed_prop_not_dirty(self):
+        obj = self.store.get(Class, 1)
+        del obj.title
+        self.assertTrue(id(obj) not in self.store._dirty)
+
+    def test_flush_with_removed_prop(self):
+        obj = self.store.get(Class, 1)
+        del obj.title
+        self.store.flush()
+        self.assertEquals(self.get_items(),
+                          [(1, "Title 9"), (2, "Title 8"), (4, "Title 7")])
+
+    def test_flush_with_removed_prop_forced_dirty(self):
+        obj = self.store.get(Class, 1)
+        del obj.title
+        obj.id = 2
+        obj.id = 1
+        self.store.flush()
+        self.assertEquals(self.get_items(),
+                          [(1, "Title 9"), (2, "Title 8"), (4, "Title 7")])
+
+    def test_flush_with_removed_prop_really_dirty(self):
+        obj = self.store.get(Class, 1)
+        del obj.title
+        obj.id = 3
+        self.store.flush()
+        self.assertEquals(self.get_items(),
+                          [(2, "Title 8"), (3, "Title 9"), (4, "Title 7")])
 

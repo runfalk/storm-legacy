@@ -67,17 +67,25 @@ class ObjectInfo(dict):
         self._saved_obj_dict = None
         self._saved_self = None
 
-    def set_prop(self, prop, value):
-        if value is None:
-            old_value = self._values.pop(prop, None)
+    def has_prop(self, prop):
+        return prop in self._values
+
+    def get_prop(self, prop, accept_undef=False):
+        if accept_undef:
+            return self._values.get(prop, Undef)
         else:
-            old_value = self._values.get(prop)
-            self._values[prop] = value
+            return self._values.get(prop)
+
+    def set_prop(self, prop, value):
+        old_value = self._values.get(prop, Undef)
+        self._values[prop] = value
         if self._notify_change is not None and old_value != value:
             self._notify_change(self.obj, self, old_value, value)
 
-    def get_prop(self, prop):
-        return self._values.get(prop)
+    def del_prop(self, prop):
+        old_value = self._values.pop(prop, Undef)
+        if self._notify_change is not None and old_value != Undef:
+            self._notify_change(self.obj, self, old_value, Undef)
 
     def save(self):
         self._saved_values = self._values.copy()
@@ -101,9 +109,9 @@ class ObjectInfo(dict):
         old_values = self._saved_values
         new_values = self._values
         for prop in old_values:
-            new_value = new_values.get(prop)
-            if new_value is None:
-                changes[prop] = None
+            new_value = new_values.get(prop, Undef)
+            if new_value is Undef:
+                changes[prop] = Undef
             elif old_values[prop] != new_value:
                 changes[prop] = new_value
         for prop in new_values:
@@ -117,54 +125,84 @@ class ObjectInfo(dict):
 
 class Property(Column):
 
-    def __init__(self, name=None):
+    def __init__(self, name=Undef):
         Column.__init__(self, name)
+        self._cls = None
+        self._attr = None
 
-    def __get__(self, obj, cls=None):
+    def __get__(self, obj, cls=None, accept_undef=False):
+        self = self._for(cls or obj.__class__)
         if obj is None:
-            if self.table is Undef:
-                self.table = getattr(cls, "__table__", (None,))[0]
-            if self.name is None:
-                self.name = object()
-                for name in cls.__dict__:
-                    if getattr(cls, name) is self:
-                        self.name = name
-                        break
             return self
-        return get_obj_info(obj).get_prop(self)
+        return get_obj_info(obj).get_prop(self, accept_undef)
 
     def __set__(self, obj, value):
-        get_obj_info(obj).set_prop(self, value)
+        get_obj_info(obj).set_prop(self._for(obj.__class__), value)
+
+    def __delete__(self, obj):
+        get_obj_info(obj).del_prop(self._for(obj.__class__))
+
+    def _find_real_owner(self, used_cls):
+        self_id = id(self)
+        for cls in used_cls.__mro__:
+            for attr, prop in cls.__dict__.iteritems():
+                if id(prop) == self_id:
+                    break
+            else:
+                continue
+            break
+        else:
+            raise RuntimeError("Property used in an unknown class")
+
+        self._cls = cls
+        self._attr = attr
+
+    def _copy_to(self, cls):
+        prop = self.__class__(self.name)
+        setattr(cls, self._attr, prop)
+        return prop
+    
+    def _for(self, cls):
+        if self._cls is None:
+            self._find_real_owner(cls)
+            if self.name is Undef:
+                self.name = self._attr
+            if self.table is Undef:
+                self.table = self._cls.__table__[0]
+        if cls is not self._cls:
+            return self._copy_to(cls)._for(cls)
+        return self
 
 
 class Bool(Property):
 
     def __set__(self, obj, value):
-        get_obj_info(obj).set_prop(self, bool(value))
+        get_obj_info(obj).set_prop(self._for(obj.__class__), bool(value))
 
 class Int(Property):
 
     def __set__(self, obj, value):
-        get_obj_info(obj).set_prop(self, int(value))
+        get_obj_info(obj).set_prop(self._for(obj.__class__), int(value))
 
 class Float(Property):
 
     def __set__(self, obj, value):
-        get_obj_info(obj).set_prop(self, float(value))
+        get_obj_info(obj).set_prop(self._for(obj.__class__), float(value))
 
 class Str(Property):
 
     def __set__(self, obj, value):
-        get_obj_info(obj).set_prop(self, str(value))
+        get_obj_info(obj).set_prop(self._for(obj.__class__), str(value))
 
 class Unicode(Property):
 
     def __set__(self, obj, value):
-        get_obj_info(obj).set_prop(self, unicode(value))
+        get_obj_info(obj).set_prop(self._for(obj.__class__), unicode(value))
 
 class DateTime(Property):
 
     def __set__(self, obj, value):
+        self = self._for(obj.__class__)
         if type(value) in (int, long, float):
             value = datetime.utcfromtimestamp(value)
         elif not isinstance(value, datetime):

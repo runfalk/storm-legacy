@@ -170,7 +170,8 @@ class Store(object):
             if pending is PENDING_REMOVE:
                 del obj_info["pending"]
                 
-                expr = Delete(self._build_key_where(cls_info, obj_info, obj),
+                expr = Delete(self._build_where(cls_info.primary_key,
+                                                obj_info["primary_values"]),
                               cls_info.table)
                 self._connection.execute(expr, noresult=True)
 
@@ -181,11 +182,20 @@ class Store(object):
             elif pending is PENDING_ADD:
                 del obj_info["pending"]
 
-                expr = Insert(cls_info.properties,
-                              [Param(prop.__get__(obj))
-                               for prop in cls_info.properties],
-                              cls_info.table)
-                self._connection.execute(expr, noresult=True)
+                columns = []
+                values = []
+
+                for prop in cls_info.properties:
+                    value = prop.__get__(obj, accept_undef=True)
+                    if value is not Undef:
+                        columns.append(prop)
+                        values.append(Param(value))
+
+                expr = Insert(columns, values, cls_info.table)
+
+                result = self._connection.execute(expr)
+
+                self._fill_missing_values(obj, result)
 
                 self._enable_change_notification(obj)
                 self._set_alive(obj)
@@ -193,21 +203,46 @@ class Store(object):
 
             elif obj_info.check_changed():
 
-                changes = obj_info.get_changes().copy()
-                for column in changes:
-                    changes[column] = Param(changes[column])
-                expr = Update(changes,
-                              self._build_key_where(cls_info, obj_info, obj),
-                              cls_info.table)
-                self._connection.execute(expr, noresult=True)
+                changes = {}
+                for column, value in obj_info.get_changes().iteritems():
+                    if value is not Undef:
+                        changes[column] = Param(value)
 
-                self._add_to_cache(obj)
+                if changes:
+                    expr = Update(changes,
+                                  self._build_where(cls_info.primary_key,
+                                                    obj_info["primary_values"]),
+                                  cls_info.table)
+                    self._connection.execute(expr, noresult=True)
+
+                    self._add_to_cache(obj)
 
         self._dirty.clear()
 
-    def _build_key_where(self, cls_info, obj_info, obj):
+    def _fill_missing_values(self, obj, result):
+        obj_info, cls_info = get_info(obj)
+
+        missing_properties = []
+        for prop in cls_info.properties:
+            if not obj_info.has_prop(prop):
+                missing_properties.append(prop)
+
+        if missing_properties:
+            primary_key = cls_info.primary_key
+            primary_values = tuple(prop.__get__(obj, accept_undef=True)
+                                   for prop in primary_key)
+            if Undef in primary_values:
+                where = result.get_insert_identity(primary_key, primary_values)
+            else:
+                where = self._build_where(primary_key, primary_values)
+            select = Select(missing_properties, where)
+            result = self._connection.execute(select)
+            for prop, value in zip(missing_properties, result.fetch_one()):
+                prop.__set__(obj, value)
+
+    def _build_where(self, columns, values):
         where = Undef
-        for prop, value in zip(cls_info.primary_key, obj_info["primary_key"]):
+        for prop, value in zip(columns, values):
             if where is Undef:
                 where = (prop == value)
             else:
@@ -215,8 +250,8 @@ class Store(object):
         return where
 
     def _load_object(self, cls_info, values):
-        primary_key = tuple(values[i] for i in cls_info.primary_key_pos)
-        obj = self._cache.get((cls_info.cls, primary_key))
+        primary_values = tuple(values[i] for i in cls_info.primary_key_pos)
+        obj = self._cache.get((cls_info.cls, primary_values))
         if obj is not None:
             return obj
 
@@ -269,22 +304,22 @@ class Store(object):
 
     def _add_to_cache(self, obj):
         obj_info, cls_info = get_info(obj)
-        old_primary_key = obj_info.get("primary_key")
-        new_primary_key = tuple(prop.__get__(obj)
-                                for prop in cls_info.primary_key)
-        if new_primary_key == old_primary_key:
+        old_primary_values = obj_info.get("primary_values")
+        new_primary_values = tuple(prop.__get__(obj)
+                                   for prop in cls_info.primary_key)
+        if new_primary_values == old_primary_values:
             return
-        if old_primary_key is not None:
-            del self._cache[obj.__class__, old_primary_key]
-        self._cache[obj.__class__, new_primary_key] = obj
-        obj_info["primary_key"] = new_primary_key
+        if old_primary_values is not None:
+            del self._cache[obj.__class__, old_primary_values]
+        self._cache[obj.__class__, new_primary_values] = obj
+        obj_info["primary_values"] = new_primary_values
 
     def _remove_from_cache(self, obj):
         obj_info = get_obj_info(obj)
-        primary_key = obj_info.get("primary_key")
-        if primary_key is not None:
-            del self._cache[obj.__class__, primary_key]
-            del obj_info["primary_key"]
+        primary_values = obj_info.get("primary_values")
+        if primary_values is not None:
+            del self._cache[obj.__class__, primary_values]
+            del obj_info["primary_values"]
 
     def _iter_cached(self):
         return self._cache.itervalues()
@@ -297,7 +332,8 @@ class Store(object):
         get_obj_info(obj).set_change_notification(None)
 
     def _object_changed(self, obj, prop, old_value, new_value):
-        self._dirty[id(obj)] = obj
+        if new_value is not Undef:
+            self._dirty[id(obj)] = obj
 
 
 class ResultSet(object):

@@ -369,7 +369,7 @@ def compile_delete(compile, state, delete):
 
 class Column(ComparableExpr):
 
-    def __init__(self, name, table=Undef):
+    def __init__(self, name=Undef, table=Undef):
         self.name = name
         self.table = table
 

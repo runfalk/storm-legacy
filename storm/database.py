@@ -31,6 +31,9 @@ class Result(object):
                 for result in results:
                     yield result
 
+    def get_insert_identity(self, primary_columns, primary_values):
+        raise NotImplementedError
+
 
 class Connection(object):
 
