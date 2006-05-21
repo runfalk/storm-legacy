@@ -1,6 +1,8 @@
 import gc
+import os
 
 from storm.databases.sqlite import SQLite
+from storm.databases.postgres import Postgres
 from storm.properties import get_obj_info
 from storm.database import Result
 from storm.properties import Int, Str
@@ -23,16 +25,33 @@ class StoreTest(TestHelper):
 
     def setUp(self):
         TestHelper.setUp(self)
+        self.create_sample_data()
+
+    def tearDown(self):
+        self.drop_sample_data()
+        TestHelper.tearDown(self)
+
+    def create_sample_data(self):
         self.filename = self.make_path()
         self.database = SQLite(self.filename)
         self.store = Store(self.database)
 
         connection = self.database.connect()
         connection.execute("CREATE TABLE test "
-                           "(id INTEGER PRIMARY KEY, title VARCHAR)")
-        connection.execute("INSERT INTO test VALUES (1, 'Title 9')")
-        connection.execute("INSERT INTO test VALUES (2, 'Title 8')")
-        connection.execute("INSERT INTO test VALUES (4, 'Title 7')")
+                           "(id INTEGER PRIMARY KEY,"
+                           " title VARCHAR DEFAULT 'Default Title')")
+        connection.execute("CREATE TABLE other "
+                           "(id INT PRIMARY KEY, other_title VARCHAR)")
+        connection.execute("INSERT INTO test VALUES (10, 'Title 30')")
+        connection.execute("INSERT INTO test VALUES (20, 'Title 20')")
+        connection.execute("INSERT INTO test VALUES (30, 'Title 10')")
+        connection.commit()
+
+    def drop_sample_data(self):
+        self.store.rollback()
+        connection = self.database.connect()
+        connection.execute("DROP TABLE test")
+        connection.execute("DROP TABLE other")
         connection.commit()
 
     def get_items(self):
@@ -60,41 +79,43 @@ class StoreTest(TestHelper):
         self.assertEquals(result.fetch_one(), (1,))
 
     def test_execute_flushes(self):
-        obj = self.store.get(Class, 1)
+        obj = self.store.get(Class, 10)
         obj.title = "New Title"
 
-        result = self.store.execute("SELECT title FROM test WHERE id=1")
+        result = self.store.execute("SELECT title FROM test WHERE id=10")
         self.assertEquals(result.fetch_one(), ("New Title",))
 
     def test_get(self):
-        obj = self.store.get(Class, 1)
-        self.assertEquals(obj.id, 1)
-        self.assertEquals(obj.title, "Title 9")
+        obj = self.store.get(Class, 10)
+        self.assertEquals(obj.id, 10)
+        self.assertEquals(obj.title, "Title 30")
 
-        obj = self.store.get(Class, 2)
-        self.assertEquals(obj.id, 2)
-        self.assertEquals(obj.title, "Title 8")
+        obj = self.store.get(Class, 20)
+        self.assertEquals(obj.id, 20)
+        self.assertEquals(obj.title, "Title 20")
 
-        obj = self.store.get(Class, 3)
+        obj = self.store.get(Class, 40)
         self.assertEquals(obj, None)
 
     def test_get_cached(self):
-        obj = self.store.get(Class, 1)
-        self.assertTrue(self.store.get(Class, 1) is obj)
+        obj = self.store.get(Class, 10)
+        self.assertTrue(self.store.get(Class, 10) is obj)
 
     def test_wb_get_cached_doesnt_need_connection(self):
-        obj = self.store.get(Class, 1)
+        obj = self.store.get(Class, 10)
+        connection = self.store._connection
         self.store._connection = None
-        self.store.get(Class, 1)
+        self.store.get(Class, 10)
+        self.store._connection = connection
 
     def test_cache_cleanup(self):
-        obj = self.store.get(Class, 1)
+        obj = self.store.get(Class, 10)
         obj.taint = True
 
         del obj
         gc.collect()
 
-        obj = self.store.get(Class, 1)
+        obj = self.store.get(Class, 10)
         self.assertFalse(getattr(obj, "taint", False))
 
     def test_get_tuple(self):
@@ -102,15 +123,15 @@ class StoreTest(TestHelper):
             __table__ = "test", ("title", "id")
             id = Int()
             title = Str()
-        obj = self.store.get(Class, ("Title 9", 1))
-        self.assertEquals(obj.id, 1)
-        self.assertEquals(obj.title, "Title 9")
+        obj = self.store.get(Class, ("Title 30", 10))
+        self.assertEquals(obj.id, 10)
+        self.assertEquals(obj.title, "Title 30")
 
-        obj = self.store.get(Class, ("Title 8", 1))
+        obj = self.store.get(Class, ("Title 20", 10))
         self.assertEquals(obj, None)
 
     def test_of(self):
-        obj = self.store.get(Class, 1)
+        obj = self.store.get(Class, 10)
         self.assertEquals(Store.of(obj), self.store)
         self.assertEquals(Store.of(Class()), None)
         self.assertEquals(Store.of(object()), None)
@@ -120,251 +141,284 @@ class StoreTest(TestHelper):
 
         lst = [(obj.id, obj.title) for obj in result]
         lst.sort()
-        self.assertEquals(lst, [(1, "Title 9"),
-                                (2, "Title 8"),
-                                (4, "Title 7")])
+        self.assertEquals(lst, [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                         ])
 
     def test_find_from_cache(self):
-        obj = self.store.get(Class, 1)
-        self.assertTrue(self.store.find(Class, id=1).one() is obj)
+        obj = self.store.get(Class, 10)
+        self.assertTrue(self.store.find(Class, id=10).one() is obj)
 
     def test_find_expr(self):
-        result = self.store.find(Class, Class.id == 2,
-                                 Class.title == "Title 8")
-        self.assertEquals([(obj.id, obj.title) for obj in result],
-                          [(2, "Title 8")])
+        result = self.store.find(Class, Class.id == 20,
+                                 Class.title == "Title 20")
+        self.assertEquals([(obj.id, obj.title) for obj in result], [
+                          (20, "Title 20"),
+                         ])
 
-        result = self.store.find(Class, Class.id == 1,
-                                 Class.title == "Title 8")
-        self.assertEquals([(obj.id, obj.title) for obj in result], [])
+        result = self.store.find(Class, Class.id == 10,
+                                 Class.title == "Title 20")
+        self.assertEquals([(obj.id, obj.title) for obj in result], [
+                         ])
 
     def test_find_keywords(self):
-        result = self.store.find(Class, id=2, title="Title 8")
-        self.assertEquals([(obj.id, obj.title) for obj in result],
-                          [(2, "Title 8")])
+        result = self.store.find(Class, id=20, title="Title 20")
+        self.assertEquals([(obj.id, obj.title) for obj in result], [
+                          (20, "Title 20")
+                         ])
 
-        result = self.store.find(Class, id=1, title="Title 8")
-        self.assertEquals([(obj.id, obj.title) for obj in result], [])
+        result = self.store.find(Class, id=10, title="Title 20")
+        self.assertEquals([(obj.id, obj.title) for obj in result], [
+                         ])
 
     def test_find_order_by(self, *args):
         result = self.store.find(Class).order_by(Class.title)
         lst = [(obj.id, obj.title) for obj in result]
-        self.assertEquals(lst, [(4, "Title 7"),
-                                (2, "Title 8"),
-                                (1, "Title 9")])
+        self.assertEquals(lst, [
+                          (30, "Title 10"),
+                          (20, "Title 20"),
+                          (10, "Title 30"),
+                         ])
 
     def test_find_order_asc(self, *args):
         result = self.store.find(Class).order_by(Asc(Class.title))
         lst = [(obj.id, obj.title) for obj in result]
-        self.assertEquals(lst, [(4, "Title 7"),
-                                (2, "Title 8"),
-                                (1, "Title 9")])
+        self.assertEquals(lst, [
+                          (30, "Title 10"),
+                          (20, "Title 20"),
+                          (10, "Title 30"),
+                         ])
 
     def test_find_order_desc(self, *args):
         result = self.store.find(Class).order_by(Desc(Class.title))
         lst = [(obj.id, obj.title) for obj in result]
-        self.assertEquals(lst, [(1, "Title 9"),
-                                (2, "Title 8"),
-                                (4, "Title 7")])
+        self.assertEquals(lst, [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                         ])
 
     def test_find_one(self, *args):
         obj = self.store.find(Class).order_by(Class.title).one()
-        self.assertEquals(obj.id, 4)
-        self.assertEquals(obj.title, "Title 7")
+        self.assertEquals(obj.id, 30)
+        self.assertEquals(obj.title, "Title 10")
 
         obj = self.store.find(Class).order_by(Class.id).one()
-        self.assertEquals(obj.id, 1)
-        self.assertEquals(obj.title, "Title 9")
+        self.assertEquals(obj.id, 10)
+        self.assertEquals(obj.title, "Title 30")
 
-        obj = self.store.find(Class, id=3).one()
+        obj = self.store.find(Class, id=40).one()
         self.assertEquals(obj, None)
 
     def test_find_count(self):
         self.assertEquals(self.store.find(Class).count(), 3)
 
     def test_find_max(self):
-        self.assertEquals(self.store.find(Class).max(Class.id), 4)
+        self.assertEquals(self.store.find(Class).max(Class.id), 30)
 
     def test_find_min(self):
-        self.assertEquals(self.store.find(Class).min(Class.id), 1)
+        self.assertEquals(self.store.find(Class).min(Class.id), 10)
 
     def test_find_avg(self):
-        self.assertEquals(int(self.store.find(Class).avg(Class.id)), 2)
+        self.assertEquals(int(self.store.find(Class).avg(Class.id)), 20)
 
     def test_find_sum(self):
-        self.assertEquals(int(self.store.find(Class).sum(Class.id)), 7)
+        self.assertEquals(int(self.store.find(Class).sum(Class.id)), 60)
 
     def test_find_remove(self, *args):
-        self.store.find(Class, Class.id == 2).remove()
-        result = self.store.find(Class)
-        lst = [(obj.id, obj.title) for obj in result]
-        lst.sort()
-        self.assertEquals(lst, [(1, "Title 9"),
-                                (4, "Title 7")])
+        self.store.find(Class, Class.id == 20).remove()
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (30, "Title 10"),
+                         ])
 
     def test_add_commit(self):
         obj = Class()
-        obj.id = 3
-        obj.title = "Title 6"
+        obj.id = 40
+        obj.title = "Title 40"
 
         self.store.add(obj)
 
-        self.assertEquals(self.get_committed_items(),
-                          [(1, "Title 9"), (2, "Title 8"), (4, "Title 7")])
+        self.assertEquals(self.get_committed_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                         ])
 
         self.store.commit()
 
-        self.assertEquals(self.get_committed_items(),
-                          [(1, "Title 9"), (2, "Title 8"), (3, "Title 6"),
-                           (4, "Title 7")])
+        self.assertEquals(self.get_committed_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                          (40, "Title 40"),
+                         ])
 
     def test_add_rollback_commit(self):
         obj = Class()
-        obj.id = 3
-        obj.title = "Title 6"
+        obj.id = 40
+        obj.title = "Title 40"
 
         self.store.add(obj)
         self.store.rollback()
 
         self.assertEquals(self.store.get(Class, 3), None)
 
-        self.assertEquals(self.get_items(),
-                          [(1, "Title 9"), (2, "Title 8"), (4, "Title 7")])
+        self.assertEquals(self.get_committed_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                         ])
         
         self.store.commit()
 
-        self.assertEquals(self.get_committed_items(),
-                          [(1, "Title 9"), (2, "Title 8"), (4, "Title 7")])
+        self.assertEquals(self.get_committed_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                         ])
 
     def test_add_get(self):
         obj = Class()
-        obj.id = 3
-        obj.title = "Title 6"
+        obj.id = 40
+        obj.title = "Title 40"
 
         self.store.add(obj)
 
-        get_obj = self.store.get(Class, 3)
+        old_obj = obj
 
-        self.assertEquals(get_obj.id, 3)
-        self.assertEquals(get_obj.title, "Title 6")
+        obj = self.store.get(Class, 40)
 
-        self.assertTrue(get_obj is obj)
+        self.assertEquals(obj.id, 40)
+        self.assertEquals(obj.title, "Title 40")
+
+        self.assertTrue(obj is old_obj)
 
     def test_add_find(self):
         obj = Class()
-        obj.id = 3
-        obj.title = "Title 6"
+        obj.id = 40
+        obj.title = "Title 40"
 
         self.store.add(obj)
 
-        get_obj = self.store.find(Class, Class.id == 3).one()
+        old_obj = obj
 
-        self.assertEquals(get_obj.id, 3)
-        self.assertEquals(get_obj.title, "Title 6")
+        obj = self.store.find(Class, Class.id == 40).one()
 
-        self.assertTrue(get_obj is obj)
+        self.assertEquals(obj.id, 40)
+        self.assertEquals(obj.title, "Title 40")
+
+        self.assertTrue(obj is old_obj)
 
     def test_add_twice(self):
         obj = Class()
-        obj.id = 3
-        obj.title = "Title 3"
-
         self.store.add(obj)
         self.assertRaises(StoreError, self.store.add, obj)
 
     def test_add_loaded(self):
-        obj = self.store.get(Class, 1)
+        obj = self.store.get(Class, 10)
         self.assertRaises(StoreError, self.store.add, obj)
 
     def test_add_twice_to_wrong_store(self):
         obj = Class()
-        obj.id = 3
-        obj.title = "Title 3"
-
         self.store.add(obj)
-        
         self.assertRaises(StoreError, Store(self.database).add, obj)
 
     def test_remove_commit(self):
-        obj = self.store.get(Class, 2)
-
+        obj = self.store.get(Class, 20)
         self.store.remove(obj)
-
         self.assertEquals(Store.of(obj), self.store)
-
         self.store.flush()
-        
         self.assertEquals(Store.of(obj), self.store)
 
-        self.assertEquals(self.get_items(),
-                          [(1, "Title 9"), (4, "Title 7")])
-        self.assertEquals(self.get_committed_items(),
-                          [(1, "Title 9"), (2, "Title 8"), (4, "Title 7")])
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (30, "Title 10"),
+                         ])
+        self.assertEquals(self.get_committed_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                         ])
 
         self.store.commit()
-
         self.assertEquals(Store.of(obj), None)
 
-        self.assertEquals(self.get_committed_items(),
-                          [(1, "Title 9"), (4, "Title 7")])
+        self.assertEquals(self.get_committed_items(), [
+                          (10, "Title 30"),
+                          (30, "Title 10"),
+                         ])
 
     def test_remove_rollback_update(self):
-        obj = self.store.get(Class, 2)
+        obj = self.store.get(Class, 20)
 
         self.store.remove(obj)
         self.store.rollback()
         
-        obj.title = "Title 2"
+        obj.title = "Title 200"
 
         self.store.flush()
 
-        self.assertEquals(self.get_items(),
-                          [(1, "Title 9"), (2, "Title 2"), (4, "Title 7")])
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 200"),
+                          (30, "Title 10"),
+                         ])
 
     def test_remove_flush_rollback_update(self):
-        obj = self.store.get(Class, 2)
+        obj = self.store.get(Class, 20)
 
         self.store.remove(obj)
         self.store.flush()
         self.store.rollback()
 
-        obj.title = "Title 2"
+        obj.title = "Title 200"
 
         self.store.flush()
 
-        self.assertEquals(self.get_items(),
-                          [(1, "Title 9"), (2, "Title 2"), (4, "Title 7")])
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 200"),
+                          (30, "Title 10"),
+                         ])
 
     def test_remove_add_update(self):
-        obj = self.store.get(Class, 2)
+        obj = self.store.get(Class, 20)
 
         self.store.remove(obj)
         self.store.add(obj)
         
-        obj.title = "Title 2"
+        obj.title = "Title 200"
 
         self.store.flush()
 
-        self.assertEquals(self.get_items(),
-                          [(1, "Title 9"), (2, "Title 2"), (4, "Title 7")])
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 200"),
+                          (30, "Title 10"),
+                         ])
 
     def test_remove_flush_add_update(self):
-        obj = self.store.get(Class, 2)
+        obj = self.store.get(Class, 20)
 
         self.store.remove(obj)
         self.store.flush()
         self.store.add(obj)
         
-        obj.title = "Title 2"
+        obj.title = "Title 200"
 
         self.store.flush()
 
-        self.assertEquals(self.get_items(),
-                          [(1, "Title 9"), (2, "Title 2"), (4, "Title 7")])
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 200"),
+                          (30, "Title 10"),
+                         ])
 
     def test_remove_twice(self):
-        obj = self.store.get(Class, 1)
-
+        obj = self.store.get(Class, 10)
         self.store.remove(obj)
         self.assertRaises(StoreError, self.store.remove, obj)
 
@@ -373,22 +427,20 @@ class StoreTest(TestHelper):
         self.assertRaises(StoreError, self.store.remove, obj)
 
     def test_remove_from_wrong_store(self):
-        obj = self.store.get(Class, 1)
+        obj = self.store.get(Class, 20)
         self.assertRaises(StoreError, Store(self.database).remove, obj)
 
     def test_wb_remove_flush_update_isnt_dirty(self):
-        obj = self.store.get(Class, 2)
-
+        obj = self.store.get(Class, 20)
         self.store.remove(obj)
         self.store.flush()
         
-        obj.title = "Title 2"
+        obj.title = "Title 200"
 
         self.assertTrue(id(obj) not in self.store._dirty)
 
     def test_wb_remove_rollback_isnt_dirty_or_ghost(self):
-        obj = self.store.get(Class, 2)
-
+        obj = self.store.get(Class, 20)
         self.store.remove(obj)
         self.store.rollback()
 
@@ -396,8 +448,7 @@ class StoreTest(TestHelper):
         self.assertTrue(id(obj) not in self.store._ghosts)
 
     def test_wb_remove_flush_rollback_isnt_dirty_or_ghost(self):
-        obj = self.store.get(Class, 2)
-
+        obj = self.store.get(Class, 20)
         self.store.remove(obj)
         self.store.flush()
         self.store.rollback()
@@ -407,8 +458,8 @@ class StoreTest(TestHelper):
 
     def test_add_rollback_not_in_store(self):
         obj = Class()
-        obj.id = 3
-        obj.title = "Title 3"
+        obj.id = 40
+        obj.title = "Title 40"
 
         self.store.add(obj)
         self.store.rollback()
@@ -416,99 +467,121 @@ class StoreTest(TestHelper):
         self.assertEquals(Store.of(obj), None)
 
     def test_update_flush_commit(self):
-        obj = self.store.get(Class, 2)
+        obj = self.store.get(Class, 20)
+        obj.title = "Title 200"
 
-        obj.title = "Title 2"
-
-        self.assertEquals(self.get_items(),
-                          [(1, "Title 9"), (2, "Title 8"), (4, "Title 7")])
-        self.assertEquals(self.get_committed_items(),
-                          [(1, "Title 9"), (2, "Title 8"), (4, "Title 7")])
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                         ])
+        self.assertEquals(self.get_committed_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                         ])
 
         self.store.flush()
 
-        self.assertEquals(self.get_items(),
-                          [(1, "Title 9"), (2, "Title 2"), (4, "Title 7")])
-        self.assertEquals(self.get_committed_items(),
-                          [(1, "Title 9"), (2, "Title 8"), (4, "Title 7")])
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 200"),
+                          (30, "Title 10"),
+                         ])
+        self.assertEquals(self.get_committed_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                         ])
 
         self.store.commit()
 
-        self.assertEquals(self.get_committed_items(),
-                          [(1, "Title 9"), (2, "Title 2"), (4, "Title 7")])
+        self.assertEquals(self.get_committed_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 200"),
+                          (30, "Title 10"),
+                         ])
 
     def test_update_commit(self):
-        obj = self.store.get(Class, 2)
-        obj.title = "Title 2"
-
-        self.assertEquals(self.get_items(),
-                          [(1, "Title 9"), (2, "Title 8"), (4, "Title 7")])
-        self.assertEquals(self.get_committed_items(),
-                          [(1, "Title 9"), (2, "Title 8"), (4, "Title 7")])
-
-        # Ensure it works without flush.
+        obj = self.store.get(Class, 20)
+        obj.title = "Title 200"
 
         self.store.commit()
 
-        self.assertEquals(self.get_committed_items(),
-                          [(1, "Title 9"), (2, "Title 2"), (4, "Title 7")])
+        self.assertEquals(self.get_committed_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 200"),
+                          (30, "Title 10"),
+                         ])
 
     def test_update_commit_twice(self):
-        obj = self.store.get(Class, 2)
-        obj.title = "Title 2"
+        obj = self.store.get(Class, 20)
+        obj.title = "Title 200"
         self.store.commit()
-        obj.title = "Title 3"
+        obj.title = "Title 2000"
         self.store.commit()
 
-        self.assertEquals(self.get_committed_items(),
-                          [(1, "Title 9"), (2, "Title 3"), (4, "Title 7")])
+        self.assertEquals(self.get_committed_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 2000"),
+                          (30, "Title 10"),
+                         ])
 
     def test_update_primary_key(self):
-        obj = self.store.get(Class, 2)
-
-        obj.id = 8
+        obj = self.store.get(Class, 20)
+        obj.id = 25
 
         self.store.commit()
 
-        self.assertEquals(self.get_committed_items(),
-                          [(1, "Title 9"), (4, "Title 7"), (8, "Title 8")])
+        self.assertEquals(self.get_committed_items(), [
+                          (10, "Title 30"),
+                          (25, "Title 20"),
+                          (30, "Title 10"),
+                         ])
 
         # Update twice to see if the notion of primary key for the
         # existent object was updated as well.
         
-        obj.id = 18
+        obj.id = 27
 
         self.store.commit()
 
-        self.assertEquals(self.get_committed_items(),
-                          [(1, "Title 9"), (4, "Title 7"), (18, "Title 8")])
+        self.assertEquals(self.get_committed_items(), [
+                          (10, "Title 30"),
+                          (27, "Title 20"),
+                          (30, "Title 10"),
+                         ])
 
-        self.assertTrue(self.store.get(Class, 18) is obj)
-        self.assertTrue(self.store.get(Class, 2) is None)
-        self.assertTrue(self.store.get(Class, 8) is None)
+        # Ensure only the right ones are there.
+
+        self.assertTrue(self.store.get(Class, 27) is obj)
+        self.assertTrue(self.store.get(Class, 25) is None)
+        self.assertTrue(self.store.get(Class, 20) is None)
 
     def test_update_primary_key_exchange(self):
-        obj1 = self.store.get(Class, 1)
-        obj2 = self.store.get(Class, 2)
+        obj1 = self.store.get(Class, 10)
+        obj2 = self.store.get(Class, 30)
 
-        obj1.id = 3
+        obj1.id = 40
         self.store.flush()
-        obj2.id = 1
+        obj2.id = 10
         self.store.flush()
-        obj1.id = 2
+        obj1.id = 30
 
-        self.assertTrue(self.store.get(Class, 2) is obj1)
-        self.assertTrue(self.store.get(Class, 1) is obj2)
+        self.assertTrue(self.store.get(Class, 30) is obj1)
+        self.assertTrue(self.store.get(Class, 10) is obj2)
 
         self.store.commit()
 
-        self.assertEquals(self.get_committed_items(),
-                          [(1, "Title 8"), (2, "Title 9"), (4, "Title 7")])
+        self.assertEquals(self.get_committed_items(), [
+                          (10, "Title 10"),
+                          (20, "Title 20"),
+                          (30, "Title 30"),
+                         ])
 
     def test_update_flush_flush(self):
-        obj = self.store.get(Class, 2)
-
-        obj.title = "Title 2"
+        obj = self.store.get(Class, 20)
+        obj.title = "Title 200"
 
         self.store.flush()
 
@@ -517,70 +590,79 @@ class StoreTest(TestHelper):
 
         get_obj_info(obj).set_change_notification(None)
 
-        obj.title = "Title 12"
+        obj.title = "Title 2000"
 
         self.store.flush()
 
-        self.assertEquals(self.get_items(),
-                          [(1, "Title 9"), (2, "Title 2"), (4, "Title 7")])
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 200"),
+                          (30, "Title 10"),
+                         ])
 
     def test_update_find(self):
-        obj = self.store.get(Class, 2)
-        obj.title = "Title 2"
-        self.assertTrue(self.store.find(Class, Class.title == "Title 2").one())
+        obj = self.store.get(Class, 20)
+        obj.title = "Title 200"
+        
+        result = self.store.find(Class, Class.title == "Title 200")
+
+        self.assertTrue(result.one() is obj)
 
     def test_update_get(self):
-        obj = self.store.get(Class, 2)
-        obj.id = 3
-        self.assertTrue(self.store.get(Class, 3))
+        obj = self.store.get(Class, 20)
+        obj.id = 200
+
+        self.assertTrue(self.store.get(Class, 200) is obj)
 
     def test_add_update(self):
         obj = Class()
-        obj.id = 3
-        obj.title = "Title 6"
+        obj.id = 40
+        obj.title = "Title 40"
 
         self.store.add(obj)
 
-        obj.title = "Title 3"
+        obj.title = "Title 400"
 
         self.store.flush()
 
-        self.assertEquals(self.get_items(),
-                          [(1, "Title 9"), (2, "Title 8"), (3, "Title 3"),
-                           (4, "Title 7")])
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                          (40, "Title 400"),
+                         ])
 
     def test_add_remove_add(self):
         obj = Class()
-        obj.id = 3
-        obj.title = "Title 6"
+        obj.id = 40
+        obj.title = "Title 40"
 
         self.store.add(obj)
-
         self.store.remove(obj)
 
         self.assertEquals(Store.of(obj), self.store)
 
-        obj.title = "Title 3"
+        obj.title = "Title 400"
 
         self.store.add(obj)
 
-        obj.id = 6
+        obj.id = 400
 
         self.store.commit()
 
         self.assertEquals(Store.of(obj), self.store)
 
-        self.assertEquals(self.get_items(),
-                          [(1, "Title 9"), (2, "Title 8"), (4, "Title 7"),
-                           (6, "Title 3")])
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                          (400, "Title 400"),
+                         ])
 
-        self.assertTrue(self.store.get(Class, 6) is obj)
+        self.assertTrue(self.store.get(Class, 400) is obj)
 
     def test_wb_add_remove_add(self):
         obj = Class()
-        obj.id = 3
-        obj.title = "Title 6"
-
         self.store.add(obj)
         self.assertTrue(id(obj) in self.store._dirty)
         self.store.remove(obj)
@@ -590,8 +672,8 @@ class StoreTest(TestHelper):
         self.assertTrue(Store.of(obj) is self.store)
 
     def test_wb_update_remove_add(self):
-        obj = self.store.get(Class, 1)
-        obj.title = "Title 1"
+        obj = self.store.get(Class, 20)
+        obj.title = "Title 200"
 
         self.store.remove(obj)
         self.store.add(obj)
@@ -602,20 +684,18 @@ class StoreTest(TestHelper):
         class SubClass(Class):
             title = Int()
 
-        obj = self.store.get(Class, 1)
-        obj.title = 9
+        obj = self.store.get(Class, 20)
+        obj.title = "20"
 
-        sup_obj = self.store.get(Class, 1)
-        sub_obj = self.store.get(SubClass, 1)
+        obj1 = self.store.get(Class, 20)
+        obj2 = self.store.get(SubClass, 20)
 
-        self.assertEquals(sup_obj.id, 1)
-        self.assertEquals(sup_obj.title, "9")
-        self.assertEquals(sub_obj.id, 1)
-        self.assertEquals(sub_obj.title, 9)
+        self.assertEquals(obj1.id, 20)
+        self.assertEquals(obj1.title, "20")
+        self.assertEquals(obj2.id, 20)
+        self.assertEquals(obj2.title, 20)
 
     def test_join(self):
-        self.store.execute("CREATE TABLE other "
-                           "(id INT PRIMARY KEY, other_title VARCHAR)")
 
         class Other(object):
             __table__ = "other", "id"
@@ -623,38 +703,40 @@ class StoreTest(TestHelper):
             other_title = Str()
 
         other = Other()
-        other.id = 3
-        other.other_title = "Title 9"
+        other.id = 40
+        other.other_title = "Title 20"
 
         self.store.add(other)
 
         # Add another object with the same title to ensure DISTINCT
         # is in place.
+
         other = Other()
-        other.id = 4
-        other.other_title = "Title 9"
+        other.id = 400
+        other.other_title = "Title 20"
 
         self.store.add(other)
 
         result = self.store.find(Class, Class.title == Other.other_title)
 
-        self.assertEquals([(obj.id, obj.title) for obj in result],
-                          [(1, "Title 9")])
+        self.assertEquals([(obj.id, obj.title) for obj in result], [
+                          (20, "Title 20")
+                         ])
 
     def test_sub_select(self):
-        obj = self.store.find(Class, Class.id == Select("1")).one()
+        obj = self.store.find(Class, Class.id == Select("20")).one()
         self.assertTrue(obj)
-        self.assertEquals(obj.id, 1)
-        self.assertEquals(obj.title, "Title 9")
+        self.assertEquals(obj.id, 20)
+        self.assertEquals(obj.title, "Title 20")
 
     def test_attribute_rollback(self):
-        obj = self.store.get(Class, 1)
+        obj = self.store.get(Class, 20)
         obj.some_attribute = 1
         self.store.rollback()
         self.assertEquals(getattr(obj, "some_attribute", None), None)
 
     def test_attribute_rollback_after_commit(self):
-        obj = self.store.get(Class, 1)
+        obj = self.store.get(Class, 20)
         obj.some_attribute = 1
         self.store.commit()
         obj.some_attribute = 2
@@ -662,28 +744,30 @@ class StoreTest(TestHelper):
         self.assertEquals(getattr(obj, "some_attribute", None), 1)
 
     def test_cache_has_improper_object(self):
-        obj = self.store.get(Class, 1)
+        obj = self.store.get(Class, 20)
         self.store.remove(obj)
         self.store.commit()
 
-        self.store.execute("INSERT INTO test VALUES (1, 'Title 1')")
+        self.store.execute("INSERT INTO test VALUES (20, 'Title 20')")
 
-        self.assertTrue(self.store.get(Class, 1) is not obj)
+        self.assertTrue(self.store.get(Class, 20) is not obj)
 
     def test_cache_has_improper_object_readded(self):
-        obj = self.store.get(Class, 1)
+        obj = self.store.get(Class, 20)
         self.store.remove(obj)
 
         self.store.flush()
 
-        readd_obj = Class()
-        readd_obj.id = 1
-        readd_obj.title = "Readded"
-        self.store.add(readd_obj)
+        old_obj = obj # Keep a reference.
+
+        obj = Class()
+        obj.id = 20
+        obj.title = "Readded"
+        self.store.add(obj)
 
         self.store.commit()
 
-        self.assertTrue(self.store.get(Class, 1) is readd_obj)
+        self.assertTrue(self.store.get(Class, 20) is obj)
 
     def test__load__(self):
 
@@ -694,73 +778,97 @@ class StoreTest(TestHelper):
                 loaded.append("NO!")
             def __load__(self):
                 loaded.append((self.id, self.title))
-                self.title = "Title 1"
+                self.title = "Title 200"
                 self.some_attribute = 1
 
-        obj = self.store.get(MyClass, 1)
+        obj = self.store.get(MyClass, 20)
 
-        self.assertEquals(loaded, [(1, "Title 9")])
-        self.assertEquals(obj.title, "Title 1")
+        self.assertEquals(loaded, [(20, "Title 20")])
+        self.assertEquals(obj.title, "Title 200")
         self.assertEquals(obj.some_attribute, 1)
 
         obj.some_attribute = 2
 
         self.store.flush()
 
-        self.assertEquals(self.get_items(),
-                          [(1, "Title 1"), (2, "Title 8"), (4, "Title 7")])
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 200"),
+                          (30, "Title 10"),
+                         ])
 
         self.store.rollback()
 
-        self.assertEquals(obj.title, "Title 9")
+        self.assertEquals(obj.title, "Title 20")
         self.assertEquals(getattr(obj, "some_attribute", None), 1)
 
     def test_retrieve_default_primary_key(self):
         obj = Class()
-        obj.title = "Title 3"
+        obj.title = "Title 40"
         self.store.add(obj)
         self.store.flush()
-        self.assertEquals(obj.id, 5)
-        self.assertTrue(self.store.get(Class, 5) is obj)
+        self.assertNotEquals(obj.id, None)
+        self.assertTrue(self.store.get(Class, obj.id) is obj)
 
     def test_retrieve_default_value(self):
-        self.store.execute("CREATE TABLE new_test "
-                           "(id INTEGER PRIMARY KEY,"
-                           " title VARCHAR DEFAULT 'Default Title')")
-        class MyClass(Class):
-            __table__ = "new_test", "id"
-        obj = MyClass()
-        obj.id = 5
+        obj = Class()
+        obj.id = 40
         self.store.add(obj)
         self.store.flush()
         self.assertEquals(obj.title, "Default Title")
 
-    def test_wb_flush_with_removed_prop_not_dirty(self):
-        obj = self.store.get(Class, 1)
+    def test_wb_remove_prop_not_dirty(self):
+        obj = self.store.get(Class, 20)
         del obj.title
         self.assertTrue(id(obj) not in self.store._dirty)
 
     def test_flush_with_removed_prop(self):
-        obj = self.store.get(Class, 1)
+        obj = self.store.get(Class, 20)
         del obj.title
         self.store.flush()
-        self.assertEquals(self.get_items(),
-                          [(1, "Title 9"), (2, "Title 8"), (4, "Title 7")])
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                         ])
 
     def test_flush_with_removed_prop_forced_dirty(self):
-        obj = self.store.get(Class, 1)
+        obj = self.store.get(Class, 20)
         del obj.title
-        obj.id = 2
-        obj.id = 1
+        obj.id = 40
+        obj.id = 20
         self.store.flush()
-        self.assertEquals(self.get_items(),
-                          [(1, "Title 9"), (2, "Title 8"), (4, "Title 7")])
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                         ])
 
     def test_flush_with_removed_prop_really_dirty(self):
-        obj = self.store.get(Class, 1)
+        obj = self.store.get(Class, 20)
         del obj.title
-        obj.id = 3
+        obj.id = 25
         self.store.flush()
-        self.assertEquals(self.get_items(),
-                          [(2, "Title 8"), (3, "Title 9"), (4, "Title 7")])
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (25, "Title 20"),
+                          (30, "Title 10"),
+                         ])
 
+
+class PostgresStoreTest(StoreTest):
+
+    def create_sample_data(self):
+        self.database = Postgres(os.environ["STORM_POSTGRES_DBNAME"])
+        self.store = Store(self.database)
+
+        connection = self.database.connect()
+        connection.execute("CREATE TABLE test "
+                           "(id SERIAL PRIMARY KEY,"
+                           " title VARCHAR DEFAULT 'Default Title')")
+        connection.execute("CREATE TABLE other "
+                           "(id SERIAL PRIMARY KEY, other_title VARCHAR)")
+        connection.execute("INSERT INTO test VALUES (10, 'Title 30')")
+        connection.execute("INSERT INTO test VALUES (20, 'Title 20')")
+        connection.execute("INSERT INTO test VALUES (30, 'Title 10')")
+        connection.commit()

@@ -13,17 +13,26 @@ class SQLiteMemoryTest(TestHelper):
     
     def setUp(self):
         TestHelper.setUp(self)
-        self.setup_database()
-        self.connection = self.database.connect()
+        self.create_sample_data()
 
-    def setup_database(self):
+    def tearDown(self):
+        TestHelper.tearDown(self)
+        self.drop_sample_data()
+
+    def create_database(self):
         self.database = SQLite()
 
-    def add_sample_data(self):
+    def create_sample_data(self):
+        self.create_database()
+        self.connection = self.database.connect()
         self.connection.execute("CREATE TABLE test "
                                 "(id INTEGER PRIMARY KEY, title VARCHAR)")
-        self.connection.execute("INSERT INTO test VALUES (1, 'Title 1')")
-        self.connection.execute("INSERT INTO test VALUES (2, 'Title 2')")
+        self.connection.execute("INSERT INTO test VALUES (10, 'Title 10')")
+        self.connection.execute("INSERT INTO test VALUES (20, 'Title 20')")
+
+    def drop_sample_data(self):
+        self.connection.execute("DROP TABLE test")
+        self.connection.commit()
 
     def test_create(self):
         self.assertTrue(isinstance(self.database, Database))
@@ -42,28 +51,25 @@ class SQLiteMemoryTest(TestHelper):
         self.assertFalse(result.fetch_one())
 
     def test_fetch_one(self):
-        self.add_sample_data()
         result = self.connection.execute("SELECT * FROM test ORDER BY id")
-        self.assertEquals(result.fetch_one(), (1, "Title 1"))
+        self.assertEquals(result.fetch_one(), (10, "Title 10"))
 
     def test_fetch_all(self):
-        self.add_sample_data()
         result = self.connection.execute("SELECT * FROM test ORDER BY id")
-        self.assertEquals(result.fetch_all(), [(1, "Title 1"), (2, "Title 2")])
+        self.assertEquals(result.fetch_all(),
+                          [(10, "Title 10"), (20, "Title 20")])
 
     def test_iter(self):
-        self.add_sample_data()
         result = self.connection.execute("SELECT * FROM test ORDER BY id")
         self.assertEquals([item for item in result],
-                          [(1, "Title 1"), (2, "Title 2")])
+                          [(10, "Title 10"), (20, "Title 20")])
 
     def test_get_insert_identity(self):
-        self.add_sample_data()
         result = self.connection.execute("INSERT INTO test (title) "
-                                         "VALUES ('Title 3')")
+                                         "VALUES ('Title 30')")
         expr = result.get_insert_identity((Column("id", "test"),), (Undef,))
         result = self.connection.execute(Select(Column("title", "test"), expr))
-        self.assertEquals(result.fetch_one(), ("Title 3",))
+        self.assertEquals(result.fetch_one(), ("Title 30",))
 
 
 class SQLiteFileTest(SQLiteMemoryTest):
@@ -72,17 +78,15 @@ class SQLiteFileTest(SQLiteMemoryTest):
         self.database = SQLite(self.make_path())
 
     def test_simultaneous_iter(self):
-        self.add_sample_data()
         result1 = self.connection.execute("SELECT * FROM test "
                                           "ORDER BY id ASC")
         result2 = self.connection.execute("SELECT * FROM test "
                                           "ORDER BY id DESC")
         iter1 = iter(result1)
         iter2 = iter(result2)
-        self.assertEquals(iter1.next(), (1, "Title 1"))
-        self.assertEquals(iter2.next(), (2, "Title 2"))
-        self.assertEquals(iter1.next(), (2, "Title 2"))
-        self.assertEquals(iter2.next(), (1, "Title 1"))
+        self.assertEquals(iter1.next(), (10, "Title 10"))
+        self.assertEquals(iter2.next(), (20, "Title 20"))
+        self.assertEquals(iter1.next(), (20, "Title 20"))
+        self.assertEquals(iter2.next(), (10, "Title 10"))
         self.assertRaises(StopIteration, iter1.next)
         self.assertRaises(StopIteration, iter2.next)
-
