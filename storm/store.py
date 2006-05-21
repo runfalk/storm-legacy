@@ -1,8 +1,11 @@
 from weakref import WeakValueDictionary
 
-from storm.properties import get_cls_info, get_obj_info, get_info
+from storm.info import get_cls_info, get_obj_info, get_info
 from storm.expr import Select, Insert, Update, Delete, Undef
 from storm.expr import Column, Param, Count, Max, Min, Avg, Sum
+
+
+__all__ = ["Store", "StoreError", "ResultSet"]
 
 
 class StoreError(Exception):
@@ -83,7 +86,7 @@ class Store(object):
             else:
                 where &= (prop == key[i])
 
-        select = Select(cls_info.properties, where,
+        select = Select(cls_info.columns, where,
                         default_tables=cls_info.table, limit=1)
 
         values = self._connection.execute(select).fetch_one()
@@ -113,7 +116,7 @@ class Store(object):
 
         return ResultSet(self._connection.execute,
                          lambda values: self._load_object(cls_info, values),
-                         cls_info.properties, where, cls_info.table)
+                         cls_info.columns, where, cls_info.table)
 
     def add(self, obj):
         obj_info = get_obj_info(obj)
@@ -185,10 +188,10 @@ class Store(object):
                 columns = []
                 values = []
 
-                for prop in cls_info.properties:
-                    value = prop.__get__(obj, accept_undef=True)
+                for column in cls_info.columns:
+                    value = obj_info.get_value(column.name, Undef)
                     if value is not Undef:
-                        columns.append(prop)
+                        columns.append(column)
                         values.append(Param(value))
 
                 expr = Insert(columns, values, cls_info.table)
@@ -222,23 +225,25 @@ class Store(object):
     def _fill_missing_values(self, obj, result):
         obj_info, cls_info = get_info(obj)
 
-        missing_properties = []
-        for prop in cls_info.properties:
-            if not obj_info.has_prop(prop):
-                missing_properties.append(prop)
+        missing_columns = []
+        missing_attributes = []
+        for column, attr in zip(cls_info.columns, cls_info.attributes):
+            if not obj_info.has_value(column.name):
+                missing_columns.append(column)
+                missing_attributes.append(attr)
 
-        if missing_properties:
+        if missing_columns:
             primary_key = cls_info.primary_key
-            primary_values = tuple(prop.__get__(obj, accept_undef=True)
-                                   for prop in primary_key)
+            primary_values = tuple(obj_info.get_value(column.name, Undef)
+                                   for column in primary_key)
             if Undef in primary_values:
                 where = result.get_insert_identity(primary_key, primary_values)
             else:
                 where = self._build_where(primary_key, primary_values)
-            select = Select(missing_properties, where)
+            select = Select(missing_columns, where)
             result = self._connection.execute(select)
-            for prop, value in zip(missing_properties, result.fetch_one()):
-                prop.__set__(obj, value)
+            for attr, value in zip(missing_attributes, result.fetch_one()):
+                setattr(obj, attr, value)
 
     def _build_where(self, columns, values):
         where = Undef
@@ -305,7 +310,7 @@ class Store(object):
     def _add_to_cache(self, obj):
         obj_info, cls_info = get_info(obj)
         old_primary_values = obj_info.get("primary_values")
-        new_primary_values = tuple(prop.__get__(obj)
+        new_primary_values = tuple(obj_info.get_value(prop.name)
                                    for prop in cls_info.primary_key)
         if new_primary_values == old_primary_values:
             return
@@ -331,9 +336,9 @@ class Store(object):
     def _disable_change_notification(self, obj):
         get_obj_info(obj).set_change_notification(None)
 
-    def _object_changed(self, obj, prop, old_value, new_value):
+    def _object_changed(self, obj_info, name, old_value, new_value):
         if new_value is not Undef:
-            self._dirty[id(obj)] = obj
+            self._dirty[id(obj_info.obj)] = obj_info.obj
 
 
 class ResultSet(object):
