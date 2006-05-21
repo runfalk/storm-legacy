@@ -1,17 +1,20 @@
 import os
 
-from tests.databases.sqlite import SQLiteMemoryTest
+from tests.databases.base import DatabaseTest
 
 from storm.databases.postgres import Postgres
 
 
-class PostgresTest(SQLiteMemoryTest):
+class PostgresTest(DatabaseTest):
+    
+    def is_supported(self):
+        return bool(os.environ.get("STORM_POSTGRES_DBNAME"))
 
-    def create_sample_data(self):
+    def create_database(self):
         self.database = Postgres(os.environ["STORM_POSTGRES_DBNAME"])
-        self.connection = self.database.connect()
+
+    def create_table(self):
         self.connection.execute("CREATE TABLE test "
                                 "(id SERIAL PRIMARY KEY, title VARCHAR)")
-        self.connection.execute("INSERT INTO test VALUES (10, 'Title 10')")
-        self.connection.execute("INSERT INTO test VALUES (20, 'Title 20')")
-        self.connection.commit()
+
+del DatabaseTest

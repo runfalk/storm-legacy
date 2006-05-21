@@ -3,6 +3,7 @@ import os
 
 from storm.databases.sqlite import SQLite
 from storm.databases.postgres import Postgres
+
 from storm.properties import get_obj_info
 from storm.database import Result
 from storm.properties import Int, Str
@@ -25,34 +26,52 @@ class StoreTest(TestHelper):
 
     def setUp(self):
         TestHelper.setUp(self)
+        self.create_database()
+        self.drop_tables()
+        self.create_tables()
         self.create_sample_data()
+        self.create_store()
 
     def tearDown(self):
+        self.drop_store()
         self.drop_sample_data()
+        self.drop_tables()
+        self.drop_database()
         TestHelper.tearDown(self)
 
-    def create_sample_data(self):
-        self.filename = self.make_path()
-        self.database = SQLite(self.filename)
-        self.store = Store(self.database)
+    def create_database(self):
+        raise NotImplementedError
 
+    def create_tables(self):
+        raise NotImplementedError
+
+    def create_sample_data(self):
         connection = self.database.connect()
-        connection.execute("CREATE TABLE test "
-                           "(id INTEGER PRIMARY KEY,"
-                           " title VARCHAR DEFAULT 'Default Title')")
-        connection.execute("CREATE TABLE other "
-                           "(id INT PRIMARY KEY, other_title VARCHAR)")
         connection.execute("INSERT INTO test VALUES (10, 'Title 30')")
         connection.execute("INSERT INTO test VALUES (20, 'Title 20')")
         connection.execute("INSERT INTO test VALUES (30, 'Title 10')")
         connection.commit()
 
-    def drop_sample_data(self):
+    def create_store(self):
+        self.store = Store(self.database)
+
+    def drop_store(self):
         self.store.rollback()
+
+    def drop_sample_data(self):
+        pass
+
+    def drop_tables(self):
         connection = self.database.connect()
-        connection.execute("DROP TABLE test")
-        connection.execute("DROP TABLE other")
-        connection.commit()
+        try:
+            connection.execute("DROP TABLE test")
+            connection.execute("DROP TABLE other")
+            connection.commit()
+        except:
+            connection.rollback()
+
+    def drop_database(self):
+        pass
 
     def get_items(self):
         # Bypass the store to avoid flushing.
@@ -856,19 +875,43 @@ class StoreTest(TestHelper):
                          ])
 
 
+class SQLiteStoreTest(StoreTest):
+
+    helpers = [MakePath]
+
+    def create_database(self):
+        self.database = SQLite(self.make_path())
+
+    def create_tables(self):
+        connection = self.database.connect()
+        connection.execute("CREATE TABLE test "
+                           "(id INTEGER PRIMARY KEY,"
+                           " title VARCHAR DEFAULT 'Default Title')")
+        connection.execute("CREATE TABLE other "
+                           "(id INT PRIMARY KEY,"
+                           " other_title VARCHAR)")
+        connection.commit()
+
+    def drop_tables(self):
+        pass
+
+
 class PostgresStoreTest(StoreTest):
 
-    def create_sample_data(self):
-        self.database = Postgres(os.environ["STORM_POSTGRES_DBNAME"])
-        self.store = Store(self.database)
+    def is_supported(self):
+        return bool(os.environ.get("STORM_POSTGRES_DBNAME"))
 
+    def create_database(self):
+        self.database = Postgres(os.environ["STORM_POSTGRES_DBNAME"])
+
+    def create_tables(self):
         connection = self.database.connect()
         connection.execute("CREATE TABLE test "
                            "(id SERIAL PRIMARY KEY,"
                            " title VARCHAR DEFAULT 'Default Title')")
         connection.execute("CREATE TABLE other "
-                           "(id SERIAL PRIMARY KEY, other_title VARCHAR)")
-        connection.execute("INSERT INTO test VALUES (10, 'Title 30')")
-        connection.execute("INSERT INTO test VALUES (20, 'Title 20')")
-        connection.execute("INSERT INTO test VALUES (30, 'Title 10')")
+                           "(id SERIAL PRIMARY KEY,"
+                           " other_title VARCHAR)")
         connection.commit()
+
+del StoreTest

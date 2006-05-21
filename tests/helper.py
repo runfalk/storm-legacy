@@ -21,6 +21,12 @@ class TestHelper(unittest.TestCase):
         for helper in reversed(self._helper_instances):
             helper.tear_down(self)
 
+    def run(self, result=None):
+        is_supported = getattr(self, "is_supported", None)
+        if is_supported is not None and not is_supported():
+            return
+        unittest.TestCase.run(self, result)
+
 
 class MakePath(object):
 
