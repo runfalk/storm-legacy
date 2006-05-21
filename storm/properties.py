@@ -1,10 +1,26 @@
 from datetime import datetime
 
 from storm.info import get_obj_info
-from storm.expr import Column
+from storm.expr import Column, Undef
 
 
 __all__ = ["Property", "Bool", "Int", "Float", "Str", "Unicode", "DateTime"]
+
+
+class PropertyColumn(Column):
+
+    def __init__(self, prop, name=Undef, table=Undef):
+        Column.__init__(self, name, table)
+        self._prop = prop
+
+    def __get__(self, obj, cls=None):
+        return self._prop.__get__(obj, cls)
+
+    def __set__(self, obj, value):
+        self._prop.__set__(obj, value)
+
+    def __delete__(self, obj):
+        self._prop.__delete__(obj)
 
 
 class Property(object):
@@ -44,7 +60,7 @@ class Property(object):
         if column is None:
             if self._name is None:
                 self._detect_name(cls)
-            column = Column(self._name, cls.__table__[0])
+            column = PropertyColumn(self, self._name, cls.__table__[0])
             self._columns[cls] = column
         return column
 

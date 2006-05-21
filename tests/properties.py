@@ -77,6 +77,22 @@ class PropertyTest(TestHelper):
         self.assertEquals(statement, "subtable.prop1 = ?")
         self.assertEquals(parameters, ["value"])
 
+    def test__get__(self):
+        obj = self.SubClass()
+        obj.prop1 = 10
+        self.assertEquals(self.SubClass.prop1.__get__(obj), 10)
+
+    def test__set__(self):
+        obj = self.SubClass()
+        self.SubClass.prop1.__set__(obj, 10)
+        self.assertEquals(self.SubClass.prop1, 10)
+
+    def test__del__(self):
+        obj = self.SubClass()
+        obj.prop1 = 10
+        self.SubClass.prop1.__delete__(obj)
+        self.assertEquals(self.SubClass.prop1, None)
+
 
 class PropertyTypesTest(TestHelper):
 
