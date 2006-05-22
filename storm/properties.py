@@ -9,9 +9,10 @@ __all__ = ["Property", "Bool", "Int", "Float", "Str", "Unicode", "DateTime"]
 
 class PropertyColumn(Column):
 
-    def __init__(self, prop, name=Undef, table=Undef):
+    def __init__(self, prop, cls, name=Undef, table=Undef):
         Column.__init__(self, name, table)
         self._prop = prop
+        self.cls = cls
 
     def __get__(self, obj, cls=None, default=None):
         return self._prop.__get__(obj, cls, default)
@@ -60,7 +61,7 @@ class Property(object):
         if column is None:
             if self._name is None:
                 self._detect_name(cls)
-            column = PropertyColumn(self, self._name, cls.__table__[0])
+            column = PropertyColumn(self, cls, self._name, cls.__table__[0])
             self._columns[cls] = column
         return column
 

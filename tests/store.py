@@ -25,7 +25,7 @@ class Other(object):
     id = Int()
     test_id = Int()
     other_title = Str()
-    test = Reference(Test, test_id)
+    test = Reference(test_id, Test.id)
 
 
 class StoreTest(TestHelper):
@@ -891,7 +891,22 @@ class StoreTest(TestHelper):
         self.assertTrue(other.test)
         self.assertEquals(other.test.title, "Title 30")
 
-    def test_new_object_reference(self):
+    def test_reference_on_non_primary_key(self):
+        self.store.execute("INSERT INTO other VALUES (400, 40, 'Title 30')")
+        class MyOther(Other):
+            test = Reference(Other.other_title, Test.title)
+
+        other = self.store.get(Other, 400)
+        self.assertEquals(other.other_title, "Title 30")
+        self.assertEquals(other.test, None)
+
+        myother = self.store.get(MyOther, 400)
+        self.assertEquals(myother.other_title, "Title 30")
+        self.assertNotEquals(myother.test, None)
+        self.assertEquals(myother.test.id, 10)
+        self.assertEquals(myother.test.title, "Title 30")
+
+    def test_new_reference(self):
         other = Other()
         other.id = 400
         other.title = "Title 400"
@@ -904,7 +919,7 @@ class StoreTest(TestHelper):
         self.assertTrue(other.test)
         self.assertEquals(other.test.title, "Title 30")
 
-    def test_set_object_reference(self):
+    def test_set_reference(self):
         other = self.store.get(Other, 100)
         self.assertEquals(other.test.id, 10)
         test = self.store.get(Test, 30)
@@ -913,20 +928,20 @@ class StoreTest(TestHelper):
         result = self.store.execute("SELECT test_id FROM other WHERE id=100")
         self.assertEquals(result.fetch_one(), (30,))
 
-    def test_object_reference_on_added(self):
+    def test_reference_on_added(self):
         obj = Test()
         obj.title = "Title 40"
+        self.store.add(obj)
 
         other = Other()
         other.id = 400
-        other.test = obj
         other.other_title = "Title 400"
+        other.test = obj
+        self.store.add(other)
 
         self.assertEquals(other.test.id, None)
         self.assertEquals(other.test.title, "Title 40")
 
-        self.store.add(obj)
-        self.store.add(other)
 
         self.store.flush()
 
@@ -938,32 +953,26 @@ class StoreTest(TestHelper):
                                     "test.id = other.test_id")
         self.assertEquals(result.fetch_one(), ("Title 40",))
 
-    def test_object_reference_on_added_composed_key(self):
-        class Test(object):
-            __table__ = "test", ("id", "title")
-            id = Int()
-            title = Str()
-
+    def test_reference_on_added_composed_key(self):
         class Other(object):
             __table__ = "other", "id"
             id = Int()
             test_id = Int()
             other_title = Str()
-            test = Reference(Test, (test_id, other_title))
+            test = Reference((test_id, other_title), (Test.id, Test.title))
 
         obj = Test()
         obj.title = "Title 40"
+        self.store.add(obj)
 
         other = Other()
         other.id = 400
         other.test = obj
+        self.store.add(other)
 
         self.assertEquals(other.test.id, None)
         self.assertEquals(other.test.title, "Title 40")
         self.assertEquals(other.other_title, "Title 40")
-
-        self.store.add(obj)
-        self.store.add(other)
 
         self.store.flush()
 
@@ -975,16 +984,15 @@ class StoreTest(TestHelper):
                                     "test.id = other.test_id")
         self.assertEquals(result.fetch_one(), ("Title 40",))
 
-    def test_object_reference_on_added_unlink_on_flush(self):
+    def test_reference_on_added_unlink_on_flush(self):
         obj = Test()
         obj.title = "Title 40"
+        self.store.add(obj)
 
         other = Other()
         other.id = 400
         other.test = obj
         other.other_title = "Title 400"
-
-        self.store.add(obj)
         self.store.add(other)
 
         obj.id = 40
@@ -999,16 +1007,15 @@ class StoreTest(TestHelper):
         obj.id = 70
         self.assertEquals(other.test_id, 60)
 
-    def test_object_reference_on_added_unlink_on_flush(self):
+    def test_reference_on_added_unlink_on_flush(self):
         obj = Test()
         obj.title = "Title 40"
+        self.store.add(obj)
 
         other = Other()
         other.id = 400
         other.other_title = "Title 400"
         other.test = obj
-
-        self.store.add(obj)
         self.store.add(other)
 
         obj.id = 40
@@ -1023,20 +1030,19 @@ class StoreTest(TestHelper):
         obj.id = 70
         self.assertEquals(other.test_id, 60)
 
-    def test_object_reference_on_two_added(self):
+    def test_reference_on_two_added(self):
         obj1 = Test()
         obj1.title = "Title 40"
         obj2 = Test()
         obj2.title = "Title 40"
+        self.store.add(obj1)
+        self.store.add(obj2)
 
         other = Other()
         other.id = 400
         other.other_title = "Title 400"
         other.test = obj1
         other.test = obj2
-
-        self.store.add(obj1)
-        self.store.add(obj2)
         self.store.add(other)
 
         obj1.id = 40
@@ -1044,43 +1050,36 @@ class StoreTest(TestHelper):
         obj2.id = 50
         self.assertEquals(other.test_id, 50)
 
-    def test_object_reference_on_added_and_changed_manually(self):
+    def test_reference_on_added_and_changed_manually(self):
         obj = Test()
         obj.title = "Title 40"
+        self.store.add(obj)
 
         other = Other()
         other.id = 400
         other.other_title = "Title 400"
         other.test = obj
-
-        self.store.add(obj)
         self.store.add(other)
 
         other.test_id = 40
         obj.id = 50
         self.assertEquals(other.test_id, 40)
 
-    def test_object_reference_on_added_composed_key_changed_manually(self):
-        class Test(object):
-            __table__ = "test", ("id", "title")
-            id = Int()
-            title = Str()
-
+    def test_reference_on_added_composed_key_changed_manually(self):
         class Other(object):
             __table__ = "other", "id"
             id = Int()
             test_id = Int()
             other_title = Str()
-            test = Reference(Test, (test_id, other_title))
+            test = Reference((test_id, other_title), (Test.id, Test.title))
 
         obj = Test()
         obj.title = "Title 40"
+        self.store.add(obj)
 
         other = Other()
         other.id = 400
         other.test = obj
-
-        self.store.add(obj)
         self.store.add(other)
 
         other.other_title = "Title 50"
@@ -1090,6 +1089,66 @@ class StoreTest(TestHelper):
         obj.id = 40
 
         self.assertEquals(other.test_id, None)
+
+    def test_back_reference(self):
+        class MyTest(Test):
+            other = Reference(Test.id, Other.test_id)
+
+        mytest = self.store.get(MyTest, 10)
+        self.assertTrue(mytest.other)
+        self.assertEquals(mytest.other.other_title, "Title 300")
+
+    def test_back_reference_set(self):
+        class MyTest(Test):
+            other = Reference(Test.id, Other.test_id, on_remote=True)
+
+        other = Other()
+        other.other_title = "Title 400"
+        self.store.add(other)
+
+        mytest = MyTest()
+        mytest.other = other
+        mytest.title = "Title 40"
+        self.store.add(mytest)
+
+        self.store.flush()
+
+        self.assertTrue(mytest.id)
+        self.assertEquals(other.test_id, mytest.id)
+
+        result = self.store.execute("SELECT other.other_title "
+                                    "FROM test, other "
+                                    "WHERE test.id = other.test_id AND "
+                                    "test.title = 'Title 40'")
+        self.assertEquals(result.fetch_one(), ("Title 400",))
+
+    def test_flush_order(self):
+        obj1 = Test()
+        obj2 = Test()
+        obj3 = Test()
+        obj4 = Test()
+        obj5 = Test()
+
+        for i, obj in enumerate([obj1, obj2, obj3, obj4, obj5]):
+            obj.title = "Object %d" % (i+1)
+            self.store.add(obj)
+
+        self.store.add_flush_order(obj2, obj4)
+        self.store.add_flush_order(obj4, obj1)
+        self.store.add_flush_order(obj1, obj3)
+        self.store.add_flush_order(obj3, obj5)
+        self.store.add_flush_order(obj5, obj2)
+
+        self.assertRaises(StoreError, self.store.flush)
+
+        self.store.remove_flush_order(obj5, obj2)
+
+        self.store.flush()
+
+        self.assertTrue(obj2.id < obj4.id)
+        self.assertTrue(obj4.id < obj1.id)
+        self.assertTrue(obj1.id < obj3.id)
+        self.assertTrue(obj3.id < obj5.id)
 
 
 class SQLiteStoreTest(StoreTest):
@@ -1105,7 +1164,7 @@ class SQLiteStoreTest(StoreTest):
                            "(id INTEGER PRIMARY KEY,"
                            " title VARCHAR DEFAULT 'Default Title')")
         connection.execute("CREATE TABLE other "
-                           "(id INT PRIMARY KEY,"
+                           "(id INTEGER PRIMARY KEY,"
                            " test_id INTEGER,"
                            " other_title VARCHAR)")
         connection.commit()

@@ -1,7 +1,7 @@
 from weakref import WeakValueDictionary
 
 from storm.info import get_cls_info, get_obj_info, get_info
-from storm.expr import Select, Insert, Update, Delete, Undef
+from storm.expr import Select, Insert, Update, Delete, Undef, compare_columns
 from storm.expr import Column, Param, Count, Max, Min, Avg, Sum
 
 
@@ -23,6 +23,7 @@ class Store(object):
         self._cache = WeakValueDictionary()
         self._ghosts = {}
         self._dirty = {}
+        self._order = {} # (id, id) = count
 
     @staticmethod
     def of(obj):
@@ -81,12 +82,7 @@ class Store(object):
         if cached is not None:
             return cached
         
-        where = None
-        for i, prop in enumerate(cls_info.primary_key):
-            if where is None:
-                where = (prop == key[i])
-            else:
-                where &= (prop == key[i])
+        where = compare_columns(cls_info.primary_key, key)
 
         select = Select(cls_info.columns, where,
                         default_tables=cls_info.table, limit=1)
@@ -164,27 +160,54 @@ class Store(object):
             obj_info["pending"] = PENDING_REMOVE
             self._set_dirty(obj)
 
-    def flush(self):
-        while self._dirty:
-            obj_id, obj = self._dirty.popitem()
-            self._flush_one(obj, force=True)
+    def add_flush_order(self, before, after):
+        pair = (id(before), id(after))
+        try:
+            self._order[pair] += 1
+        except KeyError:
+            self._order[pair] = 1
 
-    def _flush_one(self, obj, force=False):
-        if self._dirty.pop(id(obj), None) is None and not force:
+    def remove_flush_order(self, before, after):
+        pair = (id(before), id(after))
+        try:
+            self._order[pair] -= 1
+        except KeyError:
+            pass
+
+    def flush(self):
+        predecessors = {}
+        for (before, after), n in self._order.iteritems():
+            if n > 0:
+                before_set = predecessors.get(after)
+                if before_set is None:
+                    predecessors[after] = set((before,))
+                else:
+                    before_set.add(before)
+
+        while self._dirty:
+            for obj_id, obj in self._dirty.iteritems():
+                for before in predecessors.get(obj_id, ()):
+                    if before in self._dirty:
+                        break # A predecessor is still dirty.
+                else:
+                    break # Found an item without dirty predecessors.
+            else:
+                raise StoreError("Can't flush due to ordering loop")
+            self._flush_one(obj)
+
+        self._order.clear()
+
+    def _flush_one(self, obj):
+        if self._dirty.pop(id(obj), None) is None:
             return
 
         obj_info, cls_info = get_info(obj)
 
-        references = obj_info.get("references")
-        if references is not None:
-            for ref_obj in references.values():
-                self._flush_one(ref_obj)
-
         pending = obj_info.pop("pending", None)
 
         if pending is PENDING_REMOVE:
-            expr = Delete(self._build_where(cls_info.primary_key,
-                                            obj_info["primary_values"]),
+            expr = Delete(compare_columns(cls_info.primary_key,
+                                          obj_info["primary_values"]),
                           cls_info.table)
             self._connection.execute(expr, noresult=True)
 
@@ -220,8 +243,8 @@ class Store(object):
 
             if changes:
                 expr = Update(changes,
-                              self._build_where(cls_info.primary_key,
-                                                obj_info["primary_values"]),
+                              compare_columns(cls_info.primary_key,
+                                              obj_info["primary_values"]),
                               cls_info.table)
                 self._connection.execute(expr, noresult=True)
 
@@ -247,20 +270,11 @@ class Store(object):
             if Undef in primary_values:
                 where = result.get_insert_identity(primary_key, primary_values)
             else:
-                where = self._build_where(primary_key, primary_values)
+                where = compare_columns(primary_key, primary_values)
             select = Select(missing_columns, where)
             result = self._connection.execute(select)
             for attr, value in zip(missing_attributes, result.fetch_one()):
                 setattr(obj, attr, value)
-
-    def _build_where(self, columns, values):
-        where = Undef
-        for prop, value in zip(columns, values):
-            if where is Undef:
-                where = (prop == value)
-            else:
-                where &= (prop == value)
-        return where
 
     def _load_object(self, cls_info, values):
         primary_values = tuple(values[i] for i in cls_info.primary_key_pos)

@@ -572,3 +572,22 @@ compile.set_precedence(50, LShift, RShift)
 compile.set_precedence(60, Add, Sub)
 compile.set_precedence(70, Mul, Div, Mod)
 
+
+# --------------------------------------------------------------------
+# Utility functions.
+
+def compare_columns(columns, values):
+    if not columns:
+        return Undef
+    equals = []
+    if len(columns) == 1:
+        value = values[0]
+        if not isinstance(value, Expr) and value is not None:
+            value = Param(value)
+        return Eq(columns[0], value)
+    else:
+        for column, value in zip(columns, values):
+            if not isinstance(value, Expr) and value is not None:
+                value = Param(value)
+            equals.append(Eq(column, value))
+        return And(*equals)

@@ -71,6 +71,14 @@ class ObjectInfo(dict):
         self._saved_attrs = None
         self._saved_self = None
 
+    def get(self, key, default=None, factory=None):
+        try:
+            return self[key]
+        except KeyError:
+            if factory is not None:
+                return self.setdefault(key, factory())
+            return default
+
     def has_value(self, name):
         return name in self._values
 
