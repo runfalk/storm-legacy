@@ -126,21 +126,21 @@ class ObjectInfoTest(TestHelper):
     def test_save_restore(self):
         self.obj.prop1 = 10
         self.obj.attr1 = 100
-        self.obj_info["key"] = 1000
+        self.obj_info["key"] = {"subkey": 1000}
         self.obj_info.save()
         self.assertEquals(self.obj.prop1, 10)
         self.assertEquals(self.obj.attr1, 100)
-        self.assertEquals(self.obj_info.get("key"), 1000)
+        self.assertEquals(self.obj_info["key"]["subkey"], 1000)
         self.obj.prop1 = 20
         self.obj.attr1 = 200
-        self.obj_info["key"] = 2000
+        self.obj_info["key"]["subkey"] = 2000
         self.assertEquals(self.obj.prop1, 20)
         self.assertEquals(self.obj.attr1, 200)
-        self.assertEquals(self.obj_info.get("key"), 2000)
+        self.assertEquals(self.obj_info["key"]["subkey"], 2000)
         self.obj_info.restore()
         self.assertEquals(self.obj.prop1, 10)
         self.assertEquals(self.obj.attr1, 100)
-        self.assertEquals(self.obj_info.get("key"), 1000)
+        self.assertEquals(self.obj_info["key"]["subkey"], 1000)
 
     def test_save_attributes(self):
         self.obj.prop1 = 10
@@ -185,32 +185,211 @@ class ObjectInfoTest(TestHelper):
         self.obj.prop1 = 10
         self.assertEquals(self.obj_info.get_changes(), {})
 
-    def test_notify_changes(self):
-        changes = []
-        def object_changed(obj, prop, old_value, new_value):
-            changes.append((obj, prop, old_value, new_value))
+    def test_add_change_notification(self):
+        changes1 = []
+        changes2 = []
+        def object_changed1(obj, prop, old_value, new_value):
+            changes1.append((1, obj, prop, old_value, new_value))
+        def object_changed2(obj, prop, old_value, new_value):
+            changes2.append((2, obj, prop, old_value, new_value))
 
-        self.obj_info.set_change_notification(object_changed)
         self.obj_info.save()
+        self.obj_info.hook("changed", object_changed1)
+        self.obj_info.hook("changed", object_changed2)
 
         self.obj.prop2 = 10
         self.obj.prop1 = 20
 
-        self.assertEquals(changes, [(self.obj_info, "column2", Undef, 10),
-                                    (self.obj_info, "column1", Undef, 20)])
+        self.assertEquals(changes1,
+                          [(1, self.obj_info, "column2", Undef, 10),
+                           (1, self.obj_info, "column1", Undef, 20)])
+        self.assertEquals(changes2,
+                          [(2, self.obj_info, "column2", Undef, 10),
+                           (2, self.obj_info, "column1", Undef, 20)])
 
-        del changes[:]
+        del changes1[:]
+        del changes2[:]
 
         self.obj.prop1 = None
         self.obj.prop2 = None
 
-        self.assertEquals(changes, [(self.obj_info, "column1", 20, None),
-                                    (self.obj_info, "column2", 10, None)])
+        self.assertEquals(changes1,
+                          [(1, self.obj_info, "column1", 20, None),
+                           (1, self.obj_info, "column2", 10, None)])
+        self.assertEquals(changes2,
+                          [(2, self.obj_info, "column1", 20, None),
+                           (2, self.obj_info, "column2", 10, None)])
 
-        del changes[:]
+        del changes1[:]
+        del changes2[:]
 
         del self.obj.prop1
         del self.obj.prop2
 
-        self.assertEquals(changes, [(self.obj_info, "column1", None, Undef),
-                                    (self.obj_info, "column2", None, Undef)])
+        self.assertEquals(changes1,
+                          [(1, self.obj_info, "column1", None, Undef),
+                           (1, self.obj_info, "column2", None, Undef)])
+        self.assertEquals(changes2,
+                          [(2, self.obj_info, "column1", None, Undef),
+                           (2, self.obj_info, "column2", None, Undef)])
+
+    def test_add_change_notification_with_arg(self):
+        changes1 = []
+        changes2 = []
+        def object_changed1(obj, prop, old_value, new_value, arg):
+            changes1.append((1, obj, prop, old_value, new_value, arg))
+        def object_changed2(obj, prop, old_value, new_value, arg):
+            changes2.append((2, obj, prop, old_value, new_value, arg))
+
+        self.obj_info.save()
+
+        obj = object()
+        
+        self.obj_info.hook("changed", object_changed1, obj)
+        self.obj_info.hook("changed", object_changed2, obj)
+
+        self.obj.prop2 = 10
+        self.obj.prop1 = 20
+
+        self.assertEquals(changes1,
+                          [(1, self.obj_info, "column2", Undef, 10, obj),
+                           (1, self.obj_info, "column1", Undef, 20, obj)])
+        self.assertEquals(changes2,
+                          [(2, self.obj_info, "column2", Undef, 10, obj),
+                           (2, self.obj_info, "column1", Undef, 20, obj)])
+
+        del changes1[:]
+        del changes2[:]
+
+        self.obj.prop1 = None
+        self.obj.prop2 = None
+
+        self.assertEquals(changes1,
+                          [(1, self.obj_info, "column1", 20, None, obj),
+                           (1, self.obj_info, "column2", 10, None, obj)])
+        self.assertEquals(changes2,
+                          [(2, self.obj_info, "column1", 20, None, obj),
+                           (2, self.obj_info, "column2", 10, None, obj)])
+
+        del changes1[:]
+        del changes2[:]
+
+        del self.obj.prop1
+        del self.obj.prop2
+
+        self.assertEquals(changes1,
+                          [(1, self.obj_info, "column1", None, Undef, obj),
+                           (1, self.obj_info, "column2", None, Undef, obj)])
+        self.assertEquals(changes2,
+                          [(2, self.obj_info, "column1", None, Undef, obj),
+                           (2, self.obj_info, "column2", None, Undef, obj)])
+
+    def test_remove_change_notification(self):
+        changes1 = []
+        changes2 = []
+        def object_changed1(obj, prop, old_value, new_value):
+            changes1.append((1, obj, prop, old_value, new_value))
+        def object_changed2(obj, prop, old_value, new_value):
+            changes2.append((2, obj, prop, old_value, new_value))
+
+        self.obj_info.save()
+
+        self.obj_info.hook("changed", object_changed1)
+        self.obj_info.hook("changed", object_changed2)
+        self.obj_info.unhook("changed", object_changed1)
+
+        self.obj.prop2 = 20
+        self.obj.prop1 = 10
+
+        self.assertEquals(changes1, [])
+        self.assertEquals(changes2,
+                          [(2, self.obj_info, "column2", Undef, 20),
+                           (2, self.obj_info, "column1", Undef, 10)])
+
+    def test_remove_change_notification_with_arg(self):
+        changes1 = []
+        changes2 = []
+        def object_changed1(obj, prop, old_value, new_value, arg):
+            changes1.append((1, obj, prop, old_value, new_value, arg))
+        def object_changed2(obj, prop, old_value, new_value, arg):
+            changes2.append((2, obj, prop, old_value, new_value, arg))
+
+        self.obj_info.save()
+
+        obj = object()
+
+        self.obj_info.hook("changed", object_changed1, obj)
+        self.obj_info.hook("changed", object_changed2, obj)
+        self.obj_info.unhook("changed", object_changed1, obj)
+
+        self.obj.prop2 = 20
+        self.obj.prop1 = 10
+
+        self.assertEquals(changes1, [])
+        self.assertEquals(changes2,
+                          [(2, self.obj_info, "column2", Undef, 20, obj),
+                           (2, self.obj_info, "column1", Undef, 10, obj)])
+
+    def test_auto_remove_change_notification(self):
+        changes1 = []
+        changes2 = []
+        def object_changed1(obj, prop, old_value, new_value):
+            changes1.append((1, obj, prop, old_value, new_value))
+            return False
+        def object_changed2(obj, prop, old_value, new_value):
+            changes2.append((2, obj, prop, old_value, new_value))
+            return False
+
+        self.obj_info.save()
+
+        self.obj_info.hook("changed", object_changed1)
+        self.obj_info.hook("changed", object_changed2)
+
+        self.obj.prop2 = 20
+        self.obj.prop1 = 10
+
+        self.assertEquals(changes1,
+                          [(1, self.obj_info, "column2", Undef, 20)])
+        self.assertEquals(changes2,
+                          [(2, self.obj_info, "column2", Undef, 20)])
+
+    def test_auto_remove_change_notification_with_arg(self):
+        changes1 = []
+        changes2 = []
+        def object_changed1(obj, prop, old_value, new_value, arg):
+            changes1.append((1, obj, prop, old_value, new_value, arg))
+            return False
+        def object_changed2(obj, prop, old_value, new_value, arg):
+            changes2.append((2, obj, prop, old_value, new_value, arg))
+            return False
+
+        self.obj_info.save()
+
+        obj = object()
+
+        self.obj_info.hook("changed", object_changed1, obj)
+        self.obj_info.hook("changed", object_changed2, obj)
+
+        self.obj.prop2 = 20
+        self.obj.prop1 = 10
+
+        self.assertEquals(changes1,
+                          [(1, self.obj_info, "column2", Undef, 20, obj)])
+        self.assertEquals(changes2,
+                          [(2, self.obj_info, "column2", Undef, 20, obj)])
+
+    def test_restore_hooks(self):
+        changes = []
+        def object_changed(obj, prop, old_value, new_value):
+            changes.append((obj, prop, old_value, new_value))
+
+        self.obj_info.hook("changed", object_changed)
+        self.obj_info.save()
+        self.obj_info.unhook("changed", object_changed)
+
+        self.obj.prop1 = 10
+        self.obj_info.restore()
+        self.obj.prop1 = 20
+
+        self.assertEquals(changes,
+                          [(self.obj_info, "column1", Undef, 20)])

@@ -13,8 +13,8 @@ class PropertyColumn(Column):
         Column.__init__(self, name, table)
         self._prop = prop
 
-    def __get__(self, obj, cls=None):
-        return self._prop.__get__(obj, cls)
+    def __get__(self, obj, cls=None, default=None):
+        return self._prop.__get__(obj, cls, default)
 
     def __set__(self, obj, value):
         self._prop.__set__(obj, value)
@@ -29,12 +29,12 @@ class Property(object):
         self._name = name
         self._columns = {}
 
-    def __get__(self, obj, cls=None):
+    def __get__(self, obj, cls=None, default=None):
         if obj is None:
             return self._get_column(cls)
         if self._name is None:
             self._detect_name(obj.__class__)
-        return get_obj_info(obj).get_value(self._name)
+        return get_obj_info(obj).get_value(self._name, default)
 
     def __set__(self, obj, value):
         if self._name is None:

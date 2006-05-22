@@ -64,9 +64,11 @@ class ObjectInfo(dict):
     def __init__(self, obj):
         self.obj = obj
         self._values = {}
-        self._notify_change = None
+        self._hooks = {}
+
         self._saved_values = None
-        self._saved_obj_dict = None
+        self._saved_hooks = None
+        self._saved_attrs = None
         self._saved_self = None
 
     def has_value(self, name):
@@ -78,25 +80,27 @@ class ObjectInfo(dict):
     def set_value(self, name, value):
         old_value = self._values.get(name, Undef)
         self._values[name] = value
-        if self._notify_change is not None and old_value != value:
-            self._notify_change(self, name, old_value, value)
+        if old_value != value:
+            self.emit("changed", name, old_value, value)
 
     def del_value(self, name):
         old_value = self._values.pop(name, Undef)
-        if self._notify_change is not None and old_value != Undef:
-            self._notify_change(self, name, old_value, Undef)
+        if old_value is not Undef:
+            self.emit("changed", name, old_value, Undef)
 
     def save(self):
         self._saved_values = self._values.copy()
-        self._saved_obj_dict = self.obj.__dict__.copy()
-        self._saved_self = self.copy()
+        self._saved_hooks = self._copy_object(self._hooks)
+        self._saved_attrs = self.obj.__dict__.copy()
+        self._saved_self = self._copy_object(self)
 
     def save_attributes(self):
-        self._saved_obj_dict = self.obj.__dict__.copy()
+        self._saved_attrs = self.obj.__dict__.copy()
 
     def restore(self):
         self._values = self._saved_values.copy()
-        self.obj.__dict__ = self._saved_obj_dict.copy()
+        self._hooks = self._copy_object(self._saved_hooks)
+        self.obj.__dict__ = self._saved_attrs.copy()
         self.clear()
         self.update(self._saved_self)
 
@@ -118,5 +122,32 @@ class ObjectInfo(dict):
                 changes[name] = new_values[name]
         return changes
 
-    def set_change_notification(self, callback=None):
-        self._notify_change = callback
+    def hook(self, name, callback, *data):
+        callbacks = self._hooks.get(name)
+        if callbacks is None:
+            self._hooks.setdefault(name, set()).add((callback, data))
+        else:
+            callbacks.add((callback, data))
+
+    def unhook(self, name, callback, *data):
+        callbacks = self._hooks.get(name)
+        if callbacks is not None:
+            callbacks.discard((callback, data))
+
+    def emit(self, name, *args):
+        callbacks = self._hooks.get(name)
+        if callbacks is not None:
+            for callback, data in callbacks.copy():
+                if callback(self, *(args+data)) is False:
+                    callbacks.discard((callback, data))
+
+    def _copy_object(self, obj):
+        obj_type = type(obj)
+        if obj_type in (dict, ObjectInfo):
+            return dict(((self._copy_object(key), self._copy_object(value))
+                         for key, value in obj.iteritems()))
+        elif obj_type in (tuple, set, list):
+            return obj_type(self._copy_object(subobj) for subobj in obj)
+        else:
+            return obj
+

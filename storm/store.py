@@ -70,15 +70,17 @@ class Store(object):
     def get(self, cls, key):
         self.flush()
 
-        if type(key) != tuple: # XXX: Assert same size
+        if type(key) != tuple:
             key = (key,)
-        
-        cached = self._cache.get((cls, key))
-        if cached is not None:
-            return cached
 
         cls_info = get_cls_info(cls)
 
+        assert len(key) == len(cls_info.primary_key)
+
+        cached = self._cache.get((cls, key))
+        if cached is not None:
+            return cached
+        
         where = None
         for i, prop in enumerate(cls_info.primary_key):
             if where is None:
@@ -163,64 +165,70 @@ class Store(object):
             self._set_dirty(obj)
 
     def flush(self):
-        if not self._dirty:
+        while self._dirty:
+            obj_id, obj = self._dirty.popitem()
+            self._flush_one(obj, force=True)
+
+    def _flush_one(self, obj, force=False):
+        if self._dirty.pop(id(obj), None) is None and not force:
             return
-        for obj in self._iter_dirty():
-            obj_info, cls_info = get_info(obj)
 
-            pending = obj_info.get("pending")
+        obj_info, cls_info = get_info(obj)
 
-            if pending is PENDING_REMOVE:
-                del obj_info["pending"]
-                
-                expr = Delete(self._build_where(cls_info.primary_key,
+        references = obj_info.get("references")
+        if references is not None:
+            for ref_obj in references.values():
+                self._flush_one(ref_obj)
+
+        pending = obj_info.pop("pending", None)
+
+        if pending is PENDING_REMOVE:
+            expr = Delete(self._build_where(cls_info.primary_key,
+                                            obj_info["primary_values"]),
+                          cls_info.table)
+            self._connection.execute(expr, noresult=True)
+
+            self._disable_change_notification(obj)
+            self._set_ghost(obj)
+            self._remove_from_cache(obj)
+
+        elif pending is PENDING_ADD:
+            columns = []
+            values = []
+
+            for column in cls_info.columns:
+                value = obj_info.get_value(column.name, Undef)
+                if value is not Undef:
+                    columns.append(column)
+                    values.append(Param(value))
+
+            expr = Insert(columns, values, cls_info.table)
+
+            result = self._connection.execute(expr)
+
+            self._fill_missing_values(obj, result)
+
+            self._enable_change_notification(obj)
+            self._set_alive(obj)
+            self._add_to_cache(obj)
+
+        elif obj_info.check_changed():
+            changes = {}
+            for column, value in obj_info.get_changes().iteritems():
+                if value is not Undef:
+                    changes[column] = Param(value)
+
+            if changes:
+                expr = Update(changes,
+                              self._build_where(cls_info.primary_key,
                                                 obj_info["primary_values"]),
                               cls_info.table)
                 self._connection.execute(expr, noresult=True)
 
-                self._disable_change_notification(obj)
-                self._set_ghost(obj)
-                self._remove_from_cache(obj)
-
-            elif pending is PENDING_ADD:
-                del obj_info["pending"]
-
-                columns = []
-                values = []
-
-                for column in cls_info.columns:
-                    value = obj_info.get_value(column.name, Undef)
-                    if value is not Undef:
-                        columns.append(column)
-                        values.append(Param(value))
-
-                expr = Insert(columns, values, cls_info.table)
-
-                result = self._connection.execute(expr)
-
-                self._fill_missing_values(obj, result)
-
-                self._enable_change_notification(obj)
-                self._set_alive(obj)
                 self._add_to_cache(obj)
 
-            elif obj_info.check_changed():
-
-                changes = {}
-                for column, value in obj_info.get_changes().iteritems():
-                    if value is not Undef:
-                        changes[column] = Param(value)
-
-                if changes:
-                    expr = Update(changes,
-                                  self._build_where(cls_info.primary_key,
-                                                    obj_info["primary_values"]),
-                                  cls_info.table)
-                    self._connection.execute(expr, noresult=True)
-
-                    self._add_to_cache(obj)
-
-        self._dirty.clear()
+        obj_info.emit("flushed")
+        
 
     def _fill_missing_values(self, obj, result):
         obj_info, cls_info = get_info(obj)
@@ -331,10 +339,10 @@ class Store(object):
 
 
     def _enable_change_notification(self, obj):
-        get_obj_info(obj).set_change_notification(self._object_changed)
+        get_obj_info(obj).hook("changed", self._object_changed)
 
     def _disable_change_notification(self, obj):
-        get_obj_info(obj).set_change_notification(None)
+        get_obj_info(obj).unhook("changed", self._object_changed)
 
     def _object_changed(self, obj_info, name, old_value, new_value):
         if new_value is not Undef:

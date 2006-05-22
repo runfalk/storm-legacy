@@ -5,8 +5,8 @@ from storm.database import *
 
 class SQLiteResult(Result):
 
-     def get_insert_identity(self, primary_key, primary_values):
-         return "(OID=%d)" % self._raw_cursor.lastrowid
+    def get_insert_identity(self, primary_key, primary_values):
+        return "(OID=%d)" % self._raw_cursor.lastrowid
 
 
 class SQLiteConnection(Connection):

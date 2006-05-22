@@ -82,6 +82,10 @@ class PropertyTest(TestHelper):
         obj.prop1 = 10
         self.assertEquals(self.SubClass.prop1.__get__(obj), 10)
 
+    def test__get__default(self):
+        obj = self.SubClass()
+        self.assertEquals(self.SubClass.prop1.__get__(obj, default=20), 20)
+
     def test__set__(self):
         obj = self.SubClass()
         self.SubClass.prop1.__set__(obj, 10)

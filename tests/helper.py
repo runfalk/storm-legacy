@@ -6,6 +6,14 @@ import shutil
 import sys
 
 
+__all__ = ["TestHelper", "MakePath", "LogKeeper", "run_this"]
+
+
+def run_this(method):
+    method.run_this = True
+    return method
+
+
 class TestHelper(unittest.TestCase):
 
     helpers = []
@@ -22,6 +30,11 @@ class TestHelper(unittest.TestCase):
             helper.tear_down(self)
 
     def run(self, result=None):
+        for attr in dir(self):
+            if getattr(getattr(self, attr, None), "run_this", False):
+                method = getattr(self, self._TestCase__testMethodName)
+                if not getattr(method, "run_this", False):
+                    return
         is_supported = getattr(self, "is_supported", None)
         if is_supported is not None and not is_supported():
             return

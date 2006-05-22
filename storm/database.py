@@ -59,6 +59,7 @@ class Connection(object):
             raw_cursor.execute(statement)
         else:
             raw_cursor.execute(statement, params)
+
         if noresult:
             raw_cursor.close()
             return None
