@@ -97,6 +97,13 @@ class ObjectInfoTest(TestHelper):
         self.obj = Class()
         self.obj_info = get_obj_info(self.obj)
 
+    def get_with_factory(self):
+        obj = object()
+        def factory():
+            return obj
+        self.assertEquals(self.obj_info.get("anything", factory=factory), obj)
+        self.assertEquals(self.obj_info.get("anything"), obj)
+
     def test_has_value(self):
         self.assertEquals(self.obj_info.has_value("column1"), False)
         self.obj.prop1 = None

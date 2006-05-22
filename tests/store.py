@@ -1138,6 +1138,11 @@ class StoreTest(TestHelper):
         self.store.add_flush_order(obj1, obj3)
         self.store.add_flush_order(obj3, obj5)
         self.store.add_flush_order(obj5, obj2)
+        self.store.add_flush_order(obj5, obj2)
+
+        self.assertRaises(StoreError, self.store.flush)
+
+        self.store.remove_flush_order(obj5, obj2)
 
         self.assertRaises(StoreError, self.store.flush)
 
