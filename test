@@ -22,7 +22,7 @@ def disable_conftest():
 def test_with_trial():
     from twisted.scripts import trial
     disable_conftest()
-    if len(sys.argv) == 1:
+    if not [x for x in sys.argv[1:] if not x.startswith("-")]:
         for dir, dirs, files in os.walk('tests'):
             for file in files:
                 if file.endswith('.py'):
