@@ -223,7 +223,7 @@ class Store(object):
                 value = obj_info.get_value(column.name, Undef)
                 if value is not Undef:
                     columns.append(column)
-                    values.append(Param(value))
+                    values.append(Param(column.kind.to_database(value)))
 
             expr = Insert(columns, values, cls_info.table)
 
@@ -236,13 +236,16 @@ class Store(object):
             self._add_to_cache(obj)
 
         elif obj_info.check_changed():
-            changes = {}
-            for column, value in obj_info.get_changes().iteritems():
-                if value is not Undef:
-                    changes[column] = Param(value)
+            changes = obj_info.get_changes()
+            sets = {}
 
-            if changes:
-                expr = Update(changes,
+            for column in cls_info.columns:
+                value = changes.get(column.name, Undef)
+                if value is not Undef:
+                    sets[column] = Param(column.kind.to_database(value))
+
+            if sets:
+                expr = Update(sets,
                               compare_columns(cls_info.primary_key,
                                               obj_info["primary_values"]),
                               cls_info.table)
@@ -257,11 +260,9 @@ class Store(object):
         obj_info, cls_info = get_info(obj)
 
         missing_columns = []
-        missing_attributes = []
-        for column, attr in zip(cls_info.columns, cls_info.attributes):
+        for column in cls_info.columns:
             if not obj_info.has_value(column.name):
                 missing_columns.append(column)
-                missing_attributes.append(attr)
 
         if missing_columns:
             primary_key = cls_info.primary_key
@@ -273,8 +274,9 @@ class Store(object):
                 where = compare_columns(primary_key, primary_values)
             select = Select(missing_columns, where)
             result = self._connection.execute(select)
-            for attr, value in zip(missing_attributes, result.fetch_one()):
-                setattr(obj, attr, value)
+            for column, value in zip(missing_columns, result.fetch_one()):
+                obj_info.set_value(column.name,
+                                   column.kind.from_database(value))
 
     def _load_object(self, cls_info, values):
         primary_values = tuple(values[i] for i in cls_info.primary_key_pos)
@@ -286,8 +288,8 @@ class Store(object):
         obj_info = get_obj_info(obj)
         obj_info["store"] = self
 
-        for attr, value in zip(cls_info.attributes, values):
-            setattr(obj, attr, value)
+        for column, value in zip(cls_info.columns, values):
+            obj_info.set_value(column.name, column.kind.from_database(value))
 
         obj_info.save()
 

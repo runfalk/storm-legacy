@@ -42,7 +42,6 @@ class ClassInfo(dict):
         pairs.sort()
 
         self.cls = cls
-        self.attributes = tuple(pair[0] for pair in pairs)
         self.columns = tuple(pair[1] for pair in pairs)
         self.table = __table__[0]
 

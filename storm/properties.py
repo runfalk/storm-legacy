@@ -2,45 +2,55 @@ from datetime import datetime
 
 from storm.info import get_obj_info
 from storm.expr import Column, Undef
+from storm.kinds import *
 
 
 __all__ = ["Property", "Bool", "Int", "Float", "Str", "Unicode", "DateTime"]
 
 
-class PropertyColumn(Column):
+def Bool(name=None):
+    return Property(name, BoolKind())
+    
+def Int(name=None):
+    return Property(name, IntKind())
 
-    def __init__(self, prop, cls, name=Undef, table=Undef):
-        Column.__init__(self, name, table)
-        self._prop = prop
-        self.cls = cls
+def Float(name=None):
+    return Property(name, FloatKind())
 
-    def __get__(self, obj, cls=None, default=None):
-        return self._prop.__get__(obj, cls, default)
+def Str(name=None):
+    return Property(name, StrKind())
 
-    def __set__(self, obj, value):
-        self._prop.__set__(obj, value)
+def Unicode(name=None):
+    return Property(name, UnicodeKind())
 
-    def __delete__(self, obj):
-        self._prop.__delete__(obj)
+def DateTime(name=None):
+    return Property(name, DateTimeKind())
 
 
 class Property(object):
 
-    def __init__(self, name=None):
+    def __init__(self, name=None, kind=None):
         self._name = name
+        self._kind = kind or AnyKind()
         self._columns = {}
+
+        self._to_python = self._kind.to_python
+        self._from_python = self._kind.from_python
 
     def __get__(self, obj, cls=None, default=None):
         if obj is None:
             return self._get_column(cls)
         if self._name is None:
             self._detect_name(obj.__class__)
-        return get_obj_info(obj).get_value(self._name, default)
+        value = get_obj_info(obj).get_value(self._name, Undef)
+        if value is Undef:
+            return default
+        return self._to_python(value)
 
     def __set__(self, obj, value):
         if self._name is None:
             self._detect_name(obj.__class__)
-        get_obj_info(obj).set_value(self._name, value)
+        get_obj_info(obj).set_value(self._name, self._from_python(value))
 
     def __delete__(self, obj):
         if self._name is None:
@@ -61,53 +71,19 @@ class Property(object):
         if column is None:
             if self._name is None:
                 self._detect_name(cls)
-            column = PropertyColumn(self, cls, self._name, cls.__table__[0])
+            column = PropertyColumn(self, cls,
+                                    self._name, cls.__table__[0], self._kind)
             self._columns[cls] = column
         return column
 
 
-class Bool(Property):
+class PropertyColumn(Column):
 
-    def __set__(self, obj, value):
-        if self._name is None:
-            self._detect_name(obj.__class__)
-        get_obj_info(obj).set_value(self._name, bool(value))
+    def __init__(self, prop, cls, name, table, kind):
+        Column.__init__(self, name, table, kind)
+        self.cls = cls
 
-class Int(Property):
-
-    def __set__(self, obj, value):
-        if self._name is None:
-            self._detect_name(obj.__class__)
-        get_obj_info(obj).set_value(self._name, int(value))
-
-class Float(Property):
-
-    def __set__(self, obj, value):
-        if self._name is None:
-            self._detect_name(obj.__class__)
-        get_obj_info(obj).set_value(self._name, float(value))
-
-class Str(Property):
-
-    def __set__(self, obj, value):
-        if self._name is None:
-            self._detect_name(obj.__class__)
-        get_obj_info(obj).set_value(self._name, str(value))
-
-class Unicode(Property):
-
-    def __set__(self, obj, value):
-        if self._name is None:
-            self._detect_name(obj.__class__)
-        get_obj_info(obj).set_value(self._name, unicode(value))
-
-class DateTime(Property):
-
-    def __set__(self, obj, value):
-        if self._name is None:
-            self._detect_name(obj.__class__)
-        if type(value) in (int, long, float):
-            value = datetime.utcfromtimestamp(value)
-        elif not isinstance(value, datetime):
-            raise TypeError("Expected datetime, found %s" % repr(value))
-        get_obj_info(obj).set_value(self._name, value)
+        # Copy attributes from the property to avoid one additional
+        # function call on each access.
+        for attr in ["__get__", "__set__", "__delete__"]:
+            setattr(self, attr, getattr(prop, attr))

@@ -7,7 +7,7 @@ from storm.databases.postgres import Postgres
 from storm.properties import get_obj_info
 from storm.references import Reference
 from storm.database import Result
-from storm.properties import Int, Str
+from storm.properties import Int, Str, Property
 from storm.expr import Asc, Desc, Select
 from storm.store import *
 
@@ -26,6 +26,25 @@ class Other(object):
     test_id = Int()
     other_title = Str()
     test = Reference(test_id, Test.id)
+
+
+class DecorateKind(object):
+
+    def to_python(self, value):
+        return "to_py(%s)" % str(value)
+
+    def from_python(self, value):
+        return "from_py(%s)" % str(value)
+
+    def to_database(self, value):
+        return "to_db(%s)" % str(value)
+
+    def from_database(self, value):
+        return "from_db(%s)" % str(value)
+
+
+class KindTest(Test):
+    title = Property(kind=DecorateKind())
 
 
 class StoreTest(TestHelper):
@@ -1154,6 +1173,55 @@ class StoreTest(TestHelper):
         self.assertTrue(obj4.id < obj1.id)
         self.assertTrue(obj1.id < obj3.id)
         self.assertTrue(obj3.id < obj5.id)
+
+    def test_kind_filter_on_load(self):
+        obj = self.store.get(KindTest, 20)
+        self.assertEquals(obj.title, "to_py(from_db(Title 20))")
+
+    def test_kind_filter_on_update(self):
+        obj = self.store.get(KindTest, 20)
+        obj.title = "Title 20"
+
+        self.store.flush()
+
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "to_db(from_py(Title 20))"),
+                          (30, "Title 10"),
+                         ])
+
+    def test_kind_filter_on_update_unchanged(self):
+        obj = self.store.get(KindTest, 20)
+        self.store.flush()
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                         ])
+
+    def test_kind_filter_on_insert(self):
+        obj = KindTest()
+        obj.id = 40
+        obj.title = "Title 40"
+
+        self.store.add(obj)
+        self.store.flush()
+
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                          (40, "to_db(from_py(Title 40))"),
+                         ])
+
+    def test_kind_filter_on_missing_values(self):
+        obj = KindTest()
+        obj.id = 40
+
+        self.store.add(obj)
+        self.store.flush()
+
+        self.assertEquals(obj.title, "to_py(from_db(Default Title))")
 
 
 class SQLiteStoreTest(StoreTest):

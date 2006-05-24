@@ -1,6 +1,8 @@
 from copy import copy
 import sys
 
+from storm.kinds import AnyKind
+
 
 # --------------------------------------------------------------------
 # Basic compiler infrastructure
@@ -369,9 +371,10 @@ def compile_delete(compile, state, delete):
 
 class Column(ComparableExpr):
 
-    def __init__(self, name=Undef, table=Undef):
+    def __init__(self, name=Undef, table=Undef, kind=None):
         self.name = name
         self.table = table
+        self.kind = kind or AnyKind()
 
 @compile.when(Column)
 def compile_column(compile, state, column):

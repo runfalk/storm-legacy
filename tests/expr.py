@@ -1,5 +1,6 @@
 from tests.helper import TestHelper
 
+from storm.kinds import AnyKind
 from storm.expr import *
 
 
@@ -84,11 +85,14 @@ class ExprTest(TestHelper):
         expr = Column()
         self.assertEquals(expr.name, Undef)
         self.assertEquals(expr.table, Undef)
+        self.assertTrue(isinstance(expr.kind, AnyKind))
 
     def test_column_constructor(self):
-        expr = Column("name", "table")
+        kind = object()
+        expr = Column("name", "table", kind)
         self.assertEquals(expr.name, "name")
         self.assertEquals(expr.table, "table")
+        self.assertEquals(expr.kind, kind)
 
     def test_param(self):
         expr = Param("value")
