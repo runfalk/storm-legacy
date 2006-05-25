@@ -1,13 +1,15 @@
 from datetime import datetime, date, time
 import os
 
-from storm.databases.postgres import Postgres
-
 from tests.databases.base import DatabaseTest
 from tests.helper import TestHelper
 
+from storm.databases.mysql import MySQL
 
-class PostgresTest(TestHelper, DatabaseTest):
+
+class MySQLTest(TestHelper, DatabaseTest):
+
+    supports_microseconds = False
 
     def setUp(self):
         TestHelper.setUp(self)
@@ -18,14 +20,15 @@ class PostgresTest(TestHelper, DatabaseTest):
         TestHelper.setUp(self)
     
     def is_supported(self):
-        return bool(os.environ.get("STORM_POSTGRES_DBNAME"))
+        return bool(os.environ.get("STORM_MYSQL_DBNAME"))
 
     def create_database(self):
-        self.database = Postgres(os.environ["STORM_POSTGRES_DBNAME"])
+        self.database = MySQL(os.environ["STORM_MYSQL_DBNAME"])
 
     def create_tables(self):
         self.connection.execute("CREATE TABLE test "
-                                "(id SERIAL PRIMARY KEY, title VARCHAR)")
+                                "(id INT AUTO_INCREMENT PRIMARY KEY,"
+                                " title VARCHAR(50))")
         self.connection.execute("CREATE TABLE datetime_test "
-                                "(id SERIAL PRIMARY KEY,"
+                                "(id INT AUTO_INCREMENT PRIMARY KEY,"
                                 " dt TIMESTAMP, d DATE, t TIME)")

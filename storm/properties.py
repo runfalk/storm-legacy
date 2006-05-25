@@ -5,7 +5,8 @@ from storm.expr import Column, Undef
 from storm.kinds import *
 
 
-__all__ = ["Property", "Bool", "Int", "Float", "Str", "Unicode", "DateTime"]
+__all__ = ["Property", "Bool", "Int", "Float", "Str", "Unicode",
+           "DateTime", "Date", "Time"]
 
 
 def Bool(name=None):
@@ -25,6 +26,12 @@ def Unicode(name=None):
 
 def DateTime(name=None):
     return Property(name, DateTimeKind())
+
+def Date(name=None):
+    return Property(name, DateKind())
+
+def Time(name=None):
+    return Property(name, TimeKind())
 
 
 class Property(object):

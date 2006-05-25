@@ -1,3 +1,4 @@
+from datetime import datetime, date, time
 from pysqlite2 import dbapi2 as sqlite
 
 from storm.database import *
@@ -13,6 +14,10 @@ class SQLiteConnection(Connection):
 
     _result_factory = SQLiteResult
 
+    def _to_database(self, value):
+        if isinstance(value, (datetime, date, time)):
+            return str(value)
+        return value
 
 class SQLite(Database):
 

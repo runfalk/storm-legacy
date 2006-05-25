@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date, time
 
 from storm.properties import *
 from storm.kinds import *
@@ -293,8 +293,45 @@ class PropertyKindsTest(TestHelper):
 
         self.obj.prop1 = 0.0
         self.assertEquals(self.obj.prop1, datetime.utcfromtimestamp(0))
-        self.obj.prop1 = datetime(2006, 1, 1)
-        self.assertEquals(self.obj.prop1, datetime(2006, 1, 1))
+        self.obj.prop1 = datetime(2006, 1, 1, 12, 34)
+        self.assertEquals(self.obj.prop1, datetime(2006, 1, 1, 12, 34))
 
         self.assertRaises(TypeError, setattr, self.obj, "prop1", object())
 
+    def test_date(self):
+        prop1, prop2 = self.setup(Date)
+
+        self.assertTrue(isinstance(prop1, Column))
+        self.assertTrue(isinstance(prop2, Column))
+        self.assertEquals(prop1.name, "column1")
+        self.assertEquals(prop1.table, "table")
+        self.assertEquals(prop2.name, "prop2")
+        self.assertEquals(prop2.table, "table")
+        self.assertTrue(isinstance(prop1.kind, DateKind))
+        self.assertTrue(isinstance(prop2.kind, DateKind))
+
+        self.obj.prop1 = datetime(2006, 1, 1, 12, 34, 56)
+        self.assertEquals(self.obj.prop1, date(2006, 1, 1))
+        self.obj.prop1 = date(2006, 1, 1)
+        self.assertEquals(self.obj.prop1, date(2006, 1, 1))
+
+        self.assertRaises(TypeError, setattr, self.obj, "prop1", object())
+
+    def test_time(self):
+        prop1, prop2 = self.setup(Time)
+
+        self.assertTrue(isinstance(prop1, Column))
+        self.assertTrue(isinstance(prop2, Column))
+        self.assertEquals(prop1.name, "column1")
+        self.assertEquals(prop1.table, "table")
+        self.assertEquals(prop2.name, "prop2")
+        self.assertEquals(prop2.table, "table")
+        self.assertTrue(isinstance(prop1.kind, TimeKind))
+        self.assertTrue(isinstance(prop2.kind, TimeKind))
+
+        self.obj.prop1 = datetime(2006, 1, 1, 12, 34, 56)
+        self.assertEquals(self.obj.prop1, time(12, 34, 56))
+        self.obj.prop1 = time(12, 34, 56)
+        self.assertEquals(self.obj.prop1, time(12, 34, 56))
+
+        self.assertRaises(TypeError, setattr, self.obj, "prop1", object())

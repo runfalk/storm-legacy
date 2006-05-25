@@ -21,8 +21,7 @@ class Result(object):
         result = self._raw_cursor.fetchall()
         if result:
             from_database = self._from_database
-            for i in range(len(result)):
-                result[i] = tuple(from_database(x) for x in result[i])
+            return [tuple(from_database(x) for x in item) for item in result]
         return result
 
     def __iter__(self):
@@ -72,12 +71,16 @@ class Connection(object):
             statement, params = self._compile(statement)
         raw_cursor = self._build_raw_cursor()
         statement = convert_param_marks(statement, "?", self._param_mark)
-        if params is None:
-            raw_cursor.execute(statement)
-        else:
-            to_database = self._to_database
-            raw_cursor.execute(statement, tuple(to_database(param)
-                                                for param in params))
+        try:
+            if params is None:
+                raw_cursor.execute(statement)
+            else:
+                to_database = self._to_database
+                raw_cursor.execute(statement, tuple(to_database(param)
+                                                    for param in params))
+        except:
+            if "DROP" not in statement:
+                import pdb; pdb.set_trace()
         if noresult:
             raw_cursor.close()
             return None

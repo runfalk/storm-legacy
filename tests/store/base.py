@@ -1,8 +1,4 @@
 import gc
-import os
-
-from storm.databases.sqlite import SQLite
-from storm.databases.postgres import Postgres
 
 from storm.properties import get_obj_info
 from storm.references import Reference
@@ -11,8 +7,6 @@ from storm.properties import Int, Str, Property
 from storm.expr import Asc, Desc, Select
 from storm.kinds import StrKind, IntKind
 from storm.store import *
-
-from tests.helper import *
 
 
 class Test(object):
@@ -48,12 +42,9 @@ class KindTest(Test):
     title = Property(kind=DecorateKind())
 
 
-class StoreTest(TestHelper):
-
-    helpers = [MakePath]
+class StoreTest(object):
 
     def setUp(self):
-        TestHelper.setUp(self)
         self.create_database()
         self.drop_tables()
         self.create_tables()
@@ -65,7 +56,6 @@ class StoreTest(TestHelper):
         self.drop_sample_data()
         self.drop_tables()
         self.drop_database()
-        TestHelper.tearDown(self)
 
     def create_database(self):
         raise NotImplementedError
@@ -96,6 +86,10 @@ class StoreTest(TestHelper):
         connection = self.database.connect()
         try:
             connection.execute("DROP TABLE test")
+            connection.commit()
+        except:
+            connection.rollback()
+        try:
             connection.execute("DROP TABLE other")
             connection.commit()
         except:
@@ -107,12 +101,12 @@ class StoreTest(TestHelper):
     def get_items(self):
         # Bypass the store to avoid flushing.
         connection = self.store._connection
-        result = connection.execute("SELECT * FROM test DATABASE ORDER BY id")
+        result = connection.execute("SELECT * FROM test ORDER BY id")
         return list(result)
 
     def get_committed_items(self):
         connection = self.database.connect()
-        result = connection.execute("SELECT * FROM test DATABASE ORDER BY id")
+        result = connection.execute("SELECT * FROM test ORDER BY id")
         return list(result)
 
 
@@ -1241,47 +1235,3 @@ class StoreTest(TestHelper):
 
         self.assertEquals(obj.id, 21)
         self.assertEquals(obj.title, "to_kind(Title 20)")
-
-
-class SQLiteStoreTest(StoreTest):
-
-    helpers = [MakePath]
-
-    def create_database(self):
-        self.database = SQLite(self.make_path())
-
-    def create_tables(self):
-        connection = self.database.connect()
-        connection.execute("CREATE TABLE test "
-                           "(id INTEGER PRIMARY KEY,"
-                           " title VARCHAR DEFAULT 'Default Title')")
-        connection.execute("CREATE TABLE other "
-                           "(id INTEGER PRIMARY KEY,"
-                           " test_id INTEGER,"
-                           " other_title VARCHAR)")
-        connection.commit()
-
-    def drop_tables(self):
-        pass
-
-
-class PostgresStoreTest(StoreTest):
-
-    def is_supported(self):
-        return bool(os.environ.get("STORM_POSTGRES_DBNAME"))
-
-    def create_database(self):
-        self.database = Postgres(os.environ["STORM_POSTGRES_DBNAME"])
-
-    def create_tables(self):
-        connection = self.database.connect()
-        connection.execute("CREATE TABLE test "
-                           "(id SERIAL PRIMARY KEY,"
-                           " title VARCHAR DEFAULT 'Default Title')")
-        connection.execute("CREATE TABLE other "
-                           "(id SERIAL PRIMARY KEY,"
-                           " test_id INTEGER,"
-                           " other_title VARCHAR)")
-        connection.commit()
-
-del StoreTest

@@ -97,7 +97,7 @@ class UnicodeKindTest(AnyKindTest):
         self.assertTrue(isinstance(self.kind.from_database(""), unicode))
 
 
-class DataTimeKindTest(AnyKindTest):
+class DateTimeKindTest(AnyKindTest):
 
     kind_class = DateTimeKind
 
@@ -110,9 +110,83 @@ class DataTimeKindTest(AnyKindTest):
         self.assertRaises(TypeError, self.kind.from_python, marker)
 
     def test_from_database(self):
-        epoch = datetime.utcfromtimestamp(0)
-        self.assertEquals(self.kind.from_database(0), epoch)
-        self.assertEquals(self.kind.from_database(0.0), epoch)
-        self.assertEquals(self.kind.from_database(0L), epoch)
-        self.assertEquals(self.kind.from_database(epoch), epoch)
+        datetime_str = "1977-05-04 12:34:56.78"
+        datetime_uni = unicode(datetime_str)
+        datetime_obj = datetime(1977, 5, 4, 12, 34, 56, 780000)
+        self.assertEquals(self.kind.from_database(datetime_str), datetime_obj)
+        self.assertEquals(self.kind.from_database(datetime_uni), datetime_obj)
+        self.assertEquals(self.kind.from_database(datetime_obj), datetime_obj)
+
+        datetime_str = "1977-05-04 12:34:56"
+        datetime_uni = unicode(datetime_str)
+        datetime_obj = datetime(1977, 5, 4, 12, 34, 56)
+        self.assertEquals(self.kind.from_database(datetime_str), datetime_obj)
+        self.assertEquals(self.kind.from_database(datetime_uni), datetime_obj)
+        self.assertEquals(self.kind.from_database(datetime_obj), datetime_obj)
+
+        self.assertEquals(self.kind.from_database(None), None)
+
+        self.assertRaises(TypeError, self.kind.from_database, 0)
         self.assertRaises(TypeError, self.kind.from_database, marker)
+        self.assertRaises(ValueError, self.kind.from_database, "foobar")
+        self.assertRaises(ValueError, self.kind.from_database, "foo bar")
+
+
+class DateKindTest(AnyKindTest):
+
+    kind_class = DateKind
+
+    def test_from_python(self):
+        epoch = datetime.utcfromtimestamp(0)
+        epoch_date = epoch.date()
+        self.assertEquals(self.kind.from_python(epoch), epoch_date)
+        self.assertEquals(self.kind.from_python(epoch_date), epoch_date)
+        self.assertRaises(TypeError, self.kind.from_python, marker)
+
+    def test_from_database(self):
+        date_str = "1977-05-04"
+        date_uni = unicode(date_str)
+        date_obj = date(1977, 5, 4)
+        self.assertEquals(self.kind.from_database(date_str), date_obj)
+        self.assertEquals(self.kind.from_database(date_uni), date_obj)
+        self.assertEquals(self.kind.from_database(date_obj), date_obj)
+
+        self.assertEquals(self.kind.from_database(None), None)
+
+        self.assertRaises(TypeError, self.kind.from_database, 0)
+        self.assertRaises(TypeError, self.kind.from_database, marker)
+        self.assertRaises(ValueError, self.kind.from_database, "foobar")
+
+
+class TimeKindTest(AnyKindTest):
+
+    kind_class = TimeKind
+
+    def test_from_python(self):
+        epoch = datetime.utcfromtimestamp(0)
+        epoch_time = epoch.time()
+        self.assertEquals(self.kind.from_python(epoch), epoch_time)
+        self.assertEquals(self.kind.from_python(epoch_time), epoch_time)
+        self.assertRaises(TypeError, self.kind.from_python, marker)
+
+    def test_from_database(self):
+        time_str = "12:34:56.78"
+        time_uni = unicode(time_str)
+        time_obj = time(12, 34, 56, 780000)
+        self.assertEquals(self.kind.from_database(time_str), time_obj)
+        self.assertEquals(self.kind.from_database(time_uni), time_obj)
+        self.assertEquals(self.kind.from_database(time_obj), time_obj)
+
+        time_str = "12:34:56"
+        time_uni = unicode(time_str)
+        time_obj = time(12, 34, 56)
+        self.assertEquals(self.kind.from_database(time_str), time_obj)
+        self.assertEquals(self.kind.from_database(time_uni), time_obj)
+        self.assertEquals(self.kind.from_database(time_obj), time_obj)
+
+
+        self.assertEquals(self.kind.from_database(None), None)
+
+        self.assertRaises(TypeError, self.kind.from_database, 0)
+        self.assertRaises(TypeError, self.kind.from_database, marker)
+        self.assertRaises(ValueError, self.kind.from_database, "foobar")

@@ -1,13 +1,15 @@
+from datetime import datetime, date, time
+
 from storm.expr import Select, Column, Undef
+from storm.kinds import DateTimeKind, DateKind, TimeKind
 from storm.database import *
 
-from tests.helper import TestHelper
 
+class DatabaseTest(object):
 
-class DatabaseTest(TestHelper):
+    supports_microseconds = True
 
     def setUp(self):
-        TestHelper.setUp(self)
         self.create_database()
         self.create_connection()
         self.drop_tables()
@@ -18,10 +20,6 @@ class DatabaseTest(TestHelper):
         self.drop_sample_data()
         self.drop_tables()
         self.drop_database()
-        TestHelper.tearDown(self)
-
-    def is_supported(self):
-        return self.__class__ is not DatabaseTest
 
     def create_database(self):
         raise NotImplementedError
@@ -66,9 +64,11 @@ class DatabaseTest(TestHelper):
         self.assertTrue(isinstance(result, Result))
 
     def test_execute_params(self):
-        result = self.connection.execute("SELECT 1 WHERE 1=?", (1,))
+        result = self.connection.execute("SELECT 1 FROM (SELECT 1) AS ALIAS "
+                                         "WHERE 1=?", (1,))
         self.assertTrue(result.fetch_one())
-        result = self.connection.execute("SELECT 1 WHERE 1=?", (2,))
+        result = self.connection.execute("SELECT 1 FROM (SELECT 1) AS ALIAS "
+                                         "WHERE 1=?", (2,))
         self.assertFalse(result.fetch_one())
 
     def test_fetch_one(self):
@@ -116,3 +116,35 @@ class DatabaseTest(TestHelper):
         expr = result.get_insert_identity(primary_key, primary_values)
         result = self.connection.execute(Select(Column("title", "test"), expr))
         self.assertEquals(result.fetch_one(), ("Title 30",))
+
+
+    def test_datetime(self):
+        value = datetime(1977, 4, 5, 12, 34, 56, 78)
+        self.connection.execute("INSERT INTO datetime_test (dt) VALUES (?)",
+                                (value,))
+        result = self.connection.execute("SELECT dt FROM datetime_test")
+        kind = DateTimeKind()
+        result_value = kind.from_database(result.fetch_one()[0])
+        if not self.supports_microseconds:
+            value = value.replace(microsecond=0)
+        self.assertEquals(result_value, value)
+
+    def test_date(self):
+        value = date(1977, 4, 5)
+        self.connection.execute("INSERT INTO datetime_test (d) VALUES (?)",
+                                (value,))
+        result = self.connection.execute("SELECT d FROM datetime_test")
+        kind = DateKind()
+        result_value = kind.from_database(result.fetch_one()[0])
+        self.assertEquals(result_value, value)
+
+    def test_time(self):
+        value = time(12, 34, 56, 78)
+        self.connection.execute("INSERT INTO datetime_test (t) VALUES (?)",
+                                (value,))
+        result = self.connection.execute("SELECT t FROM datetime_test")
+        kind = TimeKind()
+        result_value = kind.from_database(result.fetch_one()[0])
+        if not self.supports_microseconds:
+            value = value.replace(microsecond=0)
+        self.assertEquals(result_value, value)

@@ -1,21 +1,32 @@
 import os
 
-from tests.databases.base import DatabaseTest
-from tests.helper import MakePath
-
 from storm.databases.sqlite import SQLite
 
+from tests.databases.base import DatabaseTest
+from tests.helper import TestHelper, MakePath
 
-class SQLiteTest(DatabaseTest):
+
+class SQLiteTest(TestHelper, DatabaseTest):
 
     helpers = [MakePath]
+
+    def setUp(self):
+        TestHelper.setUp(self)
+        DatabaseTest.setUp(self)
+
+    def tearDown(self):
+        DatabaseTest.setUp(self)
+        TestHelper.setUp(self)
 
     def create_database(self):
         self.database = SQLite(self.make_path())
 
     def create_tables(self):
         self.connection.execute("CREATE TABLE test "
-                                "(id SERIAL PRIMARY KEY, title VARCHAR)")
+                                "(id INTEGER PRIMARY KEY, title VARCHAR)")
+        self.connection.execute("CREATE TABLE datetime_test "
+                                "(id INTEGER PRIMARY KEY,"
+                                " dt TIMESTAMP, d DATE, t TIME)")
 
     def drop_tables(self):
         pass
@@ -28,6 +39,3 @@ class SQLiteMemoryTest(SQLiteTest):
 
     def test_simultaneous_iter(self):
         pass
-
-
-del DatabaseTest

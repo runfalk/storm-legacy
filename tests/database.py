@@ -163,4 +163,3 @@ class ResultTest(TestHelper):
     def test_to_kind(self):
         obj1, obj2 = object(), object()
         self.assertEquals(self.result.to_kind(obj1, obj2), obj1)
-
