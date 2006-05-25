@@ -10,13 +10,13 @@ class DatabaseTest(TestHelper):
         TestHelper.setUp(self)
         self.create_database()
         self.create_connection()
-        self.drop_table()
-        self.create_table()
+        self.drop_tables()
+        self.create_tables()
         self.create_sample_data()
 
     def tearDown(self):
         self.drop_sample_data()
-        self.drop_table()
+        self.drop_tables()
         self.drop_database()
         TestHelper.tearDown(self)
 
@@ -29,7 +29,7 @@ class DatabaseTest(TestHelper):
     def create_connection(self):
         self.connection = self.database.connect()
 
-    def create_table(self):
+    def create_tables(self):
         raise NotImplementedError
 
     def create_sample_data(self):
@@ -40,9 +40,14 @@ class DatabaseTest(TestHelper):
     def drop_sample_data(self):
         pass
 
-    def drop_table(self):
+    def drop_tables(self):
         try:
             self.connection.execute("DROP TABLE test")
+            self.connection.commit()
+        except:
+            self.connection.rollback()
+        try:
+            self.connection.execute("DROP TABLE datetime_test")
             self.connection.commit()
         except:
             self.connection.rollback()

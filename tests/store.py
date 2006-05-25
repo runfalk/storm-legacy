@@ -9,6 +9,7 @@ from storm.references import Reference
 from storm.database import Result
 from storm.properties import Int, Str, Property
 from storm.expr import Asc, Desc, Select
+from storm.kinds import StrKind, IntKind
 from storm.store import *
 
 from tests.helper import *
@@ -1222,6 +1223,24 @@ class StoreTest(TestHelper):
         self.store.flush()
 
         self.assertEquals(obj.title, "to_py(from_db(Default Title))")
+
+    def test_wb_result_to_kind(self):
+        def to_kind(self, value, kind):
+            if kind.__class__ is StrKind:
+                return "to_kind(%s)" % str(value)
+            elif kind.__class__ is IntKind:
+                return value+1
+            return value
+
+        result_factory = self.store._connection._result_factory
+        old_to_kind, result_factory.to_kind = result_factory.to_kind, to_kind
+        try:
+            obj = self.store.get(Test, 20)
+        finally:
+            result_factory.to_kind = old_to_kind
+
+        self.assertEquals(obj.id, 21)
+        self.assertEquals(obj.title, "to_kind(Title 20)")
 
 
 class SQLiteStoreTest(StoreTest):

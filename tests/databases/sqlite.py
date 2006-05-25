@@ -13,11 +13,11 @@ class SQLiteTest(DatabaseTest):
     def create_database(self):
         self.database = SQLite(self.make_path())
 
-    def create_table(self):
+    def create_tables(self):
         self.connection.execute("CREATE TABLE test "
                                 "(id SERIAL PRIMARY KEY, title VARCHAR)")
 
-    def drop_table(self):
+    def drop_tables(self):
         pass
 
 

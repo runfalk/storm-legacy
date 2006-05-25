@@ -113,7 +113,7 @@ class ConnectionTest(TestHelper):
         self.assertTrue(isinstance(result, Result))
         self.assertEquals(self.executed,
                           [("SELECT column1, column2 FROM table1, table2",
-                            [])])
+                            ())])
 
     def test_execute_select_and_params(self):
         select = Select(["column1", "column2"], tables=["table1", "table2"])
@@ -159,3 +159,8 @@ class ResultTest(TestHelper):
         self.assertEquals([item for item in result],
                           [("fetchmany0",), ("fetchmany1",), ("fetchmany2",),
                            ("fetchmany3",), ("fetchmany4",)])
+
+    def test_to_kind(self):
+        obj1, obj2 = object(), object()
+        self.assertEquals(self.result.to_kind(obj1, obj2), obj1)
+

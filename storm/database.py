@@ -11,10 +11,19 @@ class Result(object):
         self._raw_cursor = raw_cursor
 
     def fetch_one(self):
-        return self._raw_cursor.fetchone()
+        result = self._raw_cursor.fetchone()
+        if result is not None:
+            from_database = self._from_database
+            return tuple(from_database(x) for x in result)
+        return None
 
     def fetch_all(self):
-        return self._raw_cursor.fetchall()
+        result = self._raw_cursor.fetchall()
+        if result:
+            from_database = self._from_database
+            for i in range(len(result)):
+                result[i] = tuple(from_database(x) for x in result[i])
+        return result
 
     def __iter__(self):
         if self._raw_cursor.arraysize == 1:
@@ -33,6 +42,14 @@ class Result(object):
 
     def get_insert_identity(self, primary_columns, primary_values):
         raise NotImplementedError
+
+    @staticmethod
+    def to_kind(value, kind):
+        return value
+
+    @staticmethod
+    def _from_database(value):
+        return value
 
 
 class Connection(object):
@@ -58,8 +75,9 @@ class Connection(object):
         if params is None:
             raw_cursor.execute(statement)
         else:
-            raw_cursor.execute(statement, params)
-
+            to_database = self._to_database
+            raw_cursor.execute(statement, tuple(to_database(param)
+                                                for param in params))
         if noresult:
             raw_cursor.close()
             return None
@@ -70,6 +88,10 @@ class Connection(object):
 
     def rollback(self):
         self._raw_connection.rollback()
+
+    @staticmethod
+    def _to_database(value):
+        return value
 
 
 class Database(object):

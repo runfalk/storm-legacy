@@ -87,11 +87,11 @@ class Store(object):
         select = Select(cls_info.columns, where,
                         default_tables=cls_info.table, limit=1)
 
-        values = self._connection.execute(select).fetch_one()
+        result = self._connection.execute(select)
+        values = result.fetch_one()
         if values is None:
             return None
-
-        return self._load_object(cls_info, values)
+        return self._load_object(cls_info, result, values)
 
     def find(self, cls, *args, **kwargs):
         self.flush()
@@ -112,9 +112,8 @@ class Store(object):
                 else:
                     where &= getattr(cls, key) == kwargs[key]
 
-        return ResultSet(self._connection.execute,
-                         lambda values: self._load_object(cls_info, values),
-                         cls_info.columns, where, cls_info.table)
+        return ResultSet(self._connection.execute, cls_info,
+                         self._load_object, where)
 
     def add(self, obj):
         obj_info = get_obj_info(obj)
@@ -254,7 +253,6 @@ class Store(object):
                 self._add_to_cache(obj)
 
         obj_info.emit("flushed")
-        
 
     def _fill_missing_values(self, obj, result):
         obj_info, cls_info = get_info(obj)
@@ -272,13 +270,12 @@ class Store(object):
                 where = result.get_insert_identity(primary_key, primary_values)
             else:
                 where = compare_columns(primary_key, primary_values)
-            select = Select(missing_columns, where)
-            result = self._connection.execute(select)
-            for column, value in zip(missing_columns, result.fetch_one()):
-                obj_info.set_value(column.name,
-                                   column.kind.from_database(value))
+            result = self._connection.execute(Select(missing_columns, where))
 
-    def _load_object(self, cls_info, values):
+            self._set_values(obj_info, missing_columns,
+                             result, result.fetch_one())
+
+    def _load_object(self, cls_info, result, values):
         primary_values = tuple(values[i] for i in cls_info.primary_key_pos)
         obj = self._cache.get((cls_info.cls, primary_values))
         if obj is not None:
@@ -288,8 +285,7 @@ class Store(object):
         obj_info = get_obj_info(obj)
         obj_info["store"] = self
 
-        for column, value in zip(cls_info.columns, values):
-            obj_info.set_value(column.name, column.kind.from_database(value))
+        self._set_values(obj_info, cls_info.columns, result, values), 
 
         obj_info.save()
 
@@ -303,6 +299,13 @@ class Store(object):
         obj_info.save_attributes()
 
         return obj
+
+    def _set_values(self, obj_info, columns, result, values):
+        set_value = obj_info.set_value
+        to_kind = result.to_kind
+        for column, value in zip(columns, values):
+            kind = column.kind
+            set_value(column.name, kind.from_database(to_kind(value, kind)))
 
 
     def _is_dirty(self, obj):
@@ -367,40 +370,42 @@ class Store(object):
 
 class ResultSet(object):
 
-    def __init__(self, execute, object_factory, columns, where, table,
-                 order_by=Undef):
+    def __init__(self, execute, cls_info, load_object, where, order_by=Undef):
         self._execute = execute
-        self._object_factory = object_factory
-        self._columns = columns
+        self._cls_info = cls_info
+        self._load_object = load_object
         self._where = where
-        self._table = table
         self._order_by = order_by
 
     def __iter__(self):
-        select = Select(self._columns, self._where, order_by=self._order_by,
-                        default_tables=self._table, distinct=True)
-        for values in self._execute(select):
-            yield self._object_factory(values)
+        select = Select(self._cls_info.columns, self._where,
+                        default_tables=self._cls_info.table,
+                        order_by=self._order_by, distinct=True)
+        result = self._execute(select)
+        for values in result:
+            yield self._load_object(self._cls_info, result, values)
 
     def _aggregate(self, column):
         select = Select(column, self._where, order_by=self._order_by,
-                        default_tables=self._table, distinct=True)
+                        default_tables=self._cls_info.table, distinct=True)
         return self._execute(select).fetch_one()[0]
 
     def one(self):
-        select = Select(self._columns, self._where, order_by=self._order_by,
-                        limit=1, default_tables=self._table, distinct=True)
-        values = self._execute(select).fetch_one()
+        select = Select(self._cls_info.columns, self._where,
+                        default_tables=self._cls_info.table,
+                        order_by=self._order_by, distinct=True)
+        result = self._execute(select)
+        values = result.fetch_one()
         if values:
-            return self._object_factory(values)
+            return self._load_object(self._cls_info, result, values)
         return None
 
     def order_by(self, *args):
-        return self.__class__(self._execute, self._object_factory,
-                              self._columns, self._where, self._table, args)
+        return self.__class__(self._execute, self._cls_info,
+                              self._load_object, self._where, args)
 
     def remove(self):
-        self._execute(Delete(self._where, self._table), noresult=True)
+        self._execute(Delete(self._where, self._cls_info.table), noresult=True)
 
     def count(self):
         return self._aggregate(Count())
