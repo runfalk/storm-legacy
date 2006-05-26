@@ -79,6 +79,17 @@ class Compile(object):
         return self._compile(state, expr), state.parameters
 
 
+class CompilePython(Compile):
+
+    def get_expr(self, expr):
+        return self._compile(State(), expr)
+
+    def __call__(self, expr):
+        exec ("def match(get_column): return bool(%s)" %
+              self._compile(State(), expr))
+        return match
+
+
 Undef = object()
 
 class State(object):
@@ -102,6 +113,7 @@ class State(object):
 
 
 compile = Compile()
+compile_python = CompilePython()
 
 
 # --------------------------------------------------------------------
@@ -116,6 +128,10 @@ compile = Compile()
 def compile_none(compile, state, expr):
     return "NULL"
 
+@compile_python.when(type(None))
+def compile_python_none(compile, state, expr):
+    return "None"
+
 
 # --------------------------------------------------------------------
 # Base classes for expressions
@@ -124,6 +140,11 @@ MAX_PRECEDENCE = 1000
 
 class Expr(object):
     pass
+
+@compile_python.when(Expr)
+def compile_python_unsupported(compile, state, expr):
+    raise CompileError("Can't compile python expressions with %r" % type(expr))
+
 
 class Comparable(object):
 
@@ -204,11 +225,6 @@ class Comparable(object):
 
 class ComparableExpr(Expr, Comparable):
     pass
-
-#class UnaryExpr(ComparableExpr):
-#
-#    def __init__(self, expr):
-#        self.expr = expr
 
 class BinaryExpr(ComparableExpr):
 
@@ -384,6 +400,10 @@ def compile_column(compile, state, column):
         return column.name
     return "%s.%s" % (compile(state, column.table), column.name)
 
+@compile_python.when(Column)
+def compile_python_column(compile, state, column):
+    return "get_column(%s)" % repr(column.name)
+
 
 class Param(ComparableExpr):
 
@@ -395,18 +415,19 @@ def compile_param(compile, state, param):
     state.parameters.append(param.value)
     return "?"
 
+@compile_python.when(Param)
+def compile_python_param(compile, state, param):
+    return repr(param.value)
+
 
 # --------------------------------------------------------------------
 # Operators
-
-#class UnaryOper(UnaryExpr):
-#    oper = " (unknown) "
-
 
 class BinaryOper(BinaryExpr):
     oper = " (unknown) "
 
 @compile.when(BinaryOper)
+@compile_python.when(BinaryOper)
 def compile_binary_oper(compile, state, oper):
     return "%s%s%s" % (compile(state, oper.expr1), oper.oper,
                        compile(state, oper.expr2))
@@ -416,6 +437,7 @@ class NonAssocBinaryOper(BinaryOper):
     oper = " (unknown) "
 
 @compile.when(NonAssocBinaryOper)
+@compile_python.when(NonAssocBinaryOper)
 def compile_non_assoc_binary_oper(compile, state, oper):
     expr1 = compile(state, oper.expr1)
     state.precedence += 0.5
@@ -430,6 +452,10 @@ class CompoundOper(CompoundExpr):
 def compile_compound_oper(compile, state, oper):
     return "%s" % compile(state, oper.exprs, oper.oper)
 
+@compile_python.when(CompoundOper)
+def compile_compound_oper(compile, state, oper):
+    return "%s" % compile(state, oper.exprs, oper.oper.lower())
+
 
 class Eq(BinaryOper):
     oper = " = "
@@ -439,6 +465,10 @@ def compile_eq(compile, state, eq):
     if eq.expr2 is None:
         return "%s IS NULL" % compile(state, eq.expr1)
     return "%s = %s" % (compile(state, eq.expr1), compile(state, eq.expr2))
+
+@compile_python.when(Eq)
+def compile_eq(compile, state, eq):
+    return "%s == %s" % (compile(state, eq.expr1), compile(state, eq.expr2))
 
 
 class Ne(BinaryOper):
@@ -469,8 +499,12 @@ class RShift(BinaryOper):
 class LShift(BinaryOper):
     oper = "<<"
 
+
 class Like(BinaryOper):
     oper = " LIKE "
+
+# It's easy to support it. Later.
+compile_python.when(Like)(compile_python_unsupported)
 
 
 class In(BinaryOper):
@@ -481,6 +515,12 @@ def compile_in(compile, state, expr):
     expr1 = compile(state, expr.expr1)
     state.precedence = 0 # We're forcing parenthesis here.
     return "%s IN (%s)" % (expr1, compile(state, expr.expr2))
+
+@compile_python.when(In)
+def compile_in(compile, state, expr):
+    expr1 = compile(state, expr.expr1)
+    state.precedence = 0 # We're forcing parenthesis here.
+    return "%s in (%s,)" % (expr1, compile(state, expr.expr2))
 
 
 class And(CompoundOper):
@@ -565,18 +605,6 @@ class Desc(SuffixExpr):
 
 
 # --------------------------------------------------------------------
-# Set operator precedences and commutativity.
-
-compile.set_precedence(10, Select, Insert, Update, Delete)
-compile.set_precedence(20, Or)
-compile.set_precedence(30, And)
-compile.set_precedence(40, Eq, Ne, Gt, Ge, Lt, Le, Like, In)
-compile.set_precedence(50, LShift, RShift)
-compile.set_precedence(60, Add, Sub)
-compile.set_precedence(70, Mul, Div, Mod)
-
-
-# --------------------------------------------------------------------
 # Utility functions.
 
 def compare_columns(columns, values):
@@ -594,3 +622,22 @@ def compare_columns(columns, values):
                 value = Param(value)
             equals.append(Eq(column, value))
         return And(*equals)
+
+
+# --------------------------------------------------------------------
+# Set operator precedences and commutativity.
+
+compile.set_precedence(10, Select, Insert, Update, Delete)
+compile.set_precedence(20, Or)
+compile.set_precedence(30, And)
+compile.set_precedence(40, Eq, Ne, Gt, Ge, Lt, Le, Like, In)
+compile.set_precedence(50, LShift, RShift)
+compile.set_precedence(60, Add, Sub)
+compile.set_precedence(70, Mul, Div, Mod)
+
+compile_python.set_precedence(20, Or)
+compile_python.set_precedence(30, And)
+compile_python.set_precedence(40, Eq, Ne, Gt, Ge, Lt, Le, Like, In)
+compile_python.set_precedence(50, LShift, RShift)
+compile_python.set_precedence(60, Add, Sub)
+compile_python.set_precedence(70, Mul, Div, Mod)

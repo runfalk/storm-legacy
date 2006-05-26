@@ -668,3 +668,216 @@ class CompileTest(TestHelper):
         statement, parameters = compile(expr)
         self.assertEquals(statement, "func1() DESC")
         self.assertEquals(parameters, [])
+
+class CompilePythonTest(TestHelper):
+
+    def test_precedence(self):
+        expr = And("1", Or("2", "3"),
+                   Add("4", Mul("5", Sub("6", Div("7", Div("8", "9"))))))
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "1 and (2 or 3) and 4+5*(6-7/(8/9))")
+
+    def test_get_precedence(self):
+        self.assertTrue(compile_python.get_precedence(Or) <
+                        compile_python.get_precedence(And))
+        self.assertTrue(compile_python.get_precedence(Add) <
+                        compile_python.get_precedence(Mul))
+        self.assertTrue(compile_python.get_precedence(Sub) <
+                        compile_python.get_precedence(Div))
+
+    def test_compile_sequence(self):
+        expr = ["str", Param(1), (Param(2), None)]
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "str, 1, 2, None")
+
+    def test_compile_invalid(self):
+        self.assertRaises(CompileError, compile_python, object())
+        self.assertRaises(CompileError, compile_python, [object()])
+
+    def test_compile_unsupported(self):
+        self.assertRaises(CompileError, compile_python, Expr())
+        self.assertRaises(CompileError, compile_python, Func1())
+
+    def test_str(self):
+        py_expr = compile_python.get_expr("str")
+        self.assertEquals(py_expr, "str")
+
+    def test_none(self):
+        py_expr = compile_python.get_expr(None)
+        self.assertEquals(py_expr, "None")
+
+    def test_column(self):
+        expr = Column("name")
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "get_column('name')")
+
+    def test_column_table(self):
+        expr = Column("name", "table")
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "get_column('name')")
+
+    def test_param(self):
+        expr = Param("value")
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "'value'")
+
+    def test_eq(self):
+        expr = Eq(Param(1), Param(2))
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "1 == 2")
+
+        expr = Param(1) == "value"
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "1 == 'value'")
+
+    def test_ne(self):
+        expr = Ne(Param(1), Param(2))
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "1 != 2")
+
+        expr = Param(1) != "value"
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "1 != 'value'")
+
+    def test_gt(self):
+        expr = Gt(Param(1), Param(2))
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "1 > 2")
+
+        expr = Param(1) > "value"
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "1 > 'value'")
+
+    def test_ge(self):
+        expr = Ge(Param(1), Param(2))
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "1 >= 2")
+
+        expr = Param(1) >= "value"
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "1 >= 'value'")
+
+    def test_lt(self):
+        expr = Lt(Param(1), Param(2))
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "1 < 2")
+
+        expr = Param(1) < "value"
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "1 < 'value'")
+
+    def test_le(self):
+        expr = Le(Param(1), Param(2))
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "1 <= 2")
+
+        expr = Param(1) <= "value"
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "1 <= 'value'")
+
+    def test_lshift(self):
+        expr = LShift(Param(1), Param(2))
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "1<<2")
+
+        expr = Param(1) << "value"
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "1<<'value'")
+
+    def test_rshift(self):
+        expr = RShift(Param(1), Param(2))
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "1>>2")
+
+        expr = Param(1) >> "value"
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "1>>'value'")
+
+    def test_in(self):
+        expr = In(Param(1), Param(2))
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "1 in (2,)")
+
+    def test_and(self):
+        expr = And("elem1", "elem2", And("elem3", "elem4"))
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "elem1 and elem2 and elem3 and elem4")
+
+        expr = Param(1) & "value"
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "1 and 'value'")
+
+    def test_or(self):
+        expr = Or("elem1", "elem2", Or("elem3", "elem4"))
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "elem1 or elem2 or elem3 or elem4")
+
+        expr = Param(1) | "value"
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "1 or 'value'")
+
+    def test_add(self):
+        expr = Add("elem1", "elem2", Add("elem3", "elem4"))
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "elem1+elem2+elem3+elem4")
+
+        expr = Param(1) + "value"
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "1+'value'")
+
+    def test_sub(self):
+        expr = Sub("elem1", Sub("elem2", "elem3"))
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "elem1-(elem2-elem3)")
+
+        expr = Sub(Sub("elem1", "elem2"), "elem3")
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "elem1-elem2-elem3")
+
+        expr = Param(1) - "value"
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "1-'value'")
+
+    def test_mul(self):
+        expr = Mul("elem1", "elem2", Mul("elem3", "elem4"))
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "elem1*elem2*elem3*elem4")
+
+        expr = Param(1) * "value"
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "1*'value'")
+
+    def test_div(self):
+        expr = Div("elem1", Div("elem2", "elem3"))
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "elem1/(elem2/elem3)")
+
+        expr = Div(Div("elem1", "elem2"), "elem3")
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "elem1/elem2/elem3")
+
+        expr = Param(1) / "value"
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "1/'value'")
+
+    def test_mod(self):
+        expr = Mod("elem1", Mod("elem2", "elem3"))
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "elem1%(elem2%elem3)")
+
+        expr = Mod(Mod("elem1", "elem2"), "elem3")
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "elem1%elem2%elem3")
+
+        expr = Param(1) % "value"
+        py_expr = compile_python.get_expr(expr)
+        self.assertEquals(py_expr, "1%'value'")
+
+    def test_match(self):
+        col1 = Column("name1")
+        col2 = Column("name2")
+
+        match = compile_python((col1 > 10) & (col2 < 10))
+
+        self.assertTrue(match({"name1": 15, "name2": 5}.get))
+        self.assertFalse(match({"name1": 5, "name2": 15}.get))
