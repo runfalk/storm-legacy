@@ -354,7 +354,7 @@ class Store(object):
             del obj_info["primary_values"]
 
     def _iter_cached(self):
-        return self._cache.itervalues()
+        return self._cache.values()
 
 
     def _enable_change_notification(self, obj):
