@@ -122,7 +122,8 @@ class Relation(object):
     def get_where_for_remote(self, local):
         local_values = self.get_local_values(local)
         if Undef in local_values:
-            return None
+            Store.of(local).flush()
+            local_values = self.get_local_values(local)
         return compare_columns(self.remote_key, local_values)
 
     def get_local_values(self, local):

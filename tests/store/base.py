@@ -1322,22 +1322,36 @@ class StoreTest(object):
                           (400, 20, "Title 400"),
                          ])
 
+    from tests.helper import run_this
+    @run_this
     def test_reference_set_with_added(self):
-        other = Other()
-        other.id = 400
-        other.test_id = 40
-        other.other_title = "Title 400"
-        self.store.add(other)
+        other1 = Other()
+        other1.id = 400
+        other1.other_title = "Title 400"
+        other2 = Other()
+        other2.id = 500
+        other2.other_title = "Title 500"
+        self.store.add(other1)
+        self.store.add(other2)
 
         class MyTest(Test):
             others = ReferenceSet(Test.id, Other.test_id)
 
         mytest = MyTest()
-        mytest.id = 40
-
+        mytest.title = "Title 40"
         self.assertEquals(mytest.others, None)
         self.store.add(mytest)
-        self.assertEquals(list(mytest.others), [other])
+        mytest.others.add(other1)
+        mytest.others.add(other2)
+
+        self.assertEquals(mytest.id, None)
+        self.assertEquals(other1.test_id, None)
+        self.assertEquals(other2.test_id, None)
+        self.assertEquals(list(mytest.others.order_by(Other.id)),
+                          [other1, other2])
+        self.assertEquals(type(mytest.id), int)
+        self.assertEquals(mytest.id, other1.test_id)
+        self.assertEquals(mytest.id, other2.test_id)
 
     def test_reference_set_composed(self):
         other = Other()
