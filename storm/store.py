@@ -1,8 +1,9 @@
 from weakref import WeakValueDictionary
 
 from storm.info import get_cls_info, get_obj_info, get_info
-from storm.expr import Select, Insert, Update, Delete, Undef, compare_columns
-from storm.expr import Column, Param, Count, Max, Min, Avg, Sum
+from storm.expr import Select, Insert, Update, Delete, Undef
+from storm.expr import Column, Param, Count, Max, Min, Avg, Sum, Eq, Expr
+from storm.expr import compile_python, compare_columns, CompileError
 
 
 __all__ = ["Store", "StoreError", "ResultSet"]
@@ -112,8 +113,7 @@ class Store(object):
                 else:
                     where &= getattr(cls, key) == kwargs[key]
 
-        return ResultSet(self._connection.execute, cls_info,
-                         self._load_object, where)
+        return ResultSet(self, cls_info, where)
 
     def add(self, obj):
         obj_info = get_obj_info(obj)
@@ -143,8 +143,7 @@ class Store(object):
     def remove(self, obj):
         obj_info = get_obj_info(obj)
 
-        store = obj_info.get("store")
-        if store is None or store is not self:
+        if obj_info.get("store") is not self:
             raise StoreError("%r is not in this store" % obj)
 
         pending = obj_info.get("pending")
@@ -158,6 +157,22 @@ class Store(object):
         else:
             obj_info["pending"] = PENDING_REMOVE
             self._set_dirty(obj)
+
+    def reload(self, obj):
+        obj_info, cls_info = get_info(obj)
+        if obj_info.get("store") is not self:
+            raise StoreError("%r is not in this store" % obj)
+        if "primary_values" not in obj_info:
+            raise StoreError("Can't reload an object if it was never flushed")
+        where = compare_columns(cls_info.primary_key,
+                                obj_info["primary_values"])
+        select = Select(cls_info.columns, where,
+                        default_tables=cls_info.table, limit=1)
+        result = self._connection.execute(select)
+        values = result.fetch_one()
+        self._set_values(obj_info, cls_info.columns, result, values), 
+        obj_info.checkpoint()
+        self._set_clean(obj)
 
     def add_flush_order(self, before, after):
         pair = (id(before), id(after))
@@ -234,6 +249,8 @@ class Store(object):
             self._set_alive(obj)
             self._add_to_cache(obj)
 
+            obj_info.checkpoint()
+
         elif obj_info.check_changed():
             changes = obj_info.get_changes()
             sets = {}
@@ -251,6 +268,8 @@ class Store(object):
                 self._connection.execute(expr, noresult=True)
 
                 self._add_to_cache(obj)
+
+            obj_info.checkpoint()
 
         obj_info.emit("flushed")
 
@@ -275,17 +294,18 @@ class Store(object):
             self._set_values(obj_info, missing_columns,
                              result, result.fetch_one())
 
-    def _load_object(self, cls_info, result, values):
-        primary_values = tuple(values[i] for i in cls_info.primary_key_pos)
-        obj = self._cache.get((cls_info.cls, primary_values))
-        if obj is not None:
-            return obj
+    def _load_object(self, cls_info, result, values, obj=None):
+        if obj is None:
+            primary_values = tuple(values[i] for i in cls_info.primary_key_pos)
+            obj = self._cache.get((cls_info.cls, primary_values))
+            if obj is not None:
+                return obj
+            obj = object.__new__(cls_info.cls)
 
-        obj = object.__new__(cls_info.cls)
         obj_info = get_obj_info(obj)
         obj_info["store"] = self
 
-        self._set_values(obj_info, cls_info.columns, result, values), 
+        self._set_values(obj_info, cls_info.columns, result, values)
 
         obj_info.save()
 
@@ -304,8 +324,12 @@ class Store(object):
         set_value = obj_info.set_value
         to_kind = result.to_kind
         for column, value in zip(columns, values):
-            kind = column.kind
-            set_value(column.name, kind.from_database(to_kind(value, kind)))
+            if value is None:
+                set_value(column.name, None)
+            else:
+                kind = column.kind
+                set_value(column.name,
+                          kind.from_database(to_kind(value, kind)))
 
 
     def _is_dirty(self, obj):
@@ -370,10 +394,9 @@ class Store(object):
 
 class ResultSet(object):
 
-    def __init__(self, execute, cls_info, load_object, where, order_by=Undef):
-        self._execute = execute
+    def __init__(self, store, cls_info, where, order_by=Undef):
+        self._store = store
         self._cls_info = cls_info
-        self._load_object = load_object
         self._where = where
         self._order_by = order_by
 
@@ -381,31 +404,32 @@ class ResultSet(object):
         select = Select(self._cls_info.columns, self._where,
                         default_tables=self._cls_info.table,
                         order_by=self._order_by, distinct=True)
-        result = self._execute(select)
+        result = self._store._connection.execute(select)
         for values in result:
-            yield self._load_object(self._cls_info, result, values)
+            yield self._store._load_object(self._cls_info, result, values)
 
     def _aggregate(self, column):
         select = Select(column, self._where, order_by=self._order_by,
                         default_tables=self._cls_info.table, distinct=True)
-        return self._execute(select).fetch_one()[0]
+        return self._store._connection.execute(select).fetch_one()[0]
 
     def one(self):
         select = Select(self._cls_info.columns, self._where,
                         default_tables=self._cls_info.table,
                         order_by=self._order_by, distinct=True)
-        result = self._execute(select)
+        result = self._store._connection.execute(select)
         values = result.fetch_one()
         if values:
-            return self._load_object(self._cls_info, result, values)
+            return self._store._load_object(self._cls_info, result, values)
         return None
 
     def order_by(self, *args):
-        return self.__class__(self._execute, self._cls_info,
-                              self._load_object, self._where, args)
+        return self.__class__(self._store, self._cls_info, self._where, args)
 
     def remove(self):
-        self._execute(Delete(self._where, self._cls_info.table), noresult=True)
+        self._store._connection.execute(Delete(self._where,
+                                               self._cls_info.table),
+                                        noresult=True)
 
     def count(self):
         return self._aggregate(Count())
@@ -421,3 +445,78 @@ class ResultSet(object):
 
     def sum(self, prop):
         return self._aggregate(Sum(prop))
+
+    def set(self, *args, **kwargs):
+        if not (args or kwargs):
+            return
+
+        sets = {}
+        cls = self._cls_info.cls
+
+        for expr in args:
+            if (not isinstance(expr, Eq) or
+                not isinstance(expr.expr1, Column) or
+                not isinstance(expr.expr2, (Column, Param))):
+                raise StoreError("Unsupported set expression: %r" % repr(expr))
+            column = expr.expr1
+            if isinstance(expr.expr2, Param):
+                value = expr.expr2.value
+                kind = column.kind
+                value = kind.from_python(value)
+                param = Param(kind.to_database(value))
+                param.parsed_value = value
+                sets[column] = param
+            else:
+                sets[column] = expr.expr2
+
+        for key, value in kwargs.items():
+            column = getattr(cls, key)
+            if value is None:
+                sets[column] = None
+            elif isinstance(value, Expr):
+                if not isinstance(value, Column):
+                    raise StoreError("Unsupported set expression: %r" %
+                                     repr(value))
+                sets[column] = value
+            else:
+                kind = column.kind
+                value = kind.from_python(value)
+                param = Param(kind.to_database(value))
+                param.parsed_value = value
+                sets[column] = param
+
+        expr = Update(sets, self._where, self._cls_info.table)
+        self._store._connection.execute(expr, noresult=True)
+
+        try:
+            cached = self.cached()
+        except CompileError:
+            for obj in self._store._iter_cached():
+                if isinstance(obj, cls):
+                    self._store.reload(obj)
+        else:
+            for obj in cached:
+                for column, expr in sets.items():
+                    obj_info = get_obj_info(obj)
+                    if expr is None:
+                        obj_info.set_value(column.name, None)
+                    elif isinstance(expr, Param):
+                        obj_info.set_value(column.name, expr.parsed_value)
+                    else:
+                        obj_info.set_value(column.name,
+                                           obj_info.get_value(expr.name))
+
+    def cached(self):
+        if self._where is Undef:
+            match = None
+        else:
+            match = compile_python(self._where)
+            name_to_column = dict((c.name, c) for c in self._cls_info.columns)
+            def get_column(name, name_to_column=name_to_column):
+                return name_to_column[name].__get__(obj)
+        objects = []
+        cls = self._cls_info.cls
+        for obj in self._store._iter_cached():
+            if isinstance(obj, cls) and (match is None or match(get_column)):
+                objects.append(obj)
+        return objects

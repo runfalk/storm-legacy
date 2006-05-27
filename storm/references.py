@@ -6,146 +6,247 @@ from storm.info import *
 class Reference(object):
 
     def __init__(self, local_key, remote_key, on_remote=False):
-        if type(local_key) is tuple:
-            self._local_key = local_key
-        else:
-            self._local_key = (local_key,)
-        if type(remote_key) is tuple:
-            self._remote_key = remote_key
-        else:
-            self._remote_key = (remote_key,)
-        self._local_data = {}
-        self._remote_data = {}
-        self._on_remote = on_remote
+        self._relation = Relation(local_key, remote_key, False, on_remote)
 
     def __get__(self, local, cls=None):
         if local is None:
             return self
 
-        # If a reference was already established, use it.
-        references = get_obj_info(local).get("references")
-        if references is not None:
-            remote = references.get(self)
-            if remote is not None:
-                return remote
+        remote = self._relation.get_remote(local)
+        if remote is not None:
+            return remote
 
         store = Store.of(local)
         if store is None:
             return None
 
-        local_values = tuple(prop.__get__(local, default=Undef)
-                             for prop in self._local_key)
-        if Undef in local_values:
-            return None
-
-        remote_cls = getattr(self._remote_key[0], "cls", None)
-        remote_data = self._get_remote_data(remote_cls)
-        if remote_data.is_primary:
-            remote = store.get(remote_cls, local_values)
+        if self._relation.remote_key_is_primary:
+            remote = store.get(self._relation.remote_cls,
+                               self._relation.get_local_values(local))
         else:
-            where = compare_columns(remote_data.columns, local_values)
-            remote = store.find(remote_cls, where).one()
+            where = self._relation.get_where_for_remote(local)
+            remote = store.find(self._relation.remote_cls, where).one()
 
         if remote is not None:
-            self._make_reference(local, remote)
+            self._relation.link(local, remote)
 
         return remote
 
     def __set__(self, local, remote):
+        self._relation.link(local, remote, True)
+
+
+class ReferenceSet(object):
+
+    def __init__(self, local_key, remote_key):
+        self._relation = Relation(local_key, remote_key, True, True)
+
+    def __get__(self, local, cls=None):
+        if local is None:
+            return self
+        store = Store.of(local)
+        if store is None:
+            return None
+        return BoundReferenceSet(self._relation, local, store)
+
+
+class BoundReferenceSet(object):
+
+    def __init__(self, relation, local, store):
+        self._relation = relation
+        self._local = local
+        self._store = store
+
+    def __iter__(self):
+        where = self._relation.get_where_for_remote(self._local)
+        return self._store.find(self._relation.remote_cls, where).__iter__()
+
+    def find(self, *args, **kwargs):
+        where = self._relation.get_where_for_remote(self._local)
+        return self._store.find(self._relation.remote_cls, where,
+                                *args, **kwargs)
+
+    def clear(self):
+        set_kwargs = {}
+        for remote_column in self._relation.remote_key:
+            set_kwargs[remote_column.name] = None
+        where = self._relation.get_where_for_remote(self._local)
+        self._store.find(self._relation.remote_cls, where).set(**set_kwargs)
+
+    def count(self):
+        where = self._relation.get_where_for_remote(self._local)
+        return self._store.find(self._relation.remote_cls, where).count()
+
+    def order_by(self, *args):
+        where = self._relation.get_where_for_remote(self._local)
+        result = self._store.find(self._relation.remote_cls, where)
+        return result.order_by(*args)
+
+    def add(self, remote):
+        self._relation.link(self._local, remote, True)
+
+    def remove(self, remote):
+        self._relation.unlink(self._local, remote, True)
+
+
+class Relation(object):
+
+    def __init__(self, local_key, remote_key, many, on_remote):
+        if type(local_key) is tuple:
+            self.local_key = local_key
+        else:
+            self.local_key = (local_key,)
+        if type(remote_key) is tuple:
+            self.remote_key = remote_key
+        else:
+            self.remote_key = (remote_key,)
+
+        self.remote_cls = self.remote_key[0].cls
+        self.remote_key_is_primary = False
+
+        primary_key = get_cls_info(self.remote_cls).primary_key
+        if len(primary_key) == len(self.remote_key):
+            for column1, column2 in zip(self.remote_key, primary_key):
+                if column1.name != column2.name:
+                    break
+            else:
+                self.remote_key_is_primary = True
+
+        self._many = many
+        self._on_remote = on_remote
+        self._local_columns = {}
+
+    def get_remote(self, local):
+        return get_obj_info(local).get(self)
+
+    def get_where_for_remote(self, local):
+        local_values = self.get_local_values(local)
+        if Undef in local_values:
+            return None
+        return compare_columns(self.remote_key, local_values)
+
+    def get_local_values(self, local):
+        return tuple(prop.__get__(local, default=Undef)
+                     for prop in self.local_key)
+
+    def link(self, local, remote, set=False):
         store = Store.of(local) or Store.of(remote)
         assert store is not None
 
-        track_changes = False
-        pairs = zip(self._local_key, self._remote_key)
-
-        if not self._on_remote:
-            store.add_flush_order(remote, local)
-            for local_prop, remote_prop in pairs:
-                remote_value = remote_prop.__get__(remote, default=Undef)
-                if remote_value is Undef:
-                    track_changes = True
-                else:
-                    local_prop.__set__(local, remote_value)
-            self._make_reference(local, remote,
-                                 track_remote_changes=track_changes)
-        else:
-            store.add_flush_order(local, remote)
-            for local_prop, remote_prop in pairs:
-                local_value = local_prop.__get__(local, default=Undef)
-                if local_value is Undef:
-                    track_changes = True
-                else:
-                    remote_prop.__set__(remote, local_value)
-            self._make_reference(local, remote,
-                                 track_local_changes=track_changes)
-
-    def _make_reference(self, local, remote,
-                        track_local_changes=False,
-                        track_remote_changes=False):
         local_info = get_obj_info(local)
         remote_info = get_obj_info(remote)
 
-        references = local_info.get("references", factory=dict)
-
-        old_remote = references.get(self)
-        if old_remote is not None:
-            self._break_reference(local_info, local,
-                                  get_obj_info(old_remote), old_remote)
-
-        references[self] = remote
-
-        if track_local_changes:
-            local_info.hook("changed", self._track_local_changes, remote)
-            local_info.hook("flushed", self._break_on_local_flushed, remote)
-        elif track_remote_changes:
-            remote_info.hook("changed", self._track_remote_changes, local)
-            remote_info.hook("flushed", self._break_on_remote_flushed, local)
+        if self._many:
+            local_info.get(self, factory=dict)[id(remote)] = remote
         else:
-            remote_info.hook("changed", self._break_on_remote_diverged, local)
+            old_remote = local_info.get(self)
+            if old_remote is not None:
+                self.unlink(local, old_remote)
+            local_info[self] = remote
+
+        track_changes = False
+        if set:
+            pairs = zip(self.local_key, self.remote_key)
+            if self._on_remote:
+                for local_prop, remote_prop in pairs:
+                    local_value = local_prop.__get__(local, default=Undef)
+                    if local_value is Undef:
+                        track_changes = True
+                    else:
+                        remote_prop.__set__(remote, local_value)
+
+                if track_changes:
+                    store.add_flush_order(local, remote)
+                    local_info.hook("changed",
+                                    self._track_local_changes, remote)
+                    local_info.hook("flushed",
+                                    self._break_on_local_flushed, remote)
+            else:
+                for local_prop, remote_prop in pairs:
+                    remote_value = remote_prop.__get__(remote, default=Undef)
+                    if remote_value is Undef:
+                        track_changes = True
+                    else:
+                        local_prop.__set__(local, remote_value)
+
+                if track_changes:
+                    store.add_flush_order(remote, local)
+                    remote_info.hook("changed",
+                                     self._track_remote_changes, local)
+                    remote_info.hook("flushed",
+                                     self._break_on_remote_flushed, local)
 
         local_info.hook("changed", self._break_on_local_diverged, remote)
+        if not track_changes:
+            remote_info.hook("changed", self._break_on_remote_diverged, local)
 
-    def _break_reference(self, local_info, local, remote_info, remote):
-        remote_info.unhook("changed", self._track_remote_changes, local)
-        remote_info.unhook("changed", self._break_on_remote_diverged, local)
-        remote_info.unhook("flushed", self._break_on_remote_flushed, local)
-        local_info.unhook("changed", self._track_local_changes, remote)
-        local_info.unhook("changed", self._break_on_local_diverged, remote)
-        local_info.unhook("flushed", self._break_on_local_flushed, remote)
-        del local_info["references"][self]
+    def unlink(self, local, remote, set=False):
 
-        store = Store.of(local) or Store.of(remote)
-        if self._on_remote:
-            store.remove_flush_order(local, remote)
-        else:
-            store.remove_flush_order(remote, local)
+        local_info = get_obj_info(local)
+
+        unhook = False
+        if self._many:
+            relations = local_info.get(self)
+            if (relations is not None and
+                relations.pop(id(remote), None) is not None):
+                unhook = True
+        elif local_info.pop(self, None) is not None:
+            unhook = True
+        
+        if unhook:
+            remote_info = get_obj_info(remote)
+
+            local_info.unhook("changed",
+                              self._track_local_changes, remote)
+            local_info.unhook("changed",
+                              self._break_on_local_diverged, remote)
+            local_info.unhook("flushed",
+                              self._break_on_local_flushed, remote)
+
+            remote_info.unhook("changed",
+                               self._track_remote_changes, local)
+            remote_info.unhook("changed",
+                               self._break_on_remote_diverged, local)
+            remote_info.unhook("flushed",
+                               self._break_on_remote_flushed, local)
+
+            store = Store.of(local) or Store.of(remote)
+            if self._on_remote:
+                store.remove_flush_order(local, remote)
+            else:
+                store.remove_flush_order(remote, local)
+
+        if set:
+            if self._on_remote:
+                for remote_prop in self.remote_key:
+                    remote_prop.__set__(remote, None)
+            else:
+                for local_prop in self.local_key:
+                    local_prop.__set__(local, None)
 
     def _track_local_changes(self, local_info,
                               name, old_value, new_value, remote):
-        """Deliver local changes to the remote object.
+        """Deliver changes in local to remote.
 
         This hook ensures that the remote object will keep track of
         changes done in the local object, either manually or at
         flushing time.
         """
-        local_data = self._get_local_data(local_info.obj.__class__)
-        for remote_prop, local_column in zip(self._remote_key,   
-                                             local_data.columns):
+        local_columns = self._get_local_columns(local_info.obj.__class__)
+        for remote_prop, local_column in zip(self.remote_key, local_columns):
             if local_column.name == name:
                 remote_prop.__set__(remote, new_value)
                 break
 
     def _track_remote_changes(self, remote_info,
                               name, old_value, new_value, local):
-        """Deliver remote changes to the local object.
+        """Deliver changes in remote to local.
 
         This hook ensures that the local object will keep track of
         changes done in the remote object, either manually or at
         flushing time.
         """
-        remote_data = self._get_remote_data(remote_info.obj.__class__)
-        for local_prop, remote_column in zip(self._local_key,   
-                                             remote_data.columns):
+        for local_prop, remote_column in zip(self.local_key, self.remote_key):
             if remote_column.name == name:
                 local_prop.__set__(local, new_value)
                 break
@@ -159,17 +260,13 @@ class Reference(object):
         it stops tracking changes.
         """
         local = local_info.obj
-        local_data = self._get_local_data(local.__class__)
-        remote_data = self._get_remote_data(remote.__class__)
-        for local_column, remote_column in zip(local_data.columns,
-                                               remote_data.columns):
-            if local_column.name != name:
-                continue
-
-            remote_info = get_obj_info(remote)
-            if new_value != remote_info.get_value(remote_column.name, Undef):
-                self._break_reference(local_info, local, remote_info, remote)
-            break
+        local_columns = self._get_local_columns(local.__class__)
+        for local_column, remote_column in zip(local_columns, self.remote_key):
+            if local_column.name == name:
+                if (new_value != get_obj_info(remote).
+                                 get_value(remote_column.name, Undef)):
+                    self.unlink(local, remote)
+                break
 
     def _break_on_remote_diverged(self, remote_info,
                                   name, old_value, new_value, local):
@@ -180,60 +277,26 @@ class Reference(object):
         the relationship is undone.
         """
         remote = remote_info.obj
-        remote_data = self._get_remote_data(remote.__class__)
-        local_data = self._get_local_data(local.__class__)
-        for remote_column, local_column in zip(remote_data.columns,
-                                               local_data.columns):
-            if remote_column.name != name:
-                continue
-
-            local_info = get_obj_info(local)
-            if new_value != local_info.get_value(local_column.name, Undef):
-                self._break_reference(local_info, local, remote_info, remote)
-            break
+        local_columns = self._get_local_columns(local.__class__)
+        for remote_column, local_column in zip(self.remote_key, local_columns):
+            if remote_column.name == name:
+                if (new_value != get_obj_info(local).
+                                 get_value(local_column.name, Undef)):
+                    self.unlink(local, remote)
+                break
 
     def _break_on_local_flushed(self, local_info, remote):
         """Break the remote/local relationship on flush."""
-        self._break_reference(local_info, local_info.obj,
-                              get_obj_info(remote), remote)
+        self.unlink(local_info.obj, remote)
 
     def _break_on_remote_flushed(self, remote_info, local):
         """Break the remote/local relationship on flush."""
-        self._break_reference(get_obj_info(local), local,
-                              remote_info, remote_info.obj)
+        self.unlink(local, remote_info.obj)
 
-    def _get_local_data(self, cls):
-        cls_data = self._local_data.get(cls)
-        if cls_data is None:
-            cls_data = ReferenceClassData(self._local_key, cls)
-            self._local_data[cls] = cls_data
-        return cls_data
-
-    def _get_remote_data(self, cls):
-        cls_data = self._remote_data.get(cls)
-        if cls_data is None:
-            cls_data = ReferenceClassData(self._remote_key, cls)
-            self._remote_data[cls] = cls_data
-        return cls_data
-
-
-class ReferenceClassData(object):
-
-    def __init__(self, key, cls):
-        self.columns = []
-        self.is_primary = False
-
-        for prop in key:
-            self.columns.append(prop.__get__(None, cls))
-
-        cls_info = get_cls_info(cls)
-        if len(cls_info.primary_key) != len(key):
-            self.is_primary = False
-        else:
-            primary_key = cls_info.primary_key
-            for column, key_column in zip(self.columns, cls_info.primary_key):
-                if column.name != key_column.name:
-                    self.is_primary = False
-                    break
-            else:
-                self.is_primary = True
+    def _get_local_columns(self, cls):
+        try:
+            return self._local_columns[cls]
+        except KeyError:
+            columns = [prop.__get__(None, cls) for prop in self.local_key]
+            self._local_columns[cls] = columns
+            return columns

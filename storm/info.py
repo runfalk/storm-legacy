@@ -70,6 +70,8 @@ class ObjectInfo(dict):
         self._saved_attrs = None
         self._saved_self = None
 
+        self._checkpoint_values = None
+
     def get(self, key, default=None, factory=None):
         try:
             return self[key]
@@ -96,7 +98,7 @@ class ObjectInfo(dict):
             self.emit("changed", name, old_value, Undef)
 
     def save(self):
-        self._saved_values = self._values.copy()
+        self._saved_values = self._checkpoint_values = self._values.copy()
         self._saved_hooks = self._copy_object(self._hooks)
         self._saved_attrs = self.obj.__dict__.copy()
         self._saved_self = self._copy_object(self)
@@ -104,19 +106,23 @@ class ObjectInfo(dict):
     def save_attributes(self):
         self._saved_attrs = self.obj.__dict__.copy()
 
+    def checkpoint(self):
+        self._checkpoint_values = self._values.copy()
+
     def restore(self):
         self._values = self._saved_values.copy()
+        self._checkpoint_values = self._saved_values
         self._hooks = self._copy_object(self._saved_hooks)
         self.obj.__dict__ = self._saved_attrs.copy()
         self.clear()
         self.update(self._saved_self)
 
     def check_changed(self):
-        return self._saved_values != self._values
+        return self._values != self._checkpoint_values
 
     def get_changes(self):
         changes = {}
-        old_values = self._saved_values
+        old_values = self._checkpoint_values
         new_values = self._values
         for name in old_values:
             new_value = new_values.get(name, Undef)

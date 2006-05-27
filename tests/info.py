@@ -189,6 +189,29 @@ class ObjectInfoTest(TestHelper):
         self.obj.prop1 = 10
         self.assertEquals(self.obj_info.get_changes(), {})
 
+    def test_checkpoint(self):
+        self.obj.prop1 = 10
+        self.obj_info.save()
+        self.assertEquals(self.obj.prop1, 10)
+        self.assertEquals(self.obj_info.check_changed(), False)
+        self.assertEquals(self.obj_info.get_changes(), {})
+        self.obj.prop1 = 20
+        self.assertEquals(self.obj.prop1, 20)
+        self.assertEquals(self.obj_info.check_changed(), True)
+        self.assertEquals(self.obj_info.get_changes(), {"column1": 20})
+        self.obj_info.checkpoint()
+        self.assertEquals(self.obj.prop1, 20)
+        self.assertEquals(self.obj_info.check_changed(), False)
+        self.assertEquals(self.obj_info.get_changes(), {})
+        self.obj_info.restore()
+        self.assertEquals(self.obj.prop1, 10)
+        self.assertEquals(self.obj_info.check_changed(), False)
+        self.assertEquals(self.obj_info.get_changes(), {})
+        self.obj.prop1 = 20
+        self.assertEquals(self.obj.prop1, 20)
+        self.assertEquals(self.obj_info.check_changed(), True)
+        self.assertEquals(self.obj_info.get_changes(), {"column1": 20})
+
     def test_add_change_notification(self):
         changes1 = []
         changes2 = []

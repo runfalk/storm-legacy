@@ -1,10 +1,10 @@
 import gc
 
 from storm.properties import get_obj_info
-from storm.references import Reference
+from storm.references import Reference, ReferenceSet
 from storm.database import Result
 from storm.properties import Int, Str, Property
-from storm.expr import Asc, Desc, Select
+from storm.expr import Asc, Desc, Select, Func
 from storm.kinds import StrKind, IntKind
 from storm.store import *
 
@@ -272,12 +272,30 @@ class StoreTest(object):
     def test_find_sum(self):
         self.assertEquals(int(self.store.find(Test).sum(Test.id)), 60)
 
-    def test_find_remove(self, *args):
+    def test_find_remove(self):
         self.store.find(Test, Test.id == 20).remove()
         self.assertEquals(self.get_items(), [
                           (10, "Title 30"),
                           (30, "Title 10"),
                          ])
+
+    def test_find_cached(self):
+        obj = self.store.get(Test, 20)
+        other = self.store.get(Other, 200)
+        self.assertTrue(obj)
+        self.assertTrue(other)
+        self.assertEquals(self.store.find(Test).cached(), [obj])
+
+    def test_find_cached_where(self):
+        obj1 = self.store.get(Test, 10)
+        obj2 = self.store.get(Test, 20)
+        other = self.store.get(Other, 200)
+        self.assertTrue(obj1)
+        self.assertTrue(obj2)
+        self.assertTrue(other)
+        self.assertEquals(self.store.find(Test, title="Title 20").cached(),
+                          [obj2])
+
 
     def test_add_commit(self):
         obj = Test()
@@ -370,6 +388,24 @@ class StoreTest(object):
         obj = Test()
         self.store.add(obj)
         self.assertRaises(StoreError, Store(self.database).add, obj)
+
+    def test_add_checkpoints(self):
+        obj = Other()
+        self.store.add(obj)
+
+        obj.id = 400
+        obj.test_id = 40
+        obj.other_title = "Title 400"
+
+        self.store.flush()
+        self.store.execute("UPDATE other SET other_title='Title 500' "
+                           "WHERE id=400")
+        obj.test_id = 400
+
+        # When not checkpointing, this flush will set other_title again.
+        self.store.flush()
+        self.store.reload(obj)
+        self.assertEquals(obj.other_title, "Title 500")
 
     def test_remove_commit(self):
         obj = self.store.get(Test, 20)
@@ -547,6 +583,14 @@ class StoreTest(object):
                           (30, "Title 10"),
                          ])
 
+    def test_update_flush_reload_rollback(self):
+        obj = self.store.get(Test, 20)
+        obj.title = "Title 200"
+        self.store.flush()
+        self.store.reload(obj)
+        self.store.rollback()
+        self.assertEquals(obj.title, "Title 20")
+
     def test_update_commit(self):
         obj = self.store.get(Test, 20)
         obj.title = "Title 200"
@@ -571,6 +615,18 @@ class StoreTest(object):
                           (20, "Title 2000"),
                           (30, "Title 10"),
                          ])
+
+    def test_update_checkpoints(self):
+        obj = self.store.get(Other, 200)
+        obj.other_title = "Title 400"
+        self.store.flush()
+        self.store.execute("UPDATE other SET other_title='Title 500' "
+                           "WHERE id=200")
+        obj.test_id = 40
+        # When not checkpointing, this flush will set other_title again.
+        self.store.flush()
+        self.store.reload(obj)
+        self.assertEquals(obj.other_title, "Title 500")
 
     def test_update_primary_key(self):
         obj = self.store.get(Test, 20)
@@ -624,7 +680,7 @@ class StoreTest(object):
                           (30, "Title 30"),
                          ])
 
-    def test_wb_update_flush_flush(self):
+    def test_wb_update_not_dirty_after_flush(self):
         obj = self.store.get(Test, 20)
         obj.title = "Title 200"
 
@@ -900,6 +956,114 @@ class StoreTest(object):
                           (30, "Title 10"),
                          ])
 
+    def test_reload(self):
+        obj = self.store.get(Test, 20)
+        self.store.execute("UPDATE test SET title='Title 40' WHERE id=20")
+        self.assertEquals(obj.title, "Title 20")
+        self.store.reload(obj)
+        self.assertEquals(obj.title, "Title 40")
+
+    def test_reload_not_changed(self):
+        obj = self.store.get(Test, 20)
+        self.store.execute("UPDATE test SET title='Title 40' WHERE id=20")
+        self.store.reload(obj)
+        self.assertFalse(get_obj_info(obj).check_changed())
+
+    def test_reload_new_unflushed(self):
+        obj = Test()
+        obj.id = 40
+        obj.title = "Title 40"
+        self.assertRaises(StoreError, self.store.reload, obj)
+
+    def test_reload_removed(self):
+        obj = self.store.get(Test, 20)
+        self.store.remove(obj)
+        self.store.flush()
+        self.assertRaises(StoreError, self.store.reload, obj)
+
+    def test_reload_unknown(self):
+        obj = self.store.get(Test, 20)
+        store = Store(self.database)
+        self.assertRaises(StoreError, store.reload, obj)
+
+    def test_wb_reload_not_dirty(self):
+        obj = self.store.get(Test, 20)
+        obj.title = "Title 40"
+        self.store.reload(obj)
+        self.assertTrue(id(obj) not in self.store._dirty)
+
+    def test_find_set_empty(self):
+        self.store.find(Test, title="Title 20").set()
+        obj = self.store.get(Test, 20)
+        self.assertEquals(obj.title, "Title 20")
+
+    def test_find_set(self):
+        self.store.find(Test, title="Title 20").set(title="Title 40")
+        obj = self.store.get(Test, 20)
+        self.assertEquals(obj.title, "Title 40")
+
+    def test_find_set_column(self):
+        self.store.find(Other, other_title="Title 200").set(test_id=Other.id)
+        other = self.store.get(Other, 200)
+        self.assertEquals(other.test_id, 200)
+
+    def test_find_set_expr(self):
+        self.store.find(Test, title="Title 20").set(Test.title == "Title 40")
+        obj = self.store.get(Test, 20)
+        self.assertEquals(obj.title, "Title 40")
+
+    def test_find_set_none(self):
+        self.store.find(Test, title="Title 20").set(title=None)
+        obj = self.store.get(Test, 20)
+        self.assertEquals(obj.title, None)
+
+    def test_find_set_expr_column(self):
+        self.store.find(Other, id=200).set(Other.test_id == Other.id)
+        other = self.store.get(Other, 200)
+        self.assertEquals(other.id, 200)
+        self.assertEquals(other.test_id, 200)
+
+    def test_find_set_on_cached(self):
+        obj1 = self.store.get(Test, 20)
+        obj2 = self.store.get(Test, 30)
+        self.store.find(Test, id=20).set(id=40)
+        self.assertEquals(obj1.id, 40)
+        self.assertEquals(obj2.id, 30)
+
+    def test_find_set_expr_on_cached(self):
+        other = self.store.get(Other, 200)
+        self.store.find(Other, id=200).set(Other.test_id == Other.id)
+        self.assertEquals(other.id, 200)
+        self.assertEquals(other.test_id, 200)
+
+    def test_find_set_none_on_cached(self):
+        obj = self.store.get(Test, 20)
+        self.store.find(Test, title="Title 20").set(title=None)
+        self.assertEquals(obj.title, None)
+
+    def test_find_set_on_cached_but_removed(self):
+        obj1 = self.store.get(Test, 20)
+        obj2 = self.store.get(Test, 30)
+        self.store.remove(obj1)
+        self.store.find(Test, id=20).set(id=40)
+        self.assertEquals(obj1.id, 20)
+        self.assertEquals(obj2.id, 30)
+
+    def test_find_set_on_cached_unsupported_python_expr(self):
+        obj1 = self.store.get(Test, 20)
+        obj2 = self.store.get(Test, 30)
+        self.store.find(Test, Test.id == Select("20")).set(title="Title 40")
+        self.assertEquals(obj1.title, "Title 40")
+        self.assertEquals(obj2.title, "Title 10")
+
+    def test_find_set_expr_unsupported(self):
+        result = self.store.find(Test, title="Title 20")
+        self.assertRaises(StoreError, result.set, Test.title > "Title 40")
+
+    def test_find_set_expr_unsupported_2(self):
+        result = self.store.find(Test, title="Title 20")
+        self.assertRaises(StoreError, result.set, Test.title == Func())
+
     def test_reference(self):
         other = self.store.get(Other, 100)
         self.assertTrue(other.test)
@@ -1112,7 +1276,7 @@ class StoreTest(object):
         self.assertTrue(mytest.other)
         self.assertEquals(mytest.other.other_title, "Title 300")
 
-    def test_back_reference_set(self):
+    def test_back_reference_setting(self):
         class MyTest(Test):
             other = Reference(Test.id, Other.test_id, on_remote=True)
 
@@ -1135,6 +1299,200 @@ class StoreTest(object):
                                     "WHERE test.id = other.test_id AND "
                                     "test.title = 'Title 40'")
         self.assertEquals(result.fetch_one(), ("Title 400",))
+
+    def test_reference_set(self):
+        other = Other()
+        other.id = 400
+        other.test_id = 20
+        other.other_title = "Title 400"
+        self.store.add(other)
+
+        class MyTest(Test):
+            others = ReferenceSet(Test.id, Other.test_id)
+
+        mytest = self.store.get(MyTest, 20)
+
+        items = []
+        for obj in mytest.others:
+            items.append((obj.id, obj.test_id, obj.other_title))
+        items.sort()
+
+        self.assertEquals(items, [
+                          (200, 20, "Title 200"),
+                          (400, 20, "Title 400"),
+                         ])
+
+    def test_reference_set_with_added(self):
+        other = Other()
+        other.id = 400
+        other.test_id = 40
+        other.other_title = "Title 400"
+        self.store.add(other)
+
+        class MyTest(Test):
+            others = ReferenceSet(Test.id, Other.test_id)
+
+        mytest = MyTest()
+        mytest.id = 40
+
+        self.assertEquals(mytest.others, None)
+        self.store.add(mytest)
+        self.assertEquals(list(mytest.others), [other])
+
+    def test_reference_set_composed(self):
+        other = Other()
+        other.id = 400
+        other.test_id = 20
+        other.other_title = "Title 20"
+        self.store.add(other)
+
+        class MyTest(Test):
+            others = ReferenceSet((Test.id, Test.title),
+                                  (Other.test_id, Other.other_title))
+
+        mytest = self.store.get(MyTest, 20)
+
+        items = []
+        for obj in mytest.others:
+            items.append((obj.id, obj.test_id, obj.other_title))
+
+        self.assertEquals(items, [
+                          (400, 20, "Title 20"),
+                         ])
+
+        obj = self.store.get(Other, 200)
+        obj.other_title = "Title 20"
+
+        del items[:]
+        for obj in mytest.others:
+            items.append((obj.id, obj.test_id, obj.other_title))
+        items.sort()
+
+        self.assertEquals(items, [
+                          (200, 20, "Title 20"),
+                          (400, 20, "Title 20"),
+                         ])
+
+    def test_reference_set_find(self):
+        other = Other()
+        other.id = 400
+        other.test_id = 20
+        other.other_title = "Title 300"
+        self.store.add(other)
+
+        class MyTest(Test):
+            others = ReferenceSet(Test.id, Other.test_id)
+
+        mytest = self.store.get(MyTest, 20)
+
+        items = []
+        for obj in mytest.others.find():
+            items.append((obj.id, obj.test_id, obj.other_title))
+        items.sort()
+
+        self.assertEquals(items, [
+                          (200, 20, "Title 200"),
+                          (400, 20, "Title 300"),
+                         ])
+
+        # Notice that there's another item with this title in the base,
+        # which isn't part of the reference.
+
+        objects = list(mytest.others.find(Other.other_title == "Title 300"))
+        self.assertEquals(len(objects), 1)
+        self.assertTrue(objects[0] is other)
+
+        objects = list(mytest.others.find(other_title="Title 300"))
+        self.assertEquals(len(objects), 1)
+        self.assertTrue(objects[0] is other)
+
+    def test_reference_set_clear(self):
+        class MyTest(Test):
+            others = ReferenceSet(Test.id, Other.test_id)
+        mytest = self.store.get(MyTest, 20)
+        mytest.others.clear()
+        self.assertEquals(list(mytest.others), [])
+
+    def test_reference_set_clear_cached(self):
+        class MyTest(Test):
+            others = ReferenceSet(Test.id, Other.test_id)
+        mytest = self.store.get(MyTest, 20)
+        other = self.store.get(Other, 200)
+        self.assertEquals(other.test_id, 20)
+        mytest.others.clear()
+        self.assertEquals(other.test_id, None)
+
+    def test_reference_set_count(self):
+        other = Other()
+        other.id = 400
+        other.test_id = 20
+        other.other_title = "Title 400"
+        self.store.add(other)
+
+        class MyTest(Test):
+            others = ReferenceSet(Test.id, Other.test_id)
+
+        mytest = self.store.get(MyTest, 20)
+
+        self.assertEquals(mytest.others.count(), 2)
+
+    def test_reference_set_order_by(self):
+        other = Other()
+        other.id = 400
+        other.test_id = 20
+        other.other_title = "Title 100"
+        self.store.add(other)
+
+        class MyTest(Test):
+            others = ReferenceSet(Test.id, Other.test_id)
+
+        mytest = self.store.get(MyTest, 20)
+
+        items = []
+        for obj in mytest.others.order_by(Other.id):
+            items.append((obj.id, obj.test_id, obj.other_title))
+        self.assertEquals(items, [
+                          (200, 20, "Title 200"),
+                          (400, 20, "Title 100"),
+                         ])
+
+        del items[:]
+        for obj in mytest.others.order_by(Other.other_title):
+            items.append((obj.id, obj.test_id, obj.other_title))
+        self.assertEquals(items, [
+                          (400, 20, "Title 100"),
+                          (200, 20, "Title 200"),
+                         ])
+
+    def test_reference_set_remove(self):
+        other = Other()
+        other.id = 400
+        other.test_id = 20
+        other.other_title = "Title 100"
+        self.store.add(other)
+
+        class MyTest(Test):
+            others = ReferenceSet(Test.id, Other.test_id)
+
+        mytest = self.store.get(MyTest, 20)
+        for obj in mytest.others:
+            mytest.others.remove(obj)
+
+        self.assertEquals(other.test_id, None)
+        self.assertEquals(list(mytest.others), [])
+
+    def test_reference_set_add(self):
+        other = Other()
+        other.id = 400
+        other.other_title = "Title 100"
+        self.store.add(other)
+
+        class MyTest(Test):
+            others = ReferenceSet(Test.id, Other.test_id)
+
+        mytest = self.store.get(MyTest, 20)
+        mytest.others.add(other)
+        self.assertEquals(other.test_id, 20)
 
     def test_flush_order(self):
         obj1 = Test()
@@ -1217,6 +1575,26 @@ class StoreTest(object):
         self.store.flush()
 
         self.assertEquals(obj.title, "to_py(from_db(Default Title))")
+
+    def test_kind_filter_on_set(self):
+        obj = KindTest()
+        self.store.find(KindTest, id=20).set(title="Title 20")
+
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "to_db(from_py(Title 20))"),
+                          (30, "Title 10"),
+                         ])
+
+    def test_kind_filter_on_set_expr(self):
+        obj = KindTest()
+        self.store.find(KindTest, id=20).set(KindTest.title == "Title 20")
+
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "to_db(from_py(Title 20))"),
+                          (30, "Title 10"),
+                         ])
 
     def test_wb_result_to_kind(self):
         def to_kind(self, value, kind):

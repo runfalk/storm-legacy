@@ -57,7 +57,11 @@ class Property(object):
     def __set__(self, obj, value):
         if self._name is None:
             self._detect_name(obj.__class__)
-        get_obj_info(obj).set_value(self._name, self._from_python(value))
+        # XXX The following if is covered by tests, but not properties ones.
+        if value is None:
+            get_obj_info(obj).set_value(self._name, None)
+        else:
+            get_obj_info(obj).set_value(self._name, self._from_python(value))
 
     def __delete__(self, obj):
         if self._name is None:
