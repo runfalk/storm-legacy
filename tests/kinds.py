@@ -100,14 +100,6 @@ class UnicodeKindTest(AnyKindTest):
         self.assertEquals(self.kind.from_database(u"1"), u"1")
         self.assertTrue(isinstance(self.kind.from_database(""), unicode))
 
-    def test_encoding(self):
-        encoding = "iso-8859-1"
-        raw_str = "\xe1\xe9\xed\xf3\xfa"
-        uni_str = raw_str.decode(encoding)
-        kind = UnicodeKind(encoding)
-        self.assertEquals(kind.from_python(raw_str), uni_str)
-        self.assertEquals(kind.to_database(uni_str), raw_str)
-
 
 class DateTimeKindTest(AnyKindTest):
 

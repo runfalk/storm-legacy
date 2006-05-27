@@ -71,16 +71,12 @@ class Connection(object):
             statement, params = self._compile(statement)
         raw_cursor = self._build_raw_cursor()
         statement = convert_param_marks(statement, "?", self._param_mark)
-        try:
-            if params is None:
-                raw_cursor.execute(statement)
-            else:
-                to_database = self._to_database
-                raw_cursor.execute(statement, tuple(to_database(param)
-                                                    for param in params))
-        except Exception, e:
-            if "DROP" not in statement:
-                import pdb; pdb.set_trace()
+        if params is None:
+            raw_cursor.execute(statement)
+        else:
+            to_database = self._to_database
+            raw_cursor.execute(statement, tuple(to_database(param)
+                                                for param in params))
         if noresult:
             raw_cursor.close()
             return None

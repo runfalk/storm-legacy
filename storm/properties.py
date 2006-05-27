@@ -21,8 +21,8 @@ def Float(name=None):
 def Str(name=None):
     return Property(name, StrKind())
 
-def Unicode(name=None, encoding=None):
-    return Property(name, UnicodeKind(encoding))
+def Unicode(name=None):
+    return Property(name, UnicodeKind())
 
 def DateTime(name=None):
     return Property(name, DateTimeKind())

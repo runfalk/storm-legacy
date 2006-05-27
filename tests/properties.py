@@ -279,21 +279,6 @@ class PropertyKindsTest(TestHelper):
         self.obj.prop1 = "unicode"
         self.assertTrue(isinstance(self.obj.prop1, unicode))
 
-    def test_unicode_encoding(self):
-        encoding = "iso-8859-1"
-
-        prop1, prop2 = self.setup(Unicode, encoding)
-
-        self.assertEquals(prop1.name, "column1")
-        self.assertEquals(prop1.table, "table")
-        self.assertEquals(prop1.kind.encoding, encoding)
-
-        prop1, prop2 = self.setup(Unicode, encoding=encoding)
-
-        self.assertEquals(prop1.name, "column1")
-        self.assertEquals(prop1.table, "table")
-        self.assertEquals(prop1.kind.encoding, encoding)
-
     def test_datetime(self):
         prop1, prop2 = self.setup(DateTime)
 
