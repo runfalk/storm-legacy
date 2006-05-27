@@ -46,7 +46,22 @@ class StrKind(Kind):
 
 class UnicodeKind(Kind):
 
-    from_python = from_database = staticmethod(unicode)
+    def __init__(self, encoding=None):
+        self.encoding = encoding
+
+    def to_database(self, value):
+        if self.encoding is None:
+            return value
+        return value.encode(self.encoding)
+
+    def from_python(self, value):
+        if isinstance(value, unicode):
+            return value
+        elif self.encoding is None:
+            return unicode(value)
+        return unicode(value, self.encoding)
+
+    from_database = from_python
 
 
 class DateTimeKind(Kind):

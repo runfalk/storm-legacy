@@ -78,7 +78,7 @@ class Connection(object):
                 to_database = self._to_database
                 raw_cursor.execute(statement, tuple(to_database(param)
                                                     for param in params))
-        except:
+        except Exception, e:
             if "DROP" not in statement:
                 import pdb; pdb.set_trace()
         if noresult:

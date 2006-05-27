@@ -4,6 +4,7 @@ from time import strptime
 import psycopg
 
 from storm.expr import Param, Eq, Undef
+from storm.kinds import UnicodeKind
 from storm.database import *
 
 
@@ -22,6 +23,11 @@ class PostgresResult(Result):
                 where &= Eq(prop, value)
         return where
 
+    def to_kind(self, value, kind):
+        if isinstance(kind, UnicodeKind) and kind.encoding is None:
+            return unicode(value, self._connection._database._encoding)
+        return value
+
 
 class PostgresConnection(Connection):
 
@@ -39,7 +45,8 @@ class Postgres(Database):
 
     _connection_factory = PostgresConnection
 
-    def __init__(self, dbname, host=None, username=None, password=None):
+    def __init__(self, dbname, host=None, username=None, password=None,
+                 encoding=None):
         self._dsn = "dbname=%s" % dbname
         if host is not None:
             self._dsn += " host=%s" % host
@@ -47,6 +54,8 @@ class Postgres(Database):
             self._dsn += " user=%s" % username
         if password is not None:
             self._dsn += " password=%s" % password
+
+        self._encoding = encoding or "UTF-8"
 
     def connect(self):
         raw_connection = psycopg.connect(self._dsn)
