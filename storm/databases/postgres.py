@@ -24,7 +24,7 @@ class PostgresResult(Result):
         return where
 
     def to_kind(self, value, kind):
-        if isinstance(kind, UnicodeKind) and kind.encoding is None:
+        if isinstance(kind, UnicodeKind):
             return unicode(value, self._connection._database._encoding)
         return value
 
