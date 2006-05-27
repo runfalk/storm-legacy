@@ -4,7 +4,7 @@ from storm.properties import *
 from storm.kinds import *
 from storm.expr import Column, compile
 
-from tests.helpers import TestHelper
+from tests.helper import TestHelper
 
 
 class DecorateKind(object):

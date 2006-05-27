@@ -38,8 +38,13 @@ class Reference(object):
 
 class ReferenceSet(object):
 
-    def __init__(self, local_key, remote_key):
-        self._relation = Relation(local_key, remote_key, True, True)
+    def __init__(self, local_key1, remote_key1,
+                 remote_key2=None, local_key2=None):
+        self._relation1 = Relation(local_key1, remote_key1, True, True)
+        if local_key2 and remote_key2:
+            self._relation2 = Relation(local_key2, remote_key2, True, True)
+        else:
+            self._relation2 = None
 
     def __get__(self, local, cls=None):
         if local is None:
@@ -47,7 +52,11 @@ class ReferenceSet(object):
         store = Store.of(local)
         if store is None:
             return None
-        return BoundReferenceSet(self._relation, local, store)
+        if self._relation2 is None:
+            return BoundReferenceSet(self._relation1, local, store)
+        else:
+            return BoundIndirectReferenceSet(self._relation1, self._relation2,
+                                             local, store)
 
 
 class BoundReferenceSet(object):
@@ -56,37 +65,82 @@ class BoundReferenceSet(object):
         self._relation = relation
         self._local = local
         self._store = store
+        self._target_cls = self._relation.remote_cls
 
     def __iter__(self):
         where = self._relation.get_where_for_remote(self._local)
-        return self._store.find(self._relation.remote_cls, where).__iter__()
+        return self._store.find(self._target_cls, where).__iter__()
 
     def find(self, *args, **kwargs):
         where = self._relation.get_where_for_remote(self._local)
-        return self._store.find(self._relation.remote_cls, where,
-                                *args, **kwargs)
+        return self._store.find(self._target_cls, where, *args, **kwargs)
+
+    def order_by(self, *args):
+        where = self._relation.get_where_for_remote(self._local)
+        return self._store.find(self._target_cls, where).order_by(*args)
+
+    def count(self):
+        where = self._relation.get_where_for_remote(self._local)
+        return self._store.find(self._target_cls, where).count()
 
     def clear(self):
         set_kwargs = {}
         for remote_column in self._relation.remote_key:
             set_kwargs[remote_column.name] = None
         where = self._relation.get_where_for_remote(self._local)
-        self._store.find(self._relation.remote_cls, where).set(**set_kwargs)
-
-    def count(self):
-        where = self._relation.get_where_for_remote(self._local)
-        return self._store.find(self._relation.remote_cls, where).count()
-
-    def order_by(self, *args):
-        where = self._relation.get_where_for_remote(self._local)
-        result = self._store.find(self._relation.remote_cls, where)
-        return result.order_by(*args)
+        self._store.find(self._target_cls, where).set(**set_kwargs)
 
     def add(self, remote):
         self._relation.link(self._local, remote, True)
 
     def remove(self, remote):
         self._relation.unlink(self._local, remote, True)
+
+
+class BoundIndirectReferenceSet(object):
+
+    def __init__(self, relation1, relation2, local, store):
+        self._relation1 = relation1
+        self._relation2 = relation2
+        self._local = local
+        self._store = store
+        self._target_cls = relation2.local_cls
+        self._link_cls = relation1.remote_cls
+
+    def __iter__(self):
+        where = (self._relation1.get_where_for_remote(self._local) &
+                 self._relation2.get_where_for_join())
+        return self._store.find(self._target_cls, where).__iter__()
+
+    def find(self, *args, **kwargs):
+        where = (self._relation1.get_where_for_remote(self._local) &
+                 self._relation2.get_where_for_join())
+        return self._store.find(self._target_cls, where, *args, **kwargs)
+
+    def order_by(self, *args):
+        where = (self._relation1.get_where_for_remote(self._local) &
+                 self._relation2.get_where_for_join())
+        return self._store.find(self._target_cls, where).order_by(*args)
+
+    def count(self):
+        where = (self._relation1.get_where_for_remote(self._local) &
+                 self._relation2.get_where_for_join())
+        return self._store.find(self._target_cls, where).count()
+
+    def clear(self):
+        where = self._relation1.get_where_for_remote(self._local)
+        self._store.find(self._link_cls, where).remove()
+
+    def add(self, remote):
+        link = self._link_cls()
+        self._store.add(link)
+        self._relation1.link(self._local, link, True)
+        self._relation2.link(remote, link, True)
+
+    def remove(self, remote):
+        where = (self._relation1.get_where_for_remote(self._local) &
+                 self._relation2.get_where_for_remote(remote))
+        self._store.find(self._link_cls, where).remove()
 
 
 class Relation(object):
@@ -101,6 +155,7 @@ class Relation(object):
         else:
             self.remote_key = (remote_key,)
 
+        self.local_cls = getattr(self.local_key[0], "cls", None)
         self.remote_cls = self.remote_key[0].cls
         self.remote_key_is_primary = False
 
@@ -125,6 +180,9 @@ class Relation(object):
             Store.of(local).flush()
             local_values = self.get_local_values(local)
         return compare_columns(self.remote_key, local_values)
+
+    def get_where_for_join(self):
+        return compare_columns(self.local_key, self.remote_key)
 
     def get_local_values(self, local):
         return tuple(prop.__get__(local, default=Undef)

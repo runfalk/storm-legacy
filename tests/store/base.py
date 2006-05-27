@@ -8,6 +8,8 @@ from storm.expr import Asc, Desc, Select, Func
 from storm.kinds import StrKind, IntKind
 from storm.store import *
 
+from tests.helper import run_this
+
 
 class Test(object):
     __table__ = "test", "id"
@@ -21,6 +23,20 @@ class Other(object):
     test_id = Int()
     other_title = Str()
     test = Reference(test_id, Test.id)
+
+class Link(object):
+    __table__ = "link", ("test_id", "other_id")
+    test_id = Int()
+    other_id = Int()
+
+class RefTest(Test):
+    other = Reference(Test.id, Other.test_id)
+
+class RefSetTest(Test):
+    others = ReferenceSet(Test.id, Other.test_id)
+
+class IndRefSetTest(Test):
+    others = ReferenceSet(Test.id, Link.test_id, Link.other_id, Other.id)
 
 
 class DecorateKind(object):
@@ -71,6 +87,12 @@ class StoreTest(object):
         connection.execute("INSERT INTO other VALUES (100, 10, 'Title 300')")
         connection.execute("INSERT INTO other VALUES (200, 20, 'Title 200')")
         connection.execute("INSERT INTO other VALUES (300, 30, 'Title 100')")
+        connection.execute("INSERT INTO link VALUES (10, 100)")
+        connection.execute("INSERT INTO link VALUES (10, 200)")
+        connection.execute("INSERT INTO link VALUES (10, 300)")
+        connection.execute("INSERT INTO link VALUES (20, 100)")
+        connection.execute("INSERT INTO link VALUES (20, 200)")
+        connection.execute("INSERT INTO link VALUES (30, 300)")
         connection.commit()
 
     def create_store(self):
@@ -83,17 +105,13 @@ class StoreTest(object):
         pass
 
     def drop_tables(self):
-        connection = self.database.connect()
-        try:
-            connection.execute("DROP TABLE test")
-            connection.commit()
-        except:
-            connection.rollback()
-        try:
-            connection.execute("DROP TABLE other")
-            connection.commit()
-        except:
-            connection.rollback()
+        for table in ["test", "other", "link"]:
+            connection = self.database.connect()
+            try:
+                connection.execute("DROP TABLE %s" % table)
+                connection.commit()
+            except:
+                connection.rollback()
 
     def drop_database(self):
         pass
@@ -1322,8 +1340,6 @@ class StoreTest(object):
                           (400, 20, "Title 400"),
                          ])
 
-    from tests.helper import run_this
-    @run_this
     def test_reference_set_with_added(self):
         other1 = Other()
         other1.id = 400
@@ -1508,6 +1524,163 @@ class StoreTest(object):
         mytest.others.add(other)
         self.assertEquals(other.test_id, 20)
 
+    def test_indirect_reference_set(self):
+        obj = self.store.get(IndRefSetTest, 20)
+
+        items = []
+        for ref_obj in obj.others:
+            items.append((ref_obj.id, ref_obj.other_title))
+        items.sort()
+
+        self.assertEquals(items, [
+                          (100, "Title 300"),
+                          (200, "Title 200"),
+                         ])
+
+    def test_indirect_reference_set_with_added(self):
+        other1 = Other()
+        other1.id = 400
+        other1.other_title = "Title 400"
+        other2 = Other()
+        other2.id = 500
+        other2.other_title = "Title 500"
+        self.store.add(other1)
+        self.store.add(other2)
+
+        obj = IndRefSetTest()
+        obj.title = "Title 40"
+        self.assertEquals(obj.id, None)
+        self.assertEquals(obj.others, None)
+        self.store.add(obj)
+        obj.others.add(other1)
+        obj.others.add(other2)
+
+        self.assertEquals(obj.id, None)
+        self.assertEquals(other1.test_id, None)
+        self.assertEquals(other2.test_id, None)
+        self.assertEquals(list(obj.others.order_by(Other.id)),
+                          [other1, other2])
+        self.assertEquals(type(obj.id), int)
+        self.assertEquals(type(other1.id), int)
+        self.assertEquals(type(other2.id), int)
+
+    def test_indirect_reference_set_find(self):
+        obj = self.store.get(IndRefSetTest, 20)
+
+        items = []
+        for ref_obj in obj.others.find(Other.other_title == "Title 300"):
+            items.append((ref_obj.id, ref_obj.other_title))
+        items.sort()
+
+        self.assertEquals(items, [
+                          (100, "Title 300"),
+                         ])
+
+    def test_indirect_reference_set_clear(self):
+        obj = self.store.get(IndRefSetTest, 20)
+        obj.others.clear()
+        self.assertEquals(list(obj.others), [])
+
+    def test_indirect_reference_set_count(self):
+        obj = self.store.get(IndRefSetTest, 20)
+        self.assertEquals(obj.others.count(), 2)
+
+    def test_indirect_reference_set_order_by(self):
+        obj = self.store.get(IndRefSetTest, 20)
+
+        items = []
+        for ref_obj in obj.others.order_by(Other.other_title):
+            items.append((ref_obj.id, ref_obj.other_title))
+
+        self.assertEquals(items, [
+                          (200, "Title 200"),
+                          (100, "Title 300"),
+                         ])
+
+        del items[:]
+        for ref_obj in obj.others.order_by(Other.id):
+            items.append((ref_obj.id, ref_obj.other_title))
+
+        self.assertEquals(items, [
+                          (100, "Title 300"),
+                          (200, "Title 200"),
+                         ])
+
+    def test_indirect_reference_set_add(self):
+        obj = self.store.get(IndRefSetTest, 20)
+        other = self.store.get(Other, 300)
+
+        obj.others.add(other)
+
+        items = []
+        for ref_obj in obj.others:
+            items.append((ref_obj.id, ref_obj.other_title))
+        items.sort()
+
+        self.assertEquals(items, [
+                          (100, "Title 300"),
+                          (200, "Title 200"),
+                          (300, "Title 100"),
+                         ])
+
+    def test_indirect_reference_set_remove(self):
+        obj = self.store.get(IndRefSetTest, 20)
+        other = self.store.get(Other, 200)
+
+        obj.others.remove(other)
+
+        items = []
+        for ref_obj in obj.others:
+            items.append((ref_obj.id, ref_obj.other_title))
+        items.sort()
+
+        self.assertEquals(items, [
+                          (100, "Title 300"),
+                         ])
+
+    def test_indirect_reference_set_add_remove(self):
+        obj = self.store.get(IndRefSetTest, 20)
+        other = self.store.get(Other, 300)
+
+        obj.others.add(other)
+        obj.others.remove(other)
+
+        items = []
+        for ref_obj in obj.others:
+            items.append((ref_obj.id, ref_obj.other_title))
+        items.sort()
+
+        self.assertEquals(items, [
+                          (100, "Title 300"),
+                          (200, "Title 200"),
+                         ])
+
+    def test_indirect_reference_set_add_remove_with_added(self):
+        obj = IndRefSetTest()
+        obj.id = 40
+        other1 = Other()
+        other1.id = 400
+        other1.other_title = "Title 400"
+        other2 = Other()
+        other2.id = 500
+        other2.other_title = "Title 500"
+        self.store.add(obj)
+        self.store.add(other1)
+        self.store.add(other2)
+
+        obj.others.add(other1)
+        obj.others.add(other2)
+        obj.others.remove(other1)
+
+        items = []
+        for ref_obj in obj.others:
+            items.append((ref_obj.id, ref_obj.other_title))
+        items.sort()
+
+        self.assertEquals(items, [
+                          (500, "Title 500"),
+                         ])
+        
     def test_flush_order(self):
         obj1 = Test()
         obj2 = Test()

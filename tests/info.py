@@ -2,7 +2,7 @@ from storm.properties import Property
 from storm.expr import Undef
 from storm.info import *
 
-from tests.helpers import TestHelper
+from tests.helper import TestHelper
 
 
 class GetTest(TestHelper):

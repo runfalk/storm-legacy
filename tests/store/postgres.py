@@ -31,4 +31,6 @@ class PostgresStoreTest(TestHelper, StoreTest):
                            "(id SERIAL PRIMARY KEY,"
                            " test_id INTEGER,"
                            " other_title VARCHAR)")
+        connection.execute("CREATE TABLE link "
+                           "(test_id INTEGER, other_id INTEGER)")
         connection.commit()

@@ -32,4 +32,6 @@ class MySQLStoreTest(TestHelper, StoreTest):
                            "(id INT PRIMARY KEY AUTO_INCREMENT,"
                            " test_id INTEGER, other_title VARCHAR(50)) "
                            "TYPE=InnoDB")
+        connection.execute("CREATE TABLE link "
+                           "(test_id INTEGER, other_id INTEGER)")
         connection.commit()

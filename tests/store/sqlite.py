@@ -28,6 +28,8 @@ class SQLiteStoreTest(TestHelper, StoreTest):
                            "(id INTEGER PRIMARY KEY,"
                            " test_id INTEGER,"
                            " other_title VARCHAR)")
+        connection.execute("CREATE TABLE link "
+                           "(test_id INTEGER, other_id INTEGER)")
         connection.commit()
 
     def drop_tables(self):
