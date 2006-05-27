@@ -131,7 +131,7 @@ class StoreTest(object):
     def test_execute(self):
         result = self.store.execute("SELECT 1")
         self.assertTrue(isinstance(result, Result))
-        self.assertEquals(result.fetch_one(), (1,))
+        self.assertEquals(result.get_one(), (1,))
         
         result = self.store.execute("SELECT 1", noresult=True)
         self.assertEquals(result, None)
@@ -139,14 +139,14 @@ class StoreTest(object):
     def test_execute_params(self):
         result = self.store.execute("SELECT ?", [1])
         self.assertTrue(isinstance(result, Result))
-        self.assertEquals(result.fetch_one(), (1,))
+        self.assertEquals(result.get_one(), (1,))
 
     def test_execute_flushes(self):
         obj = self.store.get(Test, 10)
         obj.title = "New Title"
 
         result = self.store.execute("SELECT title FROM test WHERE id=10")
-        self.assertEquals(result.fetch_one(), ("New Title",))
+        self.assertEquals(result.get_one(), ("New Title",))
 
     def test_get(self):
         obj = self.store.get(Test, 10)
@@ -1122,7 +1122,7 @@ class StoreTest(object):
         other.test = test
         self.assertEquals(other.test.id, 30)
         result = self.store.execute("SELECT test_id FROM other WHERE id=100")
-        self.assertEquals(result.fetch_one(), (30,))
+        self.assertEquals(result.get_one(), (30,))
 
     def test_reference_on_added(self):
         obj = Test()
@@ -1147,7 +1147,7 @@ class StoreTest(object):
         result = self.store.execute("SELECT test.title FROM test, other "
                                     "WHERE other.id=400 AND "
                                     "test.id = other.test_id")
-        self.assertEquals(result.fetch_one(), ("Title 40",))
+        self.assertEquals(result.get_one(), ("Title 40",))
 
     def test_reference_on_added_composed_key(self):
         class Other(object):
@@ -1178,7 +1178,7 @@ class StoreTest(object):
         result = self.store.execute("SELECT test.title FROM test, other "
                                     "WHERE other.id=400 AND "
                                     "test.id = other.test_id")
-        self.assertEquals(result.fetch_one(), ("Title 40",))
+        self.assertEquals(result.get_one(), ("Title 40",))
 
     def test_reference_on_added_unlink_on_flush(self):
         obj = Test()
@@ -1316,7 +1316,7 @@ class StoreTest(object):
                                     "FROM test, other "
                                     "WHERE test.id = other.test_id AND "
                                     "test.title = 'Title 40'")
-        self.assertEquals(result.fetch_one(), ("Title 400",))
+        self.assertEquals(result.get_one(), ("Title 400",))
 
     def test_reference_set(self):
         other = Other()

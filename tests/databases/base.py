@@ -66,18 +66,18 @@ class DatabaseTest(object):
     def test_execute_params(self):
         result = self.connection.execute("SELECT 1 FROM (SELECT 1) AS ALIAS "
                                          "WHERE 1=?", (1,))
-        self.assertTrue(result.fetch_one())
+        self.assertTrue(result.get_one())
         result = self.connection.execute("SELECT 1 FROM (SELECT 1) AS ALIAS "
                                          "WHERE 1=?", (2,))
-        self.assertFalse(result.fetch_one())
+        self.assertFalse(result.get_one())
 
-    def test_fetch_one(self):
+    def test_get_one(self):
         result = self.connection.execute("SELECT * FROM test ORDER BY id")
-        self.assertEquals(result.fetch_one(), (10, "Title 10"))
+        self.assertEquals(result.get_one(), (10, "Title 10"))
 
-    def test_fetch_all(self):
+    def test_get_all(self):
         result = self.connection.execute("SELECT * FROM test ORDER BY id")
-        self.assertEquals(result.fetch_all(),
+        self.assertEquals(result.get_all(),
                           [(10, "Title 10"), (20, "Title 20")])
 
     def test_iter(self):
@@ -106,7 +106,7 @@ class DatabaseTest(object):
         primary_values = (Undef,)
         expr = result.get_insert_identity(primary_key, primary_values)
         result = self.connection.execute(Select(Column("title", "test"), expr))
-        self.assertEquals(result.fetch_one(), ("Title 30",))
+        self.assertEquals(result.get_one(), ("Title 30",))
 
     def test_get_insert_identity_composed(self):
         result = self.connection.execute("INSERT INTO test (title) "
@@ -115,7 +115,7 @@ class DatabaseTest(object):
         primary_values = (Undef, "Title 30")
         expr = result.get_insert_identity(primary_key, primary_values)
         result = self.connection.execute(Select(Column("title", "test"), expr))
-        self.assertEquals(result.fetch_one(), ("Title 30",))
+        self.assertEquals(result.get_one(), ("Title 30",))
 
 
     def test_datetime(self):
@@ -124,7 +124,7 @@ class DatabaseTest(object):
                                 (value,))
         result = self.connection.execute("SELECT dt FROM datetime_test")
         kind = DateTimeKind()
-        result_value = kind.from_database(result.fetch_one()[0])
+        result_value = kind.from_database(result.get_one()[0])
         if not self.supports_microseconds:
             value = value.replace(microsecond=0)
         self.assertEquals(result_value, value)
@@ -135,7 +135,7 @@ class DatabaseTest(object):
                                 (value,))
         result = self.connection.execute("SELECT d FROM datetime_test")
         kind = DateKind()
-        result_value = kind.from_database(result.fetch_one()[0])
+        result_value = kind.from_database(result.get_one()[0])
         self.assertEquals(result_value, value)
 
     def test_time(self):
@@ -144,7 +144,7 @@ class DatabaseTest(object):
                                 (value,))
         result = self.connection.execute("SELECT t FROM datetime_test")
         kind = TimeKind()
-        result_value = kind.from_database(result.fetch_one()[0])
+        result_value = kind.from_database(result.get_one()[0])
         if not self.supports_microseconds:
             value = value.replace(microsecond=0)
         self.assertEquals(result_value, value)

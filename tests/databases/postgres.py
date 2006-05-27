@@ -44,7 +44,7 @@ class PostgresTest(TestHelper, DatabaseTest):
         connection.execute("INSERT INTO test VALUES (1, ?)", (raw_str,))
 
         result = connection.execute("SELECT title FROM test WHERE id=1")
-        title = result.fetch_one()[0]
+        title = result.get_one()[0]
 
         self.assertTrue(isinstance(title, str))
         self.assertEquals(result.to_kind(title, UnicodeKind()), uni_str)
@@ -61,7 +61,7 @@ class PostgresTest(TestHelper, DatabaseTest):
         connection.execute("INSERT INTO test VALUES (1, ?)", (raw_str,))
 
         result = connection.execute("SELECT title FROM test WHERE id=1")
-        title = result.fetch_one()[0]
+        title = result.get_one()[0]
 
         self.assertTrue(isinstance(title, str))
         self.assertEquals(result.to_kind(title, UnicodeKind()), uni_str)

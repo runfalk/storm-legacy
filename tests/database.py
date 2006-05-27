@@ -139,16 +139,16 @@ class ResultTest(TestHelper):
         TestHelper.setUp(self)
         self.result = Result(None, RawCursor())
 
-    def test_fetch_one(self):
-        self.assertEquals(self.result.fetch_one(), ("fetchone0",))
-        self.assertEquals(self.result.fetch_one(), ("fetchone1",))
-        self.assertEquals(self.result.fetch_one(), ("fetchone2",))
-        self.assertEquals(self.result.fetch_one(), None)
+    def test_get_one(self):
+        self.assertEquals(self.result.get_one(), ("fetchone0",))
+        self.assertEquals(self.result.get_one(), ("fetchone1",))
+        self.assertEquals(self.result.get_one(), ("fetchone2",))
+        self.assertEquals(self.result.get_one(), None)
 
-    def test_fetch_all(self):
-        self.assertEquals(self.result.fetch_all(),
+    def test_get_all(self):
+        self.assertEquals(self.result.get_all(),
                           [("fetchall0",), ("fetchall1",)])
-        self.assertEquals(self.result.fetch_all(), [])
+        self.assertEquals(self.result.get_all(), [])
 
     def test_iter_arraysize_1(self):
         self.assertEquals([item for item in self.result],

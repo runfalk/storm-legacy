@@ -89,7 +89,7 @@ class Store(object):
                         default_tables=cls_info.table, limit=1)
 
         result = self._connection.execute(select)
-        values = result.fetch_one()
+        values = result.get_one()
         if values is None:
             return None
         return self._load_object(cls_info, result, values)
@@ -169,7 +169,7 @@ class Store(object):
         select = Select(cls_info.columns, where,
                         default_tables=cls_info.table, limit=1)
         result = self._connection.execute(select)
-        values = result.fetch_one()
+        values = result.get_one()
         self._set_values(obj_info, cls_info.columns, result, values), 
         obj_info.checkpoint()
         self._set_clean(obj)
@@ -292,7 +292,7 @@ class Store(object):
             result = self._connection.execute(Select(missing_columns, where))
 
             self._set_values(obj_info, missing_columns,
-                             result, result.fetch_one())
+                             result, result.get_one())
 
     def _load_object(self, cls_info, result, values, obj=None):
         if obj is None:
@@ -411,14 +411,14 @@ class ResultSet(object):
     def _aggregate(self, column):
         select = Select(column, self._where, order_by=self._order_by,
                         default_tables=self._cls_info.table, distinct=True)
-        return self._store._connection.execute(select).fetch_one()[0]
+        return self._store._connection.execute(select).get_one()[0]
 
     def one(self):
         select = Select(self._cls_info.columns, self._where,
                         default_tables=self._cls_info.table,
                         order_by=self._order_by, distinct=True)
         result = self._store._connection.execute(select)
-        values = result.fetch_one()
+        values = result.get_one()
         if values:
             return self._store._load_object(self._cls_info, result, values)
         return None

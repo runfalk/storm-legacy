@@ -10,14 +10,14 @@ class Result(object):
         self._connection = connection # Ensures deallocation order.
         self._raw_cursor = raw_cursor
 
-    def fetch_one(self):
+    def get_one(self):
         result = self._raw_cursor.fetchone()
         if result is not None:
             from_database = self._from_database
             return tuple(from_database(x) for x in result)
         return None
 
-    def fetch_all(self):
+    def get_all(self):
         result = self._raw_cursor.fetchall()
         if result:
             from_database = self._from_database
