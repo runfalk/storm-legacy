@@ -1,3 +1,12 @@
+#
+# Copyright (c) 2006 Canonical
+#
+# Written by Gustavo Niemeyer <gustavo@niemeyer.net>
+#
+# This file is part of Storm Object Relational Mapper.
+#
+# <license text goes here>
+#
 from storm.store import Store
 from storm.expr import Undef, compare_columns
 from storm.info import *

@@ -1,3 +1,12 @@
+#
+# Copyright (c) 2006 Canonical
+#
+# Written by Gustavo Niemeyer <gustavo@niemeyer.net>
+#
+# This file is part of Storm Object Relational Mapper.
+#
+# <license text goes here>
+#
 from datetime import datetime
 
 from storm.info import get_obj_info

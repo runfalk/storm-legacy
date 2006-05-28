@@ -1,3 +1,12 @@
+#
+# Copyright (c) 2006 Canonical
+#
+# Written by Gustavo Niemeyer <gustavo@niemeyer.net>
+#
+# This file is part of Storm Object Relational Mapper.
+#
+# <license text goes here>
+#
 from weakref import WeakValueDictionary
 
 from storm.info import get_cls_info, get_obj_info, get_info

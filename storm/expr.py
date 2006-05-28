@@ -1,3 +1,12 @@
+#
+# Copyright (c) 2006 Canonical
+#
+# Written by Gustavo Niemeyer <gustavo@niemeyer.net>
+#
+# This file is part of Storm Object Relational Mapper.
+#
+# <license text goes here>
+#
 from copy import copy
 import sys
 
