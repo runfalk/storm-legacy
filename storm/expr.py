@@ -634,7 +634,7 @@ def compare_columns(columns, values):
 
 
 # --------------------------------------------------------------------
-# Set operator precedences and commutativity.
+# Set operator precedences.
 
 compile.set_precedence(10, Select, Insert, Update, Delete)
 compile.set_precedence(20, Or)
