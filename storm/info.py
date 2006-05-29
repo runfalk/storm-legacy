@@ -95,9 +95,11 @@ class ObjectInfo(dict):
     def get_value(self, name, default=None):
         return self._values.get(name, default)
 
-    def set_value(self, name, value):
+    def set_value(self, name, value, checkpoint=False):
         old_value = self._values.get(name, Undef)
         self._values[name] = value
+        if checkpoint:
+            self._checkpoint_values[name] = value
         if old_value != value:
             self.emit("changed", name, old_value, value)
 
@@ -107,7 +109,8 @@ class ObjectInfo(dict):
             self.emit("changed", name, old_value, Undef)
 
     def save(self):
-        self._saved_values = self._checkpoint_values = self._values.copy()
+        self._saved_values = self._values.copy()
+        self._checkpoint_values = self._values.copy()
         self._saved_hooks = self._copy_object(self._hooks)
         self._saved_attrs = self.obj.__dict__.copy()
         self._saved_self = self._copy_object(self)
@@ -120,7 +123,7 @@ class ObjectInfo(dict):
 
     def restore(self):
         self._values = self._saved_values.copy()
-        self._checkpoint_values = self._saved_values
+        self._checkpoint_values = self._saved_values.copy()
         self._hooks = self._copy_object(self._saved_hooks)
         self.obj.__dict__ = self._saved_attrs.copy()
         self.clear()

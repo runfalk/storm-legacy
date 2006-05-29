@@ -508,12 +508,12 @@ class ResultSet(object):
                 for column, expr in sets.items():
                     obj_info = get_obj_info(obj)
                     if expr is None:
-                        obj_info.set_value(column.name, None)
+                        value = None
                     elif isinstance(expr, Param):
-                        obj_info.set_value(column.name, expr.parsed_value)
+                        value = expr.parsed_value
                     else:
-                        obj_info.set_value(column.name,
-                                           obj_info.get_value(expr.name))
+                        value = obj_info.get_value(expr.name)
+                    obj_info.set_value(column.name, value, checkpoint=True)
 
     def cached(self):
         if self._where is Undef:

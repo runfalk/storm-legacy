@@ -1082,6 +1082,17 @@ class StoreTest(object):
         result = self.store.find(Test, title="Title 20")
         self.assertRaises(StoreError, result.set, Test.title == Func())
 
+    def test_wb_find_set_checkpoints(self):
+        obj = self.store.get(Other, 200)
+        self.store.find(Other, id=200).set(other_title="Title 400")
+        self.store._connection.execute("UPDATE other SET "
+                                       "other_title='Title 500' "
+                                       "WHERE id=200")
+        # When not checkpointing, this flush will set other_title again.
+        self.store.flush()
+        self.store.reload(obj)
+        self.assertEquals(obj.other_title, "Title 500")
+
     def test_reference(self):
         other = self.store.get(Other, 100)
         self.assertTrue(other.test)
