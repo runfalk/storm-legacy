@@ -54,11 +54,13 @@ class Postgres(Database):
 
     _connection_factory = PostgresConnection
 
-    def __init__(self, dbname, host=None, username=None, password=None,
-                 encoding=None):
+    def __init__(self, dbname, host=None, port=None,
+                 username=None, password=None, encoding=None):
         self._dsn = "dbname=%s" % dbname
         if host is not None:
             self._dsn += " host=%s" % host
+        if port is not None:
+            self._dsn += " port=%d" % port
         if username is not None:
             self._dsn += " user=%s" % username
         if password is not None:
@@ -72,3 +74,9 @@ class Postgres(Database):
 
 
 psycopg.register_type(psycopg.new_type(psycopg.DATETIME.values, "DT", str))
+
+
+def create_from_uri(uri):
+    return Postgres(uri.database, uri.host, uri.port,
+                    uri.username, uri.password, uri.options.get("encoding"))
+

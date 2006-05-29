@@ -43,16 +43,21 @@ class MySQL(Database):
     _connection_factory = MySQLConnection
     _converters = None
 
-    def __init__(self, dbname, host=None, username=None, password=None):
+    def __init__(self, dbname, host=None, port=None,
+                 username=None, password=None, unix_socket=None):
         self._connect_kwargs = {}
         if dbname is not None:
             self._connect_kwargs["db"] = dbname
         if host is not None:
             self._connect_kwargs["host"] = host
+        if port is not None:
+            self._connect_kwargs["port"] = port
         if username is not None:
             self._connect_kwargs["user"] = username
         if password is not None:
             self._connect_kwargs["passwd"] = password
+        if unix_socket is not None:
+            self._connect_kwargs["unix_socket"] = unix_socket
 
         if self._converters is None:
             # MySQLdb returns a timedelta by default on TIME fields.
@@ -74,3 +79,8 @@ def _convert_time(time_str):
         s = int(f)
         return time(int(h), int(m), s, (f-s)*1000000)
     return time(int(h), int(m), int(s), 0)
+
+
+def create_from_uri(uri):
+    return MySQL(uri.database, uri.host, uri.port,
+                 uri.username, uri.password, uri.options.get("unix_socket"))

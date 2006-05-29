@@ -2,6 +2,7 @@ from datetime import datetime, date, time
 import os
 
 from storm.databases.postgres import Postgres
+from storm.database import create_database
 from storm.kinds import UnicodeKind
 
 from tests.databases.base import DatabaseTest
@@ -19,10 +20,10 @@ class PostgresTest(TestHelper, DatabaseTest):
         TestHelper.setUp(self)
     
     def is_supported(self):
-        return bool(os.environ.get("STORM_POSTGRES_DBNAME"))
+        return bool(os.environ.get("STORM_POSTGRES_URI"))
 
     def create_database(self):
-        self.database = Postgres(os.environ["STORM_POSTGRES_DBNAME"])
+        self.database = create_database(os.environ["STORM_POSTGRES_URI"])
 
     def create_tables(self):
         self.connection.execute("CREATE TABLE test "
@@ -30,6 +31,13 @@ class PostgresTest(TestHelper, DatabaseTest):
         self.connection.execute("CREATE TABLE datetime_test "
                                 "(id SERIAL PRIMARY KEY,"
                                 " dt TIMESTAMP, d DATE, t TIME)")
+
+    def test_wb_create_database(self):
+        database = create_database("postgres://un:pw@ht:12/db?encoding=en")
+        self.assertTrue(isinstance(database, Postgres))
+        self.assertEquals(database._dsn,
+                          "dbname=db host=ht port=12 user=un password=pw")
+        self.assertEquals(database._encoding, "en")
 
     def test_unicode_with_database_encoding(self):
         encoding = "iso-8859-1"

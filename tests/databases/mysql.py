@@ -1,10 +1,11 @@
 from datetime import datetime, date, time
 import os
 
+from storm.databases.mysql import MySQL
+from storm.database import create_database
+
 from tests.databases.base import DatabaseTest
 from tests.helper import TestHelper
-
-from storm.databases.mysql import MySQL
 
 
 class MySQLTest(TestHelper, DatabaseTest):
@@ -20,10 +21,10 @@ class MySQLTest(TestHelper, DatabaseTest):
         TestHelper.setUp(self)
     
     def is_supported(self):
-        return bool(os.environ.get("STORM_MYSQL_DBNAME"))
+        return bool(os.environ.get("STORM_MYSQL_URI"))
 
     def create_database(self):
-        self.database = MySQL(os.environ["STORM_MYSQL_DBNAME"])
+        self.database = create_database(os.environ["STORM_MYSQL_URI"])
 
     def create_tables(self):
         self.connection.execute("CREATE TABLE test "
@@ -32,3 +33,11 @@ class MySQLTest(TestHelper, DatabaseTest):
         self.connection.execute("CREATE TABLE datetime_test "
                                 "(id INT AUTO_INCREMENT PRIMARY KEY,"
                                 " dt TIMESTAMP, d DATE, t TIME)")
+
+    def test_wb_create_database(self):
+        database = create_database("mysql://un:pw@ht:12/db?unix_socket=us")
+        self.assertTrue(isinstance(database, MySQL))
+        for key, value in [("db", "db"), ("host", "ht"), ("port", 12),
+                           ("user", "un"), ("passwd", "pw"),
+                           ("unix_socket", "us")]:
+            self.assertEquals(database._connect_kwargs.get(key), value)

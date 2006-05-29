@@ -39,3 +39,6 @@ class SQLite(Database):
         raw_connection = sqlite.connect(self._filename)
         return self._connection_factory(self, raw_connection)
 
+
+def create_from_uri(uri):
+    return SQLite(uri.database)

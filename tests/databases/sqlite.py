@@ -1,6 +1,7 @@
 import os
 
 from storm.databases.sqlite import SQLite
+from storm.database import create_database
 
 from tests.databases.base import DatabaseTest
 from tests.helper import TestHelper, MakePath
@@ -31,6 +32,12 @@ class SQLiteTest(TestHelper, DatabaseTest):
     def drop_tables(self):
         pass
 
+    def test_wb_create_database(self):
+        filename = self.make_path()
+        sqlite = create_database("sqlite:%s" % filename)
+        self.assertTrue(isinstance(sqlite, SQLite))
+        self.assertEquals(sqlite._filename, filename)
+
 
 class SQLiteMemoryTest(SQLiteTest):
     
@@ -39,3 +46,8 @@ class SQLiteMemoryTest(SQLiteTest):
 
     def test_simultaneous_iter(self):
         pass
+
+    def test_wb_create_database(self):
+        sqlite = create_database("sqlite:")
+        self.assertTrue(isinstance(sqlite, SQLite))
+        self.assertEquals(sqlite._filename, ":memory:")

@@ -8,6 +8,8 @@
 # <license text goes here>
 #
 from storm.expr import Expr, compile
+from storm.uri import URI
+import storm
 
 
 __all__ = ["Database", "Connection", "Result", "convert_param_marks"]
@@ -118,3 +120,10 @@ def convert_param_marks(statement, from_param_mark, to_param_mark):
     for i in range(0, len(tokens), 2):
         tokens[i] = tokens[i].replace(from_param_mark, to_param_mark)
     return "'".join(tokens)
+
+
+def create_database(uri_str):
+    uri = URI.parse(uri_str)
+    module = __import__("%s.databases.%s" % (storm.__name__, uri.scheme),
+                        None, None, [""])
+    return module.create_from_uri(uri)
