@@ -1795,19 +1795,35 @@ class StoreTest(object):
                          ])
 
     def test_wb_result_to_kind(self):
-        def to_kind(self, value, kind):
-            if kind.__class__ is StrKind:
-                return "to_kind(%s)" % str(value)
-            elif kind.__class__ is IntKind:
-                return value+1
-            return value
+        Result = self.store._connection._result_factory
 
-        result_factory = self.store._connection._result_factory
-        old_to_kind, result_factory.to_kind = result_factory.to_kind, to_kind
+        class MyResult(Result):
+            def to_kind(self, value, kind):
+                if kind.__class__ is StrKind:
+                    return "to_kind(%s)" % str(value)
+                elif kind.__class__ is IntKind:
+                    return value+1
+                return value
+
+        self.store._connection._result_factory = MyResult
         try:
             obj = self.store.get(Test, 20)
         finally:
-            result_factory.to_kind = old_to_kind
+            self.store._connection._result_factory = Result
 
         self.assertEquals(obj.id, 21)
         self.assertEquals(obj.title, "to_kind(Title 20)")
+
+    def test_default(self):
+        class MyTest(Test):
+            title = Str(default="Some default value")
+
+        obj = MyTest()
+        self.store.add(obj)
+        self.store.flush()
+
+        result = self.store.execute("SELECT title FROM test WHERE id=?",
+                                    (obj.id,))
+        self.assertEquals(result.get_one(), ("Some default value",))
+
+        self.assertEquals(obj.title, "Some default value")

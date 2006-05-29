@@ -68,6 +68,12 @@ class ClassInfo(dict):
 
 
 class ObjectInfo(dict):
+    """Representation of the state of an object.
+
+    This code does't know about kinds, but considering the current
+    implementation, values manipulated with set/get_value() are in
+    the internal format.
+    """
 
     def __init__(self, obj):
         self.obj = obj

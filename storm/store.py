@@ -244,9 +244,16 @@ class Store(object):
 
             for column in cls_info.columns:
                 value = obj_info.get_value(column.name, Undef)
-                if value is not Undef:
-                    columns.append(column)
-                    values.append(Param(column.kind.to_database(value)))
+                if value is Undef:
+                    if column.default is Undef:
+                        continue
+                    value = column.default
+                    # How to test the following line? If it's not set here
+                    # it will be automatically fetched from the database on
+                    # fill_missing_values, so the end result is the same.
+                    obj_info.set_value(column.name, value)
+                columns.append(column)
+                values.append(Param(column.kind.to_database(value)))
 
             expr = Insert(columns, values, cls_info.table)
 

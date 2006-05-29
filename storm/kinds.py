@@ -11,21 +11,36 @@ from datetime import datetime, date, time
 
 
 class Kind(object):
+    """Base of Kind objects.
+
+    There are three value formats in Storm:
+    
+    - python format is used when dealing with the "outside world";
+    - database format is used to get and send data to the database;
+    - internal format is used inside Storm only;
+
+    A Kind instance is responsible for representing a data kind, and
+    for the migration between these formats.
+    """
 
     @staticmethod
     def to_python(value):
+        """Convert internal format to python format."""
         return value
 
     @staticmethod
     def to_database(value):
+        """Convert internal format to database format."""
         return value
 
     @staticmethod
     def from_python(value):
+        """Convert python format to internal format."""
         return value
 
     @staticmethod
     def from_database(value):
+        """Convert database format to internal format."""
         return value
 
 

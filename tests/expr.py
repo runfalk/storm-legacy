@@ -86,13 +86,17 @@ class ExprTest(TestHelper):
         self.assertEquals(expr.name, Undef)
         self.assertEquals(expr.table, Undef)
         self.assertTrue(isinstance(expr.kind, AnyKind))
+        self.assertEquals(expr.default, Undef)
+        self.assertEquals(expr.nullable, True)
 
     def test_column_constructor(self):
-        kind = object()
-        expr = Column("name", "table", kind)
-        self.assertEquals(expr.name, "name")
-        self.assertEquals(expr.table, "table")
-        self.assertEquals(expr.kind, kind)
+        objects = [object() for i in range(5)]
+        expr = Column(*objects)
+        self.assertEquals(expr.name, objects[0])
+        self.assertEquals(expr.table, objects[1])
+        self.assertEquals(expr.kind, objects[2])
+        self.assertEquals(expr.default, objects[3])
+        self.assertEquals(expr.nullable, objects[4])
 
     def test_param(self):
         expr = Param("value")

@@ -396,10 +396,13 @@ def compile_delete(compile, state, delete):
 
 class Column(ComparableExpr):
 
-    def __init__(self, name=Undef, table=Undef, kind=None):
+    def __init__(self, name=Undef, table=Undef, kind=None,
+                 default=Undef, nullable=True):
         self.name = name
         self.table = table
         self.kind = kind or AnyKind()
+        self.default = default
+        self.nullable = nullable
 
 @compile.when(Column)
 def compile_column(compile, state, column):
