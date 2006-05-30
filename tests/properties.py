@@ -407,3 +407,25 @@ class PropertyKindsTest(TestHelper):
         self.assertEquals(self.obj.prop1, time(12, 34, 56))
 
         self.assertRaises(TypeError, setattr, self.obj, "prop1", object())
+
+    def test_pickle(self):
+        prop1, prop2 = self.setup(Pickle, default=(), nullable=False)
+
+        self.assertTrue(isinstance(prop1, Column))
+        self.assertTrue(isinstance(prop2, Column))
+        self.assertEquals(prop1.name, "column1")
+        self.assertEquals(prop1.table, "table")
+        self.assertEquals(prop2.name, "prop2")
+        self.assertEquals(prop2.table, "table")
+        self.assertTrue(isinstance(prop1.kind, PickleKind))
+        self.assertTrue(isinstance(prop2.kind, PickleKind))
+
+        self.assertEquals(self.Class.prop1.default, pickle.dumps((), 2))
+        self.assertEquals(self.Class.prop1.nullable, False)
+        self.assertEquals(self.Class.prop2.default, Undef)
+        self.assertEquals(self.Class.prop2.nullable, True)
+
+        self.obj.prop1 = {}
+        self.assertEquals(self.obj.prop1, {})
+        self.obj.prop1["a"] = 1
+        self.assertEquals(self.obj.prop1, {"a": 1})

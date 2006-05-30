@@ -15,7 +15,7 @@ from storm.kinds import *
 
 
 __all__ = ["NullableError", "Property", "Bool", "Int", "Float",
-           "Str", "Unicode", "DateTime", "Date", "Time"]
+           "Str", "Unicode", "DateTime", "Date", "Time", "Pickle"]
 
 
 class NullableError(ValueError):
@@ -45,6 +45,9 @@ def Date(name=None, default=Undef, nullable=True):
 
 def Time(name=None, default=Undef, nullable=True):
     return Property(name, TimeKind(), default, nullable)
+
+def Pickle(name=None, default=Undef, nullable=True):
+    return Property(name, PickleKind(), default, nullable)
 
 
 class Property(object):

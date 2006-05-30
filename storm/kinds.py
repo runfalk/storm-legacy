@@ -8,6 +8,7 @@
 # <license text goes here>
 #
 from datetime import datetime, date, time
+import cPickle as pickle
 
 
 class Kind(object):
@@ -137,6 +138,17 @@ class TimeKind(Kind):
         if not isinstance(value, (str, unicode)):
             raise TypeError("Expected time, found %s" % repr(value))
         return time(*_parse_time(value))
+
+
+class PickleKind(Kind):
+
+    @staticmethod
+    def from_database(value):
+        return pickle.loads(value)
+
+    @staticmethod
+    def to_database(value):
+        return pickle.dumps(value, -1)
 
 
 def _parse_time(time_str):

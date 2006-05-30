@@ -3,7 +3,7 @@ import gc
 from storm.properties import get_obj_info
 from storm.references import Reference, ReferenceSet
 from storm.database import Result
-from storm.properties import Int, Str, Property
+from storm.properties import Int, Str, Property, Pickle
 from storm.expr import Asc, Desc, Select, Func
 from storm.kinds import StrKind, IntKind
 from storm.store import *
@@ -1827,3 +1827,14 @@ class StoreTest(object):
         self.assertEquals(result.get_one(), ("Some default value",))
 
         self.assertEquals(obj.title, "Some default value")
+
+    def test_pickle_kind(self):
+        class MyTest(Test):
+            title = Pickle()
+
+        obj = self.store.get(Test, 20)
+        obj.title = "\x80\x02}q\x01U\x01aK\x01s."
+        self.store.flush()
+
+        obj = self.store.get(MyTest, 20)
+        self.assertEquals(obj.title["a"], 1)

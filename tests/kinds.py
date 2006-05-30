@@ -1,4 +1,5 @@
 from datetime import datetime
+import cPickle as pickle
 
 from storm.kinds import *
 
@@ -194,3 +195,16 @@ class TimeKindTest(AnyKindTest):
         self.assertRaises(TypeError, self.kind.from_database, 0)
         self.assertRaises(TypeError, self.kind.from_database, marker)
         self.assertRaises(ValueError, self.kind.from_database, "foobar")
+
+
+class PickleKindTest(AnyKindTest):
+
+    kind_class = PickleKind
+
+    def test_to_database(self):
+        d = {"a": 1}
+        self.assertEquals(self.kind.to_database(d), pickle.dumps(d, 2))
+
+    def test_from_database(self):
+        d = {"a": 1}
+        self.assertEquals(self.kind.from_database(pickle.dumps(d, 2)), d)
