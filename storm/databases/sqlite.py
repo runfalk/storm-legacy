@@ -10,13 +10,19 @@
 from datetime import datetime, date, time
 from pysqlite2 import dbapi2 as sqlite
 
+from storm.variables import Variable
 from storm.database import *
 
 
 class SQLiteResult(Result):
 
-    def get_insert_identity(self, primary_key, primary_values):
+    def get_insert_identity(self, primary_key, primary_variables):
         return "(OID=%d)" % self._raw_cursor.lastrowid
+
+    def _from_database(self, value):
+        if isinstance(value, buffer):
+            return str(value)
+        return value
 
 
 class SQLiteConnection(Connection):
@@ -24,9 +30,14 @@ class SQLiteConnection(Connection):
     _result_factory = SQLiteResult
 
     def _to_database(self, value):
+        if isinstance(value, Variable):
+            value = value.get(to_db=True)
         if isinstance(value, (datetime, date, time)):
             return str(value)
+        elif isinstance(value, str):
+            return buffer(value)
         return value
+
 
 class SQLite(Database):
 

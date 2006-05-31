@@ -1,6 +1,6 @@
 from tests.helper import TestHelper
 
-from storm.kinds import AnyKind
+from storm.variables import Variable
 from storm.expr import *
 
 
@@ -85,22 +85,14 @@ class ExprTest(TestHelper):
         expr = Column()
         self.assertEquals(expr.name, Undef)
         self.assertEquals(expr.table, Undef)
-        self.assertTrue(isinstance(expr.kind, AnyKind))
-        self.assertEquals(expr.default, Undef)
-        self.assertEquals(expr.nullable, True)
+        self.assertEquals(expr.variable_factory, Variable)
 
     def test_column_constructor(self):
-        objects = [object() for i in range(5)]
+        objects = [object() for i in range(3)]
         expr = Column(*objects)
         self.assertEquals(expr.name, objects[0])
         self.assertEquals(expr.table, objects[1])
-        self.assertEquals(expr.kind, objects[2])
-        self.assertEquals(expr.default, objects[3])
-        self.assertEquals(expr.nullable, objects[4])
-
-    def test_param(self):
-        expr = Param("value")
-        self.assertEquals(expr.value, "value")
+        self.assertEquals(expr.variable_factory, objects[2])
 
     def test_func(self):
         class MyFunc(Func):
@@ -260,7 +252,7 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, "SELECT table1.column1 "
                                      "FROM table1, table2 "
                                      "WHERE table2.column2 = ?")
-        self.assertEquals(parameters, [1])
+        self.assertEquals(parameters, [Variable(1)])
 
     def test_select_auto_table_default(self):
         expr = Select(Column("column1"),
@@ -270,7 +262,7 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, "SELECT column1 "
                                      "FROM table "
                                      "WHERE column2 = ?")
-        self.assertEquals(parameters, [1])
+        self.assertEquals(parameters, [Variable(1)])
 
     def test_select_auto_table_unknown(self):
         statement, parameters = compile(Select("1"))
@@ -373,14 +365,14 @@ class CompileTest(TestHelper):
         statement, parameters = compile(expr)
         self.assertEquals(statement,
                           "DELETE FROM table WHERE table.column = ?")
-        self.assertEquals(parameters, [1])
+        self.assertEquals(parameters, [Variable(1)])
 
     def test_delete_auto_table_default(self):
         expr = Delete(Column("column") == 1, default_table="table")
         statement, parameters = compile(expr)
         self.assertEquals(statement,
                           "DELETE FROM table WHERE column = ?")
-        self.assertEquals(parameters, [1])
+        self.assertEquals(parameters, [Variable(1)])
 
     def test_delete_auto_table_unknown(self):
         expr = Delete(Column("column") == 1)
@@ -398,11 +390,11 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, "func1().name")
         self.assertEquals(parameters, [])
 
-    def test_param(self):
-        expr = Param("value")
+    def test_variable(self):
+        expr = Variable("value")
         statement, parameters = compile(expr)
         self.assertEquals(statement, "?")
-        self.assertEquals(parameters, ["value"])
+        self.assertEquals(parameters, [Variable("value")])
 
     def test_eq(self):
         expr = Eq(Func1(), Func2())
@@ -413,7 +405,7 @@ class CompileTest(TestHelper):
         expr = Func1() == "value"
         statement, parameters = compile(expr)
         self.assertEquals(statement, "func1() = ?")
-        self.assertEquals(parameters, ["value"])
+        self.assertEquals(parameters, [Variable("value")])
 
     def test_eq_none(self):
         expr = Func1() == None
@@ -433,7 +425,7 @@ class CompileTest(TestHelper):
         expr = Func1() != "value"
         statement, parameters = compile(expr)
         self.assertEquals(statement, "func1() != ?")
-        self.assertEquals(parameters, ["value"])
+        self.assertEquals(parameters, [Variable("value")])
 
     def test_ne_none(self):
         expr = Func1() != None
@@ -453,7 +445,7 @@ class CompileTest(TestHelper):
         expr = Func1() > "value"
         statement, parameters = compile(expr)
         self.assertEquals(statement, "func1() > ?")
-        self.assertEquals(parameters, ["value"])
+        self.assertEquals(parameters, [Variable("value")])
 
     def test_ge(self):
         expr = Ge(Func1(), Func2())
@@ -464,7 +456,7 @@ class CompileTest(TestHelper):
         expr = Func1() >= "value"
         statement, parameters = compile(expr)
         self.assertEquals(statement, "func1() >= ?")
-        self.assertEquals(parameters, ["value"])
+        self.assertEquals(parameters, [Variable("value")])
 
     def test_lt(self):
         expr = Lt(Func1(), Func2())
@@ -475,7 +467,7 @@ class CompileTest(TestHelper):
         expr = Func1() < "value"
         statement, parameters = compile(expr)
         self.assertEquals(statement, "func1() < ?")
-        self.assertEquals(parameters, ["value"])
+        self.assertEquals(parameters, [Variable("value")])
 
     def test_le(self):
         expr = Le(Func1(), Func2())
@@ -486,7 +478,7 @@ class CompileTest(TestHelper):
         expr = Func1() <= "value"
         statement, parameters = compile(expr)
         self.assertEquals(statement, "func1() <= ?")
-        self.assertEquals(parameters, ["value"])
+        self.assertEquals(parameters, [Variable("value")])
 
     def test_lshift(self):
         expr = LShift(Func1(), Func2())
@@ -497,7 +489,7 @@ class CompileTest(TestHelper):
         expr = Func1() << "value"
         statement, parameters = compile(expr)
         self.assertEquals(statement, "func1()<<?")
-        self.assertEquals(parameters, ["value"])
+        self.assertEquals(parameters, [Variable("value")])
 
     def test_rshift(self):
         expr = RShift(Func1(), Func2())
@@ -508,7 +500,7 @@ class CompileTest(TestHelper):
         expr = Func1() >> "value"
         statement, parameters = compile(expr)
         self.assertEquals(statement, "func1()>>?")
-        self.assertEquals(parameters, ["value"])
+        self.assertEquals(parameters, [Variable("value")])
 
     def test_like(self):
         expr = Like(Func1(), Func2())
@@ -536,7 +528,7 @@ class CompileTest(TestHelper):
         expr = Func1() & "value"
         statement, parameters = compile(expr)
         self.assertEquals(statement, "func1() AND ?")
-        self.assertEquals(parameters, ["value"])
+        self.assertEquals(parameters, [Variable("value")])
 
     def test_or(self):
         expr = Or("elem1", "elem2", Or("elem3", "elem4"))
@@ -547,7 +539,7 @@ class CompileTest(TestHelper):
         expr = Func1() | "value"
         statement, parameters = compile(expr)
         self.assertEquals(statement, "func1() OR ?")
-        self.assertEquals(parameters, ["value"])
+        self.assertEquals(parameters, [Variable("value")])
 
     def test_add(self):
         expr = Add("elem1", "elem2", Add("elem3", "elem4"))
@@ -558,7 +550,7 @@ class CompileTest(TestHelper):
         expr = Func1() + "value"
         statement, parameters = compile(expr)
         self.assertEquals(statement, "func1()+?")
-        self.assertEquals(parameters, ["value"])
+        self.assertEquals(parameters, [Variable("value")])
 
     def test_sub(self):
         expr = Sub("elem1", Sub("elem2", "elem3"))
@@ -574,7 +566,7 @@ class CompileTest(TestHelper):
         expr = Func1() - "value"
         statement, parameters = compile(expr)
         self.assertEquals(statement, "func1()-?")
-        self.assertEquals(parameters, ["value"])
+        self.assertEquals(parameters, [Variable("value")])
 
     def test_mul(self):
         expr = Mul("elem1", "elem2", Mul("elem3", "elem4"))
@@ -585,7 +577,7 @@ class CompileTest(TestHelper):
         expr = Func1() * "value"
         statement, parameters = compile(expr)
         self.assertEquals(statement, "func1()*?")
-        self.assertEquals(parameters, ["value"])
+        self.assertEquals(parameters, [Variable("value")])
 
     def test_div(self):
         expr = Div("elem1", Div("elem2", "elem3"))
@@ -601,7 +593,7 @@ class CompileTest(TestHelper):
         expr = Func1() / "value"
         statement, parameters = compile(expr)
         self.assertEquals(statement, "func1()/?")
-        self.assertEquals(parameters, ["value"])
+        self.assertEquals(parameters, [Variable("value")])
 
     def test_mod(self):
         expr = Mod("elem1", Mod("elem2", "elem3"))
@@ -617,7 +609,7 @@ class CompileTest(TestHelper):
         expr = Func1() % "value"
         statement, parameters = compile(expr)
         self.assertEquals(statement, "func1()%?")
-        self.assertEquals(parameters, ["value"])
+        self.assertEquals(parameters, [Variable("value")])
 
     def test_func(self):
         expr = Func1("arg1", Func2("arg2"))
@@ -690,7 +682,7 @@ class CompilePythonTest(TestHelper):
                         compile_python.get_precedence(Div))
 
     def test_compile_sequence(self):
-        expr = ["str", Param(1), (Param(2), None)]
+        expr = ["str", Variable(1), (Variable(2), None)]
         py_expr = compile_python.get_expr(expr)
         self.assertEquals(py_expr, "str, 1, 2, None")
 
@@ -720,85 +712,53 @@ class CompilePythonTest(TestHelper):
         py_expr = compile_python.get_expr(expr)
         self.assertEquals(py_expr, "get_column('name')")
 
-    def test_param(self):
-        expr = Param("value")
+    def test_variable(self):
+        expr = Variable("value")
         py_expr = compile_python.get_expr(expr)
         self.assertEquals(py_expr, "'value'")
 
     def test_eq(self):
-        expr = Eq(Param(1), Param(2))
+        expr = Eq(Variable(1), Variable(2))
         py_expr = compile_python.get_expr(expr)
         self.assertEquals(py_expr, "1 == 2")
 
-        expr = Param(1) == "value"
-        py_expr = compile_python.get_expr(expr)
-        self.assertEquals(py_expr, "1 == 'value'")
-
     def test_ne(self):
-        expr = Ne(Param(1), Param(2))
+        expr = Ne(Variable(1), Variable(2))
         py_expr = compile_python.get_expr(expr)
         self.assertEquals(py_expr, "1 != 2")
 
-        expr = Param(1) != "value"
-        py_expr = compile_python.get_expr(expr)
-        self.assertEquals(py_expr, "1 != 'value'")
-
     def test_gt(self):
-        expr = Gt(Param(1), Param(2))
+        expr = Gt(Variable(1), Variable(2))
         py_expr = compile_python.get_expr(expr)
         self.assertEquals(py_expr, "1 > 2")
 
-        expr = Param(1) > "value"
-        py_expr = compile_python.get_expr(expr)
-        self.assertEquals(py_expr, "1 > 'value'")
-
     def test_ge(self):
-        expr = Ge(Param(1), Param(2))
+        expr = Ge(Variable(1), Variable(2))
         py_expr = compile_python.get_expr(expr)
         self.assertEquals(py_expr, "1 >= 2")
 
-        expr = Param(1) >= "value"
-        py_expr = compile_python.get_expr(expr)
-        self.assertEquals(py_expr, "1 >= 'value'")
-
     def test_lt(self):
-        expr = Lt(Param(1), Param(2))
+        expr = Lt(Variable(1), Variable(2))
         py_expr = compile_python.get_expr(expr)
         self.assertEquals(py_expr, "1 < 2")
 
-        expr = Param(1) < "value"
-        py_expr = compile_python.get_expr(expr)
-        self.assertEquals(py_expr, "1 < 'value'")
-
     def test_le(self):
-        expr = Le(Param(1), Param(2))
+        expr = Le(Variable(1), Variable(2))
         py_expr = compile_python.get_expr(expr)
         self.assertEquals(py_expr, "1 <= 2")
 
-        expr = Param(1) <= "value"
-        py_expr = compile_python.get_expr(expr)
-        self.assertEquals(py_expr, "1 <= 'value'")
-
     def test_lshift(self):
-        expr = LShift(Param(1), Param(2))
+        expr = LShift(Variable(1), Variable(2))
         py_expr = compile_python.get_expr(expr)
         self.assertEquals(py_expr, "1<<2")
 
-        expr = Param(1) << "value"
-        py_expr = compile_python.get_expr(expr)
-        self.assertEquals(py_expr, "1<<'value'")
-
     def test_rshift(self):
-        expr = RShift(Param(1), Param(2))
+        expr = RShift(Variable(1), Variable(2))
         py_expr = compile_python.get_expr(expr)
         self.assertEquals(py_expr, "1>>2")
 
-        expr = Param(1) >> "value"
-        py_expr = compile_python.get_expr(expr)
-        self.assertEquals(py_expr, "1>>'value'")
-
     def test_in(self):
-        expr = In(Param(1), Param(2))
+        expr = In(Variable(1), Variable(2))
         py_expr = compile_python.get_expr(expr)
         self.assertEquals(py_expr, "1 in (2,)")
 
@@ -807,27 +767,15 @@ class CompilePythonTest(TestHelper):
         py_expr = compile_python.get_expr(expr)
         self.assertEquals(py_expr, "elem1 and elem2 and elem3 and elem4")
 
-        expr = Param(1) & "value"
-        py_expr = compile_python.get_expr(expr)
-        self.assertEquals(py_expr, "1 and 'value'")
-
     def test_or(self):
         expr = Or("elem1", "elem2", Or("elem3", "elem4"))
         py_expr = compile_python.get_expr(expr)
         self.assertEquals(py_expr, "elem1 or elem2 or elem3 or elem4")
 
-        expr = Param(1) | "value"
-        py_expr = compile_python.get_expr(expr)
-        self.assertEquals(py_expr, "1 or 'value'")
-
     def test_add(self):
         expr = Add("elem1", "elem2", Add("elem3", "elem4"))
         py_expr = compile_python.get_expr(expr)
         self.assertEquals(py_expr, "elem1+elem2+elem3+elem4")
-
-        expr = Param(1) + "value"
-        py_expr = compile_python.get_expr(expr)
-        self.assertEquals(py_expr, "1+'value'")
 
     def test_sub(self):
         expr = Sub("elem1", Sub("elem2", "elem3"))
@@ -838,18 +786,10 @@ class CompilePythonTest(TestHelper):
         py_expr = compile_python.get_expr(expr)
         self.assertEquals(py_expr, "elem1-elem2-elem3")
 
-        expr = Param(1) - "value"
-        py_expr = compile_python.get_expr(expr)
-        self.assertEquals(py_expr, "1-'value'")
-
     def test_mul(self):
         expr = Mul("elem1", "elem2", Mul("elem3", "elem4"))
         py_expr = compile_python.get_expr(expr)
         self.assertEquals(py_expr, "elem1*elem2*elem3*elem4")
-
-        expr = Param(1) * "value"
-        py_expr = compile_python.get_expr(expr)
-        self.assertEquals(py_expr, "1*'value'")
 
     def test_div(self):
         expr = Div("elem1", Div("elem2", "elem3"))
@@ -860,10 +800,6 @@ class CompilePythonTest(TestHelper):
         py_expr = compile_python.get_expr(expr)
         self.assertEquals(py_expr, "elem1/elem2/elem3")
 
-        expr = Param(1) / "value"
-        py_expr = compile_python.get_expr(expr)
-        self.assertEquals(py_expr, "1/'value'")
-
     def test_mod(self):
         expr = Mod("elem1", Mod("elem2", "elem3"))
         py_expr = compile_python.get_expr(expr)
@@ -872,10 +808,6 @@ class CompilePythonTest(TestHelper):
         expr = Mod(Mod("elem1", "elem2"), "elem3")
         py_expr = compile_python.get_expr(expr)
         self.assertEquals(py_expr, "elem1%elem2%elem3")
-
-        expr = Param(1) % "value"
-        py_expr = compile_python.get_expr(expr)
-        self.assertEquals(py_expr, "1%'value'")
 
     def test_match(self):
         col1 = Column("name1")

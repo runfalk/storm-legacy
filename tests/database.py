@@ -1,3 +1,4 @@
+from storm.variables import Variable
 from storm.database import *
 from storm.expr import *
 
@@ -20,6 +21,10 @@ class RawConnection(object):
 
     def rollback(self):
         self.executed.append("ROLLBACK")
+
+    def close(self):
+        pass
+
 
 class RawCursor(object):
 
@@ -98,11 +103,11 @@ class ConnectionTest(TestHelper):
         class MyConnection(Connection):
             _param_mark = "%s"
         connection = MyConnection(self.database, RawConnection(self.executed))
-        connection.execute("'?' ? '?' ? '?'")
+        result = connection.execute("'?' ? '?' ? '?'")
         self.assertEquals(self.executed, [("'?' %s '?' %s '?'", marker)])
 
         # TODO: Unsupported for now.
-        #connection.execute("$$?$$ ? $asd$'?$asd$ ? '?'")
+        #result = connection.execute("$$?$$ ? $asd$'?$asd$ ? '?'")
         #self.assertEquals(self.executed,
         #                  [("'?' %s '?' %s '?'", marker),
         #                   ("$$?$$ %s $asd'?$asd$ %s '?'", marker)])
@@ -160,6 +165,7 @@ class ResultTest(TestHelper):
                           [("fetchmany0",), ("fetchmany1",), ("fetchmany2",),
                            ("fetchmany3",), ("fetchmany4",)])
 
-    def test_to_kind(self):
-        obj1, obj2 = object(), object()
-        self.assertEquals(self.result.to_kind(obj1, obj2), obj1)
+    def test_set_variable(self):
+        variable = Variable()
+        self.result.set_variable(variable, marker)
+        self.assertEquals(variable.get(), marker)

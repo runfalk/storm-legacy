@@ -3,9 +3,9 @@ import gc
 from storm.properties import get_obj_info
 from storm.references import Reference, ReferenceSet
 from storm.database import Result
-from storm.properties import Int, Str, Property, Pickle
+from storm.properties import Int, Str, Unicode, Property, Pickle
 from storm.expr import Asc, Desc, Select, Func
-from storm.kinds import StrKind, IntKind
+from storm.variables import Variable, UnicodeVariable, IntVariable
 from storm.store import *
 
 from tests.helper import run_this
@@ -15,14 +15,19 @@ class Test(object):
     __table__ = "test", "id"
 
     id = Int()
-    title = Str()
+    title = Unicode()
 
 class Other(object):
     __table__ = "other", "id"
     id = Int()
     test_id = Int()
-    other_title = Str()
+    other_title = Unicode()
     test = Reference(test_id, Test.id)
+
+class Blob(object):
+    __table__ = "bin", "id"
+    id = Int()
+    bin = Str()
 
 class Link(object):
     __table__ = "link", ("test_id", "other_id")
@@ -39,23 +44,17 @@ class IndRefSetTest(Test):
     others = ReferenceSet(Test.id, Link.test_id, Link.other_id, Other.id)
 
 
-class DecorateKind(object):
+class DecorateVariable(Variable):
 
-    def to_python(self, value):
-        return "to_py(%s)" % str(value)
+    def _parse_get(self, value, to_db):
+        return u"to_%s(%s)" % (to_db and "db" or "py", value)
 
-    def from_python(self, value):
-        return "from_py(%s)" % str(value)
-
-    def to_database(self, value):
-        return "to_db(%s)" % str(value)
-
-    def from_database(self, value):
-        return "from_db(%s)" % str(value)
+    def _parse_set(self, value, from_db):
+        return u"from_%s(%s)" % (from_db and "db" or "py", value)
 
 
-class KindTest(Test):
-    title = Property(kind=DecorateKind())
+class VariableTest(Test):
+    title = Property(None, cls=DecorateVariable)
 
 
 class StoreTest(object):
@@ -87,6 +86,9 @@ class StoreTest(object):
         connection.execute("INSERT INTO other VALUES (100, 10, 'Title 300')")
         connection.execute("INSERT INTO other VALUES (200, 20, 'Title 200')")
         connection.execute("INSERT INTO other VALUES (300, 30, 'Title 100')")
+        connection.execute("INSERT INTO bin VALUES (10, 'Blob 30')")
+        connection.execute("INSERT INTO bin VALUES (20, 'Blob 20')")
+        connection.execute("INSERT INTO bin VALUES (30, 'Blob 10')")
         connection.execute("INSERT INTO link VALUES (10, 100)")
         connection.execute("INSERT INTO link VALUES (10, 200)")
         connection.execute("INSERT INTO link VALUES (10, 300)")
@@ -105,7 +107,7 @@ class StoreTest(object):
         pass
 
     def drop_tables(self):
-        for table in ["test", "other", "link"]:
+        for table in ["test", "other", "bin", "link"]:
             connection = self.database.connect()
             try:
                 connection.execute("DROP TABLE %s" % table)
@@ -185,7 +187,7 @@ class StoreTest(object):
         class Test(object):
             __table__ = "test", ("title", "id")
             id = Int()
-            title = Str()
+            title = Unicode()
         obj = self.store.get(Test, ("Title 30", 10))
         self.assertEquals(obj.id, 10)
         self.assertEquals(obj.title, "Title 30")
@@ -819,7 +821,7 @@ class StoreTest(object):
         class Other(object):
             __table__ = "other", "id"
             id = Int()
-            other_title = Str()
+            other_title = Unicode()
 
         other = Other()
         other.id = 40
@@ -985,7 +987,8 @@ class StoreTest(object):
         obj = self.store.get(Test, 20)
         self.store.execute("UPDATE test SET title='Title 40' WHERE id=20")
         self.store.reload(obj)
-        self.assertFalse(get_obj_info(obj).check_changed())
+        for variable in get_obj_info(obj).variables.values():
+            self.assertFalse(variable.has_changed())
 
     def test_reload_new_unflushed(self):
         obj = Test()
@@ -1165,7 +1168,7 @@ class StoreTest(object):
             __table__ = "other", "id"
             id = Int()
             test_id = Int()
-            other_title = Str()
+            other_title = Unicode()
             test = Reference((test_id, other_title), (Test.id, Test.title))
 
         obj = Test()
@@ -1725,12 +1728,12 @@ class StoreTest(object):
         self.assertTrue(obj1.id < obj3.id)
         self.assertTrue(obj3.id < obj5.id)
 
-    def test_kind_filter_on_load(self):
-        obj = self.store.get(KindTest, 20)
+    def test_variable_filter_on_load(self):
+        obj = self.store.get(VariableTest, 20)
         self.assertEquals(obj.title, "to_py(from_db(Title 20))")
 
-    def test_kind_filter_on_update(self):
-        obj = self.store.get(KindTest, 20)
+    def test_variable_filter_on_update(self):
+        obj = self.store.get(VariableTest, 20)
         obj.title = "Title 20"
 
         self.store.flush()
@@ -1741,8 +1744,8 @@ class StoreTest(object):
                           (30, "Title 10"),
                          ])
 
-    def test_kind_filter_on_update_unchanged(self):
-        obj = self.store.get(KindTest, 20)
+    def test_variable_filter_on_update_unchanged(self):
+        obj = self.store.get(VariableTest, 20)
         self.store.flush()
         self.assertEquals(self.get_items(), [
                           (10, "Title 30"),
@@ -1750,8 +1753,8 @@ class StoreTest(object):
                           (30, "Title 10"),
                          ])
 
-    def test_kind_filter_on_insert(self):
-        obj = KindTest()
+    def test_variable_filter_on_insert(self):
+        obj = VariableTest()
         obj.id = 40
         obj.title = "Title 40"
 
@@ -1765,8 +1768,8 @@ class StoreTest(object):
                           (40, "to_db(from_py(Title 40))"),
                          ])
 
-    def test_kind_filter_on_missing_values(self):
-        obj = KindTest()
+    def test_variable_filter_on_missing_values(self):
+        obj = VariableTest()
         obj.id = 40
 
         self.store.add(obj)
@@ -1774,9 +1777,9 @@ class StoreTest(object):
 
         self.assertEquals(obj.title, "to_py(from_db(Default Title))")
 
-    def test_kind_filter_on_set(self):
-        obj = KindTest()
-        self.store.find(KindTest, id=20).set(title="Title 20")
+    def test_variable_filter_on_set(self):
+        obj = VariableTest()
+        self.store.find(VariableTest, id=20).set(title="Title 20")
 
         self.assertEquals(self.get_items(), [
                           (10, "Title 30"),
@@ -1784,9 +1787,10 @@ class StoreTest(object):
                           (30, "Title 10"),
                          ])
 
-    def test_kind_filter_on_set_expr(self):
-        obj = KindTest()
-        self.store.find(KindTest, id=20).set(KindTest.title == "Title 20")
+    def test_variable_filter_on_set_expr(self):
+        obj = VariableTest()
+        result = self.store.find(VariableTest, id=20)
+        result.set(VariableTest.title == "Title 20")
 
         self.assertEquals(self.get_items(), [
                           (10, "Title 30"),
@@ -1794,16 +1798,17 @@ class StoreTest(object):
                           (30, "Title 10"),
                          ])
 
-    def test_wb_result_to_kind(self):
+    def test_wb_result_set_variable(self):
         Result = self.store._connection._result_factory
 
         class MyResult(Result):
-            def to_kind(self, value, kind):
-                if kind.__class__ is StrKind:
-                    return "to_kind(%s)" % str(value)
-                elif kind.__class__ is IntKind:
-                    return value+1
-                return value
+            def set_variable(self, variable, value):
+                if variable.__class__ is UnicodeVariable:
+                    variable.set(u"set_variable(%s)" % value)
+                elif variable.__class__ is IntVariable:
+                    variable.set(value+1)
+                else:
+                    variable.set(value)
 
         self.store._connection._result_factory = MyResult
         try:
@@ -1812,7 +1817,7 @@ class StoreTest(object):
             self.store._connection._result_factory = Result
 
         self.assertEquals(obj.id, 21)
-        self.assertEquals(obj.title, "to_kind(Title 20)")
+        self.assertEquals(obj.title, "set_variable(Title 20)")
 
     def test_default(self):
         class MyTest(Test):
@@ -1828,13 +1833,27 @@ class StoreTest(object):
 
         self.assertEquals(obj.title, "Some default value")
 
-    def test_pickle_kind(self):
+    def test_default_factory(self):
         class MyTest(Test):
-            title = Pickle()
+            title = Str(default_factory=lambda:"Some default value")
 
-        obj = self.store.get(Test, 20)
-        obj.title = "\x80\x02}q\x01U\x01aK\x01s."
+        obj = MyTest()
+        self.store.add(obj)
         self.store.flush()
 
-        obj = self.store.get(MyTest, 20)
-        self.assertEquals(obj.title["a"], 1)
+        result = self.store.execute("SELECT title FROM test WHERE id=?",
+                                    (obj.id,))
+        self.assertEquals(result.get_one(), ("Some default value",))
+
+        self.assertEquals(obj.title, "Some default value")
+
+    def test_pickle_kind(self):
+        class MyBlob(Blob):
+            bin = Pickle()
+
+        obj = self.store.get(Blob, 20)
+        obj.bin = "\x80\x02}q\x01U\x01aK\x01s."
+        self.store.flush()
+
+        obj = self.store.get(MyBlob, 20)
+        self.assertEquals(obj.bin["a"], 1)

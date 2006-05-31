@@ -1,7 +1,9 @@
 from datetime import datetime, date, time
+import cPickle as pickle
 
 from storm.expr import Select, Column, Undef
-from storm.kinds import DateTimeKind, DateKind, TimeKind
+from storm.variables import Variable, PickleVariable
+from storm.variables import DateTimeVariable, DateVariable, TimeVariable
 from storm.database import *
 
 
@@ -46,6 +48,11 @@ class DatabaseTest(object):
             self.connection.rollback()
         try:
             self.connection.execute("DROP TABLE datetime_test")
+            self.connection.commit()
+        except:
+            self.connection.rollback()
+        try:
+            self.connection.execute("DROP TABLE bin_test")
             self.connection.commit()
         except:
             self.connection.rollback()
@@ -103,8 +110,8 @@ class DatabaseTest(object):
         result = self.connection.execute("INSERT INTO test (title) "
                                          "VALUES ('Title 30')")
         primary_key = (Column("id", "test"),)
-        primary_values = (Undef,)
-        expr = result.get_insert_identity(primary_key, primary_values)
+        primary_variables = (Variable(),)
+        expr = result.get_insert_identity(primary_key, primary_variables)
         result = self.connection.execute(Select(Column("title", "test"), expr))
         self.assertEquals(result.get_one(), ("Title 30",))
 
@@ -112,8 +119,8 @@ class DatabaseTest(object):
         result = self.connection.execute("INSERT INTO test (title) "
                                          "VALUES ('Title 30')")
         primary_key = (Column("id", "test"), Column("title", "test"))
-        primary_values = (Undef, "Title 30")
-        expr = result.get_insert_identity(primary_key, primary_values)
+        primary_variables = (Variable(), Variable("Title 30"))
+        expr = result.get_insert_identity(primary_key, primary_variables)
         result = self.connection.execute(Select(Column("title", "test"), expr))
         self.assertEquals(result.get_one(), ("Title 30",))
 
@@ -123,28 +130,38 @@ class DatabaseTest(object):
         self.connection.execute("INSERT INTO datetime_test (dt) VALUES (?)",
                                 (value,))
         result = self.connection.execute("SELECT dt FROM datetime_test")
-        kind = DateTimeKind()
-        result_value = kind.from_database(result.get_one()[0])
+        variable = DateTimeVariable()
+        result.set_variable(variable, result.get_one()[0])
         if not self.supports_microseconds:
             value = value.replace(microsecond=0)
-        self.assertEquals(result_value, value)
+        self.assertEquals(variable.get(), value)
 
     def test_date(self):
         value = date(1977, 4, 5)
         self.connection.execute("INSERT INTO datetime_test (d) VALUES (?)",
                                 (value,))
         result = self.connection.execute("SELECT d FROM datetime_test")
-        kind = DateKind()
-        result_value = kind.from_database(result.get_one()[0])
-        self.assertEquals(result_value, value)
+        variable = DateVariable()
+        result.set_variable(variable, result.get_one()[0])
+        self.assertEquals(variable.get(), value)
 
     def test_time(self):
         value = time(12, 34, 56, 78)
         self.connection.execute("INSERT INTO datetime_test (t) VALUES (?)",
                                 (value,))
         result = self.connection.execute("SELECT t FROM datetime_test")
-        kind = TimeKind()
-        result_value = kind.from_database(result.get_one()[0])
+        variable = TimeVariable()
+        result.set_variable(variable, result.get_one()[0])
         if not self.supports_microseconds:
             value = value.replace(microsecond=0)
-        self.assertEquals(result_value, value)
+        self.assertEquals(variable.get(), value)
+
+    def test_pickle(self):
+        value = {"a": 1, "b": 2}
+        value_dump = pickle.dumps(value, -1)
+        self.connection.execute("INSERT INTO bin_test (b) VALUES (?)",
+                                (value_dump,))
+        result = self.connection.execute("SELECT b FROM bin_test")
+        variable = PickleVariable()
+        result.set_variable(variable, result.get_one()[0])
+        self.assertEquals(variable.get(), value)

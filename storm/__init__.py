@@ -1,0 +1,2 @@
+
+Undef = object()

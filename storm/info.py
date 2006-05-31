@@ -8,6 +8,7 @@
 # <license text goes here>
 #
 from storm.expr import Column, Undef
+from storm.event import EventSystem
 
 
 __all__ = ["get_obj_info", "get_cls_info", "get_info",
@@ -68,56 +69,30 @@ class ClassInfo(dict):
 
 
 class ObjectInfo(dict):
-    """Representation of the state of an object.
-
-    This code does't know about kinds, but considering the current
-    implementation, values manipulated with set/get_value() are in
-    the internal format.
-    """
 
     def __init__(self, obj):
         self.obj = obj
-        self._values = {}
-        self._hooks = {}
+        self.event = EventSystem(self)
+        self.variables = {}
 
-        self._saved_values = None
-        self._saved_hooks = None
-        self._saved_attrs = None
         self._saved_self = None
+        self._saved_attrs = None
 
-        self._checkpoint_values = None
+        variables = self.variables
+        for column in get_cls_info(obj.__class__).columns:
+            variables[column] = column.variable_factory(column=column,
+                                                        event=self.event)
+        
+        cls_info = get_cls_info(obj.__class__)
+        self.primary_vars = tuple(variables[column]
+                                  for column in cls_info.primary_key)
 
-    def get(self, key, default=None, factory=None):
-        try:
-            return self[key]
-        except KeyError:
-            if factory is not None:
-                return self.setdefault(key, factory())
-            return default
-
-    def has_value(self, name):
-        return name in self._values
-
-    def get_value(self, name, default=None):
-        return self._values.get(name, default)
-
-    def set_value(self, name, value, checkpoint=False):
-        old_value = self._values.get(name, Undef)
-        self._values[name] = value
-        if checkpoint:
-            self._checkpoint_values[name] = value
-        if old_value != value:
-            self.emit("changed", name, old_value, value)
-
-    def del_value(self, name):
-        old_value = self._values.pop(name, Undef)
-        if old_value is not Undef:
-            self.emit("changed", name, old_value, Undef)
+        self._variable_sequence = self.variables.values()
 
     def save(self):
-        self._saved_values = self._values.copy()
-        self._checkpoint_values = self._values.copy()
-        self._saved_hooks = self._copy_object(self._hooks)
+        for variable in self._variable_sequence:
+            variable.save()
+        self.event.save()
         self._saved_attrs = self.obj.__dict__.copy()
         self._saved_self = self._copy_object(self)
 
@@ -125,52 +100,16 @@ class ObjectInfo(dict):
         self._saved_attrs = self.obj.__dict__.copy()
 
     def checkpoint(self):
-        self._checkpoint_values = self._values.copy()
+        for variable in self._variable_sequence:
+            variable.checkpoint()
 
     def restore(self):
-        self._values = self._saved_values.copy()
-        self._checkpoint_values = self._saved_values.copy()
-        self._hooks = self._copy_object(self._saved_hooks)
+        for variable in self._variable_sequence:
+            variable.restore()
+        self.event.restore()
         self.obj.__dict__ = self._saved_attrs.copy()
         self.clear()
         self.update(self._saved_self)
-
-    def check_changed(self):
-        return self._values != self._checkpoint_values
-
-    def get_changes(self):
-        changes = {}
-        old_values = self._checkpoint_values
-        new_values = self._values
-        for name in old_values:
-            new_value = new_values.get(name, Undef)
-            if new_value is Undef:
-                changes[name] = Undef
-            elif old_values[name] != new_value:
-                changes[name] = new_value
-        for name in new_values:
-            if name not in old_values:
-                changes[name] = new_values[name]
-        return changes
-
-    def hook(self, name, callback, *data):
-        callbacks = self._hooks.get(name)
-        if callbacks is None:
-            self._hooks.setdefault(name, set()).add((callback, data))
-        else:
-            callbacks.add((callback, data))
-
-    def unhook(self, name, callback, *data):
-        callbacks = self._hooks.get(name)
-        if callbacks is not None:
-            callbacks.discard((callback, data))
-
-    def emit(self, name, *args):
-        callbacks = self._hooks.get(name)
-        if callbacks is not None:
-            for callback, data in callbacks.copy():
-                if callback(self, *(args+data)) is False:
-                    callbacks.discard((callback, data))
 
     def _copy_object(self, obj):
         obj_type = type(obj)

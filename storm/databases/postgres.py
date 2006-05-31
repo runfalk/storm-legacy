@@ -12,30 +12,27 @@ from time import strptime
 
 import psycopg
 
-from storm.expr import Param, Eq, Undef
-from storm.kinds import UnicodeKind
+from storm.expr import And, Eq
+from storm.variables import Variable, UnicodeVariable
 from storm.database import *
 
 
 class PostgresResult(Result):
 
-    def get_insert_identity(self, primary_key, primary_values):
-        where = Undef
-        for prop, value in zip(primary_key, primary_values):
-            if value is Undef:
-                value = "currval('%s_%s_seq')" % (prop.table, prop.name)
-            else:
-                value = Param(value)
-            if where is Undef:
-                where = Eq(prop, value)
-            else:
-                where &= Eq(prop, value)
-        return where
+    def get_insert_identity(self, primary_key, primary_variables):
+        equals = []
+        for column, variable in zip(primary_key, primary_variables):
+            if not variable.is_defined():
+                variable = "currval('%s_%s_seq')" % (column.table, column.name)
+            equals.append(Eq(column, variable))
+        return And(*equals)
 
-    def to_kind(self, value, kind):
-        if isinstance(kind, UnicodeKind):
-            return unicode(value, self._connection._database._encoding)
-        return value
+    def set_variable(self, variable, value):
+        if isinstance(variable, UnicodeVariable):
+            variable.set(unicode(value, self._connection._database._encoding),
+                         from_db=True)
+        else:
+            variable.set(value, from_db=True)
 
 
 class PostgresConnection(Connection):
@@ -43,10 +40,13 @@ class PostgresConnection(Connection):
     _result_factory = PostgresResult
     _param_mark = "%s"
 
-    @staticmethod
-    def _to_database(value):
+    def _to_database(self, value):
+        if isinstance(value, Variable):
+            value = value.get(to_db=True)
         if isinstance(value, (datetime, date, time)):
             return str(value)
+        if isinstance(value, unicode):
+            return value.encode(self._database._encoding)
         return value
 
 

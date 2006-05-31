@@ -8,6 +8,7 @@
 # <license text goes here>
 #
 from storm.expr import Expr, compile
+from storm.variables import Variable
 from storm.uri import URI
 import storm
 
@@ -20,6 +21,9 @@ class Result(object):
     def __init__(self, connection, raw_cursor):
         self._connection = connection # Ensures deallocation order.
         self._raw_cursor = raw_cursor
+
+    def __del__(self):
+        self._raw_cursor.close()
 
     def get_one(self):
         result = self._raw_cursor.fetchone()
@@ -50,12 +54,12 @@ class Result(object):
                 for result in results:
                     yield result
 
-    def get_insert_identity(self, primary_columns, primary_values):
+    def get_insert_identity(self, primary_columns, primary_variables):
         raise NotImplementedError
 
     @staticmethod
-    def to_kind(value, kind):
-        return value
+    def set_variable(variable, value):
+        variable.set(value, from_db=True)
 
     @staticmethod
     def _from_database(value):
@@ -71,6 +75,9 @@ class Connection(object):
     def __init__(self, database, raw_connection):
         self._database = database # Ensures deallocation order.
         self._raw_connection = raw_connection
+
+    def __del__(self):
+        self._raw_connection.close()
 
     def _build_raw_cursor(self):
         return self._raw_connection.cursor()
@@ -101,6 +108,8 @@ class Connection(object):
 
     @staticmethod
     def _to_database(value):
+        if isinstance(value, Variable):
+            return value.get(to_db=True)
         return value
 
 

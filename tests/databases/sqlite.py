@@ -28,6 +28,8 @@ class SQLiteTest(TestHelper, DatabaseTest):
         self.connection.execute("CREATE TABLE datetime_test "
                                 "(id INTEGER PRIMARY KEY,"
                                 " dt TIMESTAMP, d DATE, t TIME)")
+        self.connection.execute("CREATE TABLE bin_test "
+                                "(id INTEGER PRIMARY KEY, b BLOB)")
 
     def drop_tables(self):
         pass

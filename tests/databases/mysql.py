@@ -33,6 +33,9 @@ class MySQLTest(TestHelper, DatabaseTest):
         self.connection.execute("CREATE TABLE datetime_test "
                                 "(id INT AUTO_INCREMENT PRIMARY KEY,"
                                 " dt TIMESTAMP, d DATE, t TIME)")
+        self.connection.execute("CREATE TABLE bin_test "
+                                "(id INT AUTO_INCREMENT PRIMARY KEY,"
+                                " b BLOB)")
 
     def test_wb_create_database(self):
         database = create_database("mysql://un:pw@ht:12/db?unix_socket=us")

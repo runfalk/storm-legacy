@@ -10,7 +10,8 @@
 from copy import copy
 import sys
 
-from storm.kinds import AnyKind
+from storm.variables import Variable
+from storm import Undef
 
 
 # --------------------------------------------------------------------
@@ -99,8 +100,6 @@ class CompilePython(Compile):
         return match
 
 
-Undef = object()
-
 class State(object):
 
     def __init__(self):
@@ -142,6 +141,15 @@ def compile_python_none(compile, state, expr):
     return "None"
 
 
+@compile.when(Variable)
+def compile_variable(compile, state, variable):
+    state.parameters.append(variable)
+    return "?"
+
+@compile_python.when(Variable)
+def compile_python_variable(compile, state, variable):
+    return repr(variable.get())
+
 # --------------------------------------------------------------------
 # Base classes for expressions
 
@@ -158,79 +166,80 @@ def compile_python_unsupported(compile, state, expr):
 class Comparable(object):
 
     def __eq__(self, other):
-        if not isinstance(other, Expr) and other is not None:
-            other = Param(other)
+        if other is not None and not isinstance(other, (Expr, Variable)):
+            other = getattr(self, "variable_factory", Variable)(value=other)
         return Eq(self, other)
 
     def __ne__(self, other):
-        if not isinstance(other, Expr) and other is not None:
-            other = Param(other)
+        if other is not None and not isinstance(other, (Expr, Variable)):
+            other = getattr(self, "variable_factory", Variable)(value=other)
         return Ne(self, other)
 
     def __gt__(self, other):
-        if not isinstance(other, Expr):
-            other = Param(other)
+        if not isinstance(other, (Expr, Variable)):
+            other = getattr(self, "variable_factory", Variable)(value=other)
         return Gt(self, other)
 
     def __ge__(self, other):
-        if not isinstance(other, Expr):
-            other = Param(other)
+        if not isinstance(other, (Expr, Variable)):
+            other = getattr(self, "variable_factory", Variable)(value=other)
         return Ge(self, other)
 
     def __lt__(self, other):
-        if not isinstance(other, Expr):
-            other = Param(other)
+        if not isinstance(other, (Expr, Variable)):
+            other = getattr(self, "variable_factory", Variable)(value=other)
         return Lt(self, other)
 
     def __le__(self, other):
-        if not isinstance(other, Expr):
-            other = Param(other)
+        if not isinstance(other, (Expr, Variable)):
+            other = getattr(self, "variable_factory", Variable)(value=other)
         return Le(self, other)
 
     def __rshift__(self, other):
-        if not isinstance(other, Expr):
-            other = Param(other)
+        if not isinstance(other, (Expr, Variable)):
+            other = getattr(self, "variable_factory", Variable)(value=other)
         return RShift(self, other)
 
     def __lshift__(self, other):
-        if not isinstance(other, Expr):
-            other = Param(other)
+        if not isinstance(other, (Expr, Variable)):
+            other = getattr(self, "variable_factory", Variable)(value=other)
         return LShift(self, other)
 
     def __and__(self, other):
-        if not isinstance(other, Expr):
-            other = Param(other)
+        if not isinstance(other, (Expr, Variable)):
+            other = getattr(self, "variable_factory", Variable)(value=other)
         return And(self, other)
 
     def __or__(self, other):
-        if not isinstance(other, Expr):
-            other = Param(other)
+        if not isinstance(other, (Expr, Variable)):
+            other = getattr(self, "variable_factory", Variable)(value=other)
         return Or(self, other)
 
     def __add__(self, other):
-        if not isinstance(other, Expr):
-            other = Param(other)
+        if not isinstance(other, (Expr, Variable)):
+            other = getattr(self, "variable_factory", Variable)(value=other)
         return Add(self, other)
 
     def __sub__(self, other):
-        if not isinstance(other, Expr):
-            other = Param(other)
+        if not isinstance(other, (Expr, Variable)):
+            other = getattr(self, "variable_factory", Variable)(value=other)
         return Sub(self, other)
 
     def __mul__(self, other):
-        if not isinstance(other, Expr):
-            other = Param(other)
+        if not isinstance(other, (Expr, Variable)):
+            other = getattr(self, "variable_factory", Variable)(value=other)
         return Mul(self, other)
 
     def __div__(self, other):
-        if not isinstance(other, Expr):
-            other = Param(other)
+        if not isinstance(other, (Expr, Variable)):
+            other = getattr(self, "variable_factory", Variable)(value=other)
         return Div(self, other)
     
     def __mod__(self, other):
-        if not isinstance(other, Expr):
-            other = Param(other)
+        if not isinstance(other, (Expr, Variable)):
+            other = getattr(self, "variable_factory", Variable)(value=other)
         return Mod(self, other)
+
 
 class ComparableExpr(Expr, Comparable):
     pass
@@ -392,17 +401,14 @@ def compile_delete(compile, state, delete):
 
 
 # --------------------------------------------------------------------
-# Columns and parameters
+# Columns.
 
 class Column(ComparableExpr):
 
-    def __init__(self, name=Undef, table=Undef, kind=None,
-                 default=Undef, nullable=True):
+    def __init__(self, name=Undef, table=Undef, variable_factory=None):
         self.name = name
         self.table = table
-        self.kind = kind or AnyKind()
-        self.default = default
-        self.nullable = nullable
+        self.variable_factory = variable_factory or Variable
 
 @compile.when(Column)
 def compile_column(compile, state, column):
@@ -415,21 +421,6 @@ def compile_column(compile, state, column):
 @compile_python.when(Column)
 def compile_python_column(compile, state, column):
     return "get_column(%s)" % repr(column.name)
-
-
-class Param(ComparableExpr):
-
-    def __init__(self, value):
-        self.value = value
-
-@compile.when(Param)
-def compile_param(compile, state, param):
-    state.parameters.append(param.value)
-    return "?"
-
-@compile_python.when(Param)
-def compile_python_param(compile, state, param):
-    return repr(param.value)
 
 
 # --------------------------------------------------------------------
@@ -625,13 +616,13 @@ def compare_columns(columns, values):
     equals = []
     if len(columns) == 1:
         value = values[0]
-        if not isinstance(value, Expr) and value is not None:
-            value = Param(value)
+        if not isinstance(value, (Expr, Variable)) and value is not None:
+            value = columns[0].variable_factory(value=value)
         return Eq(columns[0], value)
     else:
         for column, value in zip(columns, values):
-            if not isinstance(value, Expr) and value is not None:
-                value = Param(value)
+            if not isinstance(value, (Expr, Variable)) and value is not None:
+                value = column.variable_factory(value=value)
             equals.append(Eq(column, value))
         return And(*equals)
 

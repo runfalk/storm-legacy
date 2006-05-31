@@ -10,9 +10,11 @@
 from weakref import WeakValueDictionary
 
 from storm.info import get_cls_info, get_obj_info, get_info
-from storm.expr import Select, Insert, Update, Delete, Undef
-from storm.expr import Column, Param, Count, Max, Min, Avg, Sum, Eq, Expr
+from storm.expr import Select, Insert, Update, Delete
+from storm.expr import Column, Count, Max, Min, Avg, Sum, Eq, Expr, And
 from storm.expr import compile_python, compare_columns, CompileError
+from storm.variables import Variable
+from storm import Undef
 
 
 __all__ = ["Store", "StoreError", "ResultSet"]
@@ -88,11 +90,17 @@ class Store(object):
 
         assert len(key) == len(cls_info.primary_key)
 
-        cached = self._cache.get((cls, key))
+        primary_vars = []
+        for column, variable in zip(cls_info.primary_key, key):
+            if not isinstance(variable, Variable):
+                variable = column.variable_factory(value=variable)
+            primary_vars.append(variable)
+
+        cached = self._cache.get((cls, tuple(primary_vars)))
         if cached is not None:
             return cached
-        
-        where = compare_columns(cls_info.primary_key, key)
+
+        where = compare_columns(cls_info.primary_key, primary_vars)
 
         select = Select(cls_info.columns, where,
                         default_tables=cls_info.table, limit=1)
@@ -105,23 +113,16 @@ class Store(object):
 
     def find(self, cls, *args, **kwargs):
         self.flush()
-
         cls_info = get_cls_info(cls)
-
-        where = Undef
-        if args:
-            for arg in args:
-                if where is Undef:
-                    where = arg
-                else:
-                    where &= arg
+        equals = list(args)
         if kwargs:
-            for key in kwargs:
-                if where is Undef:
-                    where = getattr(cls, key) == kwargs[key]
-                else:
-                    where &= getattr(cls, key) == kwargs[key]
-
+            for key, value in kwargs.items():
+                column = getattr(cls, key)
+                equals.append(Eq(column, column.variable_factory(value=value)))
+        if equals:
+            where = And(*equals)
+        else:
+            where = Undef
         return ResultSet(self, cls_info, where)
 
     def add(self, obj):
@@ -171,15 +172,15 @@ class Store(object):
         obj_info, cls_info = get_info(obj)
         if obj_info.get("store") is not self:
             raise StoreError("%r is not in this store" % obj)
-        if "primary_values" not in obj_info:
+        if "primary_vars" not in obj_info:
             raise StoreError("Can't reload an object if it was never flushed")
         where = compare_columns(cls_info.primary_key,
-                                obj_info["primary_values"])
+                                obj_info["primary_vars"])
         select = Select(cls_info.columns, where,
                         default_tables=cls_info.table, limit=1)
         result = self._connection.execute(select)
         values = result.get_one()
-        self._set_values(obj_info, cls_info.columns, result, values), 
+        self._set_values(obj_info, cls_info.columns, result, values)
         obj_info.checkpoint()
         self._set_clean(obj)
 
@@ -230,7 +231,7 @@ class Store(object):
 
         if pending is PENDING_REMOVE:
             expr = Delete(compare_columns(cls_info.primary_key,
-                                          obj_info["primary_values"]),
+                                          obj_info["primary_vars"]),
                           cls_info.table)
             self._connection.execute(expr, noresult=True)
 
@@ -240,22 +241,15 @@ class Store(object):
 
         elif pending is PENDING_ADD:
             columns = []
-            values = []
+            variables = []
 
             for column in cls_info.columns:
-                value = obj_info.get_value(column.name, Undef)
-                if value is Undef:
-                    if column.default is Undef:
-                        continue
-                    value = column.default
-                    # How to test the following line? If it's not set here
-                    # it will be automatically fetched from the database on
-                    # fill_missing_values, so the end result is the same.
-                    obj_info.set_value(column.name, value)
-                columns.append(column)
-                values.append(Param(column.kind.to_database(value)))
+                variable = obj_info.variables[column]
+                if variable.is_defined():
+                    columns.append(column)
+                    variables.append(variable)
 
-            expr = Insert(columns, values, cls_info.table)
+            expr = Insert(columns, variables, cls_info.table)
 
             result = self._connection.execute(expr)
 
@@ -267,19 +261,18 @@ class Store(object):
 
             obj_info.checkpoint()
 
-        elif obj_info.check_changed():
-            changes = obj_info.get_changes()
-            sets = {}
+        else:
 
+            changes = {}
             for column in cls_info.columns:
-                value = changes.get(column.name, Undef)
-                if value is not Undef:
-                    sets[column] = Param(column.kind.to_database(value))
+                variable = obj_info.variables[column]
+                if variable.has_changed() and variable.is_defined():
+                    changes[column] = variable
 
-            if sets:
-                expr = Update(sets,
+            if changes:
+                expr = Update(changes,
                               compare_columns(cls_info.primary_key,
-                                              obj_info["primary_values"]),
+                                              obj_info["primary_vars"]),
                               cls_info.table)
                 self._connection.execute(expr, noresult=True)
 
@@ -287,24 +280,28 @@ class Store(object):
 
             obj_info.checkpoint()
 
-        obj_info.emit("flushed")
+        obj_info.event.emit("flushed")
 
     def _fill_missing_values(self, obj, result):
         obj_info, cls_info = get_info(obj)
 
         missing_columns = []
         for column in cls_info.columns:
-            if not obj_info.has_value(column.name):
+            if not obj_info.variables[column].is_defined():
                 missing_columns.append(column)
 
         if missing_columns:
             primary_key = cls_info.primary_key
-            primary_values = tuple(obj_info.get_value(column.name, Undef)
-                                   for column in primary_key)
-            if Undef in primary_values:
-                where = result.get_insert_identity(primary_key, primary_values)
+            primary_vars = obj_info.primary_vars
+
+            for variable in primary_vars:
+                if not variable.is_defined():
+                    where = result.get_insert_identity(primary_key,
+                                                       primary_vars)
+                    break
             else:
-                where = compare_columns(primary_key, primary_values)
+                where = compare_columns(primary_key, primary_vars)
+
             result = self._connection.execute(Select(missing_columns, where))
 
             self._set_values(obj_info, missing_columns,
@@ -312,8 +309,13 @@ class Store(object):
 
     def _load_object(self, cls_info, result, values, obj=None):
         if obj is None:
-            primary_values = tuple(values[i] for i in cls_info.primary_key_pos)
-            obj = self._cache.get((cls_info.cls, primary_values))
+            primary_vars = []
+            columns = cls_info.columns
+            for i in cls_info.primary_key_pos:
+                variable = columns[i].variable_factory(value=values[i],
+                                                       from_db=True)
+                primary_vars.append(variable)
+            obj = self._cache.get((cls_info.cls, tuple(primary_vars)))
             if obj is not None:
                 return obj
             obj = object.__new__(cls_info.cls)
@@ -337,15 +339,11 @@ class Store(object):
         return obj
 
     def _set_values(self, obj_info, columns, result, values):
-        set_value = obj_info.set_value
-        to_kind = result.to_kind
         for column, value in zip(columns, values):
             if value is None:
-                set_value(column.name, None)
+                obj_info.variables[column].set(value, from_db=True)
             else:
-                kind = column.kind
-                set_value(column.name,
-                          kind.from_database(to_kind(value, kind)))
+                result.set_variable(obj_info.variables[column], value)
 
 
     def _is_dirty(self, obj):
@@ -376,34 +374,34 @@ class Store(object):
 
     def _add_to_cache(self, obj):
         obj_info, cls_info = get_info(obj)
-        old_primary_values = obj_info.get("primary_values")
-        new_primary_values = tuple(obj_info.get_value(prop.name)
-                                   for prop in cls_info.primary_key)
-        if new_primary_values == old_primary_values:
+        old_primary_vars = obj_info.get("primary_vars")
+        if old_primary_vars == obj_info.primary_vars:
             return
-        if old_primary_values is not None:
-            del self._cache[obj.__class__, old_primary_values]
-        self._cache[obj.__class__, new_primary_values] = obj
-        obj_info["primary_values"] = new_primary_values
+        if old_primary_vars is not None:
+            del self._cache[obj.__class__, old_primary_vars]
+        new_primary_vars = tuple(variable.copy()
+                                 for variable in obj_info.primary_vars)
+        self._cache[obj.__class__, new_primary_vars] = obj
+        obj_info["primary_vars"] = new_primary_vars
 
     def _remove_from_cache(self, obj):
         obj_info = get_obj_info(obj)
-        primary_values = obj_info.get("primary_values")
-        if primary_values is not None:
-            del self._cache[obj.__class__, primary_values]
-            del obj_info["primary_values"]
+        primary_vars = obj_info.get("primary_vars")
+        if primary_vars is not None:
+            del self._cache[obj.__class__, primary_vars]
+            del obj_info["primary_vars"]
 
     def _iter_cached(self):
         return self._cache.values()
 
 
     def _enable_change_notification(self, obj):
-        get_obj_info(obj).hook("changed", self._object_changed)
+        get_obj_info(obj).event.hook("changed", self._variable_changed)
 
     def _disable_change_notification(self, obj):
-        get_obj_info(obj).unhook("changed", self._object_changed)
+        get_obj_info(obj).event.unhook("changed", self._variable_changed)
 
-    def _object_changed(self, obj_info, name, old_value, new_value):
+    def _variable_changed(self, obj_info, variable, old_value, new_value):
         if new_value is not Undef:
             self._dirty[id(obj_info.obj)] = obj_info.obj
 
@@ -466,42 +464,29 @@ class ResultSet(object):
         if not (args or kwargs):
             return
 
-        sets = {}
+        changes = {}
         cls = self._cls_info.cls
 
         for expr in args:
             if (not isinstance(expr, Eq) or
                 not isinstance(expr.expr1, Column) or
-                not isinstance(expr.expr2, (Column, Param))):
+                not isinstance(expr.expr2, (Column, Variable))):
                 raise StoreError("Unsupported set expression: %r" % repr(expr))
-            column = expr.expr1
-            if isinstance(expr.expr2, Param):
-                value = expr.expr2.value
-                kind = column.kind
-                value = kind.from_python(value)
-                param = Param(kind.to_database(value))
-                param.parsed_value = value
-                sets[column] = param
-            else:
-                sets[column] = expr.expr2
+            changes[expr.expr1] = expr.expr2
 
         for key, value in kwargs.items():
             column = getattr(cls, key)
             if value is None:
-                sets[column] = None
+                changes[column] = None
             elif isinstance(value, Expr):
                 if not isinstance(value, Column):
                     raise StoreError("Unsupported set expression: %r" %
                                      repr(value))
-                sets[column] = value
+                changes[column] = value
             else:
-                kind = column.kind
-                value = kind.from_python(value)
-                param = Param(kind.to_database(value))
-                param.parsed_value = value
-                sets[column] = param
+                changes[column] = column.variable_factory(value=value)
 
-        expr = Update(sets, self._where, self._cls_info.table)
+        expr = Update(changes, self._where, self._cls_info.table)
         self._store._connection.execute(expr, noresult=True)
 
         try:
@@ -511,16 +496,18 @@ class ResultSet(object):
                 if isinstance(obj, cls):
                     self._store.reload(obj)
         else:
+            changes = changes.items()
             for obj in cached:
-                for column, expr in sets.items():
-                    obj_info = get_obj_info(obj)
-                    if expr is None:
-                        value = None
-                    elif isinstance(expr, Param):
-                        value = expr.parsed_value
+                for column, value in changes:
+                    variables = get_obj_info(obj).variables
+                    if value is None:
+                        pass
+                    elif isinstance(value, Variable):
+                        value = value.get()
                     else:
-                        value = obj_info.get_value(expr.name)
-                    obj_info.set_value(column.name, value, checkpoint=True)
+                        value = variables[value].get()
+                    variables[column].set(value)
+                    variables[column].checkpoint()
 
     def cached(self):
         if self._where is Undef:
@@ -529,7 +516,7 @@ class ResultSet(object):
             match = compile_python(self._where)
             name_to_column = dict((c.name, c) for c in self._cls_info.columns)
             def get_column(name, name_to_column=name_to_column):
-                return name_to_column[name].__get__(obj)
+                return get_obj_info(obj).variables[name_to_column[name]].get()
         objects = []
         cls = self._cls_info.cls
         for obj in self._store._iter_cached():

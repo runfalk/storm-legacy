@@ -1,6 +1,6 @@
 import os
 
-from storm.databases.postgres import Postgres
+from storm.database import create_database
 
 from tests.store.base import StoreTest
 from tests.helper import TestHelper
@@ -17,10 +17,10 @@ class PostgresStoreTest(TestHelper, StoreTest):
         StoreTest.tearDown(self)
 
     def is_supported(self):
-        return bool(os.environ.get("STORM_POSTGRES_DBNAME"))
+        return bool(os.environ.get("STORM_POSTGRES_URI"))
 
     def create_database(self):
-        self.database = Postgres(os.environ["STORM_POSTGRES_DBNAME"])
+        self.database = create_database(os.environ["STORM_POSTGRES_URI"])
 
     def create_tables(self):
         connection = self.database.connect()
@@ -31,6 +31,8 @@ class PostgresStoreTest(TestHelper, StoreTest):
                            "(id SERIAL PRIMARY KEY,"
                            " test_id INTEGER,"
                            " other_title VARCHAR)")
+        connection.execute("CREATE TABLE bin "
+                           "(id SERIAL PRIMARY KEY, bin BYTEA)")
         connection.execute("CREATE TABLE link "
                            "(test_id INTEGER, other_id INTEGER)")
         connection.commit()

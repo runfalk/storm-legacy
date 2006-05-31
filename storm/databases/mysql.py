@@ -8,28 +8,30 @@
 # <license text goes here>
 #
 from datetime import time
+from array import array
 
 import MySQLdb.converters
 import MySQLdb
 
-from storm.expr import Param, Eq, Undef
+from storm.expr import And, Eq 
 from storm.database import *
 
 
 class MySQLResult(Result):
 
-    def get_insert_identity(self, primary_key, primary_values):
-        where = Undef
-        for prop, value in zip(primary_key, primary_values):
-            if value is Undef:
-                value = Param(self._raw_cursor.lastrowid)
-            else:
-                value = Param(value)
-            if where is Undef:
-                where = Eq(prop, value)
-            else:
-                where &= Eq(prop, value)
-        return where
+    def get_insert_identity(self, primary_key, primary_variables):
+        equals = []
+        for column, variable in zip(primary_key, primary_variables):
+            if not variable.is_defined():
+                variable = str(self._raw_cursor.lastrowid)
+            equals.append(Eq(column, variable))
+        return And(*equals)
+
+    @staticmethod
+    def _from_database(value):
+        if isinstance(value, array):
+            return value.tostring()
+        return value
 
 
 class MySQLConnection(Connection):
