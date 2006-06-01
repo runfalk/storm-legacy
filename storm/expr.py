@@ -10,15 +10,13 @@
 from copy import copy
 import sys
 
+from storm.exceptions import CompileError, NoTableError
 from storm.variables import Variable
 from storm import Undef
 
 
 # --------------------------------------------------------------------
 # Basic compiler infrastructure
-
-class CompileError(Exception):
-    pass
 
 class Compile(object):
     """Compiler based on the concept of generic functions."""
@@ -59,8 +57,7 @@ class Compile(object):
                     statement = "(%s)" % statement
                 return statement
         else:
-            raise CompileError("Don't know how to compile %r"
-                               % expr.__class__)
+            raise CompileError("Don't know how to compile %r" % expr.__class__)
 
     def _compile(self, state, expr, join=", "):
         outer_precedence = state.precedence
@@ -276,7 +273,7 @@ def build_tables(compile, state, expr):
         return ", ".join(tables)
     elif expr.default_tables is not Undef:
         return compile(state, expr.default_tables)
-    raise CompileError("Couldn't find any tables")
+    raise NoTableError("Couldn't find any tables")
 
 def build_table(compile, state, expr):
     if expr.table is not Undef:
@@ -290,7 +287,7 @@ def build_table(compile, state, expr):
         return ", ".join(tables)
     elif expr.default_table is not Undef:
         return compile(state, expr.default_table)
-    raise CompileError("Couldn't find any table")
+    raise NoTableError("Couldn't find any table")
 
 
 class Select(Expr):

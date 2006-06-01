@@ -15,6 +15,10 @@ import psycopg
 from storm.expr import And, Eq
 from storm.variables import Variable, UnicodeVariable
 from storm.database import *
+from storm.exceptions import install_exceptions
+
+
+install_exceptions(psycopg)
 
 
 class PostgresResult(Result):

@@ -12,6 +12,10 @@ from pysqlite2 import dbapi2 as sqlite
 
 from storm.variables import Variable
 from storm.database import *
+from storm.exceptions import install_exceptions
+
+
+install_exceptions(sqlite)
 
 
 class SQLiteResult(Result):

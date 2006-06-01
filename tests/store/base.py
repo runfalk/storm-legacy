@@ -6,6 +6,7 @@ from storm.database import Result
 from storm.properties import Int, Str, Unicode, Property, Pickle
 from storm.expr import Asc, Desc, Select, Func
 from storm.variables import Variable, UnicodeVariable, IntVariable
+from storm.exceptions import *
 from storm.store import *
 
 from tests.helper import run_this
@@ -398,16 +399,16 @@ class StoreTest(object):
     def test_add_twice(self):
         obj = Test()
         self.store.add(obj)
-        self.assertRaises(StoreError, self.store.add, obj)
+        self.assertRaises(InStoreError, self.store.add, obj)
 
     def test_add_loaded(self):
         obj = self.store.get(Test, 10)
-        self.assertRaises(StoreError, self.store.add, obj)
+        self.assertRaises(InStoreError, self.store.add, obj)
 
     def test_add_twice_to_wrong_store(self):
         obj = Test()
         self.store.add(obj)
-        self.assertRaises(StoreError, Store(self.database).add, obj)
+        self.assertRaises(InStoreError, Store(self.database).add, obj)
 
     def test_add_checkpoints(self):
         obj = Other()
@@ -521,15 +522,15 @@ class StoreTest(object):
     def test_remove_twice(self):
         obj = self.store.get(Test, 10)
         self.store.remove(obj)
-        self.assertRaises(StoreError, self.store.remove, obj)
+        self.assertRaises(NotInStoreError, self.store.remove, obj)
 
     def test_remove_unknown(self):
         obj = Test()
-        self.assertRaises(StoreError, self.store.remove, obj)
+        self.assertRaises(NotInStoreError, self.store.remove, obj)
 
     def test_remove_from_wrong_store(self):
         obj = self.store.get(Test, 20)
-        self.assertRaises(StoreError, Store(self.database).remove, obj)
+        self.assertRaises(NotInStoreError, Store(self.database).remove, obj)
 
     def test_wb_remove_flush_update_isnt_dirty(self):
         obj = self.store.get(Test, 20)
@@ -990,22 +991,29 @@ class StoreTest(object):
         for variable in get_obj_info(obj).variables.values():
             self.assertFalse(variable.has_changed())
 
+    def test_reload_new(self):
+        obj = Test()
+        obj.id = 40
+        obj.title = "Title 40"
+        self.assertRaises(NotInStoreError, self.store.reload, obj)
+
     def test_reload_new_unflushed(self):
         obj = Test()
         obj.id = 40
         obj.title = "Title 40"
-        self.assertRaises(StoreError, self.store.reload, obj)
+        self.store.add(obj)
+        self.assertRaises(NotFlushedError, self.store.reload, obj)
 
     def test_reload_removed(self):
         obj = self.store.get(Test, 20)
         self.store.remove(obj)
         self.store.flush()
-        self.assertRaises(StoreError, self.store.reload, obj)
+        self.assertRaises(NotInStoreError, self.store.reload, obj)
 
     def test_reload_unknown(self):
         obj = self.store.get(Test, 20)
         store = Store(self.database)
-        self.assertRaises(StoreError, store.reload, obj)
+        self.assertRaises(NotInStoreError, store.reload, obj)
 
     def test_wb_reload_not_dirty(self):
         obj = self.store.get(Test, 20)
@@ -1079,11 +1087,11 @@ class StoreTest(object):
 
     def test_find_set_expr_unsupported(self):
         result = self.store.find(Test, title="Title 20")
-        self.assertRaises(StoreError, result.set, Test.title > "Title 40")
+        self.assertRaises(SetError, result.set, Test.title > "Title 40")
 
     def test_find_set_expr_unsupported_2(self):
         result = self.store.find(Test, title="Title 20")
-        self.assertRaises(StoreError, result.set, Test.title == Func())
+        self.assertRaises(SetError, result.set, Test.title == Func())
 
     def test_wb_find_set_checkpoints(self):
         obj = self.store.get(Other, 200)
@@ -1713,11 +1721,11 @@ class StoreTest(object):
         self.store.add_flush_order(obj5, obj2)
         self.store.add_flush_order(obj5, obj2)
 
-        self.assertRaises(StoreError, self.store.flush)
+        self.assertRaises(OrderLoopError, self.store.flush)
 
         self.store.remove_flush_order(obj5, obj2)
 
-        self.assertRaises(StoreError, self.store.flush)
+        self.assertRaises(OrderLoopError, self.store.flush)
 
         self.store.remove_flush_order(obj5, obj2)
 

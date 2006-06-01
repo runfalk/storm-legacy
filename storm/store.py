@@ -14,14 +14,12 @@ from storm.expr import Select, Insert, Update, Delete
 from storm.expr import Column, Count, Max, Min, Avg, Sum, Eq, Expr, And
 from storm.expr import compile_python, compare_columns, CompileError
 from storm.variables import Variable
+from storm.exceptions import (
+    InStoreError, NotInStoreError, NotFlushedError, OrderLoopError, SetError)
 from storm import Undef
 
 
-__all__ = ["Store", "StoreError", "ResultSet"]
-
-
-class StoreError(Exception):
-    pass
+__all__ = ["Store"]
 
 
 PENDING_ADD = 1
@@ -130,12 +128,12 @@ class Store(object):
 
         store = obj_info.get("store")
         if store is not None and store is not self:
-            raise StoreError("%r is part of another store" % obj)
+            raise InStoreError("%r is part of another store" % obj)
 
         pending = obj_info.get("pending")
 
         if pending is PENDING_ADD:
-            raise StoreError("%r is already scheduled to be added" % obj)
+            raise InStoreError("%r is already scheduled to be added" % obj)
         elif pending is PENDING_REMOVE:
             del obj_info["pending"]
         else:
@@ -144,7 +142,7 @@ class Store(object):
                 obj_info["store"] = self
             else:
                 if not self._is_ghost(obj):
-                    raise StoreError("%r is already in the store" % obj)
+                    raise InStoreError("%r is already in the store" % obj)
                 self._set_alive(obj)
 
             obj_info["pending"] = PENDING_ADD
@@ -154,12 +152,12 @@ class Store(object):
         obj_info = get_obj_info(obj)
 
         if obj_info.get("store") is not self:
-            raise StoreError("%r is not in this store" % obj)
+            raise NotInStoreError("%r is not in this store" % obj)
 
         pending = obj_info.get("pending")
 
         if pending is PENDING_REMOVE:
-            raise StoreError("%r is already scheduled to be removed" % obj)
+            raise NotInStoreError("%r is already scheduled to be removed"%obj)
         elif pending is PENDING_ADD:
             del obj_info["pending"]
             self._set_ghost(obj)
@@ -170,10 +168,11 @@ class Store(object):
 
     def reload(self, obj):
         obj_info, cls_info = get_info(obj)
-        if obj_info.get("store") is not self:
-            raise StoreError("%r is not in this store" % obj)
+        if obj_info.get("store") is not self or self._is_ghost(obj):
+            raise NotInStoreError("%r is not in this store" % obj)
         if "primary_vars" not in obj_info:
-            raise StoreError("Can't reload an object if it was never flushed")
+            raise NotFlushedError("Can't reload an object if it was "
+                                  "never flushed")
         where = compare_columns(cls_info.primary_key,
                                 obj_info["primary_vars"])
         select = Select(cls_info.columns, where,
@@ -216,7 +215,7 @@ class Store(object):
                 else:
                     break # Found an item without dirty predecessors.
             else:
-                raise StoreError("Can't flush due to ordering loop")
+                raise OrderLoopError("Can't flush due to ordering loop")
             self._flush_one(obj)
 
         self._order.clear()
@@ -471,7 +470,7 @@ class ResultSet(object):
             if (not isinstance(expr, Eq) or
                 not isinstance(expr.expr1, Column) or
                 not isinstance(expr.expr2, (Column, Variable))):
-                raise StoreError("Unsupported set expression: %r" % repr(expr))
+                raise SetError("Unsupported set expression: %r" % repr(expr))
             changes[expr.expr1] = expr.expr2
 
         for key, value in kwargs.items():
@@ -480,7 +479,7 @@ class ResultSet(object):
                 changes[column] = None
             elif isinstance(value, Expr):
                 if not isinstance(value, Column):
-                    raise StoreError("Unsupported set expression: %r" %
+                    raise SetError("Unsupported set expression: %r" %
                                      repr(value))
                 changes[column] = value
             else:

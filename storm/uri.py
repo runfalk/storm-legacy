@@ -1,7 +1,13 @@
-
-
-class URIError(Exception):
-    pass
+#
+# Copyright (c) 2006 Canonical
+#
+# Written by Gustavo Niemeyer <gustavo@niemeyer.net>
+#
+# This file is part of Storm Object Relational Mapper.
+#
+# <license text goes here>
+#
+from storm.exceptions import URIError
 
 
 class URI(object):

@@ -15,6 +15,10 @@ import MySQLdb
 
 from storm.expr import And, Eq 
 from storm.database import *
+from storm.exceptions import install_exceptions
+
+
+install_exceptions(MySQLdb)
 
 
 class MySQLResult(Result):

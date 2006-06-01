@@ -309,7 +309,7 @@ class CompileTest(TestHelper):
 
     def test_insert_auto_table_unknown(self):
         expr = Insert(Column("column"), "value")
-        self.assertRaises(CompileError, compile, expr)
+        self.assertRaises(NoTableError, compile, expr)
 
     def test_update(self):
         expr = Update({"column1": "value1", Func1(): Func2()}, table=Func1())
@@ -376,7 +376,7 @@ class CompileTest(TestHelper):
 
     def test_delete_auto_table_unknown(self):
         expr = Delete(Column("column") == 1)
-        self.assertRaises(CompileError, compile, expr)
+        self.assertRaises(NoTableError, compile, expr)
 
     def test_column(self):
         expr = Column("name")
