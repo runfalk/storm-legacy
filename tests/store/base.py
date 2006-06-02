@@ -399,16 +399,18 @@ class StoreTest(object):
     def test_add_twice(self):
         obj = Test()
         self.store.add(obj)
-        self.assertRaises(InStoreError, self.store.add, obj)
+        self.store.add(obj)
+        self.assertEquals(Store.of(obj), self.store)
 
     def test_add_loaded(self):
         obj = self.store.get(Test, 10)
-        self.assertRaises(InStoreError, self.store.add, obj)
+        self.store.add(obj)
+        self.assertEquals(Store.of(obj), self.store)
 
     def test_add_twice_to_wrong_store(self):
         obj = Test()
         self.store.add(obj)
-        self.assertRaises(InStoreError, Store(self.database).add, obj)
+        self.assertRaises(WrongStoreError, Store(self.database).add, obj)
 
     def test_add_checkpoints(self):
         obj = Other()
@@ -522,15 +524,15 @@ class StoreTest(object):
     def test_remove_twice(self):
         obj = self.store.get(Test, 10)
         self.store.remove(obj)
-        self.assertRaises(NotInStoreError, self.store.remove, obj)
+        self.store.remove(obj)
 
     def test_remove_unknown(self):
         obj = Test()
-        self.assertRaises(NotInStoreError, self.store.remove, obj)
+        self.assertRaises(WrongStoreError, self.store.remove, obj)
 
     def test_remove_from_wrong_store(self):
         obj = self.store.get(Test, 20)
-        self.assertRaises(NotInStoreError, Store(self.database).remove, obj)
+        self.assertRaises(WrongStoreError, Store(self.database).remove, obj)
 
     def test_wb_remove_flush_update_isnt_dirty(self):
         obj = self.store.get(Test, 20)
@@ -995,7 +997,7 @@ class StoreTest(object):
         obj = Test()
         obj.id = 40
         obj.title = "Title 40"
-        self.assertRaises(NotInStoreError, self.store.reload, obj)
+        self.assertRaises(WrongStoreError, self.store.reload, obj)
 
     def test_reload_new_unflushed(self):
         obj = Test()
@@ -1008,12 +1010,12 @@ class StoreTest(object):
         obj = self.store.get(Test, 20)
         self.store.remove(obj)
         self.store.flush()
-        self.assertRaises(NotInStoreError, self.store.reload, obj)
+        self.assertRaises(WrongStoreError, self.store.reload, obj)
 
     def test_reload_unknown(self):
         obj = self.store.get(Test, 20)
         store = Store(self.database)
-        self.assertRaises(NotInStoreError, store.reload, obj)
+        self.assertRaises(WrongStoreError, store.reload, obj)
 
     def test_wb_reload_not_dirty(self):
         obj = self.store.get(Test, 20)
@@ -1307,6 +1309,66 @@ class StoreTest(object):
         obj.id = 40
 
         self.assertEquals(other.test_id, None)
+
+    def test_reference_on_added_no_local_store(self):
+        obj = Test()
+        obj.title = "Title 40"
+        self.store.add(obj)
+
+        other = Other()
+        other.id = 400
+        other.other_title = "Title 400"
+        other.test = obj
+
+        self.assertEquals(Store.of(other), self.store)
+        self.assertEquals(Store.of(obj), self.store)
+
+    def test_reference_on_added_no_remote_store(self):
+        obj = Test()
+        obj.title = "Title 40"
+
+        other = Other()
+        other.id = 400
+        other.other_title = "Title 400"
+        self.store.add(other)
+
+        other.test = obj
+
+        self.assertEquals(Store.of(other), self.store)
+        self.assertEquals(Store.of(obj), self.store)
+
+    @run_this
+    def test_reference_on_added_no_store(self):
+        obj = Test()
+        obj.title = "Title 40"
+
+        other = Other()
+        other.id = 400
+        other.other_title = "Title 400"
+        other.test = obj
+
+        self.store.add(other)
+
+        self.assertEquals(Store.of(other), self.store)
+        self.assertEquals(Store.of(obj), self.store)
+
+        self.store.flush()
+
+        self.assertEquals(type(other.test_id), int)
+
+    def test_reference_on_added_wrong_store(self):
+        store = Store(self.database)
+
+        obj = Test()
+        obj.title = "Title 40"
+        store.add(obj)
+
+        other = Other()
+        other.id = 400
+        other.other_title = "Title 400"
+        self.store.add(other)
+
+        self.assertRaises(WrongStoreError, setattr, other, "test", obj)
 
     def test_back_reference(self):
         class MyTest(Test):

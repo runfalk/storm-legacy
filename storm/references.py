@@ -7,7 +7,7 @@
 #
 # <license text goes here>
 #
-from storm.store import Store
+from storm.store import Store, WrongStoreError
 from storm.expr import Undef, compare_columns
 from storm.info import *
 
@@ -142,7 +142,6 @@ class BoundIndirectReferenceSet(object):
 
     def add(self, remote):
         link = self._link_cls()
-        self._store.add(link)
         self._relation1.link(self._local, link, True)
         self._relation2.link(remote, link, True)
 
@@ -176,8 +175,8 @@ class Relation(object):
             else:
                 self.remote_key_is_primary = True
 
-        self._many = many
-        self._on_remote = on_remote
+        self.many = many
+        self.on_remote = on_remote
 
         self._local_columns = {}
 
@@ -204,13 +203,25 @@ class Relation(object):
                      for column in self._get_local_columns(local.__class__))
 
     def link(self, local, remote, set=False):
-        store = Store.of(local) or Store.of(remote)
-        assert store is not None
-
         local_info = get_obj_info(local)
         remote_info = get_obj_info(remote)
 
-        if self._many:
+        local_store = Store.of(local)
+        remote_store = Store.of(remote)
+
+        if local_store is None:
+            if remote_store is None:
+                local_info.event.hook("added", self._add_all, local)
+                remote_info.event.hook("added", self._add_all, local)
+            else:
+                remote_store.add(local)
+                local_store = remote_store
+        elif remote_store is None:
+            local_store.add(remote)
+        elif local_store is not remote_store:
+            raise WrongStoreError("Objects are living in different stores")
+
+        if self.many:
             relations = local_info.get(self)
             if relations is None:
                 local_info[self] = {id(remote): remote}
@@ -222,13 +233,12 @@ class Relation(object):
                 self.unlink(local, old_remote)
             local_info[self] = remote
 
-        track_changes = False
         if set:
             local_vars = local_info.variables
             remote_vars = remote_info.variables
             pairs = zip(self._get_local_columns(local.__class__),
                         self.remote_key)
-            if self._on_remote:
+            if self.on_remote:
                 for local_column, remote_column in pairs:
                     local_var = local_vars[local_column]
                     if not local_var.is_defined():
@@ -236,12 +246,15 @@ class Relation(object):
                     else:
                         remote_vars[remote_column].set(local_var.get())
 
-                if track_changes:
-                    store.add_flush_order(local, remote)
-                    local_info.event.hook("changed",
-                                          self._track_local_changes, remote)
-                    local_info.event.hook("flushed",
-                                          self._break_on_local_flushed, remote)
+                if local_store is not None:
+                    local_store.add_flush_order(local, remote)
+
+                local_info.event.hook("changed",
+                                      self._track_local_changes, remote)
+                local_info.event.hook("flushed",
+                                      self._break_on_local_flushed, remote)
+                #local_info.event.hook("removed",
+                #                      self._break_on_local_removed, remote)
             else:
                 for local_column, remote_column in pairs:
                     remote_var = remote_vars[remote_column]
@@ -250,18 +263,21 @@ class Relation(object):
                     else:
                         local_vars[local_column].set(remote_var.get())
 
-                if track_changes:
-                    store.add_flush_order(remote, local)
-                    remote_info.event.hook("changed",
-                                           self._track_remote_changes, local)
-                    remote_info.event.hook("flushed",
-                                           self._break_on_remote_flushed, local)
+                if local_store is not None:
+                    local_store.add_flush_order(remote, local)
+
+                remote_info.event.hook("changed",
+                                       self._track_remote_changes, local)
+                remote_info.event.hook("flushed",
+                                       self._break_on_remote_flushed, local)
+                #local_info.event.hook("removed",
+                #                      self._break_on_remote_removed, local)
+        else:
+            remote_info.event.hook("changed",
+                                   self._break_on_remote_diverged, local)
 
         local_info.event.hook("changed",
                               self._break_on_local_diverged, remote)
-        if not track_changes:
-            remote_info.event.hook("changed",
-                                   self._break_on_remote_diverged, local)
 
     def unlink(self, local, remote, set=False):
 
@@ -269,7 +285,7 @@ class Relation(object):
         remote_info = get_obj_info(remote)
 
         unhook = False
-        if self._many:
+        if self.many:
             relations = local_info.get(self)
             if (relations is not None and
                 relations.pop(id(remote), None) is not None):
@@ -292,14 +308,17 @@ class Relation(object):
             remote_info.event.unhook("flushed",
                                      self._break_on_remote_flushed, local)
 
-            store = Store.of(local) or Store.of(remote)
-            if self._on_remote:
-                store.remove_flush_order(local, remote)
-            else:
-                store.remove_flush_order(remote, local)
+            remote_info.event.unhook("added", self._add_all, local)
+
+            local_store = Store.of(local)
+            if local_store is not None:
+                if self.on_remote:
+                    local_store.remove_flush_order(local, remote)
+                else:
+                    local_store.remove_flush_order(remote, local)
 
         if set:
-            if self._on_remote:
+            if self.on_remote:
                 remote_vars = remote_info.variables
                 for remote_column in self.remote_key:
                     remote_vars[remote_column].set(None)
@@ -372,6 +391,29 @@ class Relation(object):
     def _break_on_remote_flushed(self, remote_info, local):
         """Break the remote/local relationship on flush."""
         self.unlink(local, remote_info.obj)
+
+    def _add_all(self, obj_info, local):
+        store = Store.of(obj_info.obj)
+        store.add(local)
+        local_info = get_obj_info(local)
+        local_info.event.unhook("added", self._add_all, local)
+
+        def add(remote):
+            get_obj_info(remote).event.unhook("added", self._add_all, local)
+            store.add(remote)
+            if self.on_remote:
+                # XXX UNTESTED
+                raise "Foobar"
+                store.add_flush_order(local, remote)
+            else:
+                store.add_flush_order(remote, local)
+
+        if self.many:
+            # XXX UNTESTED
+            for remote in local_info.get(self):
+                add(remote)
+        else:
+            add(local_info.get(self))
 
     def _get_local_columns(self, local_cls):
         try:
