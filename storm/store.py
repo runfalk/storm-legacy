@@ -124,7 +124,6 @@ class Store(object):
         return ResultSet(self, cls_info, where)
 
     def new(self, cls, *args, **kwargs):
-        # XXX UNTESTED
         obj = cls(*args, **kwargs)
         self.add(obj)
         return obj
@@ -142,7 +141,7 @@ class Store(object):
             pass
         elif pending is PENDING_REMOVE:
             del obj_info["pending"]
-            obj_info.event.emit("added") # XXX UNTESTED
+            # obj_info.event.emit("added")
         else:
             if store is None:
                 obj_info.save()

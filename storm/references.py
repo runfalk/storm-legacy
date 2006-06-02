@@ -7,7 +7,8 @@
 #
 # <license text goes here>
 #
-from storm.store import Store, WrongStoreError
+from storm.exceptions import WrongStoreError, NoStoreError
+from storm.store import Store
 from storm.expr import Undef, compare_columns
 from storm.info import *
 
@@ -58,46 +59,60 @@ class ReferenceSet(object):
     def __get__(self, local, cls=None):
         if local is None:
             return self
-        store = Store.of(local)
-        if store is None:
-            return None
+        #store = Store.of(local)
+        #if store is None:
+        #    return None
         if self._relation2 is None:
-            return BoundReferenceSet(self._relation1, local, store)
+            return BoundReferenceSet(self._relation1, local)
         else:
-            return BoundIndirectReferenceSet(self._relation1, self._relation2,
-                                             local, store)
+            return BoundIndirectReferenceSet(self._relation1,
+                                             self._relation2, local)
 
 
 class BoundReferenceSet(object):
 
-    def __init__(self, relation, local, store):
+    def __init__(self, relation, local):
         self._relation = relation
         self._local = local
-        self._store = store
         self._target_cls = self._relation.remote_cls
 
     def __iter__(self):
+        store = Store.of(self._local)
+        if store is None:
+            raise NoStoreError("Can't perform operation without a store")
         where = self._relation.get_where_for_remote(self._local)
-        return self._store.find(self._target_cls, where).__iter__()
+        return store.find(self._target_cls, where).__iter__()
 
     def find(self, *args, **kwargs):
+        store = Store.of(self._local)
+        if store is None:
+            raise NoStoreError("Can't perform operation without a store")
         where = self._relation.get_where_for_remote(self._local)
-        return self._store.find(self._target_cls, where, *args, **kwargs)
+        return store.find(self._target_cls, where, *args, **kwargs)
 
     def order_by(self, *args):
+        store = Store.of(self._local)
+        if store is None:
+            raise NoStoreError("Can't perform operation without a store")
         where = self._relation.get_where_for_remote(self._local)
-        return self._store.find(self._target_cls, where).order_by(*args)
+        return store.find(self._target_cls, where).order_by(*args)
 
     def count(self):
+        store = Store.of(self._local)
+        if store is None:
+            raise NoStoreError("Can't perform operation without a store")
         where = self._relation.get_where_for_remote(self._local)
-        return self._store.find(self._target_cls, where).count()
+        return store.find(self._target_cls, where).count()
 
     def clear(self):
         set_kwargs = {}
         for remote_column in self._relation.remote_key:
             set_kwargs[remote_column.name] = None
+        store = Store.of(self._local)
+        if store is None:
+            raise NoStoreError("Can't perform operation without a store")
         where = self._relation.get_where_for_remote(self._local)
-        self._store.find(self._target_cls, where).set(**set_kwargs)
+        store.find(self._target_cls, where).set(**set_kwargs)
 
     def add(self, remote):
         self._relation.link(self._local, remote, True)
@@ -108,37 +123,51 @@ class BoundReferenceSet(object):
 
 class BoundIndirectReferenceSet(object):
 
-    def __init__(self, relation1, relation2, local, store):
+    def __init__(self, relation1, relation2, local):
         self._relation1 = relation1
         self._relation2 = relation2
         self._local = local
-        self._store = store
         self._target_cls = relation2.local_cls
         self._link_cls = relation1.remote_cls
 
     def __iter__(self):
+        store = Store.of(self._local)
+        if store is None:
+            raise NoStoreError("Can't perform operation without a store")
         where = (self._relation1.get_where_for_remote(self._local) &
                  self._relation2.get_where_for_join())
-        return self._store.find(self._target_cls, where).__iter__()
+        return store.find(self._target_cls, where).__iter__()
 
     def find(self, *args, **kwargs):
+        store = Store.of(self._local)
+        if store is None:
+            raise NoStoreError("Can't perform operation without a store")
         where = (self._relation1.get_where_for_remote(self._local) &
                  self._relation2.get_where_for_join())
-        return self._store.find(self._target_cls, where, *args, **kwargs)
+        return store.find(self._target_cls, where, *args, **kwargs)
 
     def order_by(self, *args):
+        store = Store.of(self._local)
+        if store is None:
+            raise NoStoreError("Can't perform operation without a store")
         where = (self._relation1.get_where_for_remote(self._local) &
                  self._relation2.get_where_for_join())
-        return self._store.find(self._target_cls, where).order_by(*args)
+        return store.find(self._target_cls, where).order_by(*args)
 
     def count(self):
+        store = Store.of(self._local)
+        if store is None:
+            raise NoStoreError("Can't perform operation without a store")
         where = (self._relation1.get_where_for_remote(self._local) &
                  self._relation2.get_where_for_join())
-        return self._store.find(self._target_cls, where).count()
+        return store.find(self._target_cls, where).count()
 
     def clear(self):
+        store = Store.of(self._local)
+        if store is None:
+            raise NoStoreError("Can't perform operation without a store")
         where = self._relation1.get_where_for_remote(self._local)
-        self._store.find(self._link_cls, where).remove()
+        store.find(self._link_cls, where).remove()
 
     def add(self, remote):
         link = self._link_cls()
@@ -146,9 +175,12 @@ class BoundIndirectReferenceSet(object):
         self._relation2.link(remote, link, True)
 
     def remove(self, remote):
+        store = Store.of(self._local)
+        if store is None:
+            raise NoStoreError("Can't perform operation without a store")
         where = (self._relation1.get_where_for_remote(self._local) &
                  self._relation2.get_where_for_remote(remote))
-        self._store.find(self._link_cls, where).remove()
+        store.find(self._link_cls, where).remove()
 
 
 class Relation(object):
@@ -402,15 +434,12 @@ class Relation(object):
             get_obj_info(remote).event.unhook("added", self._add_all, local)
             store.add(remote)
             if self.on_remote:
-                # XXX UNTESTED
-                raise "Foobar"
                 store.add_flush_order(local, remote)
             else:
                 store.add_flush_order(remote, local)
 
         if self.many:
-            # XXX UNTESTED
-            for remote in local_info.get(self):
+            for remote_id, remote in local_info.get(self).items():
                 add(remote)
         else:
             add(local_info.get(self))

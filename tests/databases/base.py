@@ -124,6 +124,13 @@ class DatabaseTest(object):
         result = self.connection.execute(Select(Column("title", "test"), expr))
         self.assertEquals(result.get_one(), ("Title 30",))
 
+    def test_datetime_with_none(self):
+        value = datetime(1977, 4, 5, 12, 34, 56, 78)
+        self.connection.execute("INSERT INTO datetime_test (dt) VALUES (NULL)")
+        result = self.connection.execute("SELECT dt FROM datetime_test")
+        variable = DateTimeVariable()
+        result.set_variable(variable, result.get_one()[0])
+        self.assertEquals(variable.get(), None)
 
     def test_datetime(self):
         value = datetime(1977, 4, 5, 12, 34, 56, 78)
