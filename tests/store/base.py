@@ -58,6 +58,14 @@ class VariableTest(Test):
     title = Property(None, cls=DecorateVariable)
 
 
+class Proxy(object):
+
+    def __init__(self, obj):
+        self._obj = obj
+
+Proxy.__object_info = property(lambda self: self._obj.__object_info)
+
+
 class StoreTest(object):
 
     def setUp(self):
@@ -549,29 +557,32 @@ class StoreTest(object):
 
     def test_wb_remove_flush_update_isnt_dirty(self):
         obj = self.store.get(Test, 20)
+        obj_info = get_obj_info(obj)
         self.store.remove(obj)
         self.store.flush()
         
         obj.title = "Title 200"
 
-        self.assertTrue(id(obj) not in self.store._dirty)
+        self.assertTrue(obj_info not in self.store._dirty)
 
     def test_wb_remove_rollback_isnt_dirty_or_ghost(self):
         obj = self.store.get(Test, 20)
+        obj_info = get_obj_info(obj)
         self.store.remove(obj)
         self.store.rollback()
 
-        self.assertTrue(id(obj) not in self.store._dirty)
-        self.assertTrue(id(obj) not in self.store._ghosts)
+        self.assertTrue(obj_info not in self.store._dirty)
+        self.assertTrue(obj_info not in self.store._ghosts)
 
     def test_wb_remove_flush_rollback_isnt_dirty_or_ghost(self):
         obj = self.store.get(Test, 20)
+        obj_info = get_obj_info(obj)
         self.store.remove(obj)
         self.store.flush()
         self.store.rollback()
 
-        self.assertTrue(id(obj) not in self.store._dirty)
-        self.assertTrue(id(obj) not in self.store._ghosts)
+        self.assertTrue(obj_info not in self.store._dirty)
+        self.assertTrue(obj_info not in self.store._ghosts)
 
     def test_add_rollback_not_in_store(self):
         obj = Test()
@@ -725,7 +736,7 @@ class StoreTest(object):
         # If changes get committed even with the notification disabled,
         # it means the dirty flag isn't being cleared.
 
-        self.store._disable_change_notification(obj)
+        self.store._disable_change_notification(get_obj_info(obj))
 
         obj.title = "Title 2000"
 
@@ -800,22 +811,25 @@ class StoreTest(object):
 
     def test_wb_add_remove_add(self):
         obj = Test()
+        obj_info = get_obj_info(obj)
         self.store.add(obj)
-        self.assertTrue(id(obj) in self.store._dirty)
+        self.assertTrue(obj_info in self.store._dirty)
         self.store.remove(obj)
-        self.assertTrue(id(obj) not in self.store._dirty)
+        self.assertTrue(obj_info not in self.store._dirty)
         self.store.add(obj)
-        self.assertTrue(id(obj) in self.store._dirty)
+        self.assertTrue(obj_info in self.store._dirty)
         self.assertTrue(Store.of(obj) is self.store)
 
     def test_wb_update_remove_add(self):
         obj = self.store.get(Test, 20)
         obj.title = "Title 200"
 
+        obj_info = get_obj_info(obj)
+
         self.store.remove(obj)
         self.store.add(obj)
 
-        self.assertTrue(id(obj) in self.store._dirty)
+        self.assertTrue(obj_info in self.store._dirty)
 
     def test_sub_class(self):
         class SubTest(Test):
@@ -956,8 +970,9 @@ class StoreTest(object):
 
     def test_wb_remove_prop_not_dirty(self):
         obj = self.store.get(Test, 20)
+        obj_info = get_obj_info(obj)
         del obj.title
-        self.assertTrue(id(obj) not in self.store._dirty)
+        self.assertTrue(obj_info not in self.store._dirty)
 
     def test_flush_with_removed_prop(self):
         obj = self.store.get(Test, 20)
@@ -1032,9 +1047,10 @@ class StoreTest(object):
 
     def test_wb_reload_not_dirty(self):
         obj = self.store.get(Test, 20)
+        obj_info = get_obj_info(obj)
         obj.title = "Title 40"
         self.store.reload(obj)
-        self.assertTrue(id(obj) not in self.store._dirty)
+        self.assertTrue(obj_info not in self.store._dirty)
 
     def test_find_set_empty(self):
         self.store.find(Test, title="Title 20").set()
@@ -1123,6 +1139,17 @@ class StoreTest(object):
         other = self.store.get(Other, 100)
         self.assertTrue(other.test)
         self.assertEquals(other.test.title, "Title 30")
+
+    def test_reference_break_on_local_diverged(self):
+        other = self.store.get(Other, 100)
+        self.assertTrue(other.test)
+        other.test_id = 40
+        self.assertEquals(other.test, None)
+
+    def test_reference_break_on_remote_diverged(self):
+        other = self.store.get(Other, 100)
+        other.test.id = 40
+        self.assertEquals(other.test, None)
 
     def test_reference_on_non_primary_key(self):
         self.store.execute("INSERT INTO other VALUES (400, 40, 'Title 30')")
@@ -2082,3 +2109,29 @@ class StoreTest(object):
 
         obj = self.store.get(MyBlob, 20)
         self.assertEquals(obj.bin["a"], 1)
+
+    def test_unhashable_object(self):
+
+        class DictTest(Test, dict):
+            pass
+
+        obj = self.store.get(DictTest, 20)
+        obj["a"] = 1
+
+        self.assertEquals(obj.items(), [("a", 1)])
+
+        new_obj = DictTest()
+        new_obj.id = 40
+        new_obj.title = "My Title"
+
+        self.store.add(new_obj)
+        self.store.commit()
+
+        self.assertTrue(self.store.get(DictTest, 40) is new_obj)
+
+    def test_proxy(self):
+        obj = self.store.get(Test, 20)
+        proxy = Proxy(obj)
+        self.store.remove(proxy)
+        self.store.flush()
+        self.assertEquals(self.store.get(Test, 20), None)

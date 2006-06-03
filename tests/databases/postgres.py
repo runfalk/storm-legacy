@@ -3,7 +3,7 @@ import os
 
 from storm.databases.postgres import Postgres
 from storm.database import create_database
-from storm.variables import UnicodeVariable
+from storm.variables import UnicodeVariable, DateTimeVariable
 
 from tests.databases.base import DatabaseTest
 from tests.helper import TestHelper
@@ -79,3 +79,10 @@ class PostgresTest(TestHelper, DatabaseTest):
         variable = UnicodeVariable()
         result.set_variable(variable, title)
         self.assertEquals(variable.get(), uni_str)
+
+    def test_datetime_with_none(self):
+        self.connection.execute("INSERT INTO datetime_test (dt) VALUES (NULL)")
+        result = self.connection.execute("SELECT dt FROM datetime_test")
+        variable = DateTimeVariable()
+        result.set_variable(variable, result.get_one()[0])
+        self.assertEquals(variable.get(), None)
