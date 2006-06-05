@@ -76,7 +76,6 @@ class Postgres(Database):
         raw_connection = psycopg.connect(self._dsn)
         return self._connection_factory(self, raw_connection)
 
-# XXX UNTESTED
 def str_or_none(value):
     return value and str(value)
 

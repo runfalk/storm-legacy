@@ -27,6 +27,9 @@ class URIError(StormError):
 class StoreError(StormError):
     pass
 
+class NoStoreError(StormError):
+    pass
+
 class WrongStoreError(StoreError):
     pass
 

@@ -7,7 +7,7 @@
 #
 # <license text goes here>
 #
-from weakref import WeakValueDictionary
+from weakref import WeakValueDictionary, WeakKeyDictionary
 
 from storm.info import get_cls_info, get_obj_info, get_info
 from storm.expr import Select, Insert, Update, Delete
@@ -28,12 +28,14 @@ PENDING_REMOVE = 2
 
 class Store(object):
 
+    _result_set_factory = None
+
     def __init__(self, database):
         self._connection = database.connect()
         self._cache = WeakValueDictionary()
-        self._ghosts = {}
-        self._dirty = {}
-        self._order = {} # (id, id) = count
+        self._ghosts = WeakKeyDictionary()
+        self._dirty = set()
+        self._order = {} # (info, info) = count
 
     @staticmethod
     def of(obj):
@@ -49,30 +51,29 @@ class Store(object):
     def commit(self):
         self.flush()
         self._connection.commit()
-        for obj in self._iter_ghosts():
-            del get_obj_info(obj)["store"]
-        for obj in self._iter_cached():
-            get_obj_info(obj).save()
+        for obj_info in self._iter_ghosts():
+            del obj_info["store"]
+        for obj_info in self._iter_cached():
+            obj_info.save()
         self._ghosts.clear()
 
     def rollback(self):
-        objects = {}
-        for obj in self._iter_dirty():
-            objects[id(obj)] = obj
-        for obj in self._iter_ghosts():
-            objects[id(obj)] = obj
-        for obj in self._iter_cached():
-            objects[id(obj)] = obj
+        infos = set()
+        for obj_info in self._iter_dirty():
+            infos.add(obj_info)
+        for obj_info in self._iter_ghosts():
+            infos.add(obj_info)
+        for obj_info in self._iter_cached():
+            infos.add(obj_info)
 
-        for obj in objects.values():
-            self._remove_from_cache(obj)
+        for obj_info in infos:
+            self._remove_from_cache(obj_info)
 
-            obj_info = get_obj_info(obj)
             obj_info.restore()
 
             if obj_info.get("store") is self:
-                self._add_to_cache(obj)
-                self._enable_change_notification(obj)
+                self._add_to_cache(obj_info)
+                self._enable_change_notification(obj_info)
 
         self._ghosts.clear()
         self._dirty.clear()
@@ -94,9 +95,9 @@ class Store(object):
                 variable = column.variable_factory(value=variable)
             primary_vars.append(variable)
 
-        cached = self._cache.get((cls, tuple(primary_vars)))
-        if cached is not None:
-            return cached
+        obj_info = self._cache.get((cls, tuple(primary_vars)))
+        if obj_info is not None:
+            return obj_info.obj
 
         where = compare_columns(cls_info.primary_key, primary_vars)
 
@@ -121,10 +122,9 @@ class Store(object):
             where = And(*equals)
         else:
             where = Undef
-        return ResultSet(self, cls_info, where)
+        return self._result_set_factory(self, cls_info, where)
 
     def new(self, cls, *args, **kwargs):
-        # XXX UNTESTED
         obj = cls(*args, **kwargs)
         self.add(obj)
         return obj
@@ -134,7 +134,7 @@ class Store(object):
 
         store = obj_info.get("store")
         if store is not None and store is not self:
-            raise WrongStoreError("%r is part of another store" % obj)
+            raise WrongStoreError("%s is part of another store" % repr(obj))
 
         pending = obj_info.get("pending")
 
@@ -142,25 +142,25 @@ class Store(object):
             pass
         elif pending is PENDING_REMOVE:
             del obj_info["pending"]
-            obj_info.event.emit("added") # XXX UNTESTED
+            # obj_info.event.emit("added")
         else:
             if store is None:
                 obj_info.save()
                 obj_info["store"] = self
-            elif not self._is_ghost(obj):
+            elif not self._is_ghost(obj_info):
                 return # It's fine already.
             else:
-                self._set_alive(obj)
+                self._set_alive(obj_info)
 
             obj_info["pending"] = PENDING_ADD
-            self._set_dirty(obj)
+            self._set_dirty(obj_info)
             obj_info.event.emit("added")
 
     def remove(self, obj):
         obj_info = get_obj_info(obj)
 
         if obj_info.get("store") is not self:
-            raise WrongStoreError("%r is not in this store" % obj)
+            raise WrongStoreError("%s is not in this store" % repr(obj))
 
         pending = obj_info.get("pending")
 
@@ -168,38 +168,38 @@ class Store(object):
             pass
         elif pending is PENDING_ADD:
             del obj_info["pending"]
-            self._set_ghost(obj)
-            self._set_clean(obj)
-        elif not self._is_ghost(obj):
+            self._set_ghost(obj_info)
+            self._set_clean(obj_info)
+        elif not self._is_ghost(obj_info):
             obj_info["pending"] = PENDING_REMOVE
-            self._set_dirty(obj)
+            self._set_dirty(obj_info)
 
     def reload(self, obj):
-        obj_info, cls_info = get_info(obj)
-        if obj_info.get("store") is not self or self._is_ghost(obj):
-            raise WrongStoreError("%r is not in this store" % obj)
+        obj_info = get_obj_info(obj)
+        cls_info = obj_info.cls_info
+        if obj_info.get("store") is not self or self._is_ghost(obj_info):
+            raise WrongStoreError("%s is not in this store" % repr(obj))
         if "primary_vars" not in obj_info:
             raise NotFlushedError("Can't reload an object if it was "
                                   "never flushed")
-        where = compare_columns(cls_info.primary_key,
-                                obj_info["primary_vars"])
+        where = compare_columns(cls_info.primary_key, obj_info["primary_vars"])
         select = Select(cls_info.columns, where,
                         default_tables=cls_info.table, limit=1)
         result = self._connection.execute(select)
         values = result.get_one()
         self._set_values(obj_info, cls_info.columns, result, values)
         obj_info.checkpoint()
-        self._set_clean(obj)
+        self._set_clean(obj_info)
 
     def add_flush_order(self, before, after):
-        pair = (id(before), id(after))
+        pair = (get_obj_info(before), get_obj_info(after))
         try:
             self._order[pair] += 1
         except KeyError:
             self._order[pair] = 1
 
     def remove_flush_order(self, before, after):
-        pair = (id(before), id(after))
+        pair = (get_obj_info(before), get_obj_info(after))
         try:
             self._order[pair] -= 1
         except KeyError:
@@ -207,32 +207,30 @@ class Store(object):
 
     def flush(self):
         predecessors = {}
-        for (before, after), n in self._order.iteritems():
+        for (before_info, after_info), n in self._order.iteritems():
             if n > 0:
-                before_set = predecessors.get(after)
+                before_set = predecessors.get(after_info)
                 if before_set is None:
-                    predecessors[after] = set((before,))
+                    predecessors[after_info] = set((before_info,))
                 else:
-                    before_set.add(before)
+                    before_set.add(before_info)
 
         while self._dirty:
-            for obj_id, obj in self._dirty.iteritems():
-                for before in predecessors.get(obj_id, ()):
-                    if before in self._dirty:
+            for obj_info in self._dirty:
+                for before_info in predecessors.get(obj_info, ()):
+                    if before_info in self._dirty:
                         break # A predecessor is still dirty.
                 else:
                     break # Found an item without dirty predecessors.
             else:
                 raise OrderLoopError("Can't flush due to ordering loop")
-            self._flush_one(obj)
+            self._dirty.discard(obj_info)
+            self._flush_one(obj_info)
 
         self._order.clear()
 
-    def _flush_one(self, obj):
-        if self._dirty.pop(id(obj), None) is None:
-            return
-
-        obj_info, cls_info = get_info(obj)
+    def _flush_one(self, obj_info):
+        cls_info = obj_info.cls_info
 
         pending = obj_info.pop("pending", None)
 
@@ -242,9 +240,9 @@ class Store(object):
                           cls_info.table)
             self._connection.execute(expr, noresult=True)
 
-            self._disable_change_notification(obj)
-            self._set_ghost(obj)
-            self._remove_from_cache(obj)
+            self._disable_change_notification(obj_info)
+            self._set_ghost(obj_info)
+            self._remove_from_cache(obj_info)
 
         elif pending is PENDING_ADD:
             columns = []
@@ -260,11 +258,11 @@ class Store(object):
 
             result = self._connection.execute(expr)
 
-            self._fill_missing_values(obj, result)
+            self._fill_missing_values(obj_info, result)
 
-            self._enable_change_notification(obj)
-            self._set_alive(obj)
-            self._add_to_cache(obj)
+            self._enable_change_notification(obj_info)
+            self._set_alive(obj_info)
+            self._add_to_cache(obj_info)
 
             obj_info.checkpoint()
 
@@ -283,14 +281,14 @@ class Store(object):
                               cls_info.table)
                 self._connection.execute(expr, noresult=True)
 
-                self._add_to_cache(obj)
+                self._add_to_cache(obj_info)
 
             obj_info.checkpoint()
 
         obj_info.event.emit("flushed")
 
-    def _fill_missing_values(self, obj, result):
-        obj_info, cls_info = get_info(obj)
+    def _fill_missing_values(self, obj_info, result):
+        cls_info = obj_info.cls_info
 
         missing_columns = []
         for column in cls_info.columns:
@@ -322,10 +320,10 @@ class Store(object):
                 variable = columns[i].variable_factory(value=values[i],
                                                        from_db=True)
                 primary_vars.append(variable)
-            obj = self._cache.get((cls_info.cls, tuple(primary_vars)))
-            if obj is not None:
-                return obj
-            obj = object.__new__(cls_info.cls)
+            obj_info = self._cache.get((cls_info.cls, tuple(primary_vars)))
+            if obj_info is not None:
+                return obj_info.obj
+            obj = cls_info.cls.__new__(cls_info.cls)
 
         obj_info = get_obj_info(obj)
         obj_info["store"] = self
@@ -334,8 +332,8 @@ class Store(object):
 
         obj_info.save()
 
-        self._add_to_cache(obj)
-        self._enable_change_notification(obj)
+        self._add_to_cache(obj_info)
+        self._enable_change_notification(obj_info)
 
         load = getattr(obj, "__load__", None)
         if load is not None:
@@ -353,64 +351,63 @@ class Store(object):
                 result.set_variable(obj_info.variables[column], value)
 
 
-    def _is_dirty(self, obj):
-        return id(obj) in self._dirty
+    def _is_dirty(self, obj_info):
+        return obj_info in self._dirty
 
-    def _set_dirty(self, obj):
-        self._dirty[id(obj)] = obj
+    def _set_dirty(self, obj_info):
+        self._dirty.add(obj_info)
 
-    def _set_clean(self, obj):
-        self._dirty.pop(id(obj), None)
+    def _set_clean(self, obj_info):
+        self._dirty.discard(obj_info)
 
     def _iter_dirty(self):
-        return self._dirty.itervalues()
+        return self._dirty
 
 
-    def _is_ghost(self, obj):
-        return id(obj) in self._ghosts
+    def _is_ghost(self, obj_info):
+        return obj_info in self._ghosts
 
-    def _set_ghost(self, obj):
-        self._ghosts[id(obj)] = obj
+    def _set_ghost(self, obj_info):
+        self._ghosts[obj_info] = True
 
-    def _set_alive(self, obj):
-        self._ghosts.pop(id(obj), None)
+    def _set_alive(self, obj_info):
+        self._ghosts.pop(obj_info, None)
 
     def _iter_ghosts(self):
-        return self._ghosts.itervalues()
+        return self._ghosts.keys()
 
 
-    def _add_to_cache(self, obj):
-        obj_info, cls_info = get_info(obj)
+    def _add_to_cache(self, obj_info):
+        cls_info = obj_info.cls_info
         old_primary_vars = obj_info.get("primary_vars")
         if old_primary_vars == obj_info.primary_vars:
             return
         if old_primary_vars is not None:
-            del self._cache[obj.__class__, old_primary_vars]
+            del self._cache[cls_info.cls, old_primary_vars]
         new_primary_vars = tuple(variable.copy()
                                  for variable in obj_info.primary_vars)
-        self._cache[obj.__class__, new_primary_vars] = obj
+        self._cache[cls_info.cls, new_primary_vars] = obj_info
         obj_info["primary_vars"] = new_primary_vars
 
-    def _remove_from_cache(self, obj):
-        obj_info = get_obj_info(obj)
+    def _remove_from_cache(self, obj_info):
         primary_vars = obj_info.get("primary_vars")
         if primary_vars is not None:
-            del self._cache[obj.__class__, primary_vars]
+            del self._cache[obj_info.cls_info.cls, primary_vars]
             del obj_info["primary_vars"]
 
     def _iter_cached(self):
         return self._cache.values()
 
 
-    def _enable_change_notification(self, obj):
-        get_obj_info(obj).event.hook("changed", self._variable_changed)
+    def _enable_change_notification(self, obj_info):
+        obj_info.event.hook("changed", self._variable_changed)
 
-    def _disable_change_notification(self, obj):
-        get_obj_info(obj).event.unhook("changed", self._variable_changed)
+    def _disable_change_notification(self, obj_info):
+        obj_info.event.unhook("changed", self._variable_changed)
 
     def _variable_changed(self, obj_info, variable, old_value, new_value):
         if new_value is not Undef:
-            self._dirty[id(obj_info.obj)] = obj_info.obj
+            self._dirty.add(obj_info)
 
 
 class ResultSet(object):
@@ -499,9 +496,9 @@ class ResultSet(object):
         try:
             cached = self.cached()
         except CompileError:
-            for obj in self._store._iter_cached():
-                if isinstance(obj, cls):
-                    self._store.reload(obj)
+            for obj_info in self._store._iter_cached():
+                if isinstance(obj_info.obj, cls):
+                    self._store.reload(obj_info.obj)
         else:
             changes = changes.items()
             for obj in cached:
@@ -523,10 +520,14 @@ class ResultSet(object):
             match = compile_python(self._where)
             name_to_column = dict((c.name, c) for c in self._cls_info.columns)
             def get_column(name, name_to_column=name_to_column):
-                return get_obj_info(obj).variables[name_to_column[name]].get()
+                return obj_info.variables[name_to_column[name]].get()
         objects = []
         cls = self._cls_info.cls
-        for obj in self._store._iter_cached():
-            if isinstance(obj, cls) and (match is None or match(get_column)):
-                objects.append(obj)
+        for obj_info in self._store._iter_cached():
+            if (obj_info.cls_info is self._cls_info and
+                (match is None or match(get_column))):
+                objects.append(obj_info.obj)
         return objects
+
+
+Store._result_set_factory = ResultSet

@@ -70,6 +70,8 @@ class ClassInfo(dict):
 
 class ObjectInfo(dict):
 
+    __hash__ = object.__hash__
+
     def __init__(self, obj):
         self.obj = obj
         self.event = EventSystem(self)
@@ -78,14 +80,15 @@ class ObjectInfo(dict):
         self._saved_self = None
         self._saved_attrs = None
 
+        self.cls_info = get_cls_info(obj.__class__)
+
         variables = self.variables
-        for column in get_cls_info(obj.__class__).columns:
+        for column in self.cls_info.columns:
             variables[column] = column.variable_factory(column=column,
                                                         event=self.event)
         
-        cls_info = get_cls_info(obj.__class__)
         self.primary_vars = tuple(variables[column]
-                                  for column in cls_info.primary_key)
+                                  for column in self.cls_info.primary_key)
 
         self._variable_sequence = self.variables.values()
 
@@ -94,7 +97,7 @@ class ObjectInfo(dict):
             variable.save()
         self.event.save()
         self._saved_attrs = self.obj.__dict__.copy()
-        self._saved_self = self._copy_object(self)
+        self._saved_self = self._copy_object(self.items())
 
     def save_attributes(self):
         self._saved_attrs = self.obj.__dict__.copy()
@@ -113,11 +116,10 @@ class ObjectInfo(dict):
 
     def _copy_object(self, obj):
         obj_type = type(obj)
-        if obj_type in (dict, ObjectInfo):
+        if obj_type is dict:
             return dict(((self._copy_object(key), self._copy_object(value))
                          for key, value in obj.iteritems()))
         elif obj_type in (tuple, set, list):
             return obj_type(self._copy_object(subobj) for subobj in obj)
         else:
             return obj
-
