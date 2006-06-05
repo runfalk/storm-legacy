@@ -46,7 +46,7 @@ class ClassInfo(dict):
 
         pairs = []
         for attr in dir(cls):
-            column = getattr(cls, attr)
+            column = getattr(cls, attr, None)
             if isinstance(column, Column):
                 pairs.append((attr, column))
         pairs.sort()

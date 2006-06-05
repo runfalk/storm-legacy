@@ -27,10 +27,7 @@ class URIError(StormError):
 class StoreError(StormError):
     pass
 
-class InStoreError(StoreError):
-    pass
-
-class NotInStoreError(StoreError):
+class WrongStoreError(StoreError):
     pass
 
 class NotFlushedError(StoreError):

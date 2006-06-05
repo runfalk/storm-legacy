@@ -15,7 +15,7 @@ from storm.expr import Column, Count, Max, Min, Avg, Sum, Eq, Expr, And
 from storm.expr import compile_python, compare_columns, CompileError
 from storm.variables import Variable
 from storm.exceptions import (
-    InStoreError, NotInStoreError, NotFlushedError, OrderLoopError, SetError)
+    WrongStoreError, NotFlushedError, OrderLoopError, SetError)
 from storm import Undef
 
 
@@ -123,53 +123,61 @@ class Store(object):
             where = Undef
         return ResultSet(self, cls_info, where)
 
+    def new(self, cls, *args, **kwargs):
+        # XXX UNTESTED
+        obj = cls(*args, **kwargs)
+        self.add(obj)
+        return obj
+
     def add(self, obj):
         obj_info = get_obj_info(obj)
 
         store = obj_info.get("store")
         if store is not None and store is not self:
-            raise InStoreError("%r is part of another store" % obj)
+            raise WrongStoreError("%r is part of another store" % obj)
 
         pending = obj_info.get("pending")
 
         if pending is PENDING_ADD:
-            raise InStoreError("%r is already scheduled to be added" % obj)
+            pass
         elif pending is PENDING_REMOVE:
             del obj_info["pending"]
+            obj_info.event.emit("added") # XXX UNTESTED
         else:
             if store is None:
                 obj_info.save()
                 obj_info["store"] = self
+            elif not self._is_ghost(obj):
+                return # It's fine already.
             else:
-                if not self._is_ghost(obj):
-                    raise InStoreError("%r is already in the store" % obj)
                 self._set_alive(obj)
 
             obj_info["pending"] = PENDING_ADD
             self._set_dirty(obj)
+            obj_info.event.emit("added")
 
     def remove(self, obj):
         obj_info = get_obj_info(obj)
 
         if obj_info.get("store") is not self:
-            raise NotInStoreError("%r is not in this store" % obj)
+            raise WrongStoreError("%r is not in this store" % obj)
 
         pending = obj_info.get("pending")
 
         if pending is PENDING_REMOVE:
-            raise NotInStoreError("%r is already scheduled to be removed"%obj)
+            pass
         elif pending is PENDING_ADD:
             del obj_info["pending"]
             self._set_ghost(obj)
             self._set_clean(obj)
-        else:
+        elif not self._is_ghost(obj):
             obj_info["pending"] = PENDING_REMOVE
             self._set_dirty(obj)
 
     def reload(self, obj):
         obj_info, cls_info = get_info(obj)
         if obj_info.get("store") is not self or self._is_ghost(obj):
-            raise NotInStoreError("%r is not in this store" % obj)
+            raise WrongStoreError("%r is not in this store" % obj)
         if "primary_vars" not in obj_info:
             raise NotFlushedError("Can't reload an object if it was "
                                   "never flushed")

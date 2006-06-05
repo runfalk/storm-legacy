@@ -76,8 +76,12 @@ class Postgres(Database):
         raw_connection = psycopg.connect(self._dsn)
         return self._connection_factory(self, raw_connection)
 
+# XXX UNTESTED
+def str_or_none(value):
+    return value and str(value)
 
-psycopg.register_type(psycopg.new_type(psycopg.DATETIME.values, "DT", str))
+psycopg.register_type(psycopg.new_type(psycopg.DATETIME.values,
+                                       "DT", str_or_none))
 
 
 def create_from_uri(uri):
