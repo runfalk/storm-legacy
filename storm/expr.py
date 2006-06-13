@@ -237,6 +237,15 @@ class Comparable(object):
             other = getattr(self, "variable_factory", Variable)(value=other)
         return Mod(self, other)
 
+    def is_in(self, others):
+        # FIXME others should support non-list argument
+        others = list(others)
+        variable_factory = getattr(self, "variable_factory", Variable)
+        for i, other in enumerate(others):
+            if not isinstance(other, (Expr, Variable)):
+                others[i] = variable_factory(value=other)
+        return In(self, others)
+
 
 class ComparableExpr(Expr, Comparable):
     pass

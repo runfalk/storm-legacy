@@ -74,7 +74,7 @@ class StoreTest(object):
         self.create_tables()
         self.create_sample_data()
         self.create_store()
-
+    
     def tearDown(self):
         self.drop_store()
         self.drop_sample_data()
@@ -111,6 +111,10 @@ class StoreTest(object):
 
     def drop_store(self):
         self.store.rollback()
+
+        # Closing the store is needed because testcase objects are all
+        # instantiated at once, and thus connections are kept open.
+        self.store.close()
 
     def drop_sample_data(self):
         pass
@@ -273,6 +277,26 @@ class StoreTest(object):
                           (20, "Title 20"),
                           (30, "Title 10"),
                          ])
+
+    def test_find_slice(self):
+        result = self.store.find(Test).order_by(Test.title)[1:2]
+        lst = [(obj.id, obj.title) for obj in result]
+        self.assertEquals(lst,
+                          [(20, "Title 20")])
+
+    def test_find_offset(self):
+        result = self.store.find(Test).order_by(Test.title)[1:]
+        lst = [(obj.id, obj.title) for obj in result]
+        self.assertEquals(lst, 
+                          [(20, "Title 20"),
+                           (10, "Title 30")])
+
+    def test_find_limit(self):
+        result = self.store.find(Test).order_by(Test.title)[:2]
+        lst = [(obj.id, obj.title) for obj in result]
+        self.assertEquals(lst, 
+                          [(30, "Title 10"),
+                           (20, "Title 20")])
 
     def test_find_one(self, *args):
         obj = self.store.find(Test).order_by(Test.title).one()

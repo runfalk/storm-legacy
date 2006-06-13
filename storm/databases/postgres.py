@@ -87,3 +87,16 @@ def create_from_uri(uri):
     return Postgres(uri.database, uri.host, uri.port,
                     uri.username, uri.password, uri.options.get("encoding"))
 
+# FIXME Make Postgres constructor use that one.
+def make_dsn(uri):
+    """Convert a URI object to a PostgreSQL DSN string."""
+    dsn = "dbname=%s" % uri.database
+    if uri.host is not None:
+        dsn += " host=%s" % uri.host
+    if uri.port is not None:
+        dsn += " port=%d" % uri.port
+    if uri.username is not None:
+        dsn += " user=%s" % uri.username
+    if uri.password is not None:
+        dsn += " password=%s" % uri.password
+    return dsn

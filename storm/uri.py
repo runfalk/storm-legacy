@@ -22,12 +22,18 @@ class URI(object):
         self.scheme = scheme
         self.options = {}
 
+    def copy(self): # XXX UNTESTED
+        uri = object.__new__(self.__class__)
+        uri.__dict__.update(self.__dict__)
+        uri.options = self.options.copy()
+        return uri
+
     @classmethod
     def parse(cls, uri_str):
         try:
             scheme, rest = uri_str.split(":", 1)
         except ValueError:
-            raise URIError("URI has no scheme")
+            raise URIError("URI has no scheme: %s" % repr(uri_str))
         uri = cls(scheme)
         if "?" in rest:
             rest, options = rest.split("?", 1)

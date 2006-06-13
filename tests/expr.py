@@ -407,6 +407,12 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, "func1() = ?")
         self.assertEquals(parameters, [Variable("value")])
 
+    def test_is_in(self):
+        expr = Func1().is_in(["Hello", "World"])
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "func1() IN (?, ?)")
+        self.assertEquals(parameters, [Variable("Hello"), Variable("World")])
+
     def test_eq_none(self):
         expr = Func1() == None
 
