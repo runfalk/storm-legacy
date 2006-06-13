@@ -7,15 +7,27 @@
 #
 # <license text goes here>
 #
+import sys
+
 from datetime import datetime, date, time
 from pysqlite2 import dbapi2 as sqlite
 
 from storm.variables import Variable
 from storm.database import *
 from storm.exceptions import install_exceptions
+from storm.expr import compile, Select, compile_select, Undef
 
 
 install_exceptions(sqlite)
+
+
+compile = compile.copy()
+
+@compile.when(Select)
+def compile_select_sqlite(compile, state, select):
+    if select.offset is not Undef and select.limit is Undef:
+        select.limit = sys.maxint
+    return compile_select(compile, state, select)
 
 
 class SQLiteResult(Result):
@@ -32,6 +44,7 @@ class SQLiteResult(Result):
 class SQLiteConnection(Connection):
 
     _result_factory = SQLiteResult
+    _compile = compile
 
     def _to_database(self, value):
         if isinstance(value, Variable):

@@ -48,6 +48,10 @@ class Store(object):
         self.flush()
         return self._connection.execute(statement, params, noresult)
 
+    def close(self):
+        # XXX UNTESTED
+        self._connection.close()
+
     def commit(self):
         self.flush()
         self._connection.commit()
@@ -378,12 +382,11 @@ class Store(object):
 
 
     def _add_to_cache(self, obj_info):
+        # XXX WRITE A TEST EXPLORING THE PROBLEM.
         cls_info = obj_info.cls_info
         old_primary_vars = obj_info.get("primary_vars")
-        if old_primary_vars == obj_info.primary_vars:
-            return
         if old_primary_vars is not None:
-            del self._cache[cls_info.cls, old_primary_vars]
+            self._cache.pop((cls_info.cls, old_primary_vars), None)
         new_primary_vars = tuple(variable.copy()
                                  for variable in obj_info.primary_vars)
         self._cache[cls_info.cls, new_primary_vars] = obj_info
@@ -412,19 +415,47 @@ class Store(object):
 
 class ResultSet(object):
 
-    def __init__(self, store, cls_info, where, order_by=Undef):
+    def __init__(self, store, cls_info, where, order_by=Undef, 
+                 offset=Undef, limit=Undef):
         self._store = store
         self._cls_info = cls_info
         self._where = where
         self._order_by = order_by
+        self._offset = offset
+        self._limit = limit
 
     def __iter__(self):
         select = Select(self._cls_info.columns, self._where,
                         default_tables=self._cls_info.table,
-                        order_by=self._order_by, distinct=True)
+                        order_by=self._order_by, distinct=True,
+                        offset=self._offset, limit=self._limit)
         result = self._store._connection.execute(select)
         for values in result:
             yield self._store._load_object(self._cls_info, result, values)
+
+    def __getitem__(self, fromto):
+        # XXX FIXME TESTME: Add a test for order_by + offset + limit + boom!
+        # XXX FIXME TESTME: Slicing a sliced resultset
+        # XXX FIXME TESTME: Non-slice fromto
+        if not isinstance(fromto, slice):
+            raise IndexError("Can't index ResultSets with non-slices: %r"
+                             % (fromto,))
+        if fromto.step is not None:
+            raise IndexError("Don't understand stepped slices: %r"
+                             % (fromto.step,))
+        if fromto.stop is not None:
+            if fromto.start is not None:
+                limit = fromto.stop - fromto.start
+            else:
+                limit = fromto.stop
+        else:
+            limit = Undef
+        if fromto.start is not None:
+            offset = fromto.start
+        else:
+            offset = Undef
+        return self.__class__(self._store, self._cls_info, self._where,
+                              self._order_by, offset, limit)
 
     def _aggregate(self, column):
         select = Select(column, self._where, order_by=self._order_by,
@@ -442,9 +473,11 @@ class ResultSet(object):
         return None
 
     def order_by(self, *args):
-        return self.__class__(self._store, self._cls_info, self._where, args)
+        return self.__class__(self._store, self._cls_info, self._where, args,
+                              self._offset, self._limit)
 
     def remove(self):
+        # XXX TODO STORM: Raise exceptions when removing a sliced resultset
         self._store._connection.execute(Delete(self._where,
                                                self._cls_info.table),
                                         noresult=True)
@@ -528,6 +561,12 @@ class ResultSet(object):
                 (match is None or match(get_column))):
                 objects.append(obj_info.obj)
         return objects
+
+    # FIXME Implement it meaningfully.
+    first = one
+
+
+    # TODO Implement last() with order_by + inverted logic of Asc/Desc.
 
 
 Store._result_set_factory = ResultSet

@@ -9,6 +9,7 @@
 #
 from storm.expr import Expr, compile
 from storm.variables import Variable
+from storm.exceptions import Error
 from storm.uri import URI
 import storm
 
@@ -18,12 +19,25 @@ __all__ = ["Database", "Connection", "Result", "convert_param_marks"]
 
 class Result(object):
 
+    _closed = False
+
     def __init__(self, connection, raw_cursor):
         self._connection = connection # Ensures deallocation order.
         self._raw_cursor = raw_cursor
 
     def __del__(self):
-        self._raw_cursor.close()
+        if not self._closed:
+            try:
+                self._raw_cursor.close()
+            except Error: # XXX UNTESTED
+                pass
+
+    def close(self):
+        # XXX UNTESTED
+        if not self._closed:
+            self._closed = True
+            self._raw_cursor.close()
+            self._raw_cursor = None
 
     def get_one(self):
         result = self._raw_cursor.fetchone()
@@ -72,12 +86,18 @@ class Connection(object):
     _param_mark = "?"
     _compile = compile
 
+    _closed = False
+
     def __init__(self, database, raw_connection):
         self._database = database # Ensures deallocation order.
         self._raw_connection = raw_connection
 
     def __del__(self):
-        self._raw_connection.close()
+        if not self._closed:
+            try:
+                self._raw_connection.close()
+            except Error: # XXX UNTESTED
+                pass
 
     def _build_raw_cursor(self):
         return self._raw_connection.cursor()
@@ -99,6 +119,13 @@ class Connection(object):
             raw_cursor.close()
             return None
         return self._result_factory(self, raw_cursor)
+
+    def close(self):
+        # XXX UNTESTED
+        if not self._closed:
+            self._closed = True
+            self._raw_connection.close()
+            self._raw_connection = None
 
     def commit(self):
         self._raw_connection.commit()
@@ -131,8 +158,9 @@ def convert_param_marks(statement, from_param_mark, to_param_mark):
     return "'".join(tokens)
 
 
-def create_database(uri_str):
-    uri = URI.parse(uri_str)
+def create_database(uri):
+    if isinstance(uri, basestring): # XXX UNTESTED
+        uri = URI.parse(uri)
     module = __import__("%s.databases.%s" % (storm.__name__, uri.scheme),
                         None, None, [""])
     return module.create_from_uri(uri)

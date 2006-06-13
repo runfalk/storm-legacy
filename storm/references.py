@@ -49,12 +49,13 @@ class Reference(object):
 class ReferenceSet(object):
 
     def __init__(self, local_key1, remote_key1,
-                 remote_key2=None, local_key2=None):
+                 remote_key2=None, local_key2=None, order_by=None):
         self._relation1 = Relation(local_key1, remote_key1, True, True)
         if local_key2 and remote_key2:
             self._relation2 = Relation(local_key2, remote_key2, True, True)
         else:
             self._relation2 = None
+        self._order_by = order_by
 
     def __get__(self, local, cls=None):
         if local is None:
@@ -63,32 +64,45 @@ class ReferenceSet(object):
         #if store is None:
         #    return None
         if self._relation2 is None:
-            return BoundReferenceSet(self._relation1, local)
+            return BoundReferenceSet(self._relation1, local, self._order_by)
         else:
             return BoundIndirectReferenceSet(self._relation1,
-                                             self._relation2, local)
+                                             self._relation2, local,
+                                             self._order_by)
 
 
 class BoundReferenceSet(object):
 
-    def __init__(self, relation, local):
+    def __init__(self, relation, local, order_by):
         self._relation = relation
         self._local = local
         self._target_cls = self._relation.remote_cls
+        self._order_by = order_by # XXX UNTESTED
 
     def __iter__(self):
         store = Store.of(self._local)
         if store is None:
             raise NoStoreError("Can't perform operation without a store")
         where = self._relation.get_where_for_remote(self._local)
-        return store.find(self._target_cls, where).__iter__()
+        result = store.find(self._target_cls, where)
+        if self._order_by is not None:
+            # XXX UNTESTED
+            result = result.order_by(self._order_by)
+        return result.__iter__()
 
     def find(self, *args, **kwargs):
         store = Store.of(self._local)
         if store is None:
             raise NoStoreError("Can't perform operation without a store")
         where = self._relation.get_where_for_remote(self._local)
-        return store.find(self._target_cls, where, *args, **kwargs)
+        result = store.find(self._target_cls, where, *args, **kwargs)
+        if self._order_by is not None:
+            # XXX UNTESTED
+            return result.order_by(self._order_by)
+        return result
+
+    def first(self, *args, **kwargs): # XXX UNTESTED
+        return self.find().first()
 
     def order_by(self, *args):
         store = Store.of(self._local)
@@ -123,10 +137,12 @@ class BoundReferenceSet(object):
 
 class BoundIndirectReferenceSet(object):
 
-    def __init__(self, relation1, relation2, local):
+    def __init__(self, relation1, relation2, local, order_by):
         self._relation1 = relation1
         self._relation2 = relation2
         self._local = local
+        self._order_by = order_by
+
         self._target_cls = relation2.local_cls
         self._link_cls = relation1.remote_cls
 
@@ -136,7 +152,11 @@ class BoundIndirectReferenceSet(object):
             raise NoStoreError("Can't perform operation without a store")
         where = (self._relation1.get_where_for_remote(self._local) &
                  self._relation2.get_where_for_join())
-        return store.find(self._target_cls, where).__iter__()
+        result = store.find(self._target_cls, where)
+        if self._order_by is not None:
+            # XXX UNTESTED
+            result = result.order_by(self._order_by)
+        return result.__iter__()
 
     def find(self, *args, **kwargs):
         store = Store.of(self._local)
@@ -144,7 +164,14 @@ class BoundIndirectReferenceSet(object):
             raise NoStoreError("Can't perform operation without a store")
         where = (self._relation1.get_where_for_remote(self._local) &
                  self._relation2.get_where_for_join())
-        return store.find(self._target_cls, where, *args, **kwargs)
+        result = store.find(self._target_cls, where, *args, **kwargs)
+        if self._order_by is not None:
+            # XXX UNTESTED
+            return result.order_by(self._order_by)
+        return result
+
+    def first(self, *args, **kwargs): # XXX UNTESTED
+        return self.find().first()
 
     def order_by(self, *args):
         store = Store.of(self._local)
