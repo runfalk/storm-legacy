@@ -77,7 +77,7 @@ class BoundReferenceSet(object):
         self._relation = relation
         self._local = local
         self._target_cls = self._relation.remote_cls
-        self._order_by = order_by # XXX UNTESTED
+        self._order_by = order_by
 
     def __iter__(self):
         store = Store.of(self._local)
@@ -86,7 +86,6 @@ class BoundReferenceSet(object):
         where = self._relation.get_where_for_remote(self._local)
         result = store.find(self._target_cls, where)
         if self._order_by is not None:
-            # XXX UNTESTED
             result = result.order_by(self._order_by)
         return result.__iter__()
 
@@ -97,11 +96,10 @@ class BoundReferenceSet(object):
         where = self._relation.get_where_for_remote(self._local)
         result = store.find(self._target_cls, where, *args, **kwargs)
         if self._order_by is not None:
-            # XXX UNTESTED
             return result.order_by(self._order_by)
         return result
 
-    def first(self, *args, **kwargs): # XXX UNTESTED
+    def first(self, *args, **kwargs):
         return self.find().first()
 
     def order_by(self, *args):
@@ -154,7 +152,6 @@ class BoundIndirectReferenceSet(object):
                  self._relation2.get_where_for_join())
         result = store.find(self._target_cls, where)
         if self._order_by is not None:
-            # XXX UNTESTED
             result = result.order_by(self._order_by)
         return result.__iter__()
 
@@ -166,11 +163,10 @@ class BoundIndirectReferenceSet(object):
                  self._relation2.get_where_for_join())
         result = store.find(self._target_cls, where, *args, **kwargs)
         if self._order_by is not None:
-            # XXX UNTESTED
             return result.order_by(self._order_by)
         return result
 
-    def first(self, *args, **kwargs): # XXX UNTESTED
+    def first(self, *args, **kwargs):
         return self.find().first()
 
     def order_by(self, *args):

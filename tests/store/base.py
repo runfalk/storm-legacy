@@ -163,7 +163,6 @@ class StoreTest(object):
         result = self.store.execute("SELECT title FROM test WHERE id=10")
         self.assertEquals(result.get_one(), ("New Title",))
 
-    @run_this
     def test_close(self):
         store = Store(self.database)
         store.close()
@@ -1703,6 +1702,61 @@ class StoreTest(object):
                           (200, 20, "Title 200"),
                          ])
 
+    def test_reference_set_default_order_by(self):
+        other = Other()
+        other.id = 400
+        other.test_id = 20
+        other.other_title = "Title 100"
+        self.store.add(other)
+
+        class MyTest(Test):
+            others = ReferenceSet(Test.id, Other.test_id,
+                                  order_by=Other.id)
+
+        mytest = self.store.get(MyTest, 20)
+
+        items = []
+        for obj in mytest.others:
+            items.append((obj.id, obj.test_id, obj.other_title))
+        self.assertEquals(items, [
+                          (200, 20, "Title 200"),
+                          (400, 20, "Title 100"),
+                         ])
+
+        items = []
+        for obj in mytest.others.find():
+            items.append((obj.id, obj.test_id, obj.other_title))
+        self.assertEquals(items, [
+                          (200, 20, "Title 200"),
+                          (400, 20, "Title 100"),
+                         ])
+
+        self.assertEquals(mytest.others.first().id, 200)
+
+        class MyTest(Test):
+            others = ReferenceSet(Test.id, Other.test_id,
+                                  order_by=Other.other_title)
+
+        mytest = self.store.get(MyTest, 20)
+
+        del items[:]
+        for obj in mytest.others:
+            items.append((obj.id, obj.test_id, obj.other_title))
+        self.assertEquals(items, [
+                          (400, 20, "Title 100"),
+                          (200, 20, "Title 200"),
+                         ])
+
+        del items[:]
+        for obj in mytest.others.find():
+            items.append((obj.id, obj.test_id, obj.other_title))
+        self.assertEquals(items, [
+                          (400, 20, "Title 100"),
+                          (200, 20, "Title 200"),
+                         ])
+
+        self.assertEquals(mytest.others.first().id, 400)
+
     def test_reference_set_remove(self):
         other = Other()
         other.id = 400
@@ -1858,6 +1912,57 @@ class StoreTest(object):
                           (100, "Title 300"),
                           (200, "Title 200"),
                          ])
+
+    def test_indirect_reference_set_default_order_by(self):
+        class MyTest(Test):
+            others = ReferenceSet(Test.id, Link.test_id,
+                                  Link.other_id, Other.id,
+                                  order_by=Other.other_title)
+
+        obj = self.store.get(MyTest, 20)
+
+        items = []
+        for ref_obj in obj.others:
+            items.append((ref_obj.id, ref_obj.other_title))
+        self.assertEquals(items, [
+                          (200, "Title 200"),
+                          (100, "Title 300"),
+                         ])
+
+        del items[:]
+        for ref_obj in obj.others.find():
+            items.append((ref_obj.id, ref_obj.other_title))
+        self.assertEquals(items, [
+                          (200, "Title 200"),
+                          (100, "Title 300"),
+                         ])
+
+        self.assertEquals(obj.others.first().id, 200)
+
+        class MyTest(Test):
+            others = ReferenceSet(Test.id, Link.test_id,
+                                  Link.other_id, Other.id,
+                                  order_by=Other.id)
+
+        obj = self.store.get(MyTest, 20)
+
+        del items[:]
+        for ref_obj in obj.others:
+            items.append((ref_obj.id, ref_obj.other_title))
+        self.assertEquals(items, [
+                          (100, "Title 300"),
+                          (200, "Title 200"),
+                         ])
+
+        del items[:]
+        for ref_obj in obj.others.find():
+            items.append((ref_obj.id, ref_obj.other_title))
+        self.assertEquals(items, [
+                          (100, "Title 300"),
+                          (200, "Title 200"),
+                         ])
+
+        self.assertEquals(obj.others.first().id, 100)
 
     def test_indirect_reference_set_add(self):
         obj = self.store.get(IndRefSetTest, 20)
