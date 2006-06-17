@@ -111,3 +111,10 @@ class URITest(TestHelper):
         self.assertEquals(uri.database, "database")
         self.assertEquals(uri.options, {"abc": "def", "ghi": "jkl"})
 
+    def test_copy(self):
+        uri = URI.parse("scheme:db")
+        uri_copy = uri.copy()
+        self.assertTrue(uri_copy is not uri)
+        self.assertTrue(uri_copy.__dict__ == uri.__dict__)
+        self.assertTrue(uri_copy.options is not uri.options)
+

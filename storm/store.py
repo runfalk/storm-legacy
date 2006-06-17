@@ -567,10 +567,8 @@ class ResultSet(object):
     # FIXME Implement it meaningfully.
     first = one
 
-
     # TODO Implement last() with order_by + inverted logic of Asc/Desc.
     # TODO Add ResultSet().values(Tag.name) (or something)
-
 
 
 Store._result_set_factory = ResultSet

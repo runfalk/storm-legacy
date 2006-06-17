@@ -22,7 +22,7 @@ class URI(object):
         self.scheme = scheme
         self.options = {}
 
-    def copy(self): # XXX UNTESTED
+    def copy(self):
         uri = object.__new__(self.__class__)
         uri.__dict__.update(self.__dict__)
         uri.options = self.options.copy()
