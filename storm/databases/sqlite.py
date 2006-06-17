@@ -10,11 +10,17 @@
 import sys
 
 from datetime import datetime, date, time
-from pysqlite2 import dbapi2 as sqlite
+
+from storm.databases import dummy
+
+try:
+    from pysqlite2 import dbapi2 as sqlite
+except ImportError:
+    sqlite = dummy
 
 from storm.variables import Variable
 from storm.database import *
-from storm.exceptions import install_exceptions
+from storm.exceptions import install_exceptions, UnsupportedDatabaseError
 from storm.expr import compile, Select, compile_select, Undef
 
 
@@ -61,6 +67,8 @@ class SQLite(Database):
     _connection_factory = SQLiteConnection
 
     def __init__(self, filename=None):
+        if sqlite is dummy:
+            raise UnsupportedDatabaseError("'pysqlite2' module not found")
         self._filename = filename or ":memory:"
 
     def connect(self):

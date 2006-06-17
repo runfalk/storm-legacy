@@ -2,11 +2,12 @@ from datetime import datetime, date, time
 import os
 
 from storm.databases.postgres import Postgres
+from storm.uri import URI
 from storm.database import create_database
 from storm.variables import UnicodeVariable, DateTimeVariable
 
-from tests.databases.base import DatabaseTest
-from tests.helper import TestHelper
+from tests.databases.base import DatabaseTest, UnsupportedDatabaseTest
+from tests.helper import TestHelper, MakePath
 
 
 class PostgresTest(TestHelper, DatabaseTest):
@@ -86,3 +87,9 @@ class PostgresTest(TestHelper, DatabaseTest):
         variable = DateTimeVariable()
         result.set_variable(variable, result.get_one()[0])
         self.assertEquals(variable.get(), None)
+
+
+class MySQLUnsupportedTest(UnsupportedDatabaseTest, TestHelper):
+    
+    dbapi_module_name = "psycopg"
+    db_module_name = "postgres"

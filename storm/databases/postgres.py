@@ -10,12 +10,17 @@
 from datetime import datetime, date, time
 from time import strptime
 
-import psycopg
+from storm.databases import dummy
+
+try:
+    import psycopg
+except:
+    psycopg = dummy
 
 from storm.expr import And, Eq
 from storm.variables import Variable, UnicodeVariable
 from storm.database import *
-from storm.exceptions import install_exceptions
+from storm.exceptions import install_exceptions, UnsupportedDatabaseError
 
 
 install_exceptions(psycopg)
@@ -60,6 +65,8 @@ class Postgres(Database):
 
     def __init__(self, dbname, host=None, port=None,
                  username=None, password=None, encoding=None):
+        if psycopg is dummy:
+            raise UnsupportedDatabaseError("'psycopg' module not found")
         self._dsn = "dbname=%s" % dbname
         if host is not None:
             self._dsn += " host=%s" % host
@@ -86,6 +93,7 @@ psycopg.register_type(psycopg.new_type(psycopg.DATETIME.values,
 def create_from_uri(uri):
     return Postgres(uri.database, uri.host, uri.port,
                     uri.username, uri.password, uri.options.get("encoding"))
+
 
 # FIXME Make Postgres constructor use that one.
 def make_dsn(uri):
