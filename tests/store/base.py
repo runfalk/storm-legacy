@@ -163,6 +163,12 @@ class StoreTest(object):
         result = self.store.execute("SELECT title FROM test WHERE id=10")
         self.assertEquals(result.get_one(), ("New Title",))
 
+    @run_this
+    def test_close(self):
+        store = Store(self.database)
+        store.close()
+        self.assertRaises(ClosedError, store.execute, "SELECT 1")
+
     def test_get(self):
         obj = self.store.get(Test, 10)
         self.assertEquals(obj.id, 10)

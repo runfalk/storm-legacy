@@ -49,7 +49,6 @@ class Store(object):
         return self._connection.execute(statement, params, noresult)
 
     def close(self):
-        # XXX UNTESTED
         self._connection.close()
 
     def commit(self):

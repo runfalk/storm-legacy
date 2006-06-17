@@ -24,6 +24,9 @@ class URIError(StormError):
     pass
 
 
+class ClosedError(StormError):
+    pass
+
 class UnsupportedDatabaseError(StormError):
     pass
 
