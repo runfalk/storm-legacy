@@ -43,7 +43,12 @@ class Reference(object):
         return remote
 
     def __set__(self, local, remote):
-        self._relation.link(local, remote, True)
+        if remote is None:
+            remote = self._relation.get_remote(local)
+            if remote is not None:
+                self._relation.unlink(local, remote, True)
+        else:
+            self._relation.link(local, remote, True)
 
 
 class ReferenceSet(object):
@@ -368,7 +373,6 @@ class Relation(object):
             remote_info.event.unhook("flushed", self._break_on_remote_flushed,
                                      local_info)
 
-            # XXX UNTESTED
             if local_store is None:
                 if not self.many or not relations:
                     local_info.event.unhook("added", self._add_all, local_info)

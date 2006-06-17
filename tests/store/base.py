@@ -1242,6 +1242,23 @@ class StoreTest(object):
                                     "test.id = other.test_id")
         self.assertEquals(result.get_one(), ("Title 40",))
 
+    def test_reference_set_none(self):
+        obj = Test()
+        obj.title = "Title 40"
+
+        other = Other()
+        other.id = 400
+        other.other_title = "Title 400"
+        other.test = obj
+        other.test = None
+        other.test = None # Twice to make sure it doesn't blow up.
+        self.store.add(other)
+
+        self.store.flush()
+
+        self.assertEquals(type(other.id), int)
+        self.assertEquals(obj.id, None)
+
     def test_reference_on_added_composed_key(self):
         class Other(object):
             __table__ = "other", "id"
@@ -1455,6 +1472,24 @@ class StoreTest(object):
         self.store.add(other)
 
         self.assertRaises(WrongStoreError, setattr, other, "test", obj)
+
+    def test_reference_on_added_no_store_unlink_before_adding(self):
+        obj1 = Test()
+        obj1.title = "Title 40"
+
+        other = Other()
+        other.id = 400
+        other.other_title = "Title 400"
+        other.test = obj1
+        other.test = None
+
+        self.store.add(other)
+
+        store = Store(self.database)
+        store.add(obj1)
+
+        self.assertEquals(Store.of(other), self.store)
+        self.assertEquals(Store.of(obj1), store)
 
     def test_back_reference(self):
         class MyTest(Test):
@@ -1829,6 +1864,32 @@ class StoreTest(object):
         self.store.flush()
 
         self.assertEquals(type(other.test_id), int)
+
+    def test_reference_set_add_no_store_unlink_after_adding(self):
+        other1 = Other()
+        other1.id = 400
+        other1.other_title = "Title 400"
+        other2 = Other()
+        other2.id = 500
+        other2.other_title = "Title 500"
+
+        class MyTest(Test):
+            others = ReferenceSet(Test.id, Other.test_id)
+
+        mytest = MyTest()
+        mytest.title = "Title 40"
+        mytest.others.add(other1)
+        mytest.others.add(other2)
+        mytest.others.remove(other1)
+
+        self.store.add(mytest)
+
+        store = Store(self.database)
+        store.add(other1)
+
+        self.assertEquals(Store.of(mytest), self.store)
+        self.assertEquals(Store.of(other1), store)
+        self.assertEquals(Store.of(other2), self.store)
 
     def test_indirect_reference_set(self):
         obj = self.store.get(IndRefSetTest, 20)
