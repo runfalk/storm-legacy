@@ -382,7 +382,10 @@ class Store(object):
 
 
     def _add_to_cache(self, obj_info):
-        # XXX WRITE A TEST EXPLORING THE PROBLEM.
+        # Notice that the obj_info may be added back to the cache even
+        # though it already has primary_vars, since the object could be
+        # removed from cache, rolled back, and reinserted (commit() will
+        # save() obj_info with primary_vars).
         cls_info = obj_info.cls_info
         old_primary_vars = obj_info.get("primary_vars")
         if old_primary_vars is not None:

@@ -2159,3 +2159,13 @@ class StoreTest(object):
         self.store.remove(proxy)
         self.store.flush()
         self.assertEquals(self.store.get(Test, 20), None)
+
+    def test_rollback_loaded_and_still_in_cached(self):
+        # Explore problem found on interaction between caching, commits,
+        # and rollbacks.
+        obj1 = self.store.get(Test, 20)
+        self.store.commit()
+        self.store.rollback()
+        obj2 = self.store.get(Test, 20)
+        self.assertTrue(obj1 is obj2)
+
