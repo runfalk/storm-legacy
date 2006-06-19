@@ -1,10 +1,17 @@
 from datetime import datetime, date, time
 import cPickle as pickle
+import shutil
+import sys
+import os
 
+from storm.uri import URI
 from storm.expr import Select, Column, Undef
 from storm.variables import Variable, PickleVariable
 from storm.variables import DateTimeVariable, DateVariable, TimeVariable
 from storm.database import *
+from storm.exceptions import UnsupportedDatabaseError
+
+from tests.helper import MakePath
 
 
 class DatabaseTest(object):
@@ -164,3 +171,47 @@ class DatabaseTest(object):
         variable = PickleVariable()
         result.set_variable(variable, result.get_one()[0])
         self.assertEquals(variable.get(), value)
+
+
+class UnsupportedDatabaseTest(object):
+    
+    helpers = [MakePath]
+
+    dbapi_module_name = None
+    db_module_name = None
+
+    def test_exception_when_unsupported(self):
+
+        # Install a directory in front of the search path.
+        module_dir = self.make_path()
+        os.mkdir(module_dir)
+        sys.path.insert(0, module_dir)
+
+        # If the real psycopg is available, remove it from the sys.modules.
+        if self.dbapi_module_name in sys.modules:
+            del sys.modules[self.dbapi_module_name]
+
+        # Create a module which raises ImportError when imported, to fake
+        # a missing module.
+        self.make_path("raise ImportError",
+                       os.path.join(module_dir, self.dbapi_module_name+".py"))
+
+        # Copy the real module over to a new place, since the old one is
+        # already using the real module, if it's available.
+        db_module = __import__("storm.databases."+self.db_module_name,
+                               None, None, [""])
+        db_module_filename = db_module.__file__
+        if db_module_filename.endswith(".pyc"):
+            db_module_filename = db_module_filename[:-1]
+        shutil.copyfile(db_module_filename,
+                        os.path.join(module_dir, "_fake_.py"))
+
+        # Finally, test it.
+        import _fake_
+        uri = URI.parse("_fake_://db")
+        self.assertRaises(UnsupportedDatabaseError,
+                          _fake_.create_from_uri, uri)
+
+        # Unhack the environment.
+        del sys.path[0]
+        del sys.modules["_fake_"]

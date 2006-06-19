@@ -1,5 +1,11 @@
+import sys
+import new
+import gc
+
+from storm.exceptions import ClosedError
 from storm.variables import Variable
 from storm.database import *
+from storm.uri import URI
 from storm.expr import *
 
 from tests.helper import TestHelper
@@ -9,6 +15,8 @@ marker = object()
 
 
 class RawConnection(object):
+
+    closed = False
 
     def __init__(self, executed):
         self.executed = executed
@@ -23,7 +31,7 @@ class RawConnection(object):
         self.executed.append("ROLLBACK")
 
     def close(self):
-        pass
+        self.executed.append("CCLOSE")
 
 
 class RawCursor(object):
@@ -40,7 +48,7 @@ class RawCursor(object):
         self._fetchmany_data = [("fetchmany%d" % i,) for i in range(5)]
 
     def close(self):
-        self.executed.append("CLOSE")
+        self.executed.append("RCLOSE")
 
     def execute(self, statement, params=marker):
         self.executed.append((statement, params))
@@ -77,8 +85,8 @@ class ConnectionTest(TestHelper):
         TestHelper.setUp(self)
         self.executed = []
         self.database = Database()
-        self.connection = Connection(self.database,
-                                     RawConnection(self.executed))
+        self.raw_connection = RawConnection(self.executed)
+        self.connection = Connection(self.database, self.raw_connection)
 
     def test_execute(self):
         result = self.connection.execute("something")
@@ -93,7 +101,7 @@ class ConnectionTest(TestHelper):
     def test_execute_noresult(self):
         result = self.connection.execute("something", noresult=True)
         self.assertEquals(result, None)
-        self.assertEquals(self.executed, [("something", marker), "CLOSE"])
+        self.assertEquals(self.executed, [("something", marker), "RCLOSE"])
 
     def test_execute_convert_param_style(self):
         self.connection.execute("'?' ? '?' ? '?'")
@@ -125,6 +133,10 @@ class ConnectionTest(TestHelper):
         self.assertRaises(ValueError, self.connection.execute,
                           select, ("something",))
 
+    def test_execute_closed(self):
+        self.connection.close()
+        self.assertRaises(ClosedError, self.connection.execute, "SELECT 1")
+
     def test_commit(self):
         self.connection.commit()
         self.assertEquals(self.executed, ["COMMIT"])
@@ -132,6 +144,31 @@ class ConnectionTest(TestHelper):
     def test_rollback(self):
         self.connection.rollback()
         self.assertEquals(self.executed, ["ROLLBACK"])
+
+    def test_close(self):
+        self.connection.close()
+        self.assertEquals(self.executed, ["CCLOSE"])
+
+    def test_close_twice(self):
+        self.connection.close()
+        self.connection.close()
+        self.assertEquals(self.executed, ["CCLOSE"])
+
+    def test_close_deallocates_raw_connection(self):
+        refs_before = len(gc.get_referrers(self.raw_connection))
+        self.connection.close()
+        refs_after = len(gc.get_referrers(self.raw_connection))
+        self.assertEquals(refs_after, refs_before-1)
+
+    def test_del_deallocates_raw_connection(self):
+        refs_before = len(gc.get_referrers(self.raw_connection))
+        self.connection.__del__()
+        refs_after = len(gc.get_referrers(self.raw_connection))
+        self.assertEquals(refs_after, refs_before-1)
+
+    def test_wb_del_with_previously_deallocated_connection(self):
+        self.connection._raw_connection = None
+        self.connection.__del__()
 
     def test_get_insert_identity(self):
         result = self.connection.execute("INSERT")
@@ -142,7 +179,9 @@ class ResultTest(TestHelper):
 
     def setUp(self):
         TestHelper.setUp(self)
-        self.result = Result(None, RawCursor())
+        self.executed = []
+        self.raw_cursor = RawCursor(executed=self.executed)
+        self.result = Result(None, self.raw_cursor)
 
     def test_get_one(self):
         self.assertEquals(self.result.get_one(), ("fetchone0",))
@@ -169,3 +208,62 @@ class ResultTest(TestHelper):
         variable = Variable()
         self.result.set_variable(variable, marker)
         self.assertEquals(variable.get(), marker)
+
+    def test_close(self):
+        self.result.close()
+        self.assertEquals(self.executed, ["RCLOSE"])
+
+    def test_close_twice(self):
+        self.result.close()
+        self.result.close()
+        self.assertEquals(self.executed, ["RCLOSE"])
+
+    def test_close_deallocates_raw_cursor(self):
+        refs_before = len(gc.get_referrers(self.raw_cursor))
+        self.result.close()
+        refs_after = len(gc.get_referrers(self.raw_cursor))
+        self.assertEquals(refs_after, refs_before-1)
+
+    def test_del_deallocates_raw_cursor(self):
+        refs_before = len(gc.get_referrers(self.raw_cursor))
+        self.result.__del__()
+        refs_after = len(gc.get_referrers(self.raw_cursor))
+        self.assertEquals(refs_after, refs_before-1)
+
+    def test_wb_del_with_previously_deallocated_cursor(self):
+        self.result._raw_cursor = None
+        self.result.__del__()
+
+
+class CreateDatabaseTest(TestHelper):
+
+    def setUp(self):
+        TestHelper.setUp(self)
+        self.db_module = new.module("db_module")
+        self.uri = None
+        def create_from_uri(uri):
+            self.uri = uri
+            return "RESULT"
+        self.db_module.create_from_uri = create_from_uri
+        sys.modules["storm.databases.db_module"] = self.db_module
+
+    def tearDown(self):
+        del sys.modules["storm.databases.db_module"]
+        TestHelper.tearDown(self)
+
+    def test_create_database_with_str(self):
+        create_database("db_module:db")
+        self.assertTrue(self.uri)
+        self.assertEquals(self.uri.scheme, "db_module")
+        self.assertEquals(self.uri.database, "db")
+
+    def test_create_database_with_unicode(self):
+        create_database(u"db_module:db")
+        self.assertTrue(self.uri)
+        self.assertEquals(self.uri.scheme, "db_module")
+        self.assertEquals(self.uri.database, "db")
+
+    def test_create_database_with_uri(self):
+        uri = URI.parse("db_module:db")
+        create_database(uri)
+        self.assertTrue(self.uri is uri)

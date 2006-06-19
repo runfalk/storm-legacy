@@ -49,7 +49,6 @@ class Store(object):
         return self._connection.execute(statement, params, noresult)
 
     def close(self):
-        # XXX UNTESTED
         self._connection.close()
 
     def commit(self):
@@ -382,7 +381,10 @@ class Store(object):
 
 
     def _add_to_cache(self, obj_info):
-        # XXX WRITE A TEST EXPLORING THE PROBLEM.
+        # Notice that the obj_info may be added back to the cache even
+        # though it already has primary_vars, since the object could be
+        # removed from cache, rolled back, and reinserted (commit() will
+        # save() obj_info with primary_vars).
         cls_info = obj_info.cls_info
         old_primary_vars = obj_info.get("primary_vars")
         if old_primary_vars is not None:
@@ -565,8 +567,8 @@ class ResultSet(object):
     # FIXME Implement it meaningfully.
     first = one
 
-
     # TODO Implement last() with order_by + inverted logic of Asc/Desc.
+    # TODO Add ResultSet().values(Tag.name) (or something)
 
 
 Store._result_set_factory = ResultSet

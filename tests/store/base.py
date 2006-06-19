@@ -163,6 +163,11 @@ class StoreTest(object):
         result = self.store.execute("SELECT title FROM test WHERE id=10")
         self.assertEquals(result.get_one(), ("New Title",))
 
+    def test_close(self):
+        store = Store(self.database)
+        store.close()
+        self.assertRaises(ClosedError, store.execute, "SELECT 1")
+
     def test_get(self):
         obj = self.store.get(Test, 10)
         self.assertEquals(obj.id, 10)
@@ -1237,6 +1242,23 @@ class StoreTest(object):
                                     "test.id = other.test_id")
         self.assertEquals(result.get_one(), ("Title 40",))
 
+    def test_reference_set_none(self):
+        obj = Test()
+        obj.title = "Title 40"
+
+        other = Other()
+        other.id = 400
+        other.other_title = "Title 400"
+        other.test = obj
+        other.test = None
+        other.test = None # Twice to make sure it doesn't blow up.
+        self.store.add(other)
+
+        self.store.flush()
+
+        self.assertEquals(type(other.id), int)
+        self.assertEquals(obj.id, None)
+
     def test_reference_on_added_composed_key(self):
         class Other(object):
             __table__ = "other", "id"
@@ -1450,6 +1472,24 @@ class StoreTest(object):
         self.store.add(other)
 
         self.assertRaises(WrongStoreError, setattr, other, "test", obj)
+
+    def test_reference_on_added_no_store_unlink_before_adding(self):
+        obj1 = Test()
+        obj1.title = "Title 40"
+
+        other = Other()
+        other.id = 400
+        other.other_title = "Title 400"
+        other.test = obj1
+        other.test = None
+
+        self.store.add(other)
+
+        store = Store(self.database)
+        store.add(obj1)
+
+        self.assertEquals(Store.of(other), self.store)
+        self.assertEquals(Store.of(obj1), store)
 
     def test_back_reference(self):
         class MyTest(Test):
@@ -1697,6 +1737,61 @@ class StoreTest(object):
                           (200, 20, "Title 200"),
                          ])
 
+    def test_reference_set_default_order_by(self):
+        other = Other()
+        other.id = 400
+        other.test_id = 20
+        other.other_title = "Title 100"
+        self.store.add(other)
+
+        class MyTest(Test):
+            others = ReferenceSet(Test.id, Other.test_id,
+                                  order_by=Other.id)
+
+        mytest = self.store.get(MyTest, 20)
+
+        items = []
+        for obj in mytest.others:
+            items.append((obj.id, obj.test_id, obj.other_title))
+        self.assertEquals(items, [
+                          (200, 20, "Title 200"),
+                          (400, 20, "Title 100"),
+                         ])
+
+        items = []
+        for obj in mytest.others.find():
+            items.append((obj.id, obj.test_id, obj.other_title))
+        self.assertEquals(items, [
+                          (200, 20, "Title 200"),
+                          (400, 20, "Title 100"),
+                         ])
+
+        self.assertEquals(mytest.others.first().id, 200)
+
+        class MyTest(Test):
+            others = ReferenceSet(Test.id, Other.test_id,
+                                  order_by=Other.other_title)
+
+        mytest = self.store.get(MyTest, 20)
+
+        del items[:]
+        for obj in mytest.others:
+            items.append((obj.id, obj.test_id, obj.other_title))
+        self.assertEquals(items, [
+                          (400, 20, "Title 100"),
+                          (200, 20, "Title 200"),
+                         ])
+
+        del items[:]
+        for obj in mytest.others.find():
+            items.append((obj.id, obj.test_id, obj.other_title))
+        self.assertEquals(items, [
+                          (400, 20, "Title 100"),
+                          (200, 20, "Title 200"),
+                         ])
+
+        self.assertEquals(mytest.others.first().id, 400)
+
     def test_reference_set_remove(self):
         other = Other()
         other.id = 400
@@ -1769,6 +1864,32 @@ class StoreTest(object):
         self.store.flush()
 
         self.assertEquals(type(other.test_id), int)
+
+    def test_reference_set_add_no_store_unlink_after_adding(self):
+        other1 = Other()
+        other1.id = 400
+        other1.other_title = "Title 400"
+        other2 = Other()
+        other2.id = 500
+        other2.other_title = "Title 500"
+
+        class MyTest(Test):
+            others = ReferenceSet(Test.id, Other.test_id)
+
+        mytest = MyTest()
+        mytest.title = "Title 40"
+        mytest.others.add(other1)
+        mytest.others.add(other2)
+        mytest.others.remove(other1)
+
+        self.store.add(mytest)
+
+        store = Store(self.database)
+        store.add(other1)
+
+        self.assertEquals(Store.of(mytest), self.store)
+        self.assertEquals(Store.of(other1), store)
+        self.assertEquals(Store.of(other2), self.store)
 
     def test_indirect_reference_set(self):
         obj = self.store.get(IndRefSetTest, 20)
@@ -1852,6 +1973,57 @@ class StoreTest(object):
                           (100, "Title 300"),
                           (200, "Title 200"),
                          ])
+
+    def test_indirect_reference_set_default_order_by(self):
+        class MyTest(Test):
+            others = ReferenceSet(Test.id, Link.test_id,
+                                  Link.other_id, Other.id,
+                                  order_by=Other.other_title)
+
+        obj = self.store.get(MyTest, 20)
+
+        items = []
+        for ref_obj in obj.others:
+            items.append((ref_obj.id, ref_obj.other_title))
+        self.assertEquals(items, [
+                          (200, "Title 200"),
+                          (100, "Title 300"),
+                         ])
+
+        del items[:]
+        for ref_obj in obj.others.find():
+            items.append((ref_obj.id, ref_obj.other_title))
+        self.assertEquals(items, [
+                          (200, "Title 200"),
+                          (100, "Title 300"),
+                         ])
+
+        self.assertEquals(obj.others.first().id, 200)
+
+        class MyTest(Test):
+            others = ReferenceSet(Test.id, Link.test_id,
+                                  Link.other_id, Other.id,
+                                  order_by=Other.id)
+
+        obj = self.store.get(MyTest, 20)
+
+        del items[:]
+        for ref_obj in obj.others:
+            items.append((ref_obj.id, ref_obj.other_title))
+        self.assertEquals(items, [
+                          (100, "Title 300"),
+                          (200, "Title 200"),
+                         ])
+
+        del items[:]
+        for ref_obj in obj.others.find():
+            items.append((ref_obj.id, ref_obj.other_title))
+        self.assertEquals(items, [
+                          (100, "Title 300"),
+                          (200, "Title 200"),
+                         ])
+
+        self.assertEquals(obj.others.first().id, 100)
 
     def test_indirect_reference_set_add(self):
         obj = self.store.get(IndRefSetTest, 20)
@@ -2159,3 +2331,13 @@ class StoreTest(object):
         self.store.remove(proxy)
         self.store.flush()
         self.assertEquals(self.store.get(Test, 20), None)
+
+    def test_rollback_loaded_and_still_in_cached(self):
+        # Explore problem found on interaction between caching, commits,
+        # and rollbacks.
+        obj1 = self.store.get(Test, 20)
+        self.store.commit()
+        self.store.rollback()
+        obj2 = self.store.get(Test, 20)
+        self.assertTrue(obj1 is obj2)
+

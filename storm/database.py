@@ -9,12 +9,13 @@
 #
 from storm.expr import Expr, compile
 from storm.variables import Variable
-from storm.exceptions import Error
+from storm.exceptions import Error, ClosedError
 from storm.uri import URI
 import storm
 
 
-__all__ = ["Database", "Connection", "Result", "convert_param_marks"]
+__all__ = ["Database", "Connection", "Result",
+           "convert_param_marks", "create_database"]
 
 
 class Result(object):
@@ -26,14 +27,12 @@ class Result(object):
         self._raw_cursor = raw_cursor
 
     def __del__(self):
-        if not self._closed:
-            try:
-                self._raw_cursor.close()
-            except Error: # XXX UNTESTED
-                pass
+        try:
+            self.close()
+        except:
+            pass
 
     def close(self):
-        # XXX UNTESTED
         if not self._closed:
             self._closed = True
             self._raw_cursor.close()
@@ -93,16 +92,17 @@ class Connection(object):
         self._raw_connection = raw_connection
 
     def __del__(self):
-        if not self._closed:
-            try:
-                self._raw_connection.close()
-            except Error: # XXX UNTESTED
-                pass
+        try:
+            self.close()
+        except:
+            pass
 
     def _build_raw_cursor(self):
         return self._raw_connection.cursor()
 
     def execute(self, statement, params=None, noresult=False):
+        if self._closed:
+            raise ClosedError("Connection is closed")
         if isinstance(statement, Expr):
             if params is not None:
                 raise ValueError("Can't pass parameters with expressions")
@@ -121,7 +121,6 @@ class Connection(object):
         return self._result_factory(self, raw_cursor)
 
     def close(self):
-        # XXX UNTESTED
         if not self._closed:
             self._closed = True
             self._raw_connection.close()
@@ -159,7 +158,7 @@ def convert_param_marks(statement, from_param_mark, to_param_mark):
 
 
 def create_database(uri):
-    if isinstance(uri, basestring): # XXX UNTESTED
+    if isinstance(uri, basestring):
         uri = URI.parse(uri)
     module = __import__("%s.databases.%s" % (storm.__name__, uri.scheme),
                         None, None, [""])

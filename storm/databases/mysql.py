@@ -10,12 +10,17 @@
 from datetime import time
 from array import array
 
-import MySQLdb.converters
-import MySQLdb
+from storm.databases import dummy
+
+try:
+    import MySQLdb
+    import MySQLdb.converters
+except ImportError:
+    MySQLdb = dummy
 
 from storm.expr import And, Eq 
 from storm.database import *
-from storm.exceptions import install_exceptions
+from storm.exceptions import install_exceptions, UnsupportedDatabaseError
 
 
 install_exceptions(MySQLdb)
@@ -51,6 +56,8 @@ class MySQL(Database):
 
     def __init__(self, dbname, host=None, port=None,
                  username=None, password=None, unix_socket=None):
+        if MySQLdb is dummy:
+            raise UnsupportedDatabaseError("'MySQLdb' module not found")
         self._connect_kwargs = {}
         if dbname is not None:
             self._connect_kwargs["db"] = dbname

@@ -4,7 +4,7 @@ import os
 from storm.databases.mysql import MySQL
 from storm.database import create_database
 
-from tests.databases.base import DatabaseTest
+from tests.databases.base import DatabaseTest, UnsupportedDatabaseTest
 from tests.helper import TestHelper
 
 
@@ -44,3 +44,9 @@ class MySQLTest(TestHelper, DatabaseTest):
                            ("user", "un"), ("passwd", "pw"),
                            ("unix_socket", "us")]:
             self.assertEquals(database._connect_kwargs.get(key), value)
+
+
+class MySQLUnsupportedTest(UnsupportedDatabaseTest, TestHelper):
+    
+    dbapi_module_name = "MySQLdb"
+    db_module_name = "mysql"

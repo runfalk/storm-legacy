@@ -3,7 +3,7 @@ import os
 from storm.databases.sqlite import SQLite
 from storm.database import create_database
 
-from tests.databases.base import DatabaseTest
+from tests.databases.base import DatabaseTest, UnsupportedDatabaseTest
 from tests.helper import TestHelper, MakePath
 
 
@@ -53,3 +53,10 @@ class SQLiteMemoryTest(SQLiteTest):
         sqlite = create_database("sqlite:")
         self.assertTrue(isinstance(sqlite, SQLite))
         self.assertEquals(sqlite._filename, ":memory:")
+
+
+class SQLiteUnsupportedTest(UnsupportedDatabaseTest, TestHelper):
+    
+    dbapi_module_name = "pysqlite2"
+    db_module_name = "sqlite"
+
