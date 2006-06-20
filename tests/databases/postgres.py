@@ -52,7 +52,7 @@ class PostgresTest(TestHelper, DatabaseTest):
 
         connection = database.connect()
         connection.execute("SET client_encoding=?", (encoding,))
-        connection.execute("INSERT INTO test VALUES (1, ?)", (raw_str,))
+        connection.execute("INSERT INTO test VALUES (1, ?)", (uni_str,))
 
         result = connection.execute("SELECT title FROM test WHERE id=1")
         title = result.get_one()[0]
@@ -70,7 +70,7 @@ class PostgresTest(TestHelper, DatabaseTest):
 
         connection = self.database.connect()
         connection.execute("SET client_encoding=?", (encoding,))
-        connection.execute("INSERT INTO test VALUES (1, ?)", (raw_str,))
+        connection.execute("INSERT INTO test VALUES (1, ?)", (uni_str,))
 
         result = connection.execute("SELECT title FROM test WHERE id=1")
         title = result.get_one()[0]

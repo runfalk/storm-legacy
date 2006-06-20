@@ -56,6 +56,8 @@ class PostgresConnection(Connection):
             return str(value)
         if isinstance(value, unicode):
             return value.encode(self._database._encoding)
+        if isinstance(value, str):
+            return psycopg.Binary(value)
         return value
 
 
