@@ -335,12 +335,14 @@ class Relation(object):
                                        local_info)
                 #local_info.event.hook("removed", self._break_on_remote_removed,
                 #                      local_info)
+
+                local_info.event.hook("changed", self._break_on_local_diverged,
+                                      remote_info)
         else:
+            local_info.event.hook("changed", self._break_on_local_diverged,
+                                  remote_info)
             remote_info.event.hook("changed", self._break_on_remote_diverged,
                                    local_info)
-
-        local_info.event.hook("changed", self._break_on_local_diverged,
-                              remote_info)
 
     def unlink(self, local, remote, setting=False):
 

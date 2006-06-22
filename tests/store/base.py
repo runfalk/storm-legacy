@@ -1523,6 +1523,34 @@ class StoreTest(object):
                                     "test.title = 'Title 40'")
         self.assertEquals(result.get_one(), ("Title 400",))
 
+    def test_back_reference_setting_changed_manually(self):
+        class MyTest(Test):
+            other = Reference(Test.id, Other.test_id, on_remote=True)
+
+        other = Other()
+        other.other_title = "Title 400"
+        self.store.add(other)
+
+        mytest = MyTest()
+        mytest.other = other
+        mytest.title = "Title 40"
+        self.store.add(mytest)
+
+        mytest.id = 40
+
+        self.assertEquals(mytest.other, other)
+
+        self.store.flush()
+
+        self.assertEquals(mytest.id, 40)
+        self.assertEquals(other.test_id, 40)
+
+        result = self.store.execute("SELECT other.other_title "
+                                    "FROM test, other "
+                                    "WHERE test.id = other.test_id AND "
+                                    "test.title = 'Title 40'")
+        self.assertEquals(result.get_one(), ("Title 400",))
+
     def test_back_reference_on_added_no_store(self):
         class MyTest(Test):
             other = Reference(Test.id, Other.test_id, on_remote=True)
