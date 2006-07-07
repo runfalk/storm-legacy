@@ -460,8 +460,8 @@ class ResultSet(object):
                               self._order_by, offset, limit)
 
     def _aggregate(self, column):
-        select = Select(column, self._where, order_by=self._order_by,
-                        default_tables=self._cls_info.table, distinct=True)
+        select = Select(column, self._where, distinct=True,
+                        default_tables=self._cls_info.table)
         return self._store._connection.execute(select).get_one()[0]
 
     def one(self):

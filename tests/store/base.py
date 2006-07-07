@@ -330,6 +330,11 @@ class StoreTest(object):
     def test_find_sum(self):
         self.assertEquals(int(self.store.find(Test).sum(Test.id)), 60)
 
+    def test_find_max_order_by(self):
+        """Interaction between order by and aggregation shouldn't break."""
+        result = self.store.find(Test)
+        self.assertEquals(result.order_by(Test.id).max(Test.id), 30)
+
     def test_find_remove(self):
         self.store.find(Test, Test.id == 20).remove()
         self.assertEquals(self.get_items(), [
