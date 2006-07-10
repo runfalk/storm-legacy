@@ -598,6 +598,20 @@ class ResultSet(object):
     def sum(self, column):
         return self._aggregate(Sum(column), column)
 
+    def values(self, column):
+        # XXX PostgreSQL doesn't support distinct if the "order by" clause
+        #     isn't in the selected expression. The compiler should be
+        #     aware about it.
+        select = Select(column, self._where, # distinct=True,
+                        default_tables=self._cls_info.table,
+                        offset=self._offset, limit=self._limit,
+                        order_by=self._order_by)
+        result = self._store._connection.execute(select)
+        variable = column.variable_factory()
+        for values in result:
+            result.set_variable(variable, values[0])
+            yield variable.get()
+
     def set(self, *args, **kwargs):
         if not (args or kwargs):
             return
@@ -662,8 +676,6 @@ class ResultSet(object):
                 (match is None or match(get_column))):
                 objects.append(obj_info.obj)
         return objects
-
-    # TODO Add ResultSet().values(Tag.name) (or something)
 
 
 Store._result_set_factory = ResultSet

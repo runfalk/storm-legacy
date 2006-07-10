@@ -482,6 +482,20 @@ class StoreTest(object):
         result = self.store.find(Test)
         self.assertEquals(result.order_by(Test.id).max(Test.id), 30)
 
+    def test_find_values(self):
+        values = self.store.find(Test).order_by(Test.id).values(Test.id)
+        self.assertEquals(list(values), [10, 20, 30])
+
+        values = self.store.find(Test).order_by(Test.id).values(Test.title)
+        values = list(values)
+        self.assertEquals(values, ["Title 30", "Title 20", "Title 10"])
+        self.assertEquals([type(value) for value in values],
+                          [unicode, unicode, unicode])
+                          
+    def test_find_slice_values(self):
+        values = self.store.find(Test).order_by(Test.id)[1:2].values(Test.id)
+        self.assertEquals(list(values), [20])
+
     def test_find_remove(self):
         self.store.find(Test, Test.id == 20).remove()
         self.assertEquals(self.get_items(), [
