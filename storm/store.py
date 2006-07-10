@@ -436,26 +436,30 @@ class ResultSet(object):
         for values in result:
             yield self._store._load_object(self._cls_info, result, values)
 
-    def __getitem__(self, fromto):
-        # XXX FIXME TESTME: Slicing a sliced resultset
+    def __getitem__(self, index):
         # XXX FIXME TESTME: Non-slice fromto
-        if not isinstance(fromto, slice):
+        if not isinstance(index, slice):
             raise IndexError("Can't index ResultSets with non-slices: %r"
-                             % (fromto,))
-        if fromto.step is not None:
+                             % (index,))
+        if index.step is not None:
             raise IndexError("Don't understand stepped slices: %r"
-                             % (fromto.step,))
-        if fromto.stop is not None:
-            if fromto.start is not None:
-                limit = fromto.stop - fromto.start
+                             % (index.step,))
+        offset = self._offset
+        limit = self._limit
+        if index.start is not None:
+            if offset is Undef:
+                offset = index.start
             else:
-                limit = fromto.stop
-        else:
-            limit = Undef
-        if fromto.start is not None:
-            offset = fromto.start
-        else:
-            offset = Undef
+                offset += index.start
+            if limit is not Undef:
+                limit = max(0, limit - index.start)
+        if index.stop is not None:
+            if index.start is None:
+                new_limit = index.stop
+            else:
+                new_limit = index.stop - index.start
+            if limit is Undef or limit > new_limit:
+                limit = new_limit
         return self.__class__(self._store, self._cls_info, self._where,
                               self._order_by, offset, limit)
 

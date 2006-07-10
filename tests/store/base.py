@@ -289,19 +289,57 @@ class StoreTest(object):
         self.assertEquals(lst,
                           [(20, "Title 20")])
 
-    def test_find_offset(self):
+    def test_find_slice_offset(self):
         result = self.store.find(Test).order_by(Test.title)[1:]
         lst = [(obj.id, obj.title) for obj in result]
         self.assertEquals(lst, 
                           [(20, "Title 20"),
                            (10, "Title 30")])
 
-    def test_find_limit(self):
+    def test_find_slice_limit(self):
         result = self.store.find(Test).order_by(Test.title)[:2]
         lst = [(obj.id, obj.title) for obj in result]
         self.assertEquals(lst, 
                           [(30, "Title 10"),
                            (20, "Title 20")])
+
+    def test_find_slice_slice(self):
+        result = self.store.find(Test).order_by(Test.title)[0:2][1:3]
+        lst = [(obj.id, obj.title) for obj in result]
+        self.assertEquals(lst,
+                          [(20, "Title 20")])
+
+        result = self.store.find(Test).order_by(Test.title)[:2][1:3]
+        lst = [(obj.id, obj.title) for obj in result]
+        self.assertEquals(lst,
+                          [(20, "Title 20")])
+
+        result = self.store.find(Test).order_by(Test.title)[1:3][0:1]
+        lst = [(obj.id, obj.title) for obj in result]
+        self.assertEquals(lst,
+                          [(20, "Title 20")])
+
+        result = self.store.find(Test).order_by(Test.title)[1:3][:1]
+        lst = [(obj.id, obj.title) for obj in result]
+        self.assertEquals(lst,
+                          [(20, "Title 20")])
+
+        result = self.store.find(Test).order_by(Test.title)[5:5][1:1]
+        lst = [(obj.id, obj.title) for obj in result]
+        self.assertEquals(lst, [])
+
+    def test_find_slice_order_by(self):
+        result = self.store.find(Test)[2:3].order_by(Test.title)
+        self.assertEquals([obj.id for obj in result], [10])
+
+        result = self.store.find(Test)[0:1].order_by(Test.title)
+        self.assertEquals([obj.id for obj in result], [30])
+
+        result = self.store.find(Test)[0:1].order_by(Test.id)
+        self.assertEquals([obj.id for obj in result], [10])
+
+        result = self.store.find(Test)[2:3].order_by(Test.id)
+        self.assertEquals([obj.id for obj in result], [30])
 
     def test_find_any(self, *args):
         obj = self.store.find(Test).order_by(Test.title).any()
@@ -1204,19 +1242,6 @@ class StoreTest(object):
     def test_find_set_expr_unsupported_2(self):
         result = self.store.find(Test, title="Title 20")
         self.assertRaises(SetError, result.set, Test.title == Func())
-
-    def test_find_order_by_on_slice(self):
-        result = self.store.find(Test)[2:3].order_by(Test.title)
-        self.assertEquals([obj.id for obj in result], [10])
-
-        result = self.store.find(Test)[0:1].order_by(Test.title)
-        self.assertEquals([obj.id for obj in result], [30])
-
-        result = self.store.find(Test)[0:1].order_by(Test.id)
-        self.assertEquals([obj.id for obj in result], [10])
-
-        result = self.store.find(Test)[2:3].order_by(Test.id)
-        self.assertEquals([obj.id for obj in result], [30])
 
     def test_wb_find_set_checkpoints(self):
         obj = self.store.get(Other, 200)
