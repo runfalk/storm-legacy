@@ -372,7 +372,7 @@ class StoreTest(object):
         self.assertEquals(self.store.find(Test).min(Test.id), 10)
 
     def test_find_avg(self):
-        self.assertEquals(int(self.store.find(Test).avg(Test.id)), 20)
+        self.assertEquals(float(self.store.find(Test).avg(Test.id)), 20)
 
     def test_find_sum(self):
         self.assertEquals(int(self.store.find(Test).sum(Test.id)), 60)

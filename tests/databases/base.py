@@ -187,8 +187,9 @@ class UnsupportedDatabaseTest(object):
         os.mkdir(module_dir)
         sys.path.insert(0, module_dir)
 
-        # If the real psycopg is available, remove it from the sys.modules.
-        if self.dbapi_module_name in sys.modules:
+        # If the real module is available, remove it from the sys.modules.
+        dbapi_module = sys.modules.get(self.dbapi_module_name)
+        if dbapi_module is not None:
             del sys.modules[self.dbapi_module_name]
 
         # Create a module which raises ImportError when imported, to fake
@@ -209,9 +210,14 @@ class UnsupportedDatabaseTest(object):
         # Finally, test it.
         import _fake_
         uri = URI.parse("_fake_://db")
-        self.assertRaises(UnsupportedDatabaseError,
-                          _fake_.create_from_uri, uri)
 
-        # Unhack the environment.
-        del sys.path[0]
-        del sys.modules["_fake_"]
+        try:
+            self.assertRaises(UnsupportedDatabaseError,
+                              _fake_.create_from_uri, uri)
+        finally:
+            # Unhack the environment.
+            del sys.path[0]
+            del sys.modules["_fake_"]
+
+            if dbapi_module is not None:
+                sys.modules[self.dbapi_module_name] = dbapi_module

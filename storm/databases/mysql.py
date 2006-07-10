@@ -9,6 +9,7 @@
 #
 from datetime import time
 from array import array
+import sys
 
 from storm.databases import dummy
 
@@ -18,12 +19,21 @@ try:
 except ImportError:
     MySQLdb = dummy
 
-from storm.expr import And, Eq 
+from storm.expr import compile, Select, compile_select, Undef, And, Eq
 from storm.database import *
 from storm.exceptions import install_exceptions, UnsupportedDatabaseError
 
 
 install_exceptions(MySQLdb)
+
+
+compile = compile.copy()
+
+@compile.when(Select)
+def compile_select_mysql(compile, state, select):
+    if select.offset is not Undef and select.limit is Undef:
+        select.limit = sys.maxint
+    return compile_select(compile, state, select)
 
 
 class MySQLResult(Result):
@@ -47,6 +57,7 @@ class MySQLConnection(Connection):
 
     _result_factory = MySQLResult
     _param_mark = "%s"
+    _compile = compile
 
 
 class MySQL(Database):
