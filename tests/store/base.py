@@ -1205,6 +1205,19 @@ class StoreTest(object):
         result = self.store.find(Test, title="Title 20")
         self.assertRaises(SetError, result.set, Test.title == Func())
 
+    def test_find_order_by_on_slice(self):
+        result = self.store.find(Test)[2:3].order_by(Test.title)
+        self.assertEquals([obj.id for obj in result], [10])
+
+        result = self.store.find(Test)[0:1].order_by(Test.title)
+        self.assertEquals([obj.id for obj in result], [30])
+
+        result = self.store.find(Test)[0:1].order_by(Test.id)
+        self.assertEquals([obj.id for obj in result], [10])
+
+        result = self.store.find(Test)[2:3].order_by(Test.id)
+        self.assertEquals([obj.id for obj in result], [30])
+
     def test_wb_find_set_checkpoints(self):
         obj = self.store.get(Other, 200)
         self.store.find(Other, id=200).set(other_title="Title 400")

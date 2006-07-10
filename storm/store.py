@@ -437,7 +437,6 @@ class ResultSet(object):
             yield self._store._load_object(self._cls_info, result, values)
 
     def __getitem__(self, fromto):
-        # XXX FIXME TESTME: Add a test for order_by + offset + limit + boom!
         # XXX FIXME TESTME: Slicing a sliced resultset
         # XXX FIXME TESTME: Non-slice fromto
         if not isinstance(fromto, slice):
