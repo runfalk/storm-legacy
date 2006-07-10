@@ -49,6 +49,12 @@ class OrderLoopError(StoreError):
 class SetError(StoreError):
     pass
 
+class NotOneError(StoreError):
+    pass
+
+class UnorderedError(StoreError):
+    pass
+
 
 class Error(StormError, StandardError):
     pass

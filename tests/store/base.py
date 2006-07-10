@@ -303,12 +303,59 @@ class StoreTest(object):
                           [(30, "Title 10"),
                            (20, "Title 20")])
 
-    def test_find_one(self, *args):
-        obj = self.store.find(Test).order_by(Test.title).one()
+    def test_find_any(self, *args):
+        obj = self.store.find(Test).order_by(Test.title).any()
         self.assertEquals(obj.id, 30)
         self.assertEquals(obj.title, "Title 10")
 
-        obj = self.store.find(Test).order_by(Test.id).one()
+        obj = self.store.find(Test).order_by(Test.id).any()
+        self.assertEquals(obj.id, 10)
+        self.assertEquals(obj.title, "Title 30")
+
+        obj = self.store.find(Test, id=40).any()
+        self.assertEquals(obj, None)
+
+    def test_find_first(self, *args):
+        self.assertRaises(UnorderedError, self.store.find(Test).first)
+
+        obj = self.store.find(Test).order_by(Test.title).first()
+        self.assertEquals(obj.id, 30)
+        self.assertEquals(obj.title, "Title 10")
+
+        obj = self.store.find(Test).order_by(Test.id).first()
+        self.assertEquals(obj.id, 10)
+        self.assertEquals(obj.title, "Title 30")
+
+        obj = self.store.find(Test, id=40).order_by(Test.id).first()
+        self.assertEquals(obj, None)
+
+    def test_find_last(self, *args):
+        self.assertRaises(UnorderedError, self.store.find(Test).last)
+
+        obj = self.store.find(Test).order_by(Test.title).last()
+        self.assertEquals(obj.id, 10)
+        self.assertEquals(obj.title, "Title 30")
+
+        obj = self.store.find(Test).order_by(Test.id).last()
+        self.assertEquals(obj.id, 30)
+        self.assertEquals(obj.title, "Title 10")
+
+        obj = self.store.find(Test, id=40).order_by(Test.id).last()
+        self.assertEquals(obj, None)
+
+    def test_find_last_desc(self, *args):
+        obj = self.store.find(Test).order_by(Desc(Test.title)).last()
+        self.assertEquals(obj.id, 30)
+        self.assertEquals(obj.title, "Title 10")
+
+        obj = self.store.find(Test).order_by(Asc(Test.id)).last()
+        self.assertEquals(obj.id, 30)
+        self.assertEquals(obj.title, "Title 10")
+
+    def test_find_one(self, *args):
+        self.assertRaises(NotOneError, self.store.find(Test).one)
+
+        obj = self.store.find(Test, id=10).one()
         self.assertEquals(obj.id, 10)
         self.assertEquals(obj.title, "Title 30")
 

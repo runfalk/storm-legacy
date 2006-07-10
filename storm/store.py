@@ -10,12 +10,13 @@
 from weakref import WeakValueDictionary, WeakKeyDictionary
 
 from storm.info import get_cls_info, get_obj_info, get_info
-from storm.expr import Select, Insert, Update, Delete
-from storm.expr import Column, Count, Max, Min, Avg, Sum, Eq, Expr, And
-from storm.expr import compile_python, compare_columns, CompileError
 from storm.variables import Variable
+from storm.expr import (
+    Select, Insert, Update, Delete, Column, Count, Max, Min, Avg, Sum, Eq,
+    Expr, And, Asc, Desc, compile_python, compare_columns, CompileError)
 from storm.exceptions import (
-    WrongStoreError, NotFlushedError, OrderLoopError, SetError)
+    WrongStoreError, NotFlushedError, OrderLoopError, UnorderedError,
+    NotOneError, SetError)
 from storm import Undef
 
 
@@ -464,12 +465,71 @@ class ResultSet(object):
                         default_tables=self._cls_info.table)
         return self._store._connection.execute(select).get_one()[0]
 
-    def one(self):
+    def any(self):
+        """Return a single item from the result set.
+
+        See also one(), first(), and last().
+        """
         select = Select(self._cls_info.columns, self._where,
                         default_tables=self._cls_info.table,
-                        order_by=self._order_by, distinct=True)
+                        order_by=self._order_by, distinct=True, limit=1)
         result = self._store._connection.execute(select)
         values = result.get_one()
+        if values:
+            return self._store._load_object(self._cls_info, result, values)
+        return None
+
+    def first(self):
+        """Return the first item from an ordered result set.
+
+        Will raise UnorderedError if the result set isn't ordered.
+
+        See also last(), one(), and any().
+        """
+        if self._order_by is Undef:
+            raise UnorderedError("Can't use first() on unordered result set")
+        return self.any()
+
+    def last(self):
+        """Return the last item from an ordered result set.
+
+        Will raise UnorderedError if the result set isn't ordered.
+
+        See also first(), one(), and any().
+        """
+        if self._order_by is Undef:
+            raise UnorderedError("Can't use last() on unordered result set")
+        order_by = []
+        for expr in self._order_by:
+            if isinstance(expr, Desc):
+                order_by.append(expr.expr)
+            elif isinstance(expr, Asc):
+                order_by.append(Desc(expr.expr))
+            else:
+                order_by.append(Desc(expr))
+        select = Select(self._cls_info.columns, self._where,
+                        default_tables=self._cls_info.table,
+                        order_by=order_by, distinct=True, limit=1)
+        result = self._store._connection.execute(select)
+        values = result.get_one()
+        if values:
+            return self._store._load_object(self._cls_info, result, values)
+        return None
+
+    def one(self):
+        """Return one item from a result set containing at most one item.
+
+        Will raise NotOneError if the result set contains more than one item.
+
+        See also first(), one(), and any().
+        """
+        select = Select(self._cls_info.columns, self._where,
+                        default_tables=self._cls_info.table,
+                        order_by=self._order_by, distinct=True, limit=2)
+        result = self._store._connection.execute(select)
+        values = result.get_one()
+        if result.get_one():
+            raise NotOneError("one() used with more than one result available")
         if values:
             return self._store._load_object(self._cls_info, result, values)
         return None
@@ -564,10 +624,6 @@ class ResultSet(object):
                 objects.append(obj_info.obj)
         return objects
 
-    # FIXME Implement it meaningfully.
-    first = one
-
-    # TODO Implement last() with order_by + inverted logic of Asc/Desc.
     # TODO Add ResultSet().values(Tag.name) (or something)
 
 
