@@ -481,11 +481,6 @@ class ResultSet(object):
         return self.__class__(self._store, self._cls_info, self._where,
                               self._order_by, offset, limit)
 
-    def _aggregate(self, column):
-        select = Select(column, self._where, distinct=True,
-                        default_tables=self._cls_info.table)
-        return self._store._connection.execute(select).get_one()[0]
-
     def any(self):
         """Return a single item from the result set.
 
@@ -576,20 +571,32 @@ class ResultSet(object):
                                                self._cls_info.table),
                                         noresult=True)
 
+    def _aggregate(self, expr, column=None):
+        select = Select(expr, self._where, distinct=True,
+                        default_tables=self._cls_info.table)
+        result = self._store._connection.execute(select)
+        value = result.get_one()[0]
+        if column is None:
+            return value
+        else:
+            variable = column.variable_factory()
+            result.set_variable(variable, value)
+            return variable.get()
+
     def count(self):
-        return self._aggregate(Count())
+        return int(self._aggregate(Count()))
 
-    def max(self, prop):
-        return self._aggregate(Max(prop))
+    def max(self, column):
+        return self._aggregate(Max(column), column)
 
-    def min(self, prop):
-        return self._aggregate(Min(prop))
+    def min(self, column):
+        return self._aggregate(Min(column), column)
 
-    def avg(self, prop):
-        return self._aggregate(Avg(prop))
+    def avg(self, column):
+        return float(self._aggregate(Avg(column)))
 
-    def sum(self, prop):
-        return self._aggregate(Sum(prop))
+    def sum(self, column):
+        return self._aggregate(Sum(column), column)
 
     def set(self, *args, **kwargs):
         if not (args or kwargs):

@@ -451,14 +451,31 @@ class StoreTest(object):
     def test_find_max(self):
         self.assertEquals(self.store.find(Test).max(Test.id), 30)
 
+    def test_find_max_unicode(self):
+        title = self.store.find(Test).max(Test.title)
+        self.assertEquals(title, "Title 30")
+        self.assertTrue(isinstance(title, unicode))
+
     def test_find_min(self):
         self.assertEquals(self.store.find(Test).min(Test.id), 10)
 
+    def test_find_min_unicode(self):
+        title = self.store.find(Test).min(Test.title)
+        self.assertEquals(title, "Title 10")
+        self.assertTrue(isinstance(title, unicode))
+
     def test_find_avg(self):
-        self.assertEquals(float(self.store.find(Test).avg(Test.id)), 20)
+        self.assertEquals(self.store.find(Test).avg(Test.id), 20)
+
+    def test_find_avg_float(self):
+        obj = Test()
+        obj.id = 15
+        obj.title = "Title 15"
+        self.store.add(obj)
+        self.assertEquals(self.store.find(Test).avg(Test.id), 18.75)
 
     def test_find_sum(self):
-        self.assertEquals(int(self.store.find(Test).sum(Test.id)), 60)
+        self.assertEquals(self.store.find(Test).sum(Test.id), 60)
 
     def test_find_max_order_by(self):
         """Interaction between order by and aggregation shouldn't break."""
