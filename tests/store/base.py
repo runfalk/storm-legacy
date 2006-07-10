@@ -283,6 +283,26 @@ class StoreTest(object):
                           (30, "Title 10"),
                          ])
 
+    def test_find_index(self):
+        obj = self.store.find(Test).order_by(Test.title)[0]
+        self.assertEquals(obj.id, 30)
+        self.assertEquals(obj.title, "Title 10")
+
+        obj = self.store.find(Test).order_by(Test.title)[1]
+        self.assertEquals(obj.id, 20)
+        self.assertEquals(obj.title, "Title 20")
+
+        obj = self.store.find(Test).order_by(Test.title)[2]
+        self.assertEquals(obj.id, 10)
+        self.assertEquals(obj.title, "Title 30")
+
+        obj = self.store.find(Test).order_by(Test.title)[1:][1]
+        self.assertEquals(obj.id, 10)
+        self.assertEquals(obj.title, "Title 30")
+
+        result = self.store.find(Test).order_by(Test.title)
+        self.assertRaises(IndexError, result.__getitem__, 3)
+
     def test_find_slice(self):
         result = self.store.find(Test).order_by(Test.title)[1:2]
         lst = [(obj.id, obj.title) for obj in result]
@@ -296,12 +316,36 @@ class StoreTest(object):
                           [(20, "Title 20"),
                            (10, "Title 30")])
 
+    def test_find_slice_offset_any(self):
+        obj = self.store.find(Test).order_by(Test.title)[1:].any()
+        self.assertEquals(obj.id, 20)
+        self.assertEquals(obj.title, "Title 20")
+
+    def test_find_slice_offset_one(self):
+        obj = self.store.find(Test).order_by(Test.title)[1:2].one()
+        self.assertEquals(obj.id, 20)
+        self.assertEquals(obj.title, "Title 20")
+
+    def test_find_slice_offset_first(self):
+        obj = self.store.find(Test).order_by(Test.title)[1:].first()
+        self.assertEquals(obj.id, 20)
+        self.assertEquals(obj.title, "Title 20")
+
+    def test_find_slice_offset_last(self):
+        obj = self.store.find(Test).order_by(Test.title)[1:].last()
+        self.assertEquals(obj.id, 10)
+        self.assertEquals(obj.title, "Title 30")
+
     def test_find_slice_limit(self):
         result = self.store.find(Test).order_by(Test.title)[:2]
         lst = [(obj.id, obj.title) for obj in result]
         self.assertEquals(lst, 
                           [(30, "Title 10"),
                            (20, "Title 20")])
+
+    def test_find_slice_limit_last(self):
+        result = self.store.find(Test).order_by(Test.title)[:2]
+        self.assertRaises(UnsupportedError, result.last)
 
     def test_find_slice_slice(self):
         result = self.store.find(Test).order_by(Test.title)[0:2][1:3]
@@ -329,17 +373,18 @@ class StoreTest(object):
         self.assertEquals(lst, [])
 
     def test_find_slice_order_by(self):
-        result = self.store.find(Test)[2:3].order_by(Test.title)
-        self.assertEquals([obj.id for obj in result], [10])
+        result = self.store.find(Test)[2:]
+        self.assertRaises(UnsupportedError, result.order_by, None)
 
-        result = self.store.find(Test)[0:1].order_by(Test.title)
-        self.assertEquals([obj.id for obj in result], [30])
+        result = self.store.find(Test)[:2]
+        self.assertRaises(UnsupportedError, result.order_by, None)
 
-        result = self.store.find(Test)[0:1].order_by(Test.id)
-        self.assertEquals([obj.id for obj in result], [10])
+    def test_find_slice_remove(self):
+        result = self.store.find(Test)[2:]
+        self.assertRaises(UnsupportedError, result.remove)
 
-        result = self.store.find(Test)[2:3].order_by(Test.id)
-        self.assertEquals([obj.id for obj in result], [30])
+        result = self.store.find(Test)[:2]
+        self.assertRaises(UnsupportedError, result.remove)
 
     def test_find_any(self, *args):
         obj = self.store.find(Test).order_by(Test.title).any()

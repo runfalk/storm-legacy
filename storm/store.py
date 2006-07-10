@@ -16,7 +16,7 @@ from storm.expr import (
     Expr, And, Asc, Desc, compile_python, compare_columns, CompileError)
 from storm.exceptions import (
     WrongStoreError, NotFlushedError, OrderLoopError, UnorderedError,
-    NotOneError, SetError)
+    NotOneError, SetError, UnsupportedError)
 from storm import Undef
 
 
@@ -437,15 +437,31 @@ class ResultSet(object):
             yield self._store._load_object(self._cls_info, result, values)
 
     def __getitem__(self, index):
-        # XXX FIXME TESTME: Non-slice fromto
+        if isinstance(index, (int, long)):
+            if index == 0:
+                result_set = self
+            else:
+                if self._offset is not Undef:
+                    index += self._offset
+                result_set = self.__class__(self._store, self._cls_info,
+                                            self._where, self._order_by,
+                                            index, 1)
+            obj = result_set.any()
+            if obj is None:
+                raise IndexError("Index out of range")
+            return obj
+
         if not isinstance(index, slice):
             raise IndexError("Can't index ResultSets with non-slices: %r"
                              % (index,))
+
         if index.step is not None:
             raise IndexError("Don't understand stepped slices: %r"
                              % (index.step,))
+
         offset = self._offset
         limit = self._limit
+
         if index.start is not None:
             if offset is Undef:
                 offset = index.start
@@ -453,6 +469,7 @@ class ResultSet(object):
                 offset += index.start
             if limit is not Undef:
                 limit = max(0, limit - index.start)
+
         if index.stop is not None:
             if index.start is None:
                 new_limit = index.stop
@@ -460,6 +477,7 @@ class ResultSet(object):
                 new_limit = index.stop - index.start
             if limit is Undef or limit > new_limit:
                 limit = new_limit
+
         return self.__class__(self._store, self._cls_info, self._where,
                               self._order_by, offset, limit)
 
@@ -475,7 +493,8 @@ class ResultSet(object):
         """
         select = Select(self._cls_info.columns, self._where,
                         default_tables=self._cls_info.table,
-                        order_by=self._order_by, distinct=True, limit=1)
+                        order_by=self._order_by, distinct=True,
+                        offset=self._offset, limit=1)
         result = self._store._connection.execute(select)
         values = result.get_one()
         if values:
@@ -502,6 +521,9 @@ class ResultSet(object):
         """
         if self._order_by is Undef:
             raise UnorderedError("Can't use last() on unordered result set")
+        if self._limit is not Undef:
+            raise UnsupportedError("Can't use last() with a slice "
+                                   "of defined stop index")
         order_by = []
         for expr in self._order_by:
             if isinstance(expr, Desc):
@@ -526,9 +548,14 @@ class ResultSet(object):
 
         See also first(), one(), and any().
         """
+        if self._limit is not Undef:
+            limit = min(2, self._limit)
+        else:
+            limit = 2
         select = Select(self._cls_info.columns, self._where,
                         default_tables=self._cls_info.table,
-                        order_by=self._order_by, distinct=True, limit=2)
+                        order_by=self._order_by, distinct=True,
+                        offset=self._offset, limit=limit)
         result = self._store._connection.execute(select)
         values = result.get_one()
         if result.get_one():
@@ -538,11 +565,13 @@ class ResultSet(object):
         return None
 
     def order_by(self, *args):
-        return self.__class__(self._store, self._cls_info, self._where, args,
-                              self._offset, self._limit)
+        if self._offset is not Undef or self._limit is not Undef:
+            raise UnsupportedError("Can't reorder a sliced result set")
+        return self.__class__(self._store, self._cls_info, self._where, args)
 
     def remove(self):
-        # XXX TODO STORM: Raise exceptions when removing a sliced resultset
+        if self._offset is not Undef or self._limit is not Undef:
+            raise UnsupportedError("Can't remove a sliced result set")
         self._store._connection.execute(Delete(self._where,
                                                self._cls_info.table),
                                         noresult=True)
