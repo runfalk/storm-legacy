@@ -1948,8 +1948,6 @@ class StoreTest(object):
                           (400, 20, "Title 100"),
                          ])
 
-        self.assertEquals(foo.bars.first().id, 200)
-
         foo = self.store.get(FooRefSetOrderTitle, 20)
 
         del items[:]
@@ -1968,7 +1966,47 @@ class StoreTest(object):
                           (200, 20, "Title 200"),
                          ])
 
+    def test_reference_set_first(self):
+        self.add_reference_set_bar_400()
+
+        foo = self.store.get(FooRefSetOrderID, 20)
+        self.assertEquals(foo.bars.first().id, 200)
+
+        foo = self.store.get(FooRefSetOrderTitle, 20)
         self.assertEquals(foo.bars.first().id, 400)
+
+        foo = self.store.get(FooRefSetOrderTitle, 20)
+        self.assertEquals(foo.bars.first(Bar.id > 400), None)
+
+        foo = self.store.get(FooRefSetOrderTitle, 20)
+        self.assertEquals(foo.bars.first(Bar.id < 400).id, 200)
+
+        foo = self.store.get(FooRefSetOrderTitle, 20)
+        self.assertEquals(foo.bars.first(id=200).id, 200)
+
+        foo = self.store.get(FooRefSet, 20)
+        self.assertRaises(UnorderedError, foo.bars.first)
+
+    def test_reference_set_any(self):
+        self.add_reference_set_bar_400()
+
+        foo = self.store.get(FooRefSetOrderID, 20)
+        self.assertEquals(foo.bars.any().id, 200)
+
+        foo = self.store.get(FooRefSetOrderTitle, 20)
+        self.assertEquals(foo.bars.any().id, 400)
+
+        foo = self.store.get(FooRefSetOrderTitle, 20)
+        self.assertEquals(foo.bars.any(Bar.id > 400), None)
+
+        foo = self.store.get(FooRefSetOrderTitle, 20)
+        self.assertEquals(foo.bars.any(Bar.id < 400).id, 200)
+
+        foo = self.store.get(FooRefSetOrderTitle, 20)
+        self.assertEquals(foo.bars.any(id=200).id, 200)
+
+        foo = self.store.get(FooRefSet, 20)
+        self.assertTrue(foo.bars.any().id in [200, 400])
 
     def test_reference_set_remove(self):
         self.add_reference_set_bar_400()
@@ -2152,8 +2190,6 @@ class StoreTest(object):
                           (100, "Title 300"),
                          ])
 
-        self.assertEquals(foo.bars.first().id, 200)
-
         foo = self.store.get(FooIndRefSetOrderID, 20)
 
         del items[:]
@@ -2172,7 +2208,43 @@ class StoreTest(object):
                           (200, "Title 200"),
                          ])
 
+    def test_indirect_reference_set_first(self):
+        foo = self.store.get(FooIndRefSetOrderID, 20)
         self.assertEquals(foo.bars.first().id, 100)
+
+        foo = self.store.get(FooIndRefSetOrderTitle, 20)
+        self.assertEquals(foo.bars.first().id, 200)
+
+        foo = self.store.get(FooIndRefSetOrderTitle, 20)
+        self.assertEquals(foo.bars.first(Bar.id > 200), None)
+
+        foo = self.store.get(FooIndRefSetOrderTitle, 20)
+        self.assertEquals(foo.bars.first(Bar.id < 200).id, 100)
+
+        foo = self.store.get(FooIndRefSetOrderTitle, 20)
+        self.assertEquals(foo.bars.first(id=200).id, 200)
+
+        foo = self.store.get(FooIndRefSet, 20)
+        self.assertRaises(UnorderedError, foo.bars.first)
+
+    def test_indirect_reference_set_any(self):
+        foo = self.store.get(FooIndRefSetOrderID, 20)
+        self.assertEquals(foo.bars.any().id, 100)
+
+        foo = self.store.get(FooIndRefSetOrderTitle, 20)
+        self.assertEquals(foo.bars.any().id, 200)
+
+        foo = self.store.get(FooIndRefSetOrderTitle, 20)
+        self.assertEquals(foo.bars.any(Bar.id > 200), None)
+
+        foo = self.store.get(FooIndRefSetOrderTitle, 20)
+        self.assertEquals(foo.bars.any(Bar.id < 200).id, 100)
+
+        foo = self.store.get(FooIndRefSetOrderTitle, 20)
+        self.assertEquals(foo.bars.any(id=200).id, 200)
+
+        foo = self.store.get(FooIndRefSet, 20)
+        self.assertTrue(foo.bars.any().id in [100, 200])
 
     def test_indirect_reference_set_add(self):
         foo = self.store.get(FooIndRefSet, 20)

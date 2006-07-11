@@ -105,7 +105,10 @@ class BoundReferenceSet(object):
         return result
 
     def first(self, *args, **kwargs):
-        return self.find().first()
+        return self.find(*args, **kwargs).first()
+
+    def any(self, *args, **kwargs):
+        return self.find(*args, **kwargs).any()
 
     def order_by(self, *args):
         store = Store.of(self._local)
@@ -172,7 +175,10 @@ class BoundIndirectReferenceSet(object):
         return result
 
     def first(self, *args, **kwargs):
-        return self.find().first()
+        return self.find(*args, **kwargs).first()
+
+    def any(self, *args, **kwargs):
+        return self.find(*args, **kwargs).any()
 
     def order_by(self, *args):
         store = Store.of(self._local)
