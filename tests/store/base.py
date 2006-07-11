@@ -40,8 +40,22 @@ class FooRef(Foo):
 class FooRefSet(Foo):
     bars = ReferenceSet(Foo.id, Bar.foo_id)
 
+class FooRefSetOrderID(Foo):
+    bars = ReferenceSet(Foo.id, Bar.foo_id, order_by=Bar.id)
+
+class FooRefSetOrderTitle(Foo):
+    bars = ReferenceSet(Foo.id, Bar.foo_id, order_by=Bar.title)
+
 class FooIndRefSet(Foo):
     bars = ReferenceSet(Foo.id, Link.foo_id, Link.bar_id, Bar.id)
+
+class FooIndRefSetOrderID(Foo):
+    bars = ReferenceSet(Foo.id, Link.foo_id, Link.bar_id, Bar.id,
+                        order_by=Bar.id)
+
+class FooIndRefSetOrderTitle(Foo):
+    bars = ReferenceSet(Foo.id, Link.foo_id, Link.bar_id, Bar.id,
+                        order_by=Bar.title)
 
 
 class DecorateVariable(Variable):
@@ -1768,17 +1782,17 @@ class StoreTest(object):
 
         self.assertEquals(type(bar.foo_id), int)
 
-    def test_reference_set(self):
+    def add_reference_set_bar_400(self):
         bar = Bar()
         bar.id = 400
         bar.foo_id = 20
-        bar.title = "Title 400"
+        bar.title = "Title 100"
         self.store.add(bar)
 
-        class MyFoo(Foo):
-            bars = ReferenceSet(Foo.id, Bar.foo_id)
+    def test_reference_set(self):
+        self.add_reference_set_bar_400()
 
-        foo = self.store.get(MyFoo, 20)
+        foo = self.store.get(FooRefSet, 20)
 
         items = []
         for bar in foo.bars:
@@ -1787,7 +1801,7 @@ class StoreTest(object):
 
         self.assertEquals(items, [
                           (200, 20, "Title 200"),
-                          (400, 20, "Title 400"),
+                          (400, 20, "Title 100"),
                          ])
 
     def test_reference_set_with_added(self):
@@ -1798,10 +1812,7 @@ class StoreTest(object):
         bar2.id = 500
         bar2.title = "Title 500"
 
-        class MyFoo(Foo):
-            bars = ReferenceSet(Foo.id, Bar.foo_id)
-
-        foo = MyFoo()
+        foo = FooRefSet()
         foo.title = "Title 40"
         foo.bars.add(bar1)
         foo.bars.add(bar2)
@@ -1818,17 +1829,16 @@ class StoreTest(object):
         self.assertEquals(foo.id, bar2.foo_id)
 
     def test_reference_set_composed(self):
-        bar = Bar()
-        bar.id = 400
-        bar.foo_id = 20
+        self.add_reference_set_bar_400()
+
+        bar = self.store.get(Bar, 400)
         bar.title = "Title 20"
-        self.store.add(bar)
 
-        class MyFoo(Foo):
+        class FooRefSetComposed(Foo):
             bars = ReferenceSet((Foo.id, Foo.title),
-                                  (Bar.foo_id, Bar.title))
+                                (Bar.foo_id, Bar.title))
 
-        foo = self.store.get(MyFoo, 20)
+        foo = self.store.get(FooRefSetComposed, 20)
 
         items = []
         for bar in foo.bars:
@@ -1852,16 +1862,9 @@ class StoreTest(object):
                          ])
 
     def test_reference_set_find(self):
-        bar = Bar()
-        bar.id = 400
-        bar.foo_id = 20
-        bar.title = "Title 300"
-        self.store.add(bar)
+        self.add_reference_set_bar_400()
 
-        class MyFoo(Foo):
-            bars = ReferenceSet(Foo.id, Bar.foo_id)
-
-        foo = self.store.get(MyFoo, 20)
+        foo = self.store.get(FooRefSet, 20)
 
         items = []
         for bar in foo.bars.find():
@@ -1870,61 +1873,43 @@ class StoreTest(object):
 
         self.assertEquals(items, [
                           (200, 20, "Title 200"),
-                          (400, 20, "Title 300"),
+                          (400, 20, "Title 100"),
                          ])
 
-        # Notice that there's anbar item with this title in the base,
+        # Notice that there's another item with this title in the base,
         # which isn't part of the reference.
 
-        objects = list(foo.bars.find(Bar.title == "Title 300"))
+        objects = list(foo.bars.find(Bar.title == "Title 100"))
         self.assertEquals(len(objects), 1)
         self.assertTrue(objects[0] is bar)
 
-        objects = list(foo.bars.find(title="Title 300"))
+        objects = list(foo.bars.find(title="Title 100"))
         self.assertEquals(len(objects), 1)
         self.assertTrue(objects[0] is bar)
 
     def test_reference_set_clear(self):
-        class MyFoo(Foo):
-            bars = ReferenceSet(Foo.id, Bar.foo_id)
-        foo = self.store.get(MyFoo, 20)
+        foo = self.store.get(FooRefSet, 20)
         foo.bars.clear()
         self.assertEquals(list(foo.bars), [])
 
     def test_reference_set_clear_cached(self):
-        class MyFoo(Foo):
-            bars = ReferenceSet(Foo.id, Bar.foo_id)
-        foo = self.store.get(MyFoo, 20)
+        foo = self.store.get(FooRefSet, 20)
         bar = self.store.get(Bar, 200)
         self.assertEquals(bar.foo_id, 20)
         foo.bars.clear()
         self.assertEquals(bar.foo_id, None)
 
     def test_reference_set_count(self):
-        bar = Bar()
-        bar.id = 400
-        bar.foo_id = 20
-        bar.title = "Title 400"
-        self.store.add(bar)
+        self.add_reference_set_bar_400()
 
-        class MyFoo(Foo):
-            bars = ReferenceSet(Foo.id, Bar.foo_id)
-
-        foo = self.store.get(MyFoo, 20)
+        foo = self.store.get(FooRefSet, 20)
 
         self.assertEquals(foo.bars.count(), 2)
 
     def test_reference_set_order_by(self):
-        bar = Bar()
-        bar.id = 400
-        bar.foo_id = 20
-        bar.title = "Title 100"
-        self.store.add(bar)
+        self.add_reference_set_bar_400()
 
-        class MyFoo(Foo):
-            bars = ReferenceSet(Foo.id, Bar.foo_id)
-
-        foo = self.store.get(MyFoo, 20)
+        foo = self.store.get(FooRefSet, 20)
 
         items = []
         for bar in foo.bars.order_by(Bar.id):
@@ -1943,17 +1928,9 @@ class StoreTest(object):
                          ])
 
     def test_reference_set_default_order_by(self):
-        bar = Bar()
-        bar.id = 400
-        bar.foo_id = 20
-        bar.title = "Title 100"
-        self.store.add(bar)
+        self.add_reference_set_bar_400()
 
-        class MyFoo(Foo):
-            bars = ReferenceSet(Foo.id, Bar.foo_id,
-                                  order_by=Bar.id)
-
-        foo = self.store.get(MyFoo, 20)
+        foo = self.store.get(FooRefSetOrderID, 20)
 
         items = []
         for bar in foo.bars:
@@ -1973,11 +1950,7 @@ class StoreTest(object):
 
         self.assertEquals(foo.bars.first().id, 200)
 
-        class MyFoo(Foo):
-            bars = ReferenceSet(Foo.id, Bar.foo_id,
-                                  order_by=Bar.title)
-
-        foo = self.store.get(MyFoo, 20)
+        foo = self.store.get(FooRefSetOrderTitle, 20)
 
         del items[:]
         for bar in foo.bars:
@@ -1998,16 +1971,9 @@ class StoreTest(object):
         self.assertEquals(foo.bars.first().id, 400)
 
     def test_reference_set_remove(self):
-        bar = Bar()
-        bar.id = 400
-        bar.foo_id = 20
-        bar.title = "Title 100"
-        self.store.add(bar)
+        self.add_reference_set_bar_400()
 
-        class MyFoo(Foo):
-            bars = ReferenceSet(Foo.id, Bar.foo_id)
-
-        foo = self.store.get(MyFoo, 20)
+        foo = self.store.get(FooRefSet, 20)
         for bar in foo.bars:
             foo.bars.remove(bar)
 
@@ -2019,10 +1985,7 @@ class StoreTest(object):
         bar.id = 400
         bar.title = "Title 100"
 
-        class MyFoo(Foo):
-            bars = ReferenceSet(Foo.id, Bar.foo_id)
-
-        foo = self.store.get(MyFoo, 20)
+        foo = self.store.get(FooRefSet, 20)
         foo.bars.add(bar)
 
         self.assertEquals(bar.foo_id, 20)
@@ -2033,10 +1996,7 @@ class StoreTest(object):
         bar.id = 400
         bar.title = "Title 400"
 
-        class MyFoo(Foo):
-            bars = ReferenceSet(Foo.id, Bar.foo_id)
-
-        foo = MyFoo()
+        foo = FooRefSet()
         foo.title = "Title 40"
         foo.bars.add(bar)
 
@@ -2054,10 +2014,7 @@ class StoreTest(object):
         bar.id = 400
         bar.title = "Title 400"
 
-        class MyFoo(Foo):
-            bars = ReferenceSet(Foo.id, Bar.foo_id)
-
-        foo = MyFoo()
+        foo = FooRefSet()
         foo.title = "Title 40"
         foo.bars.add(bar)
 
@@ -2078,10 +2035,7 @@ class StoreTest(object):
         bar2.id = 500
         bar2.title = "Title 500"
 
-        class MyFoo(Foo):
-            bars = ReferenceSet(Foo.id, Bar.foo_id)
-
-        foo = MyFoo()
+        foo = FooRefSet()
         foo.title = "Title 40"
         foo.bars.add(bar1)
         foo.bars.add(bar2)
@@ -2180,12 +2134,7 @@ class StoreTest(object):
                          ])
 
     def test_indirect_reference_set_default_order_by(self):
-        class MyFoo(Foo):
-            bars = ReferenceSet(Foo.id, Link.foo_id,
-                                  Link.bar_id, Bar.id,
-                                  order_by=Bar.title)
-
-        foo = self.store.get(MyFoo, 20)
+        foo = self.store.get(FooIndRefSetOrderTitle, 20)
 
         items = []
         for bar in foo.bars:
@@ -2205,12 +2154,7 @@ class StoreTest(object):
 
         self.assertEquals(foo.bars.first().id, 200)
 
-        class MyFoo(Foo):
-            bars = ReferenceSet(Foo.id, Link.foo_id,
-                                  Link.bar_id, Bar.id,
-                                  order_by=Bar.id)
-
-        foo = self.store.get(MyFoo, 20)
+        foo = self.store.get(FooIndRefSetOrderID, 20)
 
         del items[:]
         for bar in foo.bars:
