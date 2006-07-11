@@ -2088,6 +2088,18 @@ class StoreTest(object):
         self.assertEquals(Store.of(bar1), store)
         self.assertEquals(Store.of(bar2), self.store)
 
+    def test_reference_set_values(self):
+        self.add_reference_set_bar_400()
+
+        foo = self.store.get(FooRefSetOrderID, 20)
+
+        values = list(foo.bars.values(Bar.id, Bar.foo_id, Bar.title))
+        self.assertEquals(values, [
+                          (200, 20, "Title 200"),
+                          (400, 20, "Title 100"),
+                         ])
+        
+
     def test_indirect_reference_set(self):
         foo = self.store.get(FooIndRefSet, 20)
 
@@ -2347,6 +2359,15 @@ class StoreTest(object):
 
         self.assertEquals(list(foo.bars.order_by(Bar.id)),
                           [bar1, bar2])
+
+    def test_indirect_reference_set_values(self):
+        foo = self.store.get(FooIndRefSetOrderID, 20)
+
+        values = list(foo.bars.values(Bar.id, Bar.foo_id, Bar.title))
+        self.assertEquals(values, [
+                          (100, 10, "Title 300"),
+                          (200, 20, "Title 200"),
+                         ])
 
     def test_references_raise_nostore(self):
         foo1 = FooRefSet()

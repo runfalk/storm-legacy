@@ -110,6 +110,9 @@ class BoundReferenceSet(object):
     def any(self, *args, **kwargs):
         return self.find(*args, **kwargs).any()
 
+    def values(self, *columns):
+        return self.find().values(*columns)
+
     def order_by(self, *args):
         store = Store.of(self._local)
         if store is None:
@@ -179,6 +182,9 @@ class BoundIndirectReferenceSet(object):
 
     def any(self, *args, **kwargs):
         return self.find(*args, **kwargs).any()
+
+    def values(self, *columns):
+        return self.find().values(*columns)
 
     def order_by(self, *args):
         store = Store.of(self._local)
