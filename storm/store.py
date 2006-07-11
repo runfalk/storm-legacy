@@ -598,19 +598,28 @@ class ResultSet(object):
     def sum(self, column):
         return self._aggregate(Sum(column), column)
 
-    def values(self, column):
+    def values(self, *columns):
+        if not columns:
+            raise TypeError("values() takes at least one column as argument")
         # XXX PostgreSQL doesn't support distinct if the "order by" clause
         #     isn't in the selected expression. The compiler should be
         #     aware about it.
-        select = Select(column, self._where, # distinct=True,
+        select = Select(columns, self._where, # distinct=True,
                         default_tables=self._cls_info.table,
                         offset=self._offset, limit=self._limit,
                         order_by=self._order_by)
         result = self._store._connection.execute(select)
-        variable = column.variable_factory()
-        for values in result:
-            result.set_variable(variable, values[0])
-            yield variable.get()
+        if len(columns) == 1:
+            variable = columns[0].variable_factory()
+            for values in result:
+                result.set_variable(variable, values[0])
+                yield variable.get()
+        else:
+            variables = [column.variable_factory() for column in columns]
+            for values in result:
+                for variable, value in zip(variables, values):
+                    result.set_variable(variable, value)
+                yield tuple(variable.get() for variable in variables)
 
     def set(self, *args, **kwargs):
         if not (args or kwargs):

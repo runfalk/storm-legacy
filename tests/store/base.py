@@ -491,7 +491,19 @@ class StoreTest(object):
         self.assertEquals(values, ["Title 30", "Title 20", "Title 10"])
         self.assertEquals([type(value) for value in values],
                           [unicode, unicode, unicode])
-                          
+
+    def test_find_multiple_values(self):
+        result = self.store.find(Test).order_by(Test.id)
+        values = result.values(Test.id, Test.title)
+        self.assertEquals(list(values),
+                          [(10, "Title 30"),
+                           (20, "Title 20"),
+                           (30, "Title 10")])
+
+    def test_find_values_with_no_arguments(self):
+        result = self.store.find(Test).order_by(Test.id)
+        self.assertRaises(TypeError, result.values().next)
+
     def test_find_slice_values(self):
         values = self.store.find(Test).order_by(Test.id)[1:2].values(Test.id)
         self.assertEquals(list(values), [20])
