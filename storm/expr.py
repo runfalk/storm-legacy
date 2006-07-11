@@ -593,7 +593,18 @@ class Sum(Func):
 
 
 # --------------------------------------------------------------------
-# Suffix expressions
+# Prefix and suffix expressions
+
+class PrefixExpr(Expr):
+    prefix = "(unknown)"
+
+    def __init__(self, expr):
+        self.expr = expr
+
+@compile.when(PrefixExpr)
+def compile_prefix_expr(compile, state, expr):
+    return "%s %s" % (expr.prefix, compile(state, expr.expr))
+
 
 class SuffixExpr(Expr):
     suffix = "(unknown)"
@@ -605,6 +616,9 @@ class SuffixExpr(Expr):
 def compile_suffix_expr(compile, state, expr):
     return "%s %s" % (compile(state, expr.expr), expr.suffix)
 
+
+class Exists(PrefixExpr):
+    prefix = "EXISTS"
 
 class Asc(SuffixExpr):
     suffix = "ASC"

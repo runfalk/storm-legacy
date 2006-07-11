@@ -114,18 +114,11 @@ class Store(object):
             return None
         return self._load_object(cls_info, result, values)
 
+
     def find(self, cls, *args, **kwargs):
         self.flush()
         cls_info = get_cls_info(cls)
-        equals = list(args)
-        if kwargs:
-            for key, value in kwargs.items():
-                column = getattr(cls, key)
-                equals.append(Eq(column, column.variable_factory(value=value)))
-        if equals:
-            where = And(*equals)
-        else:
-            where = Undef
+        where = get_where_for_args(cls, args, kwargs)
         return self._result_set_factory(self, cls_info, where)
 
     def new(self, cls, *args, **kwargs):
@@ -688,3 +681,16 @@ class ResultSet(object):
 
 
 Store._result_set_factory = ResultSet
+
+
+def get_where_for_args(cls, args, kwargs):
+    cls_info = get_cls_info(cls)
+    equals = list(args)
+    if kwargs:
+        for key, value in kwargs.items():
+            column = getattr(cls, key)
+            equals.append(Eq(column, column.variable_factory(value=value)))
+    if equals:
+        return And(*equals)
+    return Undef
+

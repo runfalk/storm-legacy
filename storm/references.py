@@ -8,8 +8,8 @@
 # <license text goes here>
 #
 from storm.exceptions import WrongStoreError, NoStoreError
-from storm.store import Store
-from storm.expr import Undef, compare_columns
+from storm.store import Store, get_where_for_args
+from storm.expr import Select, Exists, Undef, compare_columns
 from storm.info import *
 
 
@@ -127,7 +127,7 @@ class BoundReferenceSet(object):
         where = self._relation.get_where_for_remote(self._local)
         return store.find(self._target_cls, where).count()
 
-    def clear(self):
+    def clear(self, *args, **kwargs):
         set_kwargs = {}
         for remote_column in self._relation.remote_key:
             set_kwargs[remote_column.name] = None
@@ -135,7 +135,7 @@ class BoundReferenceSet(object):
         if store is None:
             raise NoStoreError("Can't perform operation without a store")
         where = self._relation.get_where_for_remote(self._local)
-        store.find(self._target_cls, where).set(**set_kwargs)
+        store.find(self._target_cls, where, *args, **kwargs).set(**set_kwargs)
 
     def add(self, remote):
         self._relation.link(self._local, remote, True)
@@ -202,12 +202,19 @@ class BoundIndirectReferenceSet(object):
                  self._relation2.get_where_for_join())
         return store.find(self._target_cls, where).count()
 
-    def clear(self):
+    def clear(self, *args, **kwargs):
         store = Store.of(self._local)
         if store is None:
             raise NoStoreError("Can't perform operation without a store")
         where = self._relation1.get_where_for_remote(self._local)
-        store.find(self._link_cls, where).remove()
+        if args or kwargs:
+            filter = get_where_for_args(self._target_cls, args, kwargs)
+            join = self._relation2.get_where_for_join()
+            table = get_cls_info(self._target_cls).table
+            where &= Exists(Select("*", join & filter, tables=table))
+            store.find(self._link_cls, where).remove()
+        else:
+            store.find(self._link_cls, where).remove()
 
     def add(self, remote):
         link = self._link_cls()

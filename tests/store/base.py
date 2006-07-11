@@ -1899,6 +1899,27 @@ class StoreTest(object):
         foo.bars.clear()
         self.assertEquals(bar.foo_id, None)
 
+    def test_reference_set_clear_where(self):
+        self.add_reference_set_bar_400()
+
+        foo = self.store.get(FooRefSet, 20)
+        foo.bars.clear(Bar.id > 200)
+
+        items = [(bar.id, bar.foo_id, bar.title) for bar in foo.bars]
+        self.assertEquals(items, [
+                          (200, 20, "Title 200"),
+                         ])
+
+        bar = self.store.get(Bar, 400)
+        bar.foo_id = 20
+
+        foo.bars.clear(id=200)
+
+        items = [(bar.id, bar.foo_id, bar.title) for bar in foo.bars]
+        self.assertEquals(items, [
+                          (400, 20, "Title 100"),
+                         ])
+
     def test_reference_set_count(self):
         self.add_reference_set_bar_400()
 
@@ -2157,6 +2178,31 @@ class StoreTest(object):
         foo = self.store.get(FooIndRefSet, 20)
         foo.bars.clear()
         self.assertEquals(list(foo.bars), [])
+
+    def test_indirect_reference_set_clear_where(self):
+        foo = self.store.get(FooIndRefSet, 20)
+        items = [(bar.id, bar.foo_id, bar.title) for bar in foo.bars]
+        self.assertEquals(items, [
+                          (100, 10, "Title 300"),
+                          (200, 20, "Title 200"),
+                         ])
+
+        foo = self.store.get(FooIndRefSet, 30)
+        foo.bars.clear(Bar.id < 300)
+        foo.bars.clear(id=200)
+
+        foo = self.store.get(FooIndRefSet, 20)
+        foo.bars.clear(Bar.id < 200)
+
+        items = [(bar.id, bar.foo_id, bar.title) for bar in foo.bars]
+        self.assertEquals(items, [
+                          (200, 20, "Title 200"),
+                         ])
+
+        foo.bars.clear(id=200)
+
+        items = [(bar.id, bar.foo_id, bar.title) for bar in foo.bars]
+        self.assertEquals(items, [])
 
     def test_indirect_reference_set_count(self):
         foo = self.store.get(FooIndRefSet, 20)
