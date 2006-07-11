@@ -24,15 +24,14 @@ class PostgresStoreTest(TestHelper, StoreTest):
 
     def create_tables(self):
         connection = self.database.connect()
-        connection.execute("CREATE TABLE test "
+        connection.execute("CREATE TABLE foo "
                            "(id SERIAL PRIMARY KEY,"
                            " title VARCHAR DEFAULT 'Default Title')")
-        connection.execute("CREATE TABLE other "
+        connection.execute("CREATE TABLE bar "
                            "(id SERIAL PRIMARY KEY,"
-                           " test_id INTEGER,"
-                           " other_title VARCHAR)")
+                           " foo_id INTEGER, title VARCHAR)")
         connection.execute("CREATE TABLE bin "
                            "(id SERIAL PRIMARY KEY, bin BYTEA)")
         connection.execute("CREATE TABLE link "
-                           "(test_id INTEGER, other_id INTEGER)")
+                           "(foo_id INTEGER, bar_id INTEGER)")
         connection.commit()

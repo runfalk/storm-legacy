@@ -21,17 +21,16 @@ class SQLiteStoreTest(TestHelper, StoreTest):
 
     def create_tables(self):
         connection = self.database.connect()
-        connection.execute("CREATE TABLE test "
+        connection.execute("CREATE TABLE foo "
                            "(id INTEGER PRIMARY KEY,"
                            " title VARCHAR DEFAULT 'Default Title')")
-        connection.execute("CREATE TABLE other "
+        connection.execute("CREATE TABLE bar "
                            "(id INTEGER PRIMARY KEY,"
-                           " test_id INTEGER,"
-                           " other_title VARCHAR)")
+                           " foo_id INTEGER, title VARCHAR)")
         connection.execute("CREATE TABLE bin "
                            "(id INTEGER PRIMARY KEY, bin BLOB)")
         connection.execute("CREATE TABLE link "
-                           "(test_id INTEGER, other_id INTEGER)")
+                           "(foo_id INTEGER, bar_id INTEGER)")
         connection.commit()
 
     def drop_tables(self):
