@@ -1987,26 +1987,32 @@ class StoreTest(object):
                           (200, 20, "Title 200"),
                          ])
 
-    def test_reference_set_first(self):
+    def test_reference_set_first_last(self):
         self.add_reference_set_bar_400()
 
         foo = self.store.get(FooRefSetOrderID, 20)
         self.assertEquals(foo.bars.first().id, 200)
+        self.assertEquals(foo.bars.last().id, 400)
 
         foo = self.store.get(FooRefSetOrderTitle, 20)
         self.assertEquals(foo.bars.first().id, 400)
+        self.assertEquals(foo.bars.last().id, 200)
 
         foo = self.store.get(FooRefSetOrderTitle, 20)
         self.assertEquals(foo.bars.first(Bar.id > 400), None)
+        self.assertEquals(foo.bars.last(Bar.id > 400), None)
 
         foo = self.store.get(FooRefSetOrderTitle, 20)
         self.assertEquals(foo.bars.first(Bar.id < 400).id, 200)
+        self.assertEquals(foo.bars.last(Bar.id < 400).id, 200)
 
         foo = self.store.get(FooRefSetOrderTitle, 20)
         self.assertEquals(foo.bars.first(id=200).id, 200)
+        self.assertEquals(foo.bars.last(id=200).id, 200)
 
         foo = self.store.get(FooRefSet, 20)
         self.assertRaises(UnorderedError, foo.bars.first)
+        self.assertRaises(UnorderedError, foo.bars.last)
 
     def test_reference_set_any(self):
         self.add_reference_set_bar_400()
@@ -2266,24 +2272,30 @@ class StoreTest(object):
                           (200, "Title 200"),
                          ])
 
-    def test_indirect_reference_set_first(self):
+    def test_indirect_reference_set_first_last(self):
         foo = self.store.get(FooIndRefSetOrderID, 20)
         self.assertEquals(foo.bars.first().id, 100)
+        self.assertEquals(foo.bars.last().id, 200)
 
         foo = self.store.get(FooIndRefSetOrderTitle, 20)
         self.assertEquals(foo.bars.first().id, 200)
+        self.assertEquals(foo.bars.last().id, 100)
 
         foo = self.store.get(FooIndRefSetOrderTitle, 20)
         self.assertEquals(foo.bars.first(Bar.id > 200), None)
+        self.assertEquals(foo.bars.last(Bar.id > 200), None)
 
         foo = self.store.get(FooIndRefSetOrderTitle, 20)
         self.assertEquals(foo.bars.first(Bar.id < 200).id, 100)
+        self.assertEquals(foo.bars.last(Bar.id < 200).id, 100)
 
         foo = self.store.get(FooIndRefSetOrderTitle, 20)
         self.assertEquals(foo.bars.first(id=200).id, 200)
+        self.assertEquals(foo.bars.last(id=200).id, 200)
 
         foo = self.store.get(FooIndRefSet, 20)
         self.assertRaises(UnorderedError, foo.bars.first)
+        self.assertRaises(UnorderedError, foo.bars.last)
 
     def test_indirect_reference_set_any(self):
         foo = self.store.get(FooIndRefSetOrderID, 20)

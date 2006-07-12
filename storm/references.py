@@ -107,6 +107,9 @@ class BoundReferenceSet(object):
     def first(self, *args, **kwargs):
         return self.find(*args, **kwargs).first()
 
+    def last(self, *args, **kwargs):
+        return self.find(*args, **kwargs).last()
+
     def any(self, *args, **kwargs):
         return self.find(*args, **kwargs).any()
 
@@ -179,6 +182,9 @@ class BoundIndirectReferenceSet(object):
 
     def first(self, *args, **kwargs):
         return self.find(*args, **kwargs).first()
+
+    def last(self, *args, **kwargs):
+        return self.find(*args, **kwargs).last()
 
     def any(self, *args, **kwargs):
         return self.find(*args, **kwargs).any()
