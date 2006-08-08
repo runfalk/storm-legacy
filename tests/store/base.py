@@ -259,6 +259,11 @@ class StoreTest(object):
         self.assertEquals([(foo.id, foo.title) for foo in result], [
                          ])
 
+    def test_find_str(self):
+        # find() doesn't support non-Expr instances.
+        self.assertRaises(UnsupportedError,
+                          self.store.find, Foo, "foo.id == 20")
+
     def test_find_keywords(self):
         result = self.store.find(Foo, id=20, title="Title 20")
         self.assertEquals([(foo.id, foo.title) for foo in result], [
@@ -2640,4 +2645,3 @@ class StoreTest(object):
         self.store.rollback()
         foo2 = self.store.get(Foo, 20)
         self.assertTrue(foo1 is foo2)
-

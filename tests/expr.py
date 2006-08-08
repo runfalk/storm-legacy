@@ -111,6 +111,13 @@ class ExprTest(TestHelper):
         self.assertEquals(expr.expr1, "arg1")
         self.assertEquals(expr.expr2, "arg2")
 
+    def test_sql_constructor(self):
+        objects = [object() for i in range(3)]
+        expr = SQL(*objects)
+        self.assertEquals(expr.expr, objects[0])
+        self.assertEquals(expr.params, objects[1])
+        self.assertEquals(expr.tables, objects[2])
+
 
 class StateTest(TestHelper):
 
@@ -670,6 +677,54 @@ class CompileTest(TestHelper):
         statement, parameters = compile(expr)
         self.assertEquals(statement, "func1() DESC")
         self.assertEquals(parameters, [])
+
+    def test_sql(self):
+        expr = SQL("expression")
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "expression")
+        self.assertEquals(parameters, [])
+
+    def test_sql_params(self):
+        expr = SQL("expression", ["params"])
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "expression")
+        self.assertEquals(parameters, ["params"])
+
+    def test_sql_invalid_params(self):
+        expr = SQL("expression", "not a list or tuple")
+        self.assertRaises(CompileError, compile, expr)
+
+    def test_sql_tables(self):
+        expr = Select(["column", Func1()], SQL("expression", [], Func2()))
+        statement, parameters = compile(expr)
+        self.assertEquals(statement,
+                          "SELECT column, func1() FROM func2() "
+                          "WHERE expression")
+        self.assertEquals(parameters, [])
+
+    def test_sql_tables_with_list_or_tuple(self):
+        sql = SQL("expression", [], [Func1(), Func2()])
+        expr = Select("column", sql)
+        statement, parameters = compile(expr)
+        self.assertEquals(statement,
+                          "SELECT column FROM func1(), func2() "
+                          "WHERE expression")
+        self.assertEquals(parameters, [])
+
+        sql = SQL("expression", [], (Func1(), Func2()))
+        expr = Select("column", sql)
+        statement, parameters = compile(expr)
+        self.assertEquals(statement,
+                          "SELECT column FROM func1(), func2() "
+                          "WHERE expression")
+        self.assertEquals(parameters, [])
+
+    def test_sql_comparison(self):
+        expr = SQL("expression1") & SQL("expression2")
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "(expression1) AND (expression2)")
+        self.assertEquals(parameters, [])
+
 
 class CompilePythonTest(TestHelper):
 

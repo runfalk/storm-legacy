@@ -686,6 +686,16 @@ Store._result_set_factory = ResultSet
 def get_where_for_args(cls, args, kwargs):
     cls_info = get_cls_info(cls)
     equals = list(args)
+    for arg in args:
+        if isinstance(arg, Expr):
+            pass
+        elif isinstance(arg, basestring):
+            # Give a hint about SQL()
+            raise UnsupportedError("String arguments aren't supported. "
+                                   "Use SQL() instead.")
+        else:
+            raise UnsupportedError("Arguments should be subclasses of Expr, "
+                                   "not %r" % type(arg))
     if kwargs:
         for key, value in kwargs.items():
             column = getattr(cls, key)

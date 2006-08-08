@@ -321,13 +321,7 @@ def compile_select(compile, state, select):
     if select.distinct:
         tokens.append("DISTINCT ")
     tokens.append(compile(state, select.columns))
-    if has_tables(state, select):
-        tokens.append(" FROM ")
-        # Add a placeholder and compile later to support auto_tables.
-        tables_pos = len(tokens)
-        tokens.append(None)
-    else:
-        tables_pos = None
+    tables_pos = len(tokens)
     if select.where is not Undef:
         tokens.append(" WHERE ")
         tokens.append(compile(state, select.where))
@@ -341,8 +335,9 @@ def compile_select(compile, state, select):
         tokens.append(" LIMIT %d" % select.limit)
     if select.offset is not Undef:
         tokens.append(" OFFSET %d" % select.offset)
-    if tables_pos is not None:
-        tokens[tables_pos] = build_tables(compile, state, select)
+    if has_tables(state, select):
+        tokens.insert(tables_pos, " FROM ")
+        tokens.insert(tables_pos+1, build_tables(compile, state, select))
     state.pop()
     return "".join(tokens)
 
@@ -628,6 +623,29 @@ class Desc(SuffixExpr):
 
 
 # --------------------------------------------------------------------
+# Plain SQL expressions.
+
+class SQL(ComparableExpr):
+
+    def __init__(self, expr, params=Undef, tables=Undef):
+        self.expr = expr
+        self.params = params
+        self.tables = tables
+
+@compile.when(SQL)
+def compile_sql(compile, state, expr):
+    if expr.params is not Undef:
+        if type(expr.params) not in (tuple, list):
+            raise CompileError("Parameters should be a list or a tuple, "
+                               "not %r" % type(expr.params))
+        for param in expr.params:
+            state.parameters.append(param)
+    if expr.tables is not Undef:
+        state.auto_tables.append(expr.tables)
+    return expr.expr
+
+
+# --------------------------------------------------------------------
 # Utility functions.
 
 def compare_columns(columns, values):
@@ -651,16 +669,17 @@ def compare_columns(columns, values):
 # Set operator precedences.
 
 compile.set_precedence(10, Select, Insert, Update, Delete)
-compile.set_precedence(20, Or)
-compile.set_precedence(30, And)
-compile.set_precedence(40, Eq, Ne, Gt, Ge, Lt, Le, Like, In)
-compile.set_precedence(50, LShift, RShift)
-compile.set_precedence(60, Add, Sub)
-compile.set_precedence(70, Mul, Div, Mod)
+compile.set_precedence(20, SQL)
+compile.set_precedence(30, Or)
+compile.set_precedence(40, And)
+compile.set_precedence(50, Eq, Ne, Gt, Ge, Lt, Le, Like, In)
+compile.set_precedence(60, LShift, RShift)
+compile.set_precedence(70, Add, Sub)
+compile.set_precedence(80, Mul, Div, Mod)
 
-compile_python.set_precedence(20, Or)
-compile_python.set_precedence(30, And)
-compile_python.set_precedence(40, Eq, Ne, Gt, Ge, Lt, Le, Like, In)
-compile_python.set_precedence(50, LShift, RShift)
-compile_python.set_precedence(60, Add, Sub)
-compile_python.set_precedence(70, Mul, Div, Mod)
+compile_python.set_precedence(10, Or)
+compile_python.set_precedence(20, And)
+compile_python.set_precedence(30, Eq, Ne, Gt, Ge, Lt, Le, Like, In)
+compile_python.set_precedence(40, LShift, RShift)
+compile_python.set_precedence(50, Add, Sub)
+compile_python.set_precedence(60, Mul, Div, Mod)
