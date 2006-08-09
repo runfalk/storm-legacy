@@ -12,6 +12,7 @@ class ExprTest(TestHelper):
         self.assertEquals(expr.where, Undef)
         self.assertEquals(expr.tables, Undef)
         self.assertEquals(expr.default_tables, Undef)
+        self.assertEquals(expr.join, Undef)
         self.assertEquals(expr.order_by, Undef)
         self.assertEquals(expr.group_by, Undef)
         self.assertEquals(expr.limit, Undef)
@@ -19,17 +20,18 @@ class ExprTest(TestHelper):
         self.assertEquals(expr.distinct, False)
 
     def test_select_constructor(self):
-        objects = [object() for i in range(9)]
-        select = Select(*objects)
-        self.assertEquals(select.columns, objects[0])
-        self.assertEquals(select.where, objects[1])
-        self.assertEquals(select.tables, objects[2])
-        self.assertEquals(select.default_tables, objects[3])
-        self.assertEquals(select.order_by, objects[4])
-        self.assertEquals(select.group_by, objects[5])
-        self.assertEquals(select.limit, objects[6])
-        self.assertEquals(select.offset, objects[7])
-        self.assertEquals(select.distinct, objects[8])
+        objects = [object() for i in range(10)]
+        expr = Select(*objects)
+        self.assertEquals(expr.columns, objects[0])
+        self.assertEquals(expr.where, objects[1])
+        self.assertEquals(expr.tables, objects[2])
+        self.assertEquals(expr.default_tables, objects[3])
+        self.assertEquals(expr.join, objects[4])
+        self.assertEquals(expr.order_by, objects[5])
+        self.assertEquals(expr.group_by, objects[6])
+        self.assertEquals(expr.limit, objects[7])
+        self.assertEquals(expr.offset, objects[8])
+        self.assertEquals(expr.distinct, objects[9])
 
     def test_insert_default(self):
         expr = Insert(None, None)
@@ -111,12 +113,29 @@ class ExprTest(TestHelper):
         self.assertEquals(expr.expr1, "arg1")
         self.assertEquals(expr.expr2, "arg2")
 
+    def test_sql_default(self):
+        expr = SQL(None)
+        self.assertEquals(expr.expr, None)
+        self.assertEquals(expr.params, Undef)
+        self.assertEquals(expr.tables, Undef)
+
     def test_sql_constructor(self):
         objects = [object() for i in range(3)]
         expr = SQL(*objects)
         self.assertEquals(expr.expr, objects[0])
         self.assertEquals(expr.params, objects[1])
         self.assertEquals(expr.tables, objects[2])
+
+    def test_base_join_default(self):
+        expr = BaseJoin(None)
+        self.assertEquals(expr.table, None)
+        self.assertEquals(expr.on, Undef)
+
+    def test_base_join_constructor(self):
+        objects = [object() for i in range(2)]
+        expr = BaseJoin(*objects)
+        self.assertEquals(expr.table, objects[0])
+        self.assertEquals(expr.on, objects[1])
 
 
 class StateTest(TestHelper):
@@ -285,6 +304,16 @@ class CompileTest(TestHelper):
                           "SELECT table1.column1 FROM table1 WHERE "
                           "1 IN (SELECT table2.column2 FROM table2 WHERE "
                           "table1.column1 = table2.column2)")
+
+    def test_select_join(self):
+        expr = Select(["column1", Func1()], Func1(), ["table1", Func1()],
+                      join=[Join("table2"), Join("table3")])
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "SELECT column1, func1() "
+                                     "FROM table1, func1() "
+                                     "JOIN table2 JOIN table3 "
+                                     "WHERE func1()")
+        self.assertEquals(parameters, [])
 
     def test_insert(self):
         expr = Insert(["column1", Func1()], ["value1", Func1()], Func1())
@@ -724,6 +753,80 @@ class CompileTest(TestHelper):
         statement, parameters = compile(expr)
         self.assertEquals(statement, "(expression1) AND (expression2)")
         self.assertEquals(parameters, [])
+
+    def test_join(self):
+        expr = Join(Func1())
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "JOIN func1()")
+        self.assertEquals(parameters, [])
+
+    def test_join_on(self):
+        expr = Join(Func1(), Func2() == "value")
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "JOIN func1() ON func2() = ?")
+        self.assertEquals(parameters, [Variable("value")])
+
+    def test_left_join(self):
+        expr = LeftJoin(Func1())
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "LEFT JOIN func1()")
+        self.assertEquals(parameters, [])
+
+    def test_left_join_on(self):
+        expr = LeftJoin(Func1(), Func2() == "value")
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "LEFT JOIN func1() ON func2() = ?")
+        self.assertEquals(parameters, [Variable("value")])
+
+    def test_right_join(self):
+        expr = RightJoin(Func1())
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "RIGHT JOIN func1()")
+        self.assertEquals(parameters, [])
+
+    def test_right_join_on(self):
+        expr = RightJoin(Func1(), Func2() == "value")
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "RIGHT JOIN func1() ON func2() = ?")
+        self.assertEquals(parameters, [Variable("value")])
+
+    def test_natural_join(self):
+        expr = NaturalJoin(Func1())
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "NATURAL JOIN func1()")
+        self.assertEquals(parameters, [])
+
+    def test_natural_join_on(self):
+        expr = NaturalJoin(Func1(), Func2() == "value")
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "NATURAL JOIN func1() ON func2() = ?")
+        self.assertEquals(parameters, [Variable("value")])
+
+    def test_natural_left_join(self):
+        expr = NaturalLeftJoin(Func1())
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "NATURAL LEFT JOIN func1()")
+        self.assertEquals(parameters, [])
+
+    def test_natural_left_join_on(self):
+        expr = NaturalLeftJoin(Func1(), Func2() == "value")
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "NATURAL LEFT JOIN func1() "
+                                     "ON func2() = ?")
+        self.assertEquals(parameters, [Variable("value")])
+
+    def test_natural_right_join(self):
+        expr = NaturalRightJoin(Func1())
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "NATURAL RIGHT JOIN func1()")
+        self.assertEquals(parameters, [])
+
+    def test_natural_right_join_on(self):
+        expr = NaturalRightJoin(Func1(), Func2() == "value")
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "NATURAL RIGHT JOIN func1() "
+                                     "ON func2() = ?")
+        self.assertEquals(parameters, [Variable("value")])
 
 
 class CompilePythonTest(TestHelper):

@@ -301,13 +301,15 @@ def build_table(compile, state, expr):
 
 class Select(Expr):
 
-    def __init__(self, columns, where=Undef, tables=Undef,
-                 default_tables=Undef, order_by=Undef, group_by=Undef,
+    def __init__(self, columns, where=Undef,
+                 tables=Undef, default_tables=Undef, join=Undef,
+                 order_by=Undef, group_by=Undef,
                  limit=Undef, offset=Undef, distinct=False):
         self.columns = columns
         self.where = where
         self.tables = tables
         self.default_tables = default_tables
+        self.join = join
         self.order_by = order_by
         self.group_by = group_by
         self.limit = limit
@@ -322,6 +324,9 @@ def compile_select(compile, state, select):
         tokens.append("DISTINCT ")
     tokens.append(compile(state, select.columns))
     tables_pos = len(tokens)
+    if select.join is not Undef:
+        tokens.append(" ")
+        tokens.append(compile(state, select.join, join=" "))
     if select.where is not Undef:
         tokens.append(" WHERE ")
         tokens.append(compile(state, select.where))
@@ -402,7 +407,7 @@ def compile_delete(compile, state, delete):
 
 
 # --------------------------------------------------------------------
-# Columns.
+# Columns
 
 class Column(ComparableExpr):
 
@@ -422,6 +427,76 @@ def compile_column(compile, state, column):
 @compile_python.when(Column)
 def compile_python_column(compile, state, column):
     return "get_column(%s)" % repr(column.name)
+
+
+# --------------------------------------------------------------------
+# Joins
+
+class BaseJoin(Expr):
+
+    def __init__(self, table, on=Undef):
+        self.table = table
+        self.on = on
+
+
+class Join(BaseJoin): pass
+
+@compile.when(Join)
+def compile_join(compile, state, expr):
+    table = compile(state, expr.table)
+    if expr.on is not Undef:
+        return "JOIN %s ON %s" % (table, compile(state, expr.on))
+    return "JOIN %s" % table
+
+
+class LeftJoin(BaseJoin): pass
+
+@compile.when(LeftJoin)
+def compile_left_join(compile, state, expr):
+    table = compile(state, expr.table)
+    if expr.on is not Undef:
+        return "LEFT JOIN %s ON %s" % (table, compile(state, expr.on))
+    return "LEFT JOIN %s" % table
+
+
+class RightJoin(BaseJoin): pass
+
+@compile.when(RightJoin)
+def compile_right_join(compile, state, expr):
+    table = compile(state, expr.table)
+    if expr.on is not Undef:
+        return "RIGHT JOIN %s ON %s" % (table, compile(state, expr.on))
+    return "RIGHT JOIN %s" % table
+
+
+class NaturalJoin(BaseJoin): pass
+
+@compile.when(NaturalJoin)
+def compile_join(compile, state, expr):
+    table = compile(state, expr.table)
+    if expr.on is not Undef:
+        return "NATURAL JOIN %s ON %s" % (table, compile(state, expr.on))
+    return "NATURAL JOIN %s" % table
+
+
+class NaturalLeftJoin(BaseJoin): pass
+
+@compile.when(NaturalLeftJoin)
+def compile_natural_left_join(compile, state, expr):
+    table = compile(state, expr.table)
+    if expr.on is not Undef:
+        return "NATURAL LEFT JOIN %s ON %s" % (table, compile(state, expr.on))
+    return "NATURAL LEFT JOIN %s" % table
+
+
+class NaturalRightJoin(BaseJoin): pass
+
+@compile.when(NaturalRightJoin)
+def compile_natural_right_join(compile, state, expr):
+    table = compile(state, expr.table)
+    if expr.on is not Undef:
+        return "NATURAL RIGHT JOIN %s ON %s" % (table, compile(state, expr.on))
+    return "NATURAL RIGHT JOIN %s" % table
 
 
 # --------------------------------------------------------------------
@@ -669,6 +744,8 @@ def compare_columns(columns, values):
 # Set operator precedences.
 
 compile.set_precedence(10, Select, Insert, Update, Delete)
+compile.set_precedence(10, Join, LeftJoin, RightJoin)
+compile.set_precedence(10, NaturalJoin, NaturalLeftJoin, NaturalRightJoin)
 compile.set_precedence(20, SQL)
 compile.set_precedence(30, Or)
 compile.set_precedence(40, And)

@@ -218,9 +218,7 @@ class BoundIndirectReferenceSet(object):
             join = self._relation2.get_where_for_join()
             table = get_cls_info(self._target_cls).table
             where &= Exists(Select("*", join & filter, tables=table))
-            store.find(self._link_cls, where).remove()
-        else:
-            store.find(self._link_cls, where).remove()
+        store.find(self._link_cls, where).remove()
 
     def add(self, remote):
         link = self._link_cls()

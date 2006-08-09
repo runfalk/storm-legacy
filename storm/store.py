@@ -703,4 +703,3 @@ def get_where_for_args(cls, args, kwargs):
     if equals:
         return And(*equals)
     return Undef
-
