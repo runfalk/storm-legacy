@@ -576,7 +576,8 @@ class ResultSet(object):
     def order_by(self, *args):
         if self._offset is not Undef or self._limit is not Undef:
             raise UnsupportedError("Can't reorder a sliced result set")
-        return self.__class__(self._store, self._cls_info, self._where, args)
+        return self.__class__(self._store, self._cls_info, self._where,
+                              self._tables, args)
 
     def remove(self):
         if self._offset is not Undef or self._limit is not Undef:

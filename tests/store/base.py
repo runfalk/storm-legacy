@@ -274,7 +274,6 @@ class StoreTest(object):
         self.assertEquals([(foo.id, foo.title) for foo in result], [
                          ])
 
-    @run_this
     def test_using_find_join(self):
         bar = self.store.get(Bar, 100)
         bar.foo_id = None
