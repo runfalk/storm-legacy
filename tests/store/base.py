@@ -4,7 +4,7 @@ from storm.properties import get_obj_info
 from storm.references import Reference, ReferenceSet
 from storm.database import Result
 from storm.properties import Int, Str, Unicode, Property, Pickle
-from storm.expr import Asc, Desc, Select, Func
+from storm.expr import Asc, Desc, Select, Func, LeftJoin
 from storm.variables import Variable, UnicodeVariable, IntVariable
 from storm.exceptions import *
 from storm.store import *
@@ -272,6 +272,19 @@ class StoreTest(object):
 
         result = self.store.find(Foo, id=10, title="Title 20")
         self.assertEquals([(foo.id, foo.title) for foo in result], [
+                         ])
+
+    @run_this
+    def test_using_find_join(self):
+        bar = self.store.get(Bar, 100)
+        bar.foo_id = None
+
+        tables = self.store.using(Foo, LeftJoin(Bar, Bar.foo_id == Foo.id))
+        result = tables.find(Bar)
+        lst = [bar and (bar.id, bar.title) for bar in result]
+        self.assertEquals(lst, [
+                          (200, u'Title 200'),
+                          (300, u'Title 100'),
                          ])
 
     def test_find_order_by(self, *args):

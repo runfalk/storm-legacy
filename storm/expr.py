@@ -10,7 +10,7 @@
 from copy import copy
 import sys
 
-from storm.exceptions import CompileError, NoTableError
+from storm.exceptions import CompileError, NoTableError, ExprError
 from storm.variables import Variable
 from storm import Undef
 
@@ -57,7 +57,8 @@ class Compile(object):
                     statement = "(%s)" % statement
                 return statement
         else:
-            raise CompileError("Don't know how to compile %r" % expr.__class__)
+            raise CompileError("Don't know how to compile type %r of %r"
+                               % (expr.__class__, expr))
 
     def _compile(self, state, expr, join=", "):
         outer_precedence = state.precedence
@@ -272,7 +273,18 @@ def has_tables(state, expr):
 
 def build_tables(compile, state, expr):
     if expr.tables is not Undef:
-        return compile(state, expr.tables)
+        result = []
+        if type(expr.tables) not in (list, tuple):
+            return compile(state, expr.tables)
+        else:
+            for elem in expr.tables:
+                if result:
+                    if not (isinstance(elem, JoinExpr) and elem.left is Undef):
+                        result.append(", ")
+                    else:
+                        result.append(" ")
+                result.append(compile(state, elem))
+            return "".join(result)
     elif state.auto_tables:
         tables = []
         for expr in state.auto_tables:
@@ -302,14 +314,13 @@ def build_table(compile, state, expr):
 class Select(Expr):
 
     def __init__(self, columns, where=Undef,
-                 tables=Undef, default_tables=Undef, join=Undef,
+                 tables=Undef, default_tables=Undef,
                  order_by=Undef, group_by=Undef,
                  limit=Undef, offset=Undef, distinct=False):
         self.columns = columns
         self.where = where
         self.tables = tables
         self.default_tables = default_tables
-        self.join = join
         self.order_by = order_by
         self.group_by = group_by
         self.limit = limit
@@ -324,9 +335,6 @@ def compile_select(compile, state, select):
         tokens.append("DISTINCT ")
     tokens.append(compile(state, select.columns))
     tables_pos = len(tokens)
-    if select.join is not Undef:
-        tokens.append(" ")
-        tokens.append(compile(state, select.join, join=" "))
     if select.where is not Undef:
         tokens.append(" WHERE ")
         tokens.append(compile(state, select.where))
@@ -430,73 +438,66 @@ def compile_python_column(compile, state, column):
 
 
 # --------------------------------------------------------------------
-# Joins
+# From expressions
 
-class BaseJoin(Expr):
-
-    def __init__(self, table, on=Undef):
-        self.table = table
-        self.on = on
+class FromExpr(Expr):
+    pass
 
 
-class Join(BaseJoin): pass
+class JoinExpr(FromExpr):
 
-@compile.when(Join)
+    left = on = Undef
+    oper = "(unknown)"
+
+    def __init__(self, arg1, arg2=Undef, on=Undef):
+        # http://www.postgresql.org/docs/8.1/interactive/explicit-joins.html
+        if arg2 is Undef:
+            self.right = arg1
+            if on is not Undef:
+                self.on = on
+        elif not isinstance(arg2, Expr) or isinstance(arg2, FromExpr):
+            self.left = arg1
+            self.right = arg2
+            if on is not Undef:
+                self.on = on
+        else:
+            self.right = arg1
+            self.on = arg2
+            if on is not Undef:
+                raise ExprError("Improper join arguments: (%r, %r, %r)" %
+                                (arg1, arg2, on))
+
+@compile.when(JoinExpr)
 def compile_join(compile, state, expr):
-    table = compile(state, expr.table)
+    result = []
+    state.precedence += 0.5
+    if expr.left is not Undef:
+        result.append(compile(state, expr.left))
+    result.append(expr.oper)
+    result.append(compile(state, expr.right))
     if expr.on is not Undef:
-        return "JOIN %s ON %s" % (table, compile(state, expr.on))
-    return "JOIN %s" % table
+        result.append("ON")
+        result.append(compile(state, expr.on))
+    return " ".join(result)
 
 
-class LeftJoin(BaseJoin): pass
+class Join(JoinExpr):
+    oper = "JOIN"
 
-@compile.when(LeftJoin)
-def compile_left_join(compile, state, expr):
-    table = compile(state, expr.table)
-    if expr.on is not Undef:
-        return "LEFT JOIN %s ON %s" % (table, compile(state, expr.on))
-    return "LEFT JOIN %s" % table
+class LeftJoin(JoinExpr):
+    oper = "LEFT JOIN"
 
+class RightJoin(JoinExpr):
+    oper = "RIGHT JOIN"
 
-class RightJoin(BaseJoin): pass
+class NaturalJoin(JoinExpr):
+    oper = "NATURAL JOIN"
 
-@compile.when(RightJoin)
-def compile_right_join(compile, state, expr):
-    table = compile(state, expr.table)
-    if expr.on is not Undef:
-        return "RIGHT JOIN %s ON %s" % (table, compile(state, expr.on))
-    return "RIGHT JOIN %s" % table
+class NaturalLeftJoin(JoinExpr):
+    oper = "NATURAL LEFT JOIN"
 
-
-class NaturalJoin(BaseJoin): pass
-
-@compile.when(NaturalJoin)
-def compile_join(compile, state, expr):
-    table = compile(state, expr.table)
-    if expr.on is not Undef:
-        return "NATURAL JOIN %s ON %s" % (table, compile(state, expr.on))
-    return "NATURAL JOIN %s" % table
-
-
-class NaturalLeftJoin(BaseJoin): pass
-
-@compile.when(NaturalLeftJoin)
-def compile_natural_left_join(compile, state, expr):
-    table = compile(state, expr.table)
-    if expr.on is not Undef:
-        return "NATURAL LEFT JOIN %s ON %s" % (table, compile(state, expr.on))
-    return "NATURAL LEFT JOIN %s" % table
-
-
-class NaturalRightJoin(BaseJoin): pass
-
-@compile.when(NaturalRightJoin)
-def compile_natural_right_join(compile, state, expr):
-    table = compile(state, expr.table)
-    if expr.on is not Undef:
-        return "NATURAL RIGHT JOIN %s ON %s" % (table, compile(state, expr.on))
-    return "NATURAL RIGHT JOIN %s" % table
+class NaturalRightJoin(JoinExpr):
+    oper = "NATURAL RIGHT JOIN"
 
 
 # --------------------------------------------------------------------

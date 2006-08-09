@@ -12,16 +12,15 @@ from weakref import WeakValueDictionary, WeakKeyDictionary
 from storm.info import get_cls_info, get_obj_info, get_info
 from storm.variables import Variable
 from storm.expr import (
-    Select, Insert, Update, Delete, Column, Count, Max, Min, Avg, Sum, Eq,
-    Expr, And, Asc, Desc, compile_python, compare_columns, CompileError)
+    Expr, Select, Insert, Update, Delete, Column, JoinExpr, Count, Max, Min,
+    Avg, Sum, Eq, And, Asc, Desc, compile_python, compare_columns)
 from storm.exceptions import (
     WrongStoreError, NotFlushedError, OrderLoopError, UnorderedError,
-    NotOneError, SetError, UnsupportedError)
+    NotOneError, SetError, UnsupportedError, CompileError)
 from storm import Undef
 
 
 __all__ = ["Store"]
-
 
 PENDING_ADD = 1
 PENDING_REMOVE = 2
@@ -120,6 +119,20 @@ class Store(object):
         cls_info = get_cls_info(cls)
         where = get_where_for_args(cls, args, kwargs)
         return self._result_set_factory(self, cls_info, where)
+
+    def using(self, *tables):
+        def process(obj):
+            if not (isinstance(obj, basestring) or isinstance(obj, Expr)):
+                obj = get_cls_info(obj).table
+            elif isinstance(obj, JoinExpr):
+                if obj.left is not Undef:
+                    left = process(obj.left)
+                else:
+                    left = Undef
+                right = process(obj.right)
+                obj = obj.__class__(left, right, obj.on)
+            return obj
+        return self._table_set(self, [process(x) for x in tables])
 
     def new(self, cls, *args, **kwargs):
         obj = cls(*args, **kwargs)
@@ -313,10 +326,16 @@ class Store(object):
         if obj is None:
             primary_vars = []
             columns = cls_info.columns
+            is_null = True
             for i in cls_info.primary_key_pos:
-                variable = columns[i].variable_factory(value=values[i],
+                value = values[i]
+                if value is not None:
+                    is_null = False
+                variable = columns[i].variable_factory(value=value,
                                                        from_db=True)
                 primary_vars.append(variable)
+            if is_null:
+                return None
             obj_info = self._cache.get((cls_info.cls, tuple(primary_vars)))
             if obj_info is not None:
                 return obj_info.obj
@@ -411,23 +430,25 @@ class Store(object):
 
 class ResultSet(object):
 
-    def __init__(self, store, cls_info, where, order_by=Undef, 
+    def __init__(self, store, cls_info, where, tables=Undef, order_by=Undef,
                  offset=Undef, limit=Undef):
         self._store = store
         self._cls_info = cls_info
         self._where = where
+        self._tables = tables
         self._order_by = order_by
         self._offset = offset
         self._limit = limit
 
     def __iter__(self):
-        select = Select(self._cls_info.columns, self._where,
-                        default_tables=self._cls_info.table,
-                        order_by=self._order_by, distinct=True,
-                        offset=self._offset, limit=self._limit)
+        select = Select(self._cls_info.columns, self._where, self._tables,
+                        self._cls_info.table, self._order_by,
+                        distinct=True, offset=self._offset, limit=self._limit)
         result = self._store._connection.execute(select)
         for values in result:
-            yield self._store._load_object(self._cls_info, result, values)
+            obj = self._store._load_object(self._cls_info, result, values)
+            if obj is not None:
+                yield obj
 
     def __getitem__(self, index):
         if isinstance(index, (int, long)):
@@ -437,8 +458,8 @@ class ResultSet(object):
                 if self._offset is not Undef:
                     index += self._offset
                 result_set = self.__class__(self._store, self._cls_info,
-                                            self._where, self._order_by,
-                                            index, 1)
+                                            self._where, self._tables,
+                                            self._order_by, index, 1)
             obj = result_set.any()
             if obj is None:
                 raise IndexError("Index out of range")
@@ -472,7 +493,7 @@ class ResultSet(object):
                 limit = new_limit
 
         return self.__class__(self._store, self._cls_info, self._where,
-                              self._order_by, offset, limit)
+                              self._tables, self._order_by, offset, limit)
 
     def any(self):
         """Return a single item from the result set.
@@ -480,8 +501,8 @@ class ResultSet(object):
         See also one(), first(), and last().
         """
         select = Select(self._cls_info.columns, self._where,
-                        default_tables=self._cls_info.table,
-                        order_by=self._order_by, distinct=True,
+                        self._tables, self._cls_info.table,
+                        self._order_by, distinct=True,
                         offset=self._offset, limit=1)
         result = self._store._connection.execute(select)
         values = result.get_one()
@@ -521,7 +542,7 @@ class ResultSet(object):
             else:
                 order_by.append(Desc(expr))
         select = Select(self._cls_info.columns, self._where,
-                        default_tables=self._cls_info.table,
+                        self._tables, self._cls_info.table,
                         order_by=order_by, distinct=True, limit=1)
         result = self._store._connection.execute(select)
         values = result.get_one()
@@ -541,7 +562,7 @@ class ResultSet(object):
         else:
             limit = 2
         select = Select(self._cls_info.columns, self._where,
-                        default_tables=self._cls_info.table,
+                        self._tables, self._cls_info.table,
                         order_by=self._order_by, distinct=True,
                         offset=self._offset, limit=limit)
         result = self._store._connection.execute(select)
@@ -565,8 +586,8 @@ class ResultSet(object):
                                         noresult=True)
 
     def _aggregate(self, expr, column=None):
-        select = Select(expr, self._where, distinct=True,
-                        default_tables=self._cls_info.table)
+        select = Select(expr, self._where, self._tables,
+                        self._cls_info.table, distinct=True)
         result = self._store._connection.execute(select)
         value = result.get_one()[0]
         if column is None:
@@ -597,10 +618,9 @@ class ResultSet(object):
         # XXX PostgreSQL doesn't support distinct if the "order by" clause
         #     isn't in the selected expression. The compiler should be
         #     aware about it.
-        select = Select(columns, self._where, # distinct=True,
-                        default_tables=self._cls_info.table,
-                        offset=self._offset, limit=self._limit,
-                        order_by=self._order_by)
+        select = Select(columns, self._where, self._tables, # distinct=True,
+                        self._cls_info.table, self._order_by,
+                        offset=self._offset, limit=self._limit)
         result = self._store._connection.execute(select)
         if len(columns) == 1:
             variable = columns[0].variable_factory()
@@ -680,7 +700,22 @@ class ResultSet(object):
         return objects
 
 
+class TableSet(object):
+    
+    def __init__(self, store, tables):
+        self._store = store
+        self._tables = tables
+
+    def find(self, cls, *args, **kwargs):
+        self._store.flush()
+        cls_info = get_cls_info(cls)
+        where = get_where_for_args(cls, args, kwargs)
+        return self._store._result_set_factory(self._store, cls_info, where,
+                                               self._tables)
+
+
 Store._result_set_factory = ResultSet
+Store._table_set = TableSet
 
 
 def get_where_for_args(cls, args, kwargs):
