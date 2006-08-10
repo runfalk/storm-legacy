@@ -729,7 +729,7 @@ class ResultSet(object):
     def cached(self):
         if type(self._cls_spec_info) is tuple:
             raise UnsupportedError("Cached finds don't support with tuples")
-        if self._tables:
+        if self._tables is not Undef:
             raise UnsupportedError("Cached finds don't support custom tables")
         if self._where is Undef:
             match = None
