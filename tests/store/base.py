@@ -668,12 +668,10 @@ class StoreTest(object):
         result = self.store.find((Foo, Bar))
         self.assertRaises(UnsupportedError, result.set, title=u"Title 40")
 
-    @run_this
     def test_find_tuple_cached(self):
         result = self.store.find((Foo, Bar))
         self.assertRaises(UnsupportedError, result.cached)
 
-    @run_this
     def test_find_using_cached(self):
         result = self.store.using(Foo, Bar).find(Foo)
         self.assertRaises(UnsupportedError, result.cached)
