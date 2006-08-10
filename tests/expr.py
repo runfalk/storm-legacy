@@ -169,6 +169,22 @@ class ExprTest(TestHelper):
         self.assertEquals(expr.left, None)
         self.assertEquals(expr.on, Undef)
 
+    def test_table(self):
+        objects = [object() for i in range(1)]
+        expr = Table(*objects)
+        self.assertEquals(expr.name, objects[0])
+
+    def test_as_default(self):
+        expr = As(None)
+        self.assertEquals(expr.expr, None)
+        self.assertTrue(isinstance(expr.name, str))
+
+    def test_as_constructor(self):
+        objects = [object() for i in range(2)]
+        expr = As(*objects)
+        self.assertEquals(expr.expr, objects[0])
+        self.assertEquals(expr.name, objects[1])
+
 
 class StateTest(TestHelper):
 
@@ -794,6 +810,24 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, "(expression1) AND (expression2)")
         self.assertEquals(parameters, [])
 
+    def test_table(self):
+        expr = Table("table")
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "table")
+        self.assertEquals(parameters, [])
+
+    def test_as(self):
+        expr = As(Table("table"), "name")
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "table AS name")
+        self.assertEquals(parameters, [])
+
+    def test_as_auto_name(self):
+        expr = As(Table("table"))
+        statement, parameters = compile(expr)
+        self.assertTrue(statement[:10], "table AS _")
+        self.assertEquals(parameters, [])
+
     def test_join(self):
         expr = Join(Func1())
         statement, parameters = compile(expr)
@@ -823,6 +857,12 @@ class CompileTest(TestHelper):
         statement, parameters = compile(expr)
         self.assertEquals(statement,
                           "(table1 JOIN table2) JOIN (table3 JOIN table4)")
+        self.assertEquals(parameters, [])
+
+    def test_join_table(self):
+        expr = Join(Table("table1"), Table("table2"))
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "table1 JOIN table2")
         self.assertEquals(parameters, [])
 
     def test_left_join(self):

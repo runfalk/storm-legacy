@@ -444,6 +444,33 @@ class FromExpr(Expr):
     pass
 
 
+class Table(FromExpr):
+
+    def __init__(self, name):
+        self.name = name
+
+@compile.when(Table)
+def compile_table(compile, state, table):
+    return table.name
+
+
+class As(FromExpr):
+    
+    auto_counter = 0
+
+    def __init__(self, expr, name=Undef):
+        self.expr = expr
+        if name is Undef:
+            As.auto_counter += 1
+            name = "_%x" % As.auto_counter
+        self.name = name
+
+
+@compile.when(As)
+def compile_as(compile, state, alias):
+    return "%s AS %s" % (compile(state, alias.expr), alias.name)
+
+
 class JoinExpr(FromExpr):
 
     left = on = Undef
