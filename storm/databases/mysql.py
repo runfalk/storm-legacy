@@ -27,7 +27,7 @@ from storm.exceptions import install_exceptions, DatabaseModuleError
 install_exceptions(MySQLdb)
 
 
-compile = compile.copy()
+compile = compile.fork()
 
 @compile.when(Select)
 def compile_select_mysql(compile, state, select):

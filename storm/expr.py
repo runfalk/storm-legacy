@@ -21,29 +21,53 @@ from storm import Undef
 class Compile(object):
     """Compiler based on the concept of generic functions."""
 
-    def __init__(self):
+    def __init__(self, parent=None):
+        self._local_dispatch_table = {}
+        self._local_precedence = {}
         self._dispatch_table = {}
         self._precedence = {}
+        self._hash = None
+        self._parents_hash = None
+        self._parents = []
+        if parent:
+            self._parents.extend(parent._parents)
+            self._parents.append(parent)
 
-    def copy(self):
-        copy = self.__class__()
-        copy._dispatch_table = self._dispatch_table.copy()
-        copy._precedence = self._precedence.copy()
-        return copy
+    def _check_parents(self):
+        parents_hash = hash(tuple(parent._hash for parent in self._parents))
+        if parents_hash != self._parents_hash:
+            self._parents_hash = parents_hash
+            for parent in self._parents:
+                self._dispatch_table.update(parent._local_dispatch_table)
+                self._precedence.update(parent._local_precedence)
+            self._dispatch_table.update(self._local_dispatch_table)
+            self._precedence.update(self._local_precedence)
+
+    def _update(self):
+        self._dispatch_table.update(self._local_dispatch_table)
+        self._precedence.update(self._local_precedence)
+        self._hash = hash(tuple(sorted(self._local_dispatch_table.items() +
+                                       self._local_precedence.items())))
+
+    def fork(self):
+        return self.__class__(self)
 
     def when(self, *types):
         def decorator(method):
             for type in types:
-                self._dispatch_table[type] = method
+                self._local_dispatch_table[type] = method
+            self._update()
             return method
         return decorator
 
     def get_precedence(self, type):
+        self._check_parents()
         return self._precedence.get(type, MAX_PRECEDENCE)
 
     def set_precedence(self, precedence, *types):
         for type in types:
-            self._precedence[type] = precedence
+            self._local_precedence[type] = precedence
+        self._update()
 
     def _compile_single(self, state, expr, outer_precedence):
         cls = expr.__class__
@@ -83,6 +107,7 @@ class Compile(object):
         return statement
 
     def __call__(self, expr):
+        self._check_parents()
         state = State()
         return self._compile(state, expr), state.parameters
 
@@ -467,8 +492,8 @@ class As(FromExpr):
 
 
 @compile.when(As)
-def compile_as(compile, state, alias):
-    return "%s AS %s" % (compile(state, alias.expr), alias.name)
+def compile_as(compile, state, expr):
+    return "%s AS %s" % (compile(state, expr.expr), expr.name)
 
 
 class JoinExpr(FromExpr):

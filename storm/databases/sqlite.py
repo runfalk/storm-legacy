@@ -27,7 +27,7 @@ from storm.expr import compile, Select, compile_select, Undef
 install_exceptions(sqlite)
 
 
-compile = compile.copy()
+compile = compile.fork()
 
 @compile.when(Select)
 def compile_select_sqlite(compile, state, select):

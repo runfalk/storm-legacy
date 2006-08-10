@@ -228,12 +228,29 @@ class Func2(Func):
 class CompileTest(TestHelper):
 
     def test_customize(self):
-        custom_compile = compile.copy()
+        custom_compile = compile.fork()
         @custom_compile.when(type(None))
         def compile_none(compile, state, expr):
             return "None"
         statement, parameters = custom_compile(Func1(None))
         self.assertEquals(statement, "func1(None)")
+
+    def test_customize_inheritance(self):
+        class C(object): pass
+        compile_parent = Compile()
+        compile_child = compile_parent.fork()
+
+        @compile_parent.when(C)
+        def compile_in_parent(compile, state, expr):
+            return "parent"
+        statement, parameters = compile_child(C())
+        self.assertEquals(statement, "parent")
+
+        @compile_child.when(C)
+        def compile_in_child(compile, state, expr):
+            return "child"
+        statement, parameters = compile_child(C())
+        self.assertEquals(statement, "child")
 
     def test_precedence(self):
         expr = And("1", Or("2", "3"),
@@ -256,7 +273,7 @@ class CompileTest(TestHelper):
 
     def test_customize_precedence(self):
         expr = And("and1", Or("or1", "or2"))
-        custom_compile = compile.copy()
+        custom_compile = compile.fork()
         custom_compile.set_precedence(10, And)
 
         custom_compile.set_precedence(11, Or)
@@ -270,6 +287,33 @@ class CompileTest(TestHelper):
         custom_compile.set_precedence(9, Or)
         statement, parameters = custom_compile(expr)
         self.assertEquals(statement, "and1 AND (or1 OR or2)")
+
+    def test_customize_precedence_inheritance(self):
+        compile_parent = compile.fork()
+        compile_child = compile_parent.fork()
+
+        expr = And("and1", Or("or1", "or2"))
+
+        compile_parent.set_precedence(10, And)
+
+        compile_parent.set_precedence(11, Or)
+        self.assertEquals(compile_child.get_precedence(Or), 11)
+        self.assertEquals(compile_parent.get_precedence(Or), 11)
+        statement, parameters = compile_child(expr)
+        self.assertEquals(statement, "and1 AND or1 OR or2")
+
+        compile_parent.set_precedence(10, Or)
+        self.assertEquals(compile_child.get_precedence(Or), 10)
+        self.assertEquals(compile_parent.get_precedence(Or), 10)
+        statement, parameters = compile_child(expr)
+        self.assertEquals(statement, "and1 AND or1 OR or2")
+
+        compile_child.set_precedence(9, Or)
+        self.assertEquals(compile_child.get_precedence(Or), 9)
+        self.assertEquals(compile_parent.get_precedence(Or), 10)
+        statement, parameters = compile_child(expr)
+        self.assertEquals(statement, "and1 AND (or1 OR or2)")
+
 
     def test_compile_sequence(self):
         expr = ["str", Func1(), (Func2(), None)]
