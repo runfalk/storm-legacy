@@ -113,12 +113,15 @@ class Store(object):
             return None
         return self._load_object(cls_info, result, values)
 
-
-    def find(self, cls, *args, **kwargs):
+    def find(self, cls_spec, *args, **kwargs):
         self.flush()
-        cls_info = get_cls_info(cls)
-        where = get_where_for_args(cls, args, kwargs)
-        return self._result_set_factory(self, cls_info, where)
+        if type(cls_spec) is tuple:
+            cls_spec_info = tuple(get_cls_info(cls) for cls in cls_spec)
+            where = get_where_for_args(args, kwargs)
+        else:
+            cls_spec_info = get_cls_info(cls_spec)
+            where = get_where_for_args(args, kwargs, cls_spec)
+        return self._result_set_factory(self, cls_spec_info, where)
 
     def using(self, *tables):
         def process(obj):
@@ -322,6 +325,25 @@ class Store(object):
             self._set_values(obj_info, missing_columns,
                              result, result.get_one())
 
+    def _load_objects(self, cls_spec_info, result, values):
+        if type(cls_spec_info) is not tuple:
+            return self._load_object(cls_spec_info, result, values)
+        else:
+            objects = []
+            has_valid = False
+            values_start = values_end = 0
+            for cls_info in cls_spec_info:
+                values_end += len(cls_info.columns)
+                obj = self._load_object(cls_info, result,
+                                        values[values_start:values_end])
+                objects.append(obj)
+                values_start = values_end
+                if obj is not None:
+                    has_valid = True
+            if not has_valid:
+                return None
+            return tuple(objects)
+
     def _load_object(self, cls_info, result, values, obj=None):
         if obj is None:
             primary_vars = []
@@ -430,25 +452,37 @@ class Store(object):
 
 class ResultSet(object):
 
-    def __init__(self, store, cls_info, where, tables=Undef, order_by=Undef,
-                 offset=Undef, limit=Undef):
+    def __init__(self, store, cls_spec_info, where,
+                 tables=Undef, order_by=Undef, offset=Undef, limit=Undef):
         self._store = store
-        self._cls_info = cls_info
+        self._cls_spec_info = cls_spec_info
         self._where = where
         self._tables = tables
         self._order_by = order_by
         self._offset = offset
         self._limit = limit
 
+    def _get_select(self):
+        if type(self._cls_spec_info) is tuple:
+            columns = []
+            default_tables = []
+            for cls_info in self._cls_spec_info:
+                columns.append(cls_info.columns)
+                default_tables.append(cls_info.table)
+        else:
+            columns = self._cls_spec_info.columns
+            default_tables = self._cls_spec_info.table
+        return Select(columns, self._where, self._tables, default_tables,
+                      self._order_by, distinct=True,
+                      offset=self._offset, limit=self._limit)
+
     def __iter__(self):
-        select = Select(self._cls_info.columns, self._where, self._tables,
-                        self._cls_info.table, self._order_by,
-                        distinct=True, offset=self._offset, limit=self._limit)
-        result = self._store._connection.execute(select)
+        result = self._store._connection.execute(self._get_select())
         for values in result:
-            obj = self._store._load_object(self._cls_info, result, values)
-            if obj is not None:
-                yield obj
+            ret = self._store._load_objects(self._cls_spec_info,
+                                            result, values)
+            if ret is not None:
+                yield ret
 
     def __getitem__(self, index):
         if isinstance(index, (int, long)):
@@ -457,7 +491,7 @@ class ResultSet(object):
             else:
                 if self._offset is not Undef:
                     index += self._offset
-                result_set = self.__class__(self._store, self._cls_info,
+                result_set = self.__class__(self._store, self._cls_spec_info,
                                             self._where, self._tables,
                                             self._order_by, index, 1)
             obj = result_set.any()
@@ -492,22 +526,23 @@ class ResultSet(object):
             if limit is Undef or limit > new_limit:
                 limit = new_limit
 
-        return self.__class__(self._store, self._cls_info, self._where,
+        return self.__class__(self._store, self._cls_spec_info, self._where,
                               self._tables, self._order_by, offset, limit)
+
+
 
     def any(self):
         """Return a single item from the result set.
 
         See also one(), first(), and last().
         """
-        select = Select(self._cls_info.columns, self._where,
-                        self._tables, self._cls_info.table,
-                        self._order_by, distinct=True,
-                        offset=self._offset, limit=1)
+        select = self._get_select()
+        select.limit = 1
         result = self._store._connection.execute(select)
         values = result.get_one()
         if values:
-            return self._store._load_object(self._cls_info, result, values)
+            return self._store._load_objects(self._cls_spec_info,
+                                             result, values)
         return None
 
     def first(self):
@@ -533,21 +568,22 @@ class ResultSet(object):
         if self._limit is not Undef:
             raise UnsupportedError("Can't use last() with a slice "
                                    "of defined stop index")
-        order_by = []
+        select = self._get_select()
+        select.offset = Undef
+        select.limit = 1
+        select.order_by = []
         for expr in self._order_by:
             if isinstance(expr, Desc):
-                order_by.append(expr.expr)
+                select.order_by.append(expr.expr)
             elif isinstance(expr, Asc):
-                order_by.append(Desc(expr.expr))
+                select.order_by.append(Desc(expr.expr))
             else:
-                order_by.append(Desc(expr))
-        select = Select(self._cls_info.columns, self._where,
-                        self._tables, self._cls_info.table,
-                        order_by=order_by, distinct=True, limit=1)
+                select.order_by.append(Desc(expr))
         result = self._store._connection.execute(select)
         values = result.get_one()
         if values:
-            return self._store._load_object(self._cls_info, result, values)
+            return self._store._load_objects(self._cls_spec_info,
+                                             result, values)
         return None
 
     def one(self):
@@ -557,38 +593,37 @@ class ResultSet(object):
 
         See also first(), one(), and any().
         """
-        if self._limit is not Undef:
-            limit = min(2, self._limit)
-        else:
-            limit = 2
-        select = Select(self._cls_info.columns, self._where,
-                        self._tables, self._cls_info.table,
-                        order_by=self._order_by, distinct=True,
-                        offset=self._offset, limit=limit)
+        select = self._get_select()
+        # limit could be 1 due to slicing, for instance.
+        if select.limit is not Undef and select.limit > 2:
+            select.limit = 2
         result = self._store._connection.execute(select)
         values = result.get_one()
         if result.get_one():
             raise NotOneError("one() used with more than one result available")
         if values:
-            return self._store._load_object(self._cls_info, result, values)
+            return self._store._load_objects(self._cls_spec_info,
+                                             result, values)
         return None
 
     def order_by(self, *args):
         if self._offset is not Undef or self._limit is not Undef:
             raise UnsupportedError("Can't reorder a sliced result set")
-        return self.__class__(self._store, self._cls_info, self._where,
+        return self.__class__(self._store, self._cls_spec_info, self._where,
                               self._tables, args)
 
     def remove(self):
         if self._offset is not Undef or self._limit is not Undef:
             raise UnsupportedError("Can't remove a sliced result set")
+        # FIXME Raise an error on a tuple cls_spec_info
         self._store._connection.execute(Delete(self._where,
-                                               self._cls_info.table),
+                                               self._cls_spec_info.table),
                                         noresult=True)
 
     def _aggregate(self, expr, column=None):
+        # FIXME Fix support for tuple cls_spec_info
         select = Select(expr, self._where, self._tables,
-                        self._cls_info.table, distinct=True)
+                        self._cls_spec_info.table, distinct=True)
         result = self._store._connection.execute(select)
         value = result.get_one()[0]
         if column is None:
@@ -619,9 +654,9 @@ class ResultSet(object):
         # XXX PostgreSQL doesn't support distinct if the "order by" clause
         #     isn't in the selected expression. The compiler should be
         #     aware about it.
-        select = Select(columns, self._where, self._tables, # distinct=True,
-                        self._cls_info.table, self._order_by,
-                        offset=self._offset, limit=self._limit)
+        select = self._get_select()
+        select.columns = columns
+        select.distinct = False
         result = self._store._connection.execute(select)
         if len(columns) == 1:
             variable = columns[0].variable_factory()
@@ -636,11 +671,12 @@ class ResultSet(object):
                 yield tuple(variable.get() for variable in variables)
 
     def set(self, *args, **kwargs):
+        # FIXME Raise an error on cls_info tuples
         if not (args or kwargs):
             return
 
         changes = {}
-        cls = self._cls_info.cls
+        cls = self._cls_spec_info.cls
 
         for expr in args:
             if (not isinstance(expr, Eq) or
@@ -661,7 +697,7 @@ class ResultSet(object):
             else:
                 changes[column] = column.variable_factory(value=value)
 
-        expr = Update(changes, self._where, self._cls_info.table)
+        expr = Update(changes, self._where, self._cls_spec_info.table)
         self._store._connection.execute(expr, noresult=True)
 
         try:
@@ -685,17 +721,19 @@ class ResultSet(object):
                     variables[column].checkpoint()
 
     def cached(self):
+        # FIXME This will break with tuples. Fix it.
         if self._where is Undef:
             match = None
         else:
             match = compile_python(self._where)
-            name_to_column = dict((c.name, c) for c in self._cls_info.columns)
+            name_to_column = dict((column.name, column)
+                                  for column in self._cls_spec_info.columns)
             def get_column(name, name_to_column=name_to_column):
                 return obj_info.variables[name_to_column[name]].get()
         objects = []
-        cls = self._cls_info.cls
+        cls = self._cls_spec_info.cls
         for obj_info in self._store._iter_cached():
-            if (obj_info.cls_info is self._cls_info and
+            if (obj_info.cls_info is self._cls_spec_info and
                 (match is None or match(get_column))):
                 objects.append(obj_info.obj)
         return objects
@@ -707,20 +745,23 @@ class TableSet(object):
         self._store = store
         self._tables = tables
 
-    def find(self, cls, *args, **kwargs):
+    def find(self, cls_spec, *args, **kwargs):
         self._store.flush()
-        cls_info = get_cls_info(cls)
-        where = get_where_for_args(cls, args, kwargs)
-        return self._store._result_set_factory(self._store, cls_info, where,
-                                               self._tables)
+        if type(cls_spec) is tuple:
+            cls_spec_info = tuple(get_cls_info(cls) for cls in cls_spec)
+            where = get_where_for_args(args, kwargs)
+        else:
+            cls_spec_info = get_cls_info(cls_spec)
+            where = get_where_for_args(args, kwargs, cls_spec)
+        return self._store._result_set_factory(self._store, cls_spec_info,
+                                               where, self._tables)
 
 
 Store._result_set_factory = ResultSet
 Store._table_set = TableSet
 
 
-def get_where_for_args(cls, args, kwargs):
-    cls_info = get_cls_info(cls)
+def get_where_for_args(args, kwargs, cls=None):
     equals = list(args)
     for arg in args:
         if isinstance(arg, Expr):
@@ -733,6 +774,7 @@ def get_where_for_args(cls, args, kwargs):
             raise UnsupportedError("Arguments should be subclasses of Expr, "
                                    "not %r" % type(arg))
     if kwargs:
+        # FIXME if cls is None: raise ...
         for key, value in kwargs.items():
             column = getattr(cls, key)
             equals.append(Eq(column, column.variable_factory(value=value)))

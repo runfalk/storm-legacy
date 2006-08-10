@@ -214,7 +214,7 @@ class BoundIndirectReferenceSet(object):
             raise NoStoreError("Can't perform operation without a store")
         where = self._relation1.get_where_for_remote(self._local)
         if args or kwargs:
-            filter = get_where_for_args(self._target_cls, args, kwargs)
+            filter = get_where_for_args(args, kwargs, self._target_cls)
             join = self._relation2.get_where_for_join()
             table = get_cls_info(self._target_cls).table
             where &= Exists(Select("*", join & filter, tables=table))

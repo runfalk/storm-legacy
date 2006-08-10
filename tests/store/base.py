@@ -274,18 +274,6 @@ class StoreTest(object):
         self.assertEquals([(foo.id, foo.title) for foo in result], [
                          ])
 
-    def test_using_find_join(self):
-        bar = self.store.get(Bar, 100)
-        bar.foo_id = None
-
-        tables = self.store.using(Foo, LeftJoin(Bar, Bar.foo_id == Foo.id))
-        result = tables.find(Bar)
-        lst = [bar and (bar.id, bar.title) for bar in result]
-        self.assertEquals(lst, [
-                          (200, u'Title 200'),
-                          (300, u'Title 100'),
-                         ])
-
     def test_find_order_by(self, *args):
         result = self.store.find(Foo).order_by(Foo.title)
         lst = [(foo.id, foo.title) for foo in result]
@@ -562,6 +550,120 @@ class StoreTest(object):
         self.assertEquals(self.store.find(Foo, title="Title 20").cached(),
                           [foo2])
 
+    def test_using_find_join(self):
+        bar = self.store.get(Bar, 100)
+        bar.foo_id = None
+
+        tables = self.store.using(Foo, LeftJoin(Bar, Bar.foo_id == Foo.id))
+        result = tables.find(Bar)
+        lst = [bar and (bar.id, bar.title) for bar in result]
+        self.assertEquals(lst, [
+                          (200, u"Title 200"),
+                          (300, u"Title 100"),
+                         ])
+
+    def test_find_with_tuple(self):
+        bar = self.store.get(Bar, 200)
+        bar.foo_id = None
+
+        result = self.store.find((Foo, Bar), Bar.foo_id == Foo.id)
+        lst = [(foo and (foo.id, foo.title), bar and (bar.id, bar.title))
+               for (foo, bar) in result]
+        self.assertEquals(lst, [
+                          ((10, u"Title 30"), (100, u"Title 300")),
+                          ((30, u"Title 10"), (300, u"Title 100")),
+                         ])
+
+    def test_find_tuple_using(self):
+        bar = self.store.get(Bar, 200)
+        bar.foo_id = None
+
+        tables = self.store.using(Foo, LeftJoin(Bar, Bar.foo_id == Foo.id))
+        result = tables.find((Foo, Bar))
+        lst = [(foo and (foo.id, foo.title), bar and (bar.id, bar.title))
+               for (foo, bar) in result]
+        self.assertEquals(lst, [
+                          ((10, u"Title 30"), (100, u"Title 300")),
+                          ((20, u"Title 20"), None),
+                          ((30, u"Title 10"), (300, u"Title 100")),
+                         ])
+
+    def test_find_tuple_using_skip_when_none(self):
+        bar = self.store.get(Bar, 200)
+        bar.foo_id = None
+
+        tables = self.store.using(Foo,
+                                  LeftJoin(Bar, Bar.foo_id == Foo.id),
+                                  LeftJoin(Link, Link.bar_id == Bar.id))
+        result = tables.find((Bar, Link))
+        lst = [(bar and (bar.id, bar.title),
+                link and (link.bar_id, link.foo_id))
+               for (bar, link) in result]
+        self.assertEquals(lst, [
+                          ((100, u"Title 300"), (100, 10)),
+                          ((100, u"Title 300"), (100, 20)),
+                          ((300, u"Title 100"), (300, 10)),
+                          ((300, u"Title 100"), (300, 30)),
+                          # There shouldn't be a (None, None) here,
+                          # even though one is returned by the database.
+                         ])
+
+    def test_find_tuple_any(self):
+        bar = self.store.get(Bar, 200)
+        bar.foo_id = None
+
+        result = self.store.find((Foo, Bar), Bar.foo_id == Foo.id)
+        foo, bar = result.order_by(Foo.id).any()
+        self.assertEquals(foo.id, 10)
+        self.assertEquals(foo.title, u"Title 30")
+        self.assertEquals(bar.id, 100)
+        self.assertEquals(bar.title, u"Title 300")
+
+    def test_find_tuple_first(self):
+        bar = self.store.get(Bar, 200)
+        bar.foo_id = None
+
+        result = self.store.find((Foo, Bar), Bar.foo_id == Foo.id)
+        foo, bar = result.order_by(Foo.id).first()
+        self.assertEquals(foo.id, 10)
+        self.assertEquals(foo.title, u"Title 30")
+        self.assertEquals(bar.id, 100)
+        self.assertEquals(bar.title, u"Title 300")
+
+    def test_find_tuple_last(self):
+        bar = self.store.get(Bar, 200)
+        bar.foo_id = None
+
+        result = self.store.find((Foo, Bar), Bar.foo_id == Foo.id)
+        foo, bar = result.order_by(Foo.id).last()
+        self.assertEquals(foo.id, 30)
+        self.assertEquals(foo.title, u"Title 10")
+        self.assertEquals(bar.id, 300)
+        self.assertEquals(bar.title, u"Title 100")
+
+    def test_find_tuple_first(self):
+        bar = self.store.get(Bar, 200)
+        bar.foo_id = None
+
+        result = self.store.find((Foo, Bar),
+                                 Bar.foo_id == Foo.id, Foo.id == 10)
+        foo, bar = result.order_by(Foo.id).one()
+        self.assertEquals(foo.id, 10)
+        self.assertEquals(foo.title, u"Title 30")
+        self.assertEquals(bar.id, 100)
+        self.assertEquals(bar.title, u"Title 300")
+
+    def test_find_pair(self):
+        bar = self.store.get(Bar, 100)
+        bar.foo_id = None
+
+        tables = self.store.using(Foo, LeftJoin(Bar, Bar.foo_id == Foo.id))
+        result = tables.find(Bar)
+        lst = [bar and (bar.id, bar.title) for bar in result]
+        self.assertEquals(lst, [
+                          (200, u"Title 200"),
+                          (300, u"Title 100"),
+                         ])
 
     def test_add_commit(self):
         foo = Foo()
