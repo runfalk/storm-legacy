@@ -20,7 +20,7 @@ except ImportError:
 
 from storm.variables import Variable
 from storm.database import *
-from storm.exceptions import install_exceptions, UnsupportedDatabaseError
+from storm.exceptions import install_exceptions, DatabaseModuleError
 from storm.expr import compile, Select, compile_select, Undef
 
 
@@ -68,7 +68,7 @@ class SQLite(Database):
 
     def __init__(self, filename=None):
         if sqlite is dummy:
-            raise UnsupportedDatabaseError("'pysqlite2' module not found")
+            raise DatabaseModuleError("'pysqlite2' module not found")
         self._filename = filename or ":memory:"
 
     def connect(self):

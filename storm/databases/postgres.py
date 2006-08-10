@@ -20,7 +20,7 @@ except:
 from storm.expr import And, Eq
 from storm.variables import Variable, UnicodeVariable
 from storm.database import *
-from storm.exceptions import install_exceptions, UnsupportedDatabaseError
+from storm.exceptions import install_exceptions, DatabaseModuleError
 
 
 install_exceptions(psycopg)
@@ -68,7 +68,7 @@ class Postgres(Database):
     def __init__(self, dbname, host=None, port=None,
                  username=None, password=None, encoding=None):
         if psycopg is dummy:
-            raise UnsupportedDatabaseError("'psycopg' module not found")
+            raise DatabaseModuleError("'psycopg' module not found")
         self._dsn = "dbname=%s" % dbname
         if host is not None:
             self._dsn += " host=%s" % host

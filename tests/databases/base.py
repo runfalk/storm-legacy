@@ -9,7 +9,7 @@ from storm.expr import Select, Column, Undef
 from storm.variables import Variable, PickleVariable
 from storm.variables import DateTimeVariable, DateVariable, TimeVariable
 from storm.database import *
-from storm.exceptions import UnsupportedDatabaseError
+from storm.exceptions import DatabaseModuleError
 
 from tests.helper import MakePath
 
@@ -212,7 +212,7 @@ class UnsupportedDatabaseTest(object):
         uri = URI.parse("_fake_://db")
 
         try:
-            self.assertRaises(UnsupportedDatabaseError,
+            self.assertRaises(DatabaseModuleError,
                               _fake_.create_from_uri, uri)
         finally:
             # Unhack the environment.

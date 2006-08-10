@@ -16,7 +16,7 @@ from storm.expr import (
     Avg, Sum, Eq, And, Asc, Desc, compile_python, compare_columns)
 from storm.exceptions import (
     WrongStoreError, NotFlushedError, OrderLoopError, UnorderedError,
-    NotOneError, SetError, UnsupportedError, CompileError)
+    NotOneError, FeatureError, CompileError)
 from storm import Undef
 
 
@@ -506,11 +506,9 @@ class ResultSet(object):
             return obj
 
         if not isinstance(index, slice):
-            raise IndexError("Can't index ResultSets with non-slices: %r"
-                             % (index,))
-
+            raise IndexError("Can't index ResultSets with %r" % (index,))
         if index.step is not None:
-            raise IndexError("Don't understand stepped slices: %r"
+            raise IndexError("Stepped slices not yet supported: %r"
                              % (index.step,))
 
         offset = self._offset
@@ -569,8 +567,8 @@ class ResultSet(object):
         if self._order_by is Undef:
             raise UnorderedError("Can't use last() on unordered result set")
         if self._limit is not Undef:
-            raise UnsupportedError("Can't use last() with a slice "
-                                   "of defined stop index")
+            raise FeatureError("Can't use last() with a slice "
+                               "of defined stop index")
         select = self._get_select()
         select.offset = Undef
         select.limit = 1
@@ -611,16 +609,15 @@ class ResultSet(object):
 
     def order_by(self, *args):
         if self._offset is not Undef or self._limit is not Undef:
-            raise UnsupportedError("Can't reorder a sliced result set")
+            raise FeatureError("Can't reorder a sliced result set")
         self._order_by = args
         return self
 
     def remove(self):
         if self._offset is not Undef or self._limit is not Undef:
-            raise UnsupportedError("Can't remove a sliced result set")
+            raise FeatureError("Can't remove a sliced result set")
         if type(self._cls_spec_info) is tuple:
-            raise UnsupportedError("Removing isn't yet supported with "
-                                   "tuple finds")
+            raise FeatureError("Removing not yet supported with tuple finds")
         self._store._connection.execute(Delete(self._where,
                                                self._cls_spec_info.table),
                                         noresult=True)
@@ -658,7 +655,8 @@ class ResultSet(object):
 
     def values(self, *columns):
         if not columns:
-            raise TypeError("values() takes at least one column as argument")
+            raise FeatureError("values() takes at least one column "
+                               "as argument")
         select = self._get_select()
         select.columns = columns
         result = self._store._connection.execute(select)
@@ -676,7 +674,7 @@ class ResultSet(object):
 
     def set(self, *args, **kwargs):
         if type(self._cls_spec_info) is tuple:
-            raise UnsupportedError("Setting isn't supportted with tuple finds")
+            raise FeatureError("Setting isn't supportted with tuple finds")
 
         if not (args or kwargs):
             return
@@ -688,7 +686,8 @@ class ResultSet(object):
             if (not isinstance(expr, Eq) or
                 not isinstance(expr.expr1, Column) or
                 not isinstance(expr.expr2, (Column, Variable))):
-                raise SetError("Unsupported set expression: %r" % repr(expr))
+                raise FeatureError("Unsupported set expression: %r" %
+                                   repr(expr))
             changes[expr.expr1] = expr.expr2
 
         for key, value in kwargs.items():
@@ -697,8 +696,8 @@ class ResultSet(object):
                 changes[column] = None
             elif isinstance(value, Expr):
                 if not isinstance(value, Column):
-                    raise SetError("Unsupported set expression: %r" %
-                                     repr(value))
+                    raise FeatureError("Unsupported set expression: %r" %
+                                       repr(value))
                 changes[column] = value
             else:
                 changes[column] = column.variable_factory(value=value)
@@ -728,9 +727,9 @@ class ResultSet(object):
 
     def cached(self):
         if type(self._cls_spec_info) is tuple:
-            raise UnsupportedError("Cached finds don't support with tuples")
+            raise FeatureError("Cached finds not supported with tuples")
         if self._tables is not Undef:
-            raise UnsupportedError("Cached finds don't support custom tables")
+            raise FeatureError("Cached finds not supported with custom tables")
         if self._where is Undef:
             match = None
         else:
@@ -772,18 +771,10 @@ Store._table_set = TableSet
 
 def get_where_for_args(args, kwargs, cls=None):
     equals = list(args)
-    for arg in args:
-        if isinstance(arg, Expr):
-            pass
-        elif isinstance(arg, basestring):
-            # Give a hint about SQL()
-            raise UnsupportedError("String arguments aren't supported. "
-                                   "Use SQL() instead.")
-        else:
-            raise UnsupportedError("Arguments should be subclasses of Expr, "
-                                   "not %r" % type(arg))
     if kwargs:
-        # FIXME if cls is None: raise ...
+        if cls is None:
+            raise FeatureError("Can't determine class that keyword "
+                               "arguments are associated with")
         for key, value in kwargs.items():
             column = getattr(cls, key)
             equals.append(Eq(column, column.variable_factory(value=value)))

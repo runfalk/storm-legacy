@@ -260,9 +260,8 @@ class StoreTest(object):
                          ])
 
     def test_find_str(self):
-        # find() doesn't support non-Expr instances.
-        self.assertRaises(UnsupportedError,
-                          self.store.find, Foo, "foo.id == 20")
+        foo = self.store.find(Foo, "foo.id = 20").one()
+        self.assertEquals(foo.title, "Title 20")
 
     def test_find_keywords(self):
         result = self.store.find(Foo, id=20, title="Title 20")
@@ -363,7 +362,7 @@ class StoreTest(object):
 
     def test_find_slice_limit_last(self):
         result = self.store.find(Foo).order_by(Foo.title)[:2]
-        self.assertRaises(UnsupportedError, result.last)
+        self.assertRaises(FeatureError, result.last)
 
     def test_find_slice_slice(self):
         result = self.store.find(Foo).order_by(Foo.title)[0:2][1:3]
@@ -392,17 +391,17 @@ class StoreTest(object):
 
     def test_find_slice_order_by(self):
         result = self.store.find(Foo)[2:]
-        self.assertRaises(UnsupportedError, result.order_by, None)
+        self.assertRaises(FeatureError, result.order_by, None)
 
         result = self.store.find(Foo)[:2]
-        self.assertRaises(UnsupportedError, result.order_by, None)
+        self.assertRaises(FeatureError, result.order_by, None)
 
     def test_find_slice_remove(self):
         result = self.store.find(Foo)[2:]
-        self.assertRaises(UnsupportedError, result.remove)
+        self.assertRaises(FeatureError, result.remove)
 
         result = self.store.find(Foo)[:2]
-        self.assertRaises(UnsupportedError, result.remove)
+        self.assertRaises(FeatureError, result.remove)
 
     def test_find_any(self, *args):
         foo = self.store.find(Foo).order_by(Foo.title).any()
@@ -520,7 +519,7 @@ class StoreTest(object):
 
     def test_find_values_with_no_arguments(self):
         result = self.store.find(Foo).order_by(Foo.id)
-        self.assertRaises(TypeError, result.values().next)
+        self.assertRaises(FeatureError, result.values().next)
 
     def test_find_slice_values(self):
         values = self.store.find(Foo).order_by(Foo.id)[1:2].values(Foo.id)
@@ -662,19 +661,23 @@ class StoreTest(object):
 
     def test_find_tuple_remove(self):
         result = self.store.find((Foo, Bar))
-        self.assertRaises(UnsupportedError, result.remove)
+        self.assertRaises(FeatureError, result.remove)
 
     def test_find_tuple_set(self):
         result = self.store.find((Foo, Bar))
-        self.assertRaises(UnsupportedError, result.set, title=u"Title 40")
+        self.assertRaises(FeatureError, result.set, title=u"Title 40")
+
+    def test_find_tuple_kwargs(self):
+        self.assertRaises(FeatureError,
+                          self.store.find, (Foo, Bar), title=u"Title 10")
 
     def test_find_tuple_cached(self):
         result = self.store.find((Foo, Bar))
-        self.assertRaises(UnsupportedError, result.cached)
+        self.assertRaises(FeatureError, result.cached)
 
     def test_find_using_cached(self):
         result = self.store.using(Foo, Bar).find(Foo)
-        self.assertRaises(UnsupportedError, result.cached)
+        self.assertRaises(FeatureError, result.cached)
 
     def test_add_commit(self):
         foo = Foo()
@@ -1501,11 +1504,11 @@ class StoreTest(object):
 
     def test_find_set_expr_unsupported(self):
         result = self.store.find(Foo, title="Title 20")
-        self.assertRaises(SetError, result.set, Foo.title > "Title 40")
+        self.assertRaises(FeatureError, result.set, Foo.title > "Title 40")
 
     def test_find_set_expr_unsupported_2(self):
         result = self.store.find(Foo, title="Title 20")
-        self.assertRaises(SetError, result.set, Foo.title == Func())
+        self.assertRaises(FeatureError, result.set, Foo.title == Func())
 
     def test_wb_find_set_checkpoints(self):
         bar = self.store.get(Bar, 200)
