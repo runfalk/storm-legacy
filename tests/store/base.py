@@ -555,18 +555,20 @@ class StoreTest(object):
         bar.foo_id = None
 
         tables = self.store.using(Foo, LeftJoin(Bar, Bar.foo_id == Foo.id))
-        result = tables.find(Bar)
+        result = tables.find(Bar).order_by(Foo.id, Bar.id)
         lst = [bar and (bar.id, bar.title) for bar in result]
         self.assertEquals(lst, [
+                          None,
                           (200, u"Title 200"),
                           (300, u"Title 100"),
                          ])
 
-    def test_find_with_tuple(self):
+    def test_find_tuple(self):
         bar = self.store.get(Bar, 200)
         bar.foo_id = None
 
         result = self.store.find((Foo, Bar), Bar.foo_id == Foo.id)
+        result = result.order_by(Foo.id)
         lst = [(foo and (foo.id, foo.title), bar and (bar.id, bar.title))
                for (foo, bar) in result]
         self.assertEquals(lst, [
@@ -579,7 +581,7 @@ class StoreTest(object):
         bar.foo_id = None
 
         tables = self.store.using(Foo, LeftJoin(Bar, Bar.foo_id == Foo.id))
-        result = tables.find((Foo, Bar))
+        result = tables.find((Foo, Bar)).order_by(Foo.id)
         lst = [(foo and (foo.id, foo.title), bar and (bar.id, bar.title))
                for (foo, bar) in result]
         self.assertEquals(lst, [
@@ -595,17 +597,16 @@ class StoreTest(object):
         tables = self.store.using(Foo,
                                   LeftJoin(Bar, Bar.foo_id == Foo.id),
                                   LeftJoin(Link, Link.bar_id == Bar.id))
-        result = tables.find((Bar, Link))
+        result = tables.find((Bar, Link)).order_by(Foo.id, Bar.id, Link.foo_id)
         lst = [(bar and (bar.id, bar.title),
                 link and (link.bar_id, link.foo_id))
                for (bar, link) in result]
         self.assertEquals(lst, [
                           ((100, u"Title 300"), (100, 10)),
                           ((100, u"Title 300"), (100, 20)),
+                          (None, None),
                           ((300, u"Title 100"), (300, 10)),
                           ((300, u"Title 100"), (300, 30)),
-                          # There shouldn't be a (None, None) here,
-                          # even though one is returned by the database.
                          ])
 
     def test_find_tuple_any(self):
@@ -653,17 +654,29 @@ class StoreTest(object):
         self.assertEquals(bar.id, 100)
         self.assertEquals(bar.title, u"Title 300")
 
-    def test_find_pair(self):
-        bar = self.store.get(Bar, 100)
+    def test_find_tuple_count(self):
+        bar = self.store.get(Bar, 200)
         bar.foo_id = None
+        result = self.store.find((Foo, Bar), Bar.foo_id == Foo.id)
+        self.assertEquals(result.count(), 2)
 
-        tables = self.store.using(Foo, LeftJoin(Bar, Bar.foo_id == Foo.id))
-        result = tables.find(Bar)
-        lst = [bar and (bar.id, bar.title) for bar in result]
-        self.assertEquals(lst, [
-                          (200, u"Title 200"),
-                          (300, u"Title 100"),
-                         ])
+    def test_find_tuple_remove(self):
+        result = self.store.find((Foo, Bar))
+        self.assertRaises(UnsupportedError, result.remove)
+
+    def test_find_tuple_set(self):
+        result = self.store.find((Foo, Bar))
+        self.assertRaises(UnsupportedError, result.set, title=u"Title 40")
+
+    @run_this
+    def test_find_tuple_cached(self):
+        result = self.store.find((Foo, Bar))
+        self.assertRaises(UnsupportedError, result.cached)
+
+    @run_this
+    def test_find_using_cached(self):
+        result = self.store.using(Foo, Bar).find(Foo)
+        self.assertRaises(UnsupportedError, result.cached)
 
     def test_add_commit(self):
         foo = Foo()
@@ -1210,7 +1223,40 @@ class StoreTest(object):
         result = self.store.find(Foo, Foo.title == Bar.title)
 
         self.assertEquals([(foo.id, foo.title) for foo in result], [
-                          (20, "Title 20")
+                          (20, "Title 20"),
+                          (20, "Title 20"),
+                         ])
+
+    def test_join_distinct(self):
+
+        class Bar(object):
+            __table__ = "bar", "id"
+            id = Int()
+            title = Unicode()
+
+        bar = Bar()
+        bar.id = 40
+        bar.title = "Title 20"
+
+        self.store.add(bar)
+
+        # Add anbar object with the same title to ensure DISTINCT
+        # is in place.
+
+        bar = Bar()
+        bar.id = 400
+        bar.title = "Title 20"
+
+        self.store.add(bar)
+
+        result = self.store.find(Foo, Foo.title == Bar.title)
+        result.config(distinct=True)
+
+        # Make sure that it won't unset it, and that it's returning itself.
+        config = result.config()
+
+        self.assertEquals([(foo.id, foo.title) for foo in result], [
+                          (20, "Title 20"),
                          ])
 
     def test_sub_select(self):
