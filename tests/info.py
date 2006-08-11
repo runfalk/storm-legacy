@@ -1,6 +1,6 @@
 from storm.properties import Property
 from storm.variables import Variable
-from storm.expr import Undef
+from storm.expr import Undef, Select, compile
 from storm.info import *
 
 from tests.helper import TestHelper
@@ -383,3 +383,50 @@ class ObjectInfoTest(TestHelper):
 
         self.assertEquals(changes,
                           [(self.obj_info, self.variable1, Undef, 20)])
+
+
+class ClassAliasTest(TestHelper):
+
+    def setUp(self):
+        TestHelper.setUp(self)
+        class Class(object):
+            __table__ = "table", "column1"
+            prop1 = Any("column1")
+        self.Class = Class
+        self.obj = Class()
+        self.ClassAlias = ClassAlias(self.Class, "alias")
+        
+    def test_cls_info_cls(self):
+        cls_info = get_cls_info(self.ClassAlias)
+        self.assertEquals(cls_info.cls, self.Class)
+        self.assertEquals(cls_info.table, "alias")
+        self.assertEquals(self.ClassAlias.prop1.name, "column1")
+        self.assertEquals(self.ClassAlias.prop1.table, self.ClassAlias)
+
+    def test_compile(self):
+        statement, parameters = compile(self.ClassAlias)
+        self.assertEquals(statement, "table AS alias")
+
+    def test_compile_in_select(self):
+        expr = Select(self.ClassAlias.prop1, self.ClassAlias.prop1 == 1,
+                      self.ClassAlias)
+        statement, parameters = compile(expr)
+        self.assertEquals(statement,
+                          "SELECT alias.column1 FROM table AS alias "
+                          "WHERE alias.column1 = ?")
+
+
+class TypeCompilerTest(TestHelper):
+
+    def test_nested_classes(self):
+        """Convoluted case checking that the model is right."""
+        class Class1(object):
+            __table__ = "class1", "id"
+            id = Any()
+        class Class2(object):
+            __table__ = Class1, "id"
+            id = Any()
+        statement, parameters = compile(Class2)
+        self.assertEquals(statement, "class1")
+        statement, parameters = compile(ClassAlias(Class2, "alias"))
+        self.assertEquals(statement, "class1 AS alias")

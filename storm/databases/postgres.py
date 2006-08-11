@@ -21,9 +21,24 @@ from storm.expr import And, Eq
 from storm.variables import Variable, UnicodeVariable
 from storm.database import *
 from storm.exceptions import install_exceptions, DatabaseModuleError
+from storm.expr import FuncExpr, compile
 
 
 install_exceptions(psycopg)
+compile = compile.fork()
+
+
+class currval(FuncExpr):
+
+    name = "currval"
+
+    def __init__(self, column):
+        self.column = column
+
+@compile.when(currval)
+def compile_currval(compile, state, expr):
+    return "currval('%s_%s_seq')" % (compile(state, expr.column.table),
+                                     compile(state, expr.column.name))
 
 
 class PostgresResult(Result):
@@ -32,7 +47,7 @@ class PostgresResult(Result):
         equals = []
         for column, variable in zip(primary_key, primary_variables):
             if not variable.is_defined():
-                variable = "currval('%s_%s_seq')" % (column.table, column.name)
+                variable = currval(column)
             equals.append(Eq(column, variable))
         return And(*equals)
 
@@ -48,6 +63,7 @@ class PostgresConnection(Connection):
 
     _result_factory = PostgresResult
     _param_mark = "%s"
+    _compile = compile
 
     def _to_database(self, value):
         if isinstance(value, Variable):

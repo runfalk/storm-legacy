@@ -95,7 +95,12 @@ class ExprTest(TestHelper):
         self.assertEquals(expr.variable_factory, objects[2])
 
     def test_func(self):
-        class MyFunc(Func):
+        expr = Func("myfunc", "arg1", "arg2")
+        self.assertEquals(expr.name, "myfunc")
+        self.assertEquals(expr.args, ("arg1", "arg2"))
+
+    def test_named_func(self):
+        class MyFunc(NamedFunc):
             name = "myfunc"
         expr = MyFunc("arg1", "arg2")
         self.assertEquals(expr.name, "myfunc")
@@ -174,14 +179,14 @@ class ExprTest(TestHelper):
         expr = Table(*objects)
         self.assertEquals(expr.name, objects[0])
 
-    def test_as_default(self):
-        expr = As(None)
+    def test_alias_default(self):
+        expr = Alias(None)
         self.assertEquals(expr.expr, None)
         self.assertTrue(isinstance(expr.name, str))
 
-    def test_as_constructor(self):
+    def test_alias_constructor(self):
         objects = [object() for i in range(2)]
-        expr = As(*objects)
+        expr = Alias(*objects)
         self.assertEquals(expr.expr, objects[0])
         self.assertEquals(expr.name, objects[1])
 
@@ -195,7 +200,7 @@ class StateTest(TestHelper):
     def test_attrs(self):
         self.assertEquals(self.state.parameters, [])
         self.assertEquals(self.state.auto_tables, [])
-        self.assertEquals(self.state.omit_column_tables, False)
+        self.assertEquals(self.state.column_prefix, False)
 
     def test_push_pop(self):
         self.state.parameters.extend([1, 2])
@@ -218,10 +223,10 @@ class StateTest(TestHelper):
         self.assertEquals(self.state.nonexistent, None)
 
 
-class Func1(Func):
+class Func1(NamedFunc):
     name = "func1"
 
-class Func2(Func):
+class Func2(NamedFunc):
     name = "func2"
 
 
@@ -521,9 +526,9 @@ class CompileTest(TestHelper):
         self.assertEquals(parameters, [])
 
     def test_column_table(self):
-        expr = Column("name", Func1())
+        expr = Select(Column("name", Func1()))
         statement, parameters = compile(expr)
-        self.assertEquals(statement, "func1().name")
+        self.assertEquals(statement, "SELECT func1().name FROM func1()")
         self.assertEquals(parameters, [])
 
     def test_variable(self):
@@ -754,6 +759,12 @@ class CompileTest(TestHelper):
         self.assertEquals(parameters, [Variable("value")])
 
     def test_func(self):
+        expr = Func("myfunc", "arg1", Func1("arg2"))
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "myfunc(arg1, func1(arg2))")
+        self.assertEquals(parameters, [])
+
+    def test_named_func(self):
         expr = Func1("arg1", Func2("arg2"))
         statement, parameters = compile(expr)
         self.assertEquals(statement, "func1(arg1, func2(arg2))")
@@ -860,16 +871,22 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, "table")
         self.assertEquals(parameters, [])
 
-    def test_as(self):
-        expr = As(Table("table"), "name")
+    def test_alias(self):
+        expr = Alias(Table("table"), "name")
         statement, parameters = compile(expr)
         self.assertEquals(statement, "table AS name")
         self.assertEquals(parameters, [])
 
-    def test_as_auto_name(self):
-        expr = As(Table("table"))
+    def test_alias_auto_name(self):
+        expr = Alias(Table("table"))
         statement, parameters = compile(expr)
         self.assertTrue(statement[:10], "table AS _")
+        self.assertEquals(parameters, [])
+
+    def test_alias_in_column(self):
+        expr = Select(Column("column", Alias(Table("table"), "alias")))
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "SELECT alias.column FROM table AS alias")
         self.assertEquals(parameters, [])
 
     def test_join(self):

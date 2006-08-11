@@ -1,11 +1,11 @@
 import gc
 
-from storm.properties import get_obj_info
 from storm.references import Reference, ReferenceSet
 from storm.database import Result
 from storm.properties import Int, Str, Unicode, Property, Pickle
 from storm.expr import Asc, Desc, Select, Func, LeftJoin
 from storm.variables import Variable, UnicodeVariable, IntVariable
+from storm.info import get_obj_info, ClassAlias
 from storm.exceptions import *
 from storm.store import *
 
@@ -1508,7 +1508,7 @@ class StoreTest(object):
 
     def test_find_set_expr_unsupported_2(self):
         result = self.store.find(Foo, title="Title 20")
-        self.assertRaises(FeatureError, result.set, Foo.title == Func())
+        self.assertRaises(FeatureError, result.set, Foo.title == Func("func"))
 
     def test_wb_find_set_checkpoints(self):
         bar = self.store.get(Bar, 200)
@@ -2806,3 +2806,14 @@ class StoreTest(object):
         self.store.rollback()
         foo2 = self.store.get(Foo, 20)
         self.assertTrue(foo1 is foo2)
+
+    def test_class_alias(self):
+        FooAlias = ClassAlias(Foo)
+        result = self.store.find(FooAlias, FooAlias.id < Foo.id)
+        self.assertEquals([(foo.id, foo.title) for foo in result
+                           if type(foo) is Foo], [
+                          (10, "Title 30"),
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                         ])
+

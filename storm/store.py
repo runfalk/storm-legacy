@@ -98,7 +98,7 @@ class Store(object):
                 variable = column.variable_factory(value=variable)
             primary_vars.append(variable)
 
-        obj_info = self._cache.get((cls, tuple(primary_vars)))
+        obj_info = self._cache.get((cls_info.cls, tuple(primary_vars)))
         if obj_info is not None:
             return obj_info.obj
 
@@ -124,18 +124,7 @@ class Store(object):
         return self._result_set_factory(self, cls_spec_info, where)
 
     def using(self, *tables):
-        def process(obj):
-            if not (isinstance(obj, basestring) or isinstance(obj, Expr)):
-                obj = get_cls_info(obj).table
-            elif isinstance(obj, JoinExpr):
-                if obj.left is not Undef:
-                    left = process(obj.left)
-                else:
-                    left = Undef
-                right = process(obj.right)
-                obj = obj.__class__(left, right, obj.on)
-            return obj
-        return self._table_set(self, [process(x) for x in tables])
+        return self._table_set(self, tables)
 
     def new(self, cls, *args, **kwargs):
         obj = cls(*args, **kwargs)
@@ -340,6 +329,10 @@ class Store(object):
             return tuple(objects)
 
     def _load_object(self, cls_info, result, values, obj=None):
+        # _set_values() need the cls_info columns for the class of the
+        # actual object, not the from a possible wrapper (e.g. an alias).
+        cls = cls_info.cls
+        cls_info = get_cls_info(cls)
         if obj is None:
             primary_vars = []
             columns = cls_info.columns
@@ -353,10 +346,10 @@ class Store(object):
                 primary_vars.append(variable)
             if is_null:
                 return None
-            obj_info = self._cache.get((cls_info.cls, tuple(primary_vars)))
+            obj_info = self._cache.get((cls, tuple(primary_vars)))
             if obj_info is not None:
                 return obj_info.obj
-            obj = cls_info.cls.__new__(cls_info.cls)
+            obj = cls.__new__(cls)
 
         obj_info = get_obj_info(obj)
         obj_info["store"] = self

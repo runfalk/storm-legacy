@@ -130,7 +130,7 @@ class State(object):
         self.precedence = 0
         self.parameters = []
         self.auto_tables = []
-        self.omit_column_tables = False
+        self.column_prefix = False
 
     def push(self, attr, new_value=Undef):
         old_value = getattr(self, attr, None)
@@ -355,6 +355,7 @@ class Select(Expr):
 @compile.when(Select)
 def compile_select(compile, state, select):
     state.push("auto_tables", [])
+    state.push("column_prefix", True)
     tokens = ["SELECT "]
     if select.distinct:
         tokens.append("DISTINCT ")
@@ -373,6 +374,7 @@ def compile_select(compile, state, select):
         tokens.append(" LIMIT %d" % select.limit)
     if select.offset is not Undef:
         tokens.append(" OFFSET %d" % select.offset)
+    state.pop()
     if has_tables(state, select):
         tokens.insert(tables_pos, " FROM ")
         tokens.insert(tables_pos+1, build_tables(compile, state, select))
@@ -390,9 +392,7 @@ class Insert(Expr):
 
 @compile.when(Insert)
 def compile_insert(compile, state, insert):
-    state.push("omit_column_tables", True)
     columns = compile(state, insert.columns)
-    state.pop()
     tokens = ["INSERT INTO ", build_table(compile, state, insert),
               " (", columns, ") VALUES (", compile(state, insert.values), ")"]
     return "".join(tokens)
@@ -408,16 +408,16 @@ class Update(Expr):
 
 @compile.when(Update)
 def compile_update(compile, state, update):
-    state.push("omit_column_tables", True)
     set = update.set
     sets = ["%s=%s" % (compile(state, col), compile(state, set[col]))
             for col in set]
-    state.pop()
     tokens = ["UPDATE ", build_table(compile, state, update),
               " SET ", ", ".join(sets)]
     if update.where is not Undef:
+        state.push("column_prefix", True)
         tokens.append(" WHERE ")
         tokens.append(compile(state, update.where))
+        state.pop()
     return "".join(tokens)
 
 
@@ -432,8 +432,10 @@ class Delete(Expr):
 def compile_delete(compile, state, delete):
     tokens = ["DELETE FROM ", None]
     if delete.where is not Undef:
+        state.push("column_prefix", True)
         tokens.append(" WHERE ")
         tokens.append(compile(state, delete.where))
+        state.pop()
     # Compile later for auto_tables support.
     tokens[1] = build_table(compile, state, delete)
     return "".join(tokens)
@@ -453,7 +455,7 @@ class Column(ComparableExpr):
 def compile_column(compile, state, column):
     if column.table is not Undef:
         state.auto_tables.append(column.table)
-    if column.table is Undef or state.omit_column_tables:
+    if column.table is Undef or not state.column_prefix:
         return column.name
     return "%s.%s" % (compile(state, column.table), column.name)
 
@@ -479,21 +481,23 @@ def compile_table(compile, state, table):
     return table.name
 
 
-class As(FromExpr):
+class Alias(FromExpr):
     
     auto_counter = 0
 
     def __init__(self, expr, name=Undef):
         self.expr = expr
         if name is Undef:
-            As.auto_counter += 1
-            name = "_%x" % As.auto_counter
+            Alias.auto_counter += 1
+            name = "_%x" % Alias.auto_counter
         self.name = name
 
 
-@compile.when(As)
-def compile_as(compile, state, expr):
-    return "%s AS %s" % (compile(state, expr.expr), expr.name)
+@compile.when(Alias)
+def compile_alias(compile, state, alias):
+    if state.column_prefix:
+        return alias.name
+    return "%s AS %s" % (compile(state, alias.expr), alias.name)
 
 
 class JoinExpr(FromExpr):
@@ -528,8 +532,10 @@ def compile_join(compile, state, expr):
     result.append(expr.oper)
     result.append(compile(state, expr.right))
     if expr.on is not Undef:
+        state.push("column_prefix", True)
         result.append("ON")
         result.append(compile(state, expr.on))
+        state.pop()
     return " ".join(result)
 
 
@@ -681,37 +687,49 @@ class Mod(NonAssocBinaryOper):
 # --------------------------------------------------------------------
 # Functions
 
-class Func(ComparableExpr):
+class FuncExpr(ComparableExpr):
     name = "(unknown)"
+
+
+class Count(FuncExpr):
+    name = "COUNT"
+
+    def __init__(self, column=Undef):
+        self.column = column
+
+@compile.when(Count)
+def compile_count(compile, state, count):
+    if count.column is not Undef:
+        return "COUNT(%s)" % compile(state, count.column)
+    return "COUNT(*)"
+
+
+class Func(FuncExpr):
+
+    def __init__(self, name, *args):
+        self.name = name
+        self.args = args
+
+class NamedFunc(FuncExpr):
 
     def __init__(self, *args):
         self.args = args
 
-@compile.when(Func)
+@compile.when(Func, NamedFunc)
 def compile_func(compile, state, func):
     return "%s(%s)" % (func.name, compile(state, func.args))
 
 
-class Count(Func):
-    name = "COUNT"
-
-@compile.when(Count)
-def compile_count(compile, state, count):
-    if count.args:
-        return "COUNT(%s)" % compile(state, count.args)
-    return "COUNT(*)"
-
-
-class Max(Func):
+class Max(NamedFunc):
     name = "MAX"
 
-class Min(Func):
+class Min(NamedFunc):
     name = "MIN"
 
-class Avg(Func):
+class Avg(NamedFunc):
     name = "AVG"
 
-class Sum(Func):
+class Sum(NamedFunc):
     name = "SUM"
 
 

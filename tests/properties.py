@@ -3,7 +3,7 @@ from datetime import datetime, date, time
 from storm.properties import *
 from storm.variables import *
 from storm.info import get_obj_info
-from storm.expr import Undef, Column, compile
+from storm.expr import Undef, Column, Select, compile
 
 from tests.helper import TestHelper
 
@@ -55,20 +55,20 @@ class PropertyTest(TestHelper):
         self.assertEquals(self.Class.prop2.name, "prop2")
 
     def test_auto_table(self):
-        self.assertEquals(self.Class.prop1.table, "table")
-        self.assertEquals(self.Class.prop2.table, "table")
+        self.assertEquals(self.Class.prop1.table, self.Class)
+        self.assertEquals(self.Class.prop2.table, self.Class)
 
     def test_auto_table_subclass(self):
-        self.assertEquals(self.Class.prop1.table, "table")
-        self.assertEquals(self.Class.prop2.table, "table")
-        self.assertEquals(self.SubClass.prop1.table, "subtable")
-        self.assertEquals(self.SubClass.prop2.table, "subtable")
+        self.assertEquals(self.Class.prop1.table, self.Class)
+        self.assertEquals(self.Class.prop2.table, self.Class)
+        self.assertEquals(self.SubClass.prop1.table, self.SubClass)
+        self.assertEquals(self.SubClass.prop2.table, self.SubClass)
 
     def test_auto_table_subclass_reverse_initialization(self):
-        self.assertEquals(self.SubClass.prop1.table, "subtable")
-        self.assertEquals(self.SubClass.prop2.table, "subtable")
-        self.assertEquals(self.Class.prop1.table, "table")
-        self.assertEquals(self.Class.prop2.table, "table")
+        self.assertEquals(self.SubClass.prop1.table, self.SubClass)
+        self.assertEquals(self.SubClass.prop2.table, self.SubClass)
+        self.assertEquals(self.Class.prop1.table, self.Class)
+        self.assertEquals(self.Class.prop2.table, self.Class)
 
     def test_variable_factory(self):
         variable = self.Class.prop1.variable_factory()
@@ -187,9 +187,12 @@ class PropertyTest(TestHelper):
         prop1 = self.Class.prop1
         prop2 = self.Class.prop2
         prop3 = self.Class.prop3
-        expr = (prop1 == "value1") & (prop2 == "value2") & (prop3 == "value3")
+        expr = Select("*", (prop1 == "value1") &
+                           (prop2 == "value2") &
+                           (prop3 == "value3"))
         statement, parameters = compile(expr)
-        self.assertEquals(statement, "table.column1 = ? AND "
+        self.assertEquals(statement, "SELECT * FROM table WHERE "
+                                     "table.column1 = ? AND "
                                      "table.prop2 = ? AND "
                                      "table.column3 = ?")
         self.assertEquals(parameters, [CustomVariable("value1"),
@@ -200,9 +203,12 @@ class PropertyTest(TestHelper):
         prop1 = self.SubClass.prop1
         prop2 = self.SubClass.prop2
         prop3 = self.SubClass.prop3
-        expr = (prop1 == "value1") & (prop2 == "value2") & (prop3 == "value3")
+        expr = Select("*", (prop1 == "value1") &
+                           (prop2 == "value2") &
+                           (prop3 == "value3"))
         statement, parameters = compile(expr)
-        self.assertEquals(statement, "subtable.column1 = ? AND "
+        self.assertEquals(statement, "SELECT * FROM subtable WHERE "
+                                     "subtable.column1 = ? AND "
                                      "subtable.prop2 = ? AND "
                                      "subtable.column3 = ?")
         self.assertEquals(parameters, [CustomVariable("value1"),
@@ -234,9 +240,9 @@ class PropertyKindsTest(TestHelper):
         self.assertTrue(isinstance(self.column1, Column))
         self.assertTrue(isinstance(self.column2, Column))
         self.assertEquals(self.column1.name, "column1")
-        self.assertEquals(self.column1.table, "table")
+        self.assertEquals(self.column1.table, self.SubClass)
         self.assertEquals(self.column2.name, "prop2")
-        self.assertEquals(self.column2.table, "table")
+        self.assertEquals(self.column2.table, self.SubClass)
         self.assertTrue(isinstance(self.variable1, BoolVariable))
         self.assertTrue(isinstance(self.variable2, BoolVariable))
 
@@ -256,9 +262,9 @@ class PropertyKindsTest(TestHelper):
         self.assertTrue(isinstance(self.column1, Column))
         self.assertTrue(isinstance(self.column2, Column))
         self.assertEquals(self.column1.name, "column1")
-        self.assertEquals(self.column1.table, "table")
+        self.assertEquals(self.column1.table, self.SubClass)
         self.assertEquals(self.column2.name, "prop2")
-        self.assertEquals(self.column2.table, "table")
+        self.assertEquals(self.column2.table, self.SubClass)
         self.assertTrue(isinstance(self.variable1, IntVariable))
         self.assertTrue(isinstance(self.variable2, IntVariable))
 
@@ -278,9 +284,9 @@ class PropertyKindsTest(TestHelper):
         self.assertTrue(isinstance(self.column1, Column))
         self.assertTrue(isinstance(self.column2, Column))
         self.assertEquals(self.column1.name, "column1")
-        self.assertEquals(self.column1.table, "table")
+        self.assertEquals(self.column1.table, self.SubClass)
         self.assertEquals(self.column2.name, "prop2")
-        self.assertEquals(self.column2.table, "table")
+        self.assertEquals(self.column2.table, self.SubClass)
         self.assertTrue(isinstance(self.variable1, FloatVariable))
         self.assertTrue(isinstance(self.variable2, FloatVariable))
 
@@ -298,9 +304,9 @@ class PropertyKindsTest(TestHelper):
         self.assertTrue(isinstance(self.column1, Column))
         self.assertTrue(isinstance(self.column2, Column))
         self.assertEquals(self.column1.name, "column1")
-        self.assertEquals(self.column1.table, "table")
+        self.assertEquals(self.column1.table, self.SubClass)
         self.assertEquals(self.column2.name, "prop2")
-        self.assertEquals(self.column2.table, "table")
+        self.assertEquals(self.column2.table, self.SubClass)
         self.assertTrue(isinstance(self.variable1, StrVariable))
         self.assertTrue(isinstance(self.variable2, StrVariable))
 
@@ -318,9 +324,9 @@ class PropertyKindsTest(TestHelper):
         self.assertTrue(isinstance(self.column1, Column))
         self.assertTrue(isinstance(self.column2, Column))
         self.assertEquals(self.column1.name, "column1")
-        self.assertEquals(self.column1.table, "table")
+        self.assertEquals(self.column1.table, self.SubClass)
         self.assertEquals(self.column2.name, "prop2")
-        self.assertEquals(self.column2.table, "table")
+        self.assertEquals(self.column2.table, self.SubClass)
         self.assertTrue(isinstance(self.variable1, UnicodeVariable))
         self.assertTrue(isinstance(self.variable2, UnicodeVariable))
 
@@ -338,9 +344,9 @@ class PropertyKindsTest(TestHelper):
         self.assertTrue(isinstance(self.column1, Column))
         self.assertTrue(isinstance(self.column2, Column))
         self.assertEquals(self.column1.name, "column1")
-        self.assertEquals(self.column1.table, "table")
+        self.assertEquals(self.column1.table, self.SubClass)
         self.assertEquals(self.column2.name, "prop2")
-        self.assertEquals(self.column2.table, "table")
+        self.assertEquals(self.column2.table, self.SubClass)
         self.assertTrue(isinstance(self.variable1, DateTimeVariable))
         self.assertTrue(isinstance(self.variable2, DateTimeVariable))
 
@@ -362,9 +368,9 @@ class PropertyKindsTest(TestHelper):
         self.assertTrue(isinstance(self.column1, Column))
         self.assertTrue(isinstance(self.column2, Column))
         self.assertEquals(self.column1.name, "column1")
-        self.assertEquals(self.column1.table, "table")
+        self.assertEquals(self.column1.table, self.SubClass)
         self.assertEquals(self.column2.name, "prop2")
-        self.assertEquals(self.column2.table, "table")
+        self.assertEquals(self.column2.table, self.SubClass)
         self.assertTrue(isinstance(self.variable1, DateVariable))
         self.assertTrue(isinstance(self.variable2, DateVariable))
 
@@ -386,9 +392,9 @@ class PropertyKindsTest(TestHelper):
         self.assertTrue(isinstance(self.column1, Column))
         self.assertTrue(isinstance(self.column2, Column))
         self.assertEquals(self.column1.name, "column1")
-        self.assertEquals(self.column1.table, "table")
+        self.assertEquals(self.column1.table, self.SubClass)
         self.assertEquals(self.column2.name, "prop2")
-        self.assertEquals(self.column2.table, "table")
+        self.assertEquals(self.column2.table, self.SubClass)
         self.assertTrue(isinstance(self.variable1, TimeVariable))
         self.assertTrue(isinstance(self.variable2, TimeVariable))
 
@@ -410,9 +416,9 @@ class PropertyKindsTest(TestHelper):
         self.assertTrue(isinstance(self.column1, Column))
         self.assertTrue(isinstance(self.column2, Column))
         self.assertEquals(self.column1.name, "column1")
-        self.assertEquals(self.column1.table, "table")
+        self.assertEquals(self.column1.table, self.SubClass)
         self.assertEquals(self.column2.name, "prop2")
-        self.assertEquals(self.column2.table, "table")
+        self.assertEquals(self.column2.table, self.SubClass)
         self.assertTrue(isinstance(self.variable1, PickleVariable))
         self.assertTrue(isinstance(self.variable2, PickleVariable))
 
@@ -446,7 +452,7 @@ class PropertyKindsTest(TestHelper):
             prop = func(name="name")
             column = prop.__get__(None, Class)
             self.assertEquals(column.name, "name")
-            self.assertEquals(column.table, "test")
+            self.assertEquals(column.table, Class)
 
             variable = column.variable_factory()
             self.assertTrue(isinstance(variable, cls))
@@ -458,7 +464,7 @@ class PropertyKindsTest(TestHelper):
             prop = func(name="name", default=value, not_none=True)
             column = prop.__get__(None, Class)
             self.assertEquals(column.name, "name")
-            self.assertEquals(column.table, "test")
+            self.assertEquals(column.table, Class)
 
             variable = column.variable_factory()
             self.assertTrue(isinstance(variable, cls))
@@ -469,7 +475,7 @@ class PropertyKindsTest(TestHelper):
             prop = func(name="name", default_factory=lambda:value)
             column = prop.__get__(None, Class)
             self.assertEquals(column.name, "name")
-            self.assertEquals(column.table, "test")
+            self.assertEquals(column.table, Class)
 
             variable = column.variable_factory()
             self.assertTrue(isinstance(variable, cls))
