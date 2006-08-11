@@ -184,6 +184,29 @@ class VariableTest(TestHelper):
         obj2 = CustomVariable(marker)
         self.assertEquals(hash(obj1), hash(obj2))
 
+    def test_event_accessed(self):
+        event = EventSystem(marker)
+
+        accessed_values = []
+        def accessed(owner, variable, value):
+            accessed_values.append((owner, variable, value))
+        
+        event.hook("accessed", accessed)
+
+        variable = CustomVariable(event=event)
+        variable.get()
+        variable.set("value")
+        variable.get()
+        variable.get()
+
+        self.assertEquals(len(accessed_values), 3)
+        self.assertEquals(accessed_values[0],
+                          (marker, variable, Undef))
+        self.assertEquals(accessed_values[1],
+                          (marker, variable, ("s", "value")))
+        self.assertEquals(accessed_values[2],
+                          (marker, variable, ("s", "value")))
+
 
 class BoolVariableTest(TestHelper):
 
