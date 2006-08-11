@@ -2762,15 +2762,21 @@ class StoreTest(object):
         self.assertEquals(foo.title, "Some default value")
 
     def test_pickle_kind(self):
-        class MyBlob(Blob):
+        class PickleBlob(Blob):
             bin = Pickle()
 
         blob = self.store.get(Blob, 20)
         blob.bin = "\x80\x02}q\x01U\x01aK\x01s."
         self.store.flush()
 
-        blob = self.store.get(MyBlob, 20)
-        self.assertEquals(blob.bin["a"], 1)
+        pickle_blob = self.store.get(PickleBlob, 20)
+        self.assertEquals(pickle_blob.bin["a"], 1)
+
+        pickle_blob.bin["b"] = 2
+        
+        # FIXME
+        #self.store.reload(blob)
+        #self.assertEquals(blob.bin, "\x80\x02}q\x01(U\x01aK\x01U\x01bK\x02u.")
 
     def test_unhashable_object(self):
 

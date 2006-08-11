@@ -1,0 +1,63 @@
+- Make this work: [DONE]
+
+  person, company = store.find((Person, Company),
+                               Person.company_id == Company.id).one()
+
+- Generic SQL() expression [DONE]
+
+- Join support [DONE]
+
+- Disable distinct by default and add support for config(distinct=True) [DONE]
+
+- Aliases [DONE]
+
+  ClassAlias = Alias(Class)
+  store.find(Class, ClassAlias.name == ...)
+  
+- not Column => NOT column
+
+- Column.name.lower/startswith/endswith/...
+
+- Implement ResultSet.reverse[d]() to invert order_by()?
+
+- Lazy expressions
+
+  package.group_id = SQL("get_group_id('name')")
+  print package.group_id # Flush and get the real id.
+
+  (use the same system to tag an object as should reload?)
+
+- Allow marking objects as "should reload"
+
+- Union, intersection, ... as:
+
+  result3 = result1.union(result2)
+
+- Generic finds:
+
+  foo, count = store.find((Foo, Count(Foo.name))).group_by(Foo.name)
+
+- Fix modification of PickleVariables
+- Add support to cyclic references.
+- Implement support for negative caches to tell when an object
+  isn't available.
+- Implement support for complex removes and updates with Exists().
+- Log SQL statements and Store actions.
+- Support for quoted strings.
+- Make Column() == True become "COLUMN IS TRUE".
+- Option to keep object in cache until explicitly removed.
+- Implement store.copy()
+- Implement must_define in properties.
+- Implement ranges ([:]) in ResultSet and ReferenceSetProxy
+- Implement (B)PickleKind
+- Handle reference loops.
+- Handle $foo$bar$foo$ literals
+- Could Reference(Set)s include a "where" clause? Readonly perhaps?
+- Implement reference comparisons (Foo.ref == obj)
+- Consider distinct in ResultSet.count() to execute COUNT(DISTINCT ?)
+  COUNT(DISTINCT *) doesn't work.
+- Implement Count(column, distinct=True) (should it be Count(Distinct(...),
+  and if so, how to do Count(Distinct("*")) in a nice way)
+- Make the primary key in __table__ be optional. If it's not provided
+  the object isn't cached and updates aren't tracked.
+- Add support for deferred class/attribute definition on references.
