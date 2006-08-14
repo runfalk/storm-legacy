@@ -196,6 +196,7 @@ class VariableTest(TestHelper):
         variable.set(1)
         variable.set(LazyValue())
         self.assertEquals(variable.get(marker), marker)
+        self.assertFalse(variable.is_defined())
 
     def test_lazy_value_resolving(self):
         event = EventSystem(marker)
@@ -242,6 +243,14 @@ class VariableTest(TestHelper):
         variable.set(1)
         self.assertEquals(variable.get(), ("g", ("s", 1)))
         self.assertEquals(resolve_called, [])
+
+    def test_get_lazy_value(self):
+        lazy_value = LazyValue()
+        variable = CustomVariable()
+        self.assertEquals(variable.get_lazy(), None)
+        self.assertEquals(variable.get_lazy(marker), marker)
+        variable.set(lazy_value)
+        self.assertEquals(variable.get_lazy(marker), lazy_value)
 
 
 class BoolVariableTest(TestHelper):

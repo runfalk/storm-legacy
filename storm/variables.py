@@ -77,6 +77,11 @@ class Variable(object):
     def _parse_set(value, from_db):
         return value
 
+    def get_lazy(self, default=None):
+        if self._lazy_value is Undef:
+            return default
+        return self._lazy_value
+
     def get(self, default=None, to_db=False):
         if self._lazy_value is not Undef and self.event is not None:
             self.event.emit("resolve-lazy-value", self, self._lazy_value)
