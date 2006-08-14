@@ -76,8 +76,6 @@ class Variable(object):
         return value
 
     def get(self, default=None, to_db=False):
-        if self.event is not None:
-            self.event.emit("accessed", self, self._value)
         value = self._value
         if value is Undef:
             return default
