@@ -17,6 +17,7 @@ __all__ = [
     "NotNoneError",
     "VariableFactory",
     "Variable",
+    "LazyValue",
     "BoolVariable",
     "IntVariable",
     "FloatVariable",
@@ -49,6 +50,7 @@ def VariableFactory(cls, **old_kwargs):
 class Variable(object):
 
     _value = Undef
+    _lazy_value = Undef
     _saved_state = Undef
     _checkpoint_state = Undef
     _not_none = False
@@ -76,6 +78,8 @@ class Variable(object):
         return value
 
     def get(self, default=None, to_db=False):
+        if self._lazy_value is not Undef and self.event is not None:
+            self.event.emit("resolve-lazy-value", self, self._lazy_value)
         value = self._value
         if value is Undef:
             return default
@@ -89,11 +93,17 @@ class Variable(object):
             if self._not_none is True:
                 raise NotNoneError("None isn't acceptable as a value")
             new_value = None
+        elif isinstance(value, LazyValue):
+            self._lazy_value = value
+            self._value = Undef
+            return
         else:
             new_value = self._parse_set(value, from_db)
             if from_db:
                 # Prepare it for being used by the hook below.
                 value = self._parse_get(new_value, False)
+        if self._lazy_value is not Undef:
+            del self._lazy_value
         old_value = self._value
         if new_value != old_value:
             self._value = new_value
@@ -144,6 +154,13 @@ class Variable(object):
 
     def __hash__(self):
         return hash((self.__class__, self._value))
+
+
+class LazyValue(object):
+
+    def __init__(self, value):
+        pass
+        #self.value = value
 
 
 class BoolVariable(Variable):

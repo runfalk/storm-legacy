@@ -184,6 +184,65 @@ class VariableTest(TestHelper):
         obj2 = CustomVariable(marker)
         self.assertEquals(hash(obj1), hash(obj2))
 
+    def test_lazy_value_setting(self):
+        variable = CustomVariable()
+        variable.set(LazyValue(None))
+        self.assertEquals(variable.sets, [])
+
+    def test_lazy_value_getting(self):
+        variable = CustomVariable()
+        variable.set(LazyValue(None))
+        self.assertEquals(variable.get(marker), marker)
+        variable.set(1)
+        variable.set(LazyValue(None))
+        self.assertEquals(variable.get(marker), marker)
+
+    def test_lazy_value_resolving(self):
+        event = EventSystem(marker)
+
+        resolve_values = []
+        def resolve(owner, variable, value):
+            resolve_values.append((owner, variable, value))
+
+        lazy_value = LazyValue(None)
+        variable = CustomVariable(lazy_value, event=event)
+
+        event.hook("resolve-lazy-value", resolve)
+
+        variable.get()
+
+        self.assertEquals(resolve_values,
+                          [(marker, variable, lazy_value)])
+
+    def test_lazy_value_setting_on_resolving(self):
+        event = EventSystem(marker)
+
+        def resolve(owner, variable, value):
+            variable.set(marker)
+
+        event.hook("resolve-lazy-value", resolve)
+
+        lazy_value = LazyValue(None)
+        variable = CustomVariable(lazy_value, event=event)
+
+        self.assertEquals(variable.get(), ("g", ("s", marker)))
+
+    def test_lazy_value_reset_after_changed(self):
+        event = EventSystem(marker)
+
+        resolve_called = []
+        def resolve(owner, variable, value):
+            resolve_called.append(True)
+
+        event.hook("resolve-lazy-value", resolve)
+
+        variable = CustomVariable(event=event)
+
+        variable.set(LazyValue(None))
+        variable.set(1)
+        self.assertEquals(variable.get(), ("g", ("s", 1)))
+        self.assertEquals(resolve_called, [])
+
 
 class BoolVariableTest(TestHelper):
 
