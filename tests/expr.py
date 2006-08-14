@@ -1141,3 +1141,13 @@ class CompilePythonTest(TestHelper):
 
         self.assertTrue(match({"name1": 15, "name2": 5}.get))
         self.assertFalse(match({"name1": 5, "name2": 15}.get))
+
+
+class LazyValueExprTest(TestHelper):
+
+    def test_expr_is_lazy_value(self):
+        marker = object()
+        expr = SQL("Hullah!")
+        variable = Variable()
+        variable.set(expr)
+        self.assertTrue(variable.get(marker) is marker)

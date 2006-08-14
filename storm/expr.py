@@ -11,7 +11,7 @@ from copy import copy
 import sys
 
 from storm.exceptions import CompileError, NoTableError, ExprError
-from storm.variables import Variable
+from storm.variables import Variable, LazyValue
 from storm import Undef
 
 
@@ -178,7 +178,7 @@ def compile_python_variable(compile, state, variable):
 
 MAX_PRECEDENCE = 1000
 
-class Expr(object):
+class Expr(LazyValue):
     pass
 
 @compile_python.when(Expr)

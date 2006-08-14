@@ -186,15 +186,15 @@ class VariableTest(TestHelper):
 
     def test_lazy_value_setting(self):
         variable = CustomVariable()
-        variable.set(LazyValue(None))
+        variable.set(LazyValue())
         self.assertEquals(variable.sets, [])
 
     def test_lazy_value_getting(self):
         variable = CustomVariable()
-        variable.set(LazyValue(None))
+        variable.set(LazyValue())
         self.assertEquals(variable.get(marker), marker)
         variable.set(1)
-        variable.set(LazyValue(None))
+        variable.set(LazyValue())
         self.assertEquals(variable.get(marker), marker)
 
     def test_lazy_value_resolving(self):
@@ -204,7 +204,7 @@ class VariableTest(TestHelper):
         def resolve(owner, variable, value):
             resolve_values.append((owner, variable, value))
 
-        lazy_value = LazyValue(None)
+        lazy_value = LazyValue()
         variable = CustomVariable(lazy_value, event=event)
 
         event.hook("resolve-lazy-value", resolve)
@@ -222,7 +222,7 @@ class VariableTest(TestHelper):
 
         event.hook("resolve-lazy-value", resolve)
 
-        lazy_value = LazyValue(None)
+        lazy_value = LazyValue()
         variable = CustomVariable(lazy_value, event=event)
 
         self.assertEquals(variable.get(), ("g", ("s", marker)))
@@ -238,7 +238,7 @@ class VariableTest(TestHelper):
 
         variable = CustomVariable(event=event)
 
-        variable.set(LazyValue(None))
+        variable.set(LazyValue())
         variable.set(1)
         self.assertEquals(variable.get(), ("g", ("s", 1)))
         self.assertEquals(resolve_called, [])

@@ -157,10 +157,7 @@ class Variable(object):
 
 
 class LazyValue(object):
-
-    def __init__(self, value):
-        pass
-        #self.value = value
+    pass
 
 
 class BoolVariable(Variable):
