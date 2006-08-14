@@ -27,6 +27,16 @@
 
   (use the same system to tag an object as should reload?)
 
+  What about this:
+
+  package.group_id = LazyValue(SQL("get_group_id('name')"))
+  package.group_id = LazyValue(reload_marker)
+
+  reload_marker = LazyValue(None)
+
+  class Expr(LazyValue):
+     ...
+
 - Allow marking objects as "should reload"
 
 - Union, intersection, ... as:

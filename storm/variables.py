@@ -87,12 +87,14 @@ class Variable(object):
 
     def set(self, value, from_db=False):
         if value is None:
+            # XXX This check should be opted in by the variable types.
             if self._not_none is True:
                 raise NotNoneError("None isn't acceptable as a value")
             new_value = None
         else:
             new_value = self._parse_set(value, from_db)
             if from_db:
+                # Prepare it for being used by the hook below.
                 value = self._parse_get(new_value, False)
         old_value = self._value
         if new_value != old_value:
@@ -229,6 +231,7 @@ class TimeVariable(Variable):
     @staticmethod
     def _parse_set(value, db):
         if db:
+            # XXX Can None ever get here, considering that set() checks for it?
             if value is None:
                 return None
             if isinstance(value, time):
