@@ -3019,3 +3019,8 @@ class StoreTest(object):
                           (20, "Title 20"),
                           (30, "Title 10"),
                          ])
+
+    def test_expr_values_with_columns(self):
+        bar = self.store.get(Bar, 200)
+        bar.foo_id = Bar.id+1
+        self.assertEquals(bar.foo_id, 201)
