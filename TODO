@@ -35,6 +35,10 @@
 
 - Column.name.lower/startswith/endswith/...
 
+- Reference.__contains__
+
+- Fix Column.is_in() to support non-list arguments (such as SQL(), or Select())
+
 - Implement ResultSet.reverse[d]() to invert order_by()?
 
 - Union, intersection, ... as:
