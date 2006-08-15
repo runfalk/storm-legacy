@@ -14,38 +14,32 @@
   ClassAlias = Alias(Class)
   store.find(Class, ClassAlias.name == ...)
   
+- Lazy expressions [DONE]
+
+  package.group_id = SQL("get_group_id('name')")
+  print package.group_id # Flush and get the real id.
+
+- Allow marking objects as "should reload" using lazy values.
+
+  store.invalidate(foo)
+  store.invalidate(foo, Foo.attr)
+
+  foo.attr = ReloadValue
+
+- Generic finds:
+
+  foo, count = store.find((Foo, Count(Foo.name))).group_by(Foo.name)
+  foo_name, count = store.find((Foo.name, Count(Foo.name))).group_by(Foo.name)
+
 - not Column => NOT column
 
 - Column.name.lower/startswith/endswith/...
 
 - Implement ResultSet.reverse[d]() to invert order_by()?
 
-- Lazy expressions
-
-  package.group_id = SQL("get_group_id('name')")
-  print package.group_id # Flush and get the real id.
-
-  (use the same system to tag an object as should reload?)
-
-  What about this:
-
-  package.group_id = LazyValue(SQL("get_group_id('name')"))
-  package.group_id = LazyValue(reload_marker)
-
-  reload_marker = LazyValue(None)
-
-  class Expr(LazyValue):
-     ...
-
-- Allow marking objects as "should reload"
-
 - Union, intersection, ... as:
 
   result3 = result1.union(result2)
-
-- Generic finds:
-
-  foo, count = store.find((Foo, Count(Foo.name))).group_by(Foo.name)
 
 - Fix modification of PickleVariables
 - Add support to cyclic references.
