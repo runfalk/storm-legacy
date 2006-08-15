@@ -420,7 +420,7 @@ class Relation(object):
                     local_vars[local_column].set(None)
 
     def _track_local_changes(self, local_info, local_variable,
-                             old_value, new_value, remote_info):
+                             old_value, new_value, fromdb, remote_info):
         """Deliver changes in local to remote.
 
         This hook ensures that the remote object will keep track of
@@ -433,7 +433,7 @@ class Relation(object):
             remote_info.variables[remote_column].set(new_value)
 
     def _track_remote_changes(self, remote_info, remote_variable,
-                              old_value, new_value, local_info):
+                              old_value, new_value, fromdb, local_info):
         """Deliver changes in remote to local.
 
         This hook ensures that the local object will keep track of
@@ -447,7 +447,7 @@ class Relation(object):
             local_info.variables[local_column].set(new_value)
 
     def _break_on_local_diverged(self, local_info, local_variable,
-                                 old_value, new_value, remote_info):
+                                 old_value, new_value, fromdb, remote_info):
         """Break the remote/local relationship on diverging changes.
 
         This hook ensures that if the local object has an attribute
@@ -463,7 +463,7 @@ class Relation(object):
                 self.unlink(local, remote_info.obj)
 
     def _break_on_remote_diverged(self, remote_info, remote_variable,
-                                  old_value, new_value, local_info):
+                                  old_value, new_value, fromdb, local_info):
         """Break the remote/local relationship on diverging changes.
 
         This hook ensures that if the remote object has an attribute

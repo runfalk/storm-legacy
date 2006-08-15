@@ -3,7 +3,7 @@ import gc
 from storm.references import Reference, ReferenceSet
 from storm.database import Result
 from storm.properties import Int, Str, Unicode, Property, Pickle
-from storm.expr import Asc, Desc, Select, Func, LeftJoin
+from storm.expr import Asc, Desc, Select, Func, LeftJoin, SQL
 from storm.variables import Variable, UnicodeVariable, IntVariable
 from storm.info import get_obj_info, ClassAlias
 from storm.exceptions import *
@@ -2823,3 +2823,199 @@ class StoreTest(object):
                           (20, "Title 20"),
                          ])
 
+    def test_expr_values(self):
+        foo = self.store.get(Foo, 20)
+
+        foo.title = SQL("'New title'")
+
+        # No commits yet.
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                         ])
+
+        self.store.flush()
+
+        # Now it should be there.
+
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "New title"),
+                          (30, "Title 10"),
+                         ])
+
+        self.assertEquals(foo.title, "New title")
+
+
+    def test_expr_values_flush_on_demand(self):
+        foo = self.store.get(Foo, 20)
+
+        foo.title = SQL("'New title'")
+
+        # No commits yet.
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                         ])
+
+        self.assertEquals(foo.title, "New title")
+
+        # Now it should be there.
+
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "New title"),
+                          (30, "Title 10"),
+                         ])
+
+    def test_expr_values_flush_on_demand_with_added(self):
+        foo = Foo()
+        foo.id = 40
+        foo.title = SQL("'New title'")
+        
+        self.store.add(foo)
+
+        # No commits yet.
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                         ])
+
+        self.assertEquals(foo.title, "New title")
+
+        # Now it should be there.
+
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                          (40, "New title"),
+                         ])
+
+    def test_expr_values_flush_on_demand_with_removed_and_added(self):
+        foo = self.store.get(Foo, 20)
+        foo.title = SQL("'New title'")
+        
+        self.store.remove(foo)
+        self.store.add(foo)
+
+        # No commits yet.
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                         ])
+
+        self.assertEquals(foo.title, "New title")
+
+        # Now it should be there.
+
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "New title"),
+                          (30, "Title 10"),
+                         ])
+
+    def test_expr_values_flush_on_demand_with_removed_and_rollbacked(self):
+        foo = self.store.get(Foo, 20)
+        
+        self.store.remove(foo)
+        self.store.rollback()
+
+        foo.title = SQL("'New title'")
+
+        # No commits yet.
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                         ])
+
+        self.assertEquals(foo.title, "New title")
+
+        # Now it should be there.
+
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "New title"),
+                          (30, "Title 10"),
+                         ])
+
+    def test_expr_values_flush_on_demand_with_added_and_removed(self):
+
+        # This test tries to trigger a problem in a few different ways.
+        # It uses the same id of an existing object, and add and remove
+        # the object. This object should never get in the database, nor
+        # update the object that is already there, nor flush any other
+        # pending changes when the lazy value is accessed.
+
+        foo = Foo()
+        foo.id = 20
+
+        foo_dep = Foo()
+        foo_dep.id = 50
+
+        self.store.add(foo)
+        self.store.add(foo_dep)
+
+        foo.title = SQL("'New title'")
+
+        # Add ordering to see if it helps triggering a bug of
+        # incorrect flushing.
+        self.store.add_flush_order(foo_dep, foo)
+
+        self.store.remove(foo)
+
+        # No changes.
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                         ])
+
+        self.assertEquals(foo.title, None)
+
+        # Still no changes. There's no reason why foo_dep would be flushed.
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                         ])
+
+    def test_expr_values_flush_on_demand_with_removed(self):
+
+        # Similar case, but removing an existing object instead.
+
+        foo = self.store.get(Foo, 20)
+
+        foo_dep = Foo()
+        foo_dep.id = 50
+
+        self.store.add(foo_dep)
+
+        foo.title = SQL("'New title'")
+
+        # Add ordering to see if it helps triggering a bug of
+        # incorrect flushing.
+        self.store.add_flush_order(foo_dep, foo)
+
+        self.store.remove(foo)
+
+        # No changes.
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                         ])
+
+        self.assertEquals(foo.title, None)
+
+        # Still no changes. There's no reason why foo_dep would be flushed.
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                         ])

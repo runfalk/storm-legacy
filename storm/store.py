@@ -77,6 +77,7 @@ class Store(object):
             if obj_info.get("store") is self:
                 self._add_to_cache(obj_info)
                 self._enable_change_notification(obj_info)
+                self._enable_lazy_resolving(obj_info)
 
         self._ghosts.clear()
         self._dirty.clear()
@@ -144,6 +145,7 @@ class Store(object):
             pass
         elif pending is PENDING_REMOVE:
             del obj_info["pending"]
+            self._enable_lazy_resolving(obj_info)
             # obj_info.event.emit("added")
         else:
             if store is None:
@@ -156,6 +158,7 @@ class Store(object):
 
             obj_info["pending"] = PENDING_ADD
             self._set_dirty(obj_info)
+            self._enable_lazy_resolving(obj_info)
             obj_info.event.emit("added")
 
     def remove(self, obj):
@@ -172,9 +175,11 @@ class Store(object):
             del obj_info["pending"]
             self._set_ghost(obj_info)
             self._set_clean(obj_info)
+            self._disable_lazy_resolving(obj_info)
         elif not self._is_ghost(obj_info):
             obj_info["pending"] = PENDING_REMOVE
             self._set_dirty(obj_info)
+            self._disable_lazy_resolving(obj_info)
 
     def reload(self, obj):
         obj_info = get_obj_info(obj)
@@ -255,6 +260,11 @@ class Store(object):
                 if variable.is_defined():
                     columns.append(column)
                     variables.append(variable)
+                else:
+                    lazy_value = variable.get_lazy()
+                    if isinstance(lazy_value, Expr):
+                        columns.append(column)
+                        variables.append(lazy_value)
 
             expr = Insert(columns, variables, cls_info.table)
 
@@ -273,8 +283,13 @@ class Store(object):
             changes = {}
             for column in cls_info.columns:
                 variable = obj_info.variables[column]
-                if variable.has_changed() and variable.is_defined():
-                    changes[column] = variable
+                if variable.has_changed():
+                    if variable.is_defined():
+                        changes[column] = variable
+                    else:
+                        lazy_value = variable.get_lazy()
+                        if isinstance(lazy_value, Expr):
+                            changes[column] = lazy_value
 
             if changes:
                 expr = Update(changes,
@@ -283,13 +298,18 @@ class Store(object):
                               cls_info.table)
                 self._connection.execute(expr, noresult=True)
 
+                self._fill_missing_values(obj_info)
+
                 self._add_to_cache(obj_info)
 
             obj_info.checkpoint()
 
         obj_info.event.emit("flushed")
 
-    def _fill_missing_values(self, obj_info, result):
+    def _fill_missing_values(self, obj_info, result=None):
+        # XXX If there are no values which are part of the primary
+        #     key missing, they might be set to a lazy value for
+        #     on-demand reloading.
         cls_info = obj_info.cls_info
 
         missing_columns = []
@@ -303,6 +323,9 @@ class Store(object):
 
             for variable in primary_vars:
                 if not variable.is_defined():
+                    if result is None:
+                        raise RuntimeError("Can't find missing primary values "
+                                           "without a meaningful result")
                     where = result.get_insert_identity(primary_key,
                                                        primary_vars)
                     break
@@ -360,6 +383,7 @@ class Store(object):
 
         self._add_to_cache(obj_info)
         self._enable_change_notification(obj_info)
+        self._enable_lazy_resolving(obj_info)
 
         load = getattr(obj, "__load__", None)
         if load is not None:
@@ -433,9 +457,27 @@ class Store(object):
     def _disable_change_notification(self, obj_info):
         obj_info.event.unhook("changed", self._variable_changed)
 
-    def _variable_changed(self, obj_info, variable, old_value, new_value):
-        if new_value is not Undef:
+    def _variable_changed(self, obj_info, variable,
+                          old_value, new_value, fromdb):
+        # The fromdb check makes sure that values coming from the
+        # database don't mark the object as dirty again.
+        # XXX The fromdb check is untested. How to test it?
+        if not fromdb and new_value is not Undef:
             self._dirty.add(obj_info)
+
+
+    def _enable_lazy_resolving(self, obj_info):
+        obj_info.event.hook("resolve-lazy-value", self._resolve_lazy_value)
+
+    def _disable_lazy_resolving(self, obj_info):
+        obj_info.event.unhook("resolve-lazy-value", self._resolve_lazy_value)
+
+    def _resolve_lazy_value(self, obj_info, variable, lazy_value):
+        # XXX This will do it for now, but it should really flush
+        #     just this single object and ones that it depends on.
+        #     _flush_one() doesn't consider dependencies, so it may
+        #     not be used directly.
+        self.flush()
 
 
 class ResultSet(object):

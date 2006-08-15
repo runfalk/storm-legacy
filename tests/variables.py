@@ -100,17 +100,15 @@ class VariableTest(TestHelper):
         event = EventSystem(marker)
 
         changed_values = []
-        def changed(owner, variable, old_value, new_value):
-            changed_values.append((owner, variable, old_value, new_value))
+        def changed(owner, variable, old_value, new_value, fromdb):
+            changed_values.append((owner, variable,
+                                   old_value, new_value, fromdb))
         
         event.hook("changed", changed)
 
         variable = CustomVariable(event=event)
         variable.set("value1")
-        variable.set("value1")
-        variable.set("value1", from_db=True)
         variable.set("value2")
-        variable.set("value2", from_db=True)
         variable.set("value3", from_db=True)
         variable.set(None, from_db=True)
         variable.set("value4")
@@ -118,17 +116,18 @@ class VariableTest(TestHelper):
         variable.delete()
 
         self.assertEquals(changed_values[0],
-          (marker, variable, Undef, "value1"))
+          (marker, variable, Undef, "value1", False))
         self.assertEquals(changed_values[1],
-          (marker, variable, ("g", ("s", "value1")), "value2"))
+          (marker, variable, ("g", ("s", "value1")), "value2", False))
         self.assertEquals(changed_values[2],
-          (marker, variable, ("g", ("s", "value2")), ("g", ("s", "value3"))))
+          (marker, variable, ("g", ("s", "value2")), ("g", ("s", "value3")),
+           True))
         self.assertEquals(changed_values[3],
-          (marker, variable, ("g", ("s", "value3")), None))
+          (marker, variable, ("g", ("s", "value3")), None, True))
         self.assertEquals(changed_values[4],
-          (marker, variable, None, "value4"))
+          (marker, variable, None, "value4", False))
         self.assertEquals(changed_values[5],
-          (marker, variable, ("g", ("s", "value4")), Undef))
+          (marker, variable, ("g", ("s", "value4")), Undef, False))
         self.assertEquals(len(changed_values), 6)
 
     def test_get_state(self):
@@ -188,6 +187,7 @@ class VariableTest(TestHelper):
         variable = CustomVariable()
         variable.set(LazyValue())
         self.assertEquals(variable.sets, [])
+        self.assertTrue(variable.has_changed())
 
     def test_lazy_value_getting(self):
         variable = CustomVariable()
@@ -205,6 +205,8 @@ class VariableTest(TestHelper):
         def resolve(owner, variable, value):
             resolve_values.append((owner, variable, value))
 
+
+
         lazy_value = LazyValue()
         variable = CustomVariable(lazy_value, event=event)
 
@@ -214,6 +216,25 @@ class VariableTest(TestHelper):
 
         self.assertEquals(resolve_values,
                           [(marker, variable, lazy_value)])
+
+    def test_lazy_value_changed_event(self):
+        event = EventSystem(marker)
+
+        changed_values = []
+        def changed(owner, variable, old_value, new_value, fromdb):
+            changed_values.append((owner, variable,
+                                   old_value, new_value, fromdb))
+        
+        event.hook("changed", changed)
+
+        variable = CustomVariable(event=event)
+
+        lazy_value = LazyValue()
+
+        variable.set(lazy_value)
+
+        self.assertEquals(changed_values,
+                          [(marker, variable, Undef, lazy_value, False)])
 
     def test_lazy_value_setting_on_resolving(self):
         event = EventSystem(marker)
