@@ -1,11 +1,11 @@
 import gc
 
-from storm.properties import get_obj_info
 from storm.references import Reference, ReferenceSet
 from storm.database import Result
 from storm.properties import Int, Str, Unicode, Property, Pickle
-from storm.expr import Asc, Desc, Select, Func
+from storm.expr import Asc, Desc, Select, Func, LeftJoin, SQL
 from storm.variables import Variable, UnicodeVariable, IntVariable
+from storm.info import get_obj_info, ClassAlias
 from storm.exceptions import *
 from storm.store import *
 
@@ -259,6 +259,10 @@ class StoreTest(object):
         self.assertEquals([(foo.id, foo.title) for foo in result], [
                          ])
 
+    def test_find_str(self):
+        foo = self.store.find(Foo, "foo.id = 20").one()
+        self.assertEquals(foo.title, "Title 20")
+
     def test_find_keywords(self):
         result = self.store.find(Foo, id=20, title="Title 20")
         self.assertEquals([(foo.id, foo.title) for foo in result], [
@@ -358,7 +362,7 @@ class StoreTest(object):
 
     def test_find_slice_limit_last(self):
         result = self.store.find(Foo).order_by(Foo.title)[:2]
-        self.assertRaises(UnsupportedError, result.last)
+        self.assertRaises(FeatureError, result.last)
 
     def test_find_slice_slice(self):
         result = self.store.find(Foo).order_by(Foo.title)[0:2][1:3]
@@ -387,17 +391,17 @@ class StoreTest(object):
 
     def test_find_slice_order_by(self):
         result = self.store.find(Foo)[2:]
-        self.assertRaises(UnsupportedError, result.order_by, None)
+        self.assertRaises(FeatureError, result.order_by, None)
 
         result = self.store.find(Foo)[:2]
-        self.assertRaises(UnsupportedError, result.order_by, None)
+        self.assertRaises(FeatureError, result.order_by, None)
 
     def test_find_slice_remove(self):
         result = self.store.find(Foo)[2:]
-        self.assertRaises(UnsupportedError, result.remove)
+        self.assertRaises(FeatureError, result.remove)
 
         result = self.store.find(Foo)[:2]
-        self.assertRaises(UnsupportedError, result.remove)
+        self.assertRaises(FeatureError, result.remove)
 
     def test_find_any(self, *args):
         foo = self.store.find(Foo).order_by(Foo.title).any()
@@ -515,7 +519,7 @@ class StoreTest(object):
 
     def test_find_values_with_no_arguments(self):
         result = self.store.find(Foo).order_by(Foo.id)
-        self.assertRaises(TypeError, result.values().next)
+        self.assertRaises(FeatureError, result.values().next)
 
     def test_find_slice_values(self):
         values = self.store.find(Foo).order_by(Foo.id)[1:2].values(Foo.id)
@@ -545,6 +549,135 @@ class StoreTest(object):
         self.assertEquals(self.store.find(Foo, title="Title 20").cached(),
                           [foo2])
 
+    def test_using_find_join(self):
+        bar = self.store.get(Bar, 100)
+        bar.foo_id = None
+
+        tables = self.store.using(Foo, LeftJoin(Bar, Bar.foo_id == Foo.id))
+        result = tables.find(Bar).order_by(Foo.id, Bar.id)
+        lst = [bar and (bar.id, bar.title) for bar in result]
+        self.assertEquals(lst, [
+                          None,
+                          (200, u"Title 200"),
+                          (300, u"Title 100"),
+                         ])
+
+    def test_find_tuple(self):
+        bar = self.store.get(Bar, 200)
+        bar.foo_id = None
+
+        result = self.store.find((Foo, Bar), Bar.foo_id == Foo.id)
+        result = result.order_by(Foo.id)
+        lst = [(foo and (foo.id, foo.title), bar and (bar.id, bar.title))
+               for (foo, bar) in result]
+        self.assertEquals(lst, [
+                          ((10, u"Title 30"), (100, u"Title 300")),
+                          ((30, u"Title 10"), (300, u"Title 100")),
+                         ])
+
+    def test_find_tuple_using(self):
+        bar = self.store.get(Bar, 200)
+        bar.foo_id = None
+
+        tables = self.store.using(Foo, LeftJoin(Bar, Bar.foo_id == Foo.id))
+        result = tables.find((Foo, Bar)).order_by(Foo.id)
+        lst = [(foo and (foo.id, foo.title), bar and (bar.id, bar.title))
+               for (foo, bar) in result]
+        self.assertEquals(lst, [
+                          ((10, u"Title 30"), (100, u"Title 300")),
+                          ((20, u"Title 20"), None),
+                          ((30, u"Title 10"), (300, u"Title 100")),
+                         ])
+
+    def test_find_tuple_using_skip_when_none(self):
+        bar = self.store.get(Bar, 200)
+        bar.foo_id = None
+
+        tables = self.store.using(Foo,
+                                  LeftJoin(Bar, Bar.foo_id == Foo.id),
+                                  LeftJoin(Link, Link.bar_id == Bar.id))
+        result = tables.find((Bar, Link)).order_by(Foo.id, Bar.id, Link.foo_id)
+        lst = [(bar and (bar.id, bar.title),
+                link and (link.bar_id, link.foo_id))
+               for (bar, link) in result]
+        self.assertEquals(lst, [
+                          ((100, u"Title 300"), (100, 10)),
+                          ((100, u"Title 300"), (100, 20)),
+                          (None, None),
+                          ((300, u"Title 100"), (300, 10)),
+                          ((300, u"Title 100"), (300, 30)),
+                         ])
+
+    def test_find_tuple_any(self):
+        bar = self.store.get(Bar, 200)
+        bar.foo_id = None
+
+        result = self.store.find((Foo, Bar), Bar.foo_id == Foo.id)
+        foo, bar = result.order_by(Foo.id).any()
+        self.assertEquals(foo.id, 10)
+        self.assertEquals(foo.title, u"Title 30")
+        self.assertEquals(bar.id, 100)
+        self.assertEquals(bar.title, u"Title 300")
+
+    def test_find_tuple_first(self):
+        bar = self.store.get(Bar, 200)
+        bar.foo_id = None
+
+        result = self.store.find((Foo, Bar), Bar.foo_id == Foo.id)
+        foo, bar = result.order_by(Foo.id).first()
+        self.assertEquals(foo.id, 10)
+        self.assertEquals(foo.title, u"Title 30")
+        self.assertEquals(bar.id, 100)
+        self.assertEquals(bar.title, u"Title 300")
+
+    def test_find_tuple_last(self):
+        bar = self.store.get(Bar, 200)
+        bar.foo_id = None
+
+        result = self.store.find((Foo, Bar), Bar.foo_id == Foo.id)
+        foo, bar = result.order_by(Foo.id).last()
+        self.assertEquals(foo.id, 30)
+        self.assertEquals(foo.title, u"Title 10")
+        self.assertEquals(bar.id, 300)
+        self.assertEquals(bar.title, u"Title 100")
+
+    def test_find_tuple_first(self):
+        bar = self.store.get(Bar, 200)
+        bar.foo_id = None
+
+        result = self.store.find((Foo, Bar),
+                                 Bar.foo_id == Foo.id, Foo.id == 10)
+        foo, bar = result.order_by(Foo.id).one()
+        self.assertEquals(foo.id, 10)
+        self.assertEquals(foo.title, u"Title 30")
+        self.assertEquals(bar.id, 100)
+        self.assertEquals(bar.title, u"Title 300")
+
+    def test_find_tuple_count(self):
+        bar = self.store.get(Bar, 200)
+        bar.foo_id = None
+        result = self.store.find((Foo, Bar), Bar.foo_id == Foo.id)
+        self.assertEquals(result.count(), 2)
+
+    def test_find_tuple_remove(self):
+        result = self.store.find((Foo, Bar))
+        self.assertRaises(FeatureError, result.remove)
+
+    def test_find_tuple_set(self):
+        result = self.store.find((Foo, Bar))
+        self.assertRaises(FeatureError, result.set, title=u"Title 40")
+
+    def test_find_tuple_kwargs(self):
+        self.assertRaises(FeatureError,
+                          self.store.find, (Foo, Bar), title=u"Title 10")
+
+    def test_find_tuple_cached(self):
+        result = self.store.find((Foo, Bar))
+        self.assertRaises(FeatureError, result.cached)
+
+    def test_find_using_cached(self):
+        result = self.store.using(Foo, Bar).find(Foo)
+        self.assertRaises(FeatureError, result.cached)
 
     def test_add_commit(self):
         foo = Foo()
@@ -1091,7 +1224,40 @@ class StoreTest(object):
         result = self.store.find(Foo, Foo.title == Bar.title)
 
         self.assertEquals([(foo.id, foo.title) for foo in result], [
-                          (20, "Title 20")
+                          (20, "Title 20"),
+                          (20, "Title 20"),
+                         ])
+
+    def test_join_distinct(self):
+
+        class Bar(object):
+            __table__ = "bar", "id"
+            id = Int()
+            title = Unicode()
+
+        bar = Bar()
+        bar.id = 40
+        bar.title = "Title 20"
+
+        self.store.add(bar)
+
+        # Add anbar object with the same title to ensure DISTINCT
+        # is in place.
+
+        bar = Bar()
+        bar.id = 400
+        bar.title = "Title 20"
+
+        self.store.add(bar)
+
+        result = self.store.find(Foo, Foo.title == Bar.title)
+        result.config(distinct=True)
+
+        # Make sure that it won't unset it, and that it's returning itself.
+        config = result.config()
+
+        self.assertEquals([(foo.id, foo.title) for foo in result], [
+                          (20, "Title 20"),
                          ])
 
     def test_sub_select(self):
@@ -1338,11 +1504,11 @@ class StoreTest(object):
 
     def test_find_set_expr_unsupported(self):
         result = self.store.find(Foo, title="Title 20")
-        self.assertRaises(SetError, result.set, Foo.title > "Title 40")
+        self.assertRaises(FeatureError, result.set, Foo.title > "Title 40")
 
     def test_find_set_expr_unsupported_2(self):
         result = self.store.find(Foo, title="Title 20")
-        self.assertRaises(SetError, result.set, Foo.title == Func())
+        self.assertRaises(FeatureError, result.set, Foo.title == Func("func"))
 
     def test_wb_find_set_checkpoints(self):
         bar = self.store.get(Bar, 200)
@@ -2596,15 +2762,21 @@ class StoreTest(object):
         self.assertEquals(foo.title, "Some default value")
 
     def test_pickle_kind(self):
-        class MyBlob(Blob):
+        class PickleBlob(Blob):
             bin = Pickle()
 
         blob = self.store.get(Blob, 20)
         blob.bin = "\x80\x02}q\x01U\x01aK\x01s."
         self.store.flush()
 
-        blob = self.store.get(MyBlob, 20)
-        self.assertEquals(blob.bin["a"], 1)
+        pickle_blob = self.store.get(PickleBlob, 20)
+        self.assertEquals(pickle_blob.bin["a"], 1)
+
+        pickle_blob.bin["b"] = 2
+        
+        # FIXME
+        #self.store.reload(blob)
+        #self.assertEquals(blob.bin, "\x80\x02}q\x01(U\x01aK\x01U\x01bK\x02u.")
 
     def test_unhashable_object(self):
 
@@ -2641,3 +2813,214 @@ class StoreTest(object):
         foo2 = self.store.get(Foo, 20)
         self.assertTrue(foo1 is foo2)
 
+    def test_class_alias(self):
+        FooAlias = ClassAlias(Foo)
+        result = self.store.find(FooAlias, FooAlias.id < Foo.id)
+        self.assertEquals([(foo.id, foo.title) for foo in result
+                           if type(foo) is Foo], [
+                          (10, "Title 30"),
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                         ])
+
+    def test_expr_values(self):
+        foo = self.store.get(Foo, 20)
+
+        foo.title = SQL("'New title'")
+
+        # No commits yet.
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                         ])
+
+        self.store.flush()
+
+        # Now it should be there.
+
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "New title"),
+                          (30, "Title 10"),
+                         ])
+
+        self.assertEquals(foo.title, "New title")
+
+
+    def test_expr_values_flush_on_demand(self):
+        foo = self.store.get(Foo, 20)
+
+        foo.title = SQL("'New title'")
+
+        # No commits yet.
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                         ])
+
+        self.assertEquals(foo.title, "New title")
+
+        # Now it should be there.
+
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "New title"),
+                          (30, "Title 10"),
+                         ])
+
+    def test_expr_values_flush_on_demand_with_added(self):
+        foo = Foo()
+        foo.id = 40
+        foo.title = SQL("'New title'")
+        
+        self.store.add(foo)
+
+        # No commits yet.
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                         ])
+
+        self.assertEquals(foo.title, "New title")
+
+        # Now it should be there.
+
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                          (40, "New title"),
+                         ])
+
+    def test_expr_values_flush_on_demand_with_removed_and_added(self):
+        foo = self.store.get(Foo, 20)
+        foo.title = SQL("'New title'")
+        
+        self.store.remove(foo)
+        self.store.add(foo)
+
+        # No commits yet.
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                         ])
+
+        self.assertEquals(foo.title, "New title")
+
+        # Now it should be there.
+
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "New title"),
+                          (30, "Title 10"),
+                         ])
+
+    def test_expr_values_flush_on_demand_with_removed_and_rollbacked(self):
+        foo = self.store.get(Foo, 20)
+        
+        self.store.remove(foo)
+        self.store.rollback()
+
+        foo.title = SQL("'New title'")
+
+        # No commits yet.
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                         ])
+
+        self.assertEquals(foo.title, "New title")
+
+        # Now it should be there.
+
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "New title"),
+                          (30, "Title 10"),
+                         ])
+
+    def test_expr_values_flush_on_demand_with_added_and_removed(self):
+
+        # This test tries to trigger a problem in a few different ways.
+        # It uses the same id of an existing object, and add and remove
+        # the object. This object should never get in the database, nor
+        # update the object that is already there, nor flush any other
+        # pending changes when the lazy value is accessed.
+
+        foo = Foo()
+        foo.id = 20
+
+        foo_dep = Foo()
+        foo_dep.id = 50
+
+        self.store.add(foo)
+        self.store.add(foo_dep)
+
+        foo.title = SQL("'New title'")
+
+        # Add ordering to see if it helps triggering a bug of
+        # incorrect flushing.
+        self.store.add_flush_order(foo_dep, foo)
+
+        self.store.remove(foo)
+
+        # No changes.
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                         ])
+
+        self.assertEquals(foo.title, None)
+
+        # Still no changes. There's no reason why foo_dep would be flushed.
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                         ])
+
+    def test_expr_values_flush_on_demand_with_removed(self):
+
+        # Similar case, but removing an existing object instead.
+
+        foo = self.store.get(Foo, 20)
+
+        foo_dep = Foo()
+        foo_dep.id = 50
+
+        self.store.add(foo_dep)
+
+        foo.title = SQL("'New title'")
+
+        # Add ordering to see if it helps triggering a bug of
+        # incorrect flushing.
+        self.store.add_flush_order(foo_dep, foo)
+
+        self.store.remove(foo)
+
+        # No changes.
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                         ])
+
+        self.assertEquals(foo.title, None)
+
+        # Still no changes. There's no reason why foo_dep would be flushed.
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                         ])
+
+    def test_expr_values_with_columns(self):
+        bar = self.store.get(Bar, 200)
+        bar.foo_id = Bar.id+1
+        self.assertEquals(bar.foo_id, 201)

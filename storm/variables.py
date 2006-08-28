@@ -17,6 +17,7 @@ __all__ = [
     "NotNoneError",
     "VariableFactory",
     "Variable",
+    "LazyValue",
     "BoolVariable",
     "IntVariable",
     "FloatVariable",
@@ -49,6 +50,7 @@ def VariableFactory(cls, **old_kwargs):
 class Variable(object):
 
     _value = Undef
+    _lazy_value = Undef
     _saved_state = Undef
     _checkpoint_state = Undef
     _not_none = False
@@ -75,7 +77,14 @@ class Variable(object):
     def _parse_set(value, from_db):
         return value
 
+    def get_lazy(self, default=None):
+        if self._lazy_value is Undef:
+            return default
+        return self._lazy_value
+
     def get(self, default=None, to_db=False):
+        if self._lazy_value is not Undef and self.event is not None:
+            self.event.emit("resolve-lazy-value", self, self._lazy_value)
         value = self._value
         if value is Undef:
             return default
@@ -84,21 +93,29 @@ class Variable(object):
         return self._parse_get(value, to_db)
 
     def set(self, value, from_db=False):
-        if value is None:
-            if self._not_none is True:
-                raise NotNoneError("None isn't acceptable as a value")
-            new_value = None
+        if isinstance(value, LazyValue):
+            self._lazy_value = value
+            new_value = Undef
         else:
-            new_value = self._parse_set(value, from_db)
-            if from_db:
-                value = self._parse_get(new_value, False)
+            if self._lazy_value is not Undef:
+                del self._lazy_value
+            if value is None:
+                # XXX This check should be opted in by the variable types.
+                if self._not_none is True:
+                    raise NotNoneError("None isn't acceptable as a value")
+                new_value = None
+            else:
+                new_value = self._parse_set(value, from_db)
+                if from_db:
+                    # Prepare it for being used by the hook below.
+                    value = self._parse_get(new_value, False)
         old_value = self._value
-        if new_value != old_value:
-            self._value = new_value
-            if self.event:
-                if old_value is not None and old_value is not Undef:
-                    old_value = self._parse_get(old_value, False)
-                self.event.emit("changed", self, old_value, value)
+        self._value = new_value
+        if (self.event is not None and
+            (self._lazy_value is not Undef or new_value is not old_value)):
+            if old_value is not None and old_value is not Undef:
+                old_value = self._parse_get(old_value, False)
+            self.event.emit("changed", self, old_value, value, from_db)
 
     def delete(self):
         old_value = self._value
@@ -107,13 +124,14 @@ class Variable(object):
             if self.event:
                 if old_value is not None and old_value is not Undef:
                     old_value = self._parse_get(old_value, False)
-                self.event.emit("changed", self, old_value, Undef)
+                self.event.emit("changed", self, old_value, Undef, False)
 
     def is_defined(self):
         return self._value is not Undef
 
     def has_changed(self):
-        return self.get_state() != self._checkpoint_state
+        return (self._lazy_value is not Undef or
+                self.get_state() != self._checkpoint_state)
 
     def get_state(self):
         return self._value
@@ -142,6 +160,10 @@ class Variable(object):
 
     def __hash__(self):
         return hash((self.__class__, self._value))
+
+
+class LazyValue(object):
+    pass
 
 
 class BoolVariable(Variable):
@@ -227,6 +249,7 @@ class TimeVariable(Variable):
     @staticmethod
     def _parse_set(value, db):
         if db:
+            # XXX Can None ever get here, considering that set() checks for it?
             if value is None:
                 return None
             if isinstance(value, time):

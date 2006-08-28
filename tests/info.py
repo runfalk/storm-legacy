@@ -1,6 +1,6 @@
 from storm.properties import Property
 from storm.variables import Variable
-from storm.expr import Undef
+from storm.expr import Undef, Select, compile
 from storm.info import *
 
 from tests.helper import TestHelper
@@ -178,10 +178,12 @@ class ObjectInfoTest(TestHelper):
     def test_add_change_notification(self):
         changes1 = []
         changes2 = []
-        def object_changed1(obj_info, variable, old_value, new_value):
-            changes1.append((1, obj_info, variable, old_value, new_value))
-        def object_changed2(obj_info, variable, old_value, new_value):
-            changes2.append((2, obj_info, variable, old_value, new_value))
+        def object_changed1(obj_info, variable, old_value, new_value, fromdb):
+            changes1.append((1, obj_info, variable,
+                             old_value, new_value, fromdb))
+        def object_changed2(obj_info, variable, old_value, new_value, fromdb):
+            changes2.append((2, obj_info, variable,
+                             old_value, new_value, fromdb))
 
         self.obj_info.save()
         self.obj_info.event.hook("changed", object_changed1)
@@ -191,11 +193,11 @@ class ObjectInfoTest(TestHelper):
         self.obj.prop1 = 20
 
         self.assertEquals(changes1,
-                          [(1, self.obj_info, self.variable2, Undef, 10),
-                           (1, self.obj_info, self.variable1, Undef, 20)])
+                      [(1, self.obj_info, self.variable2, Undef, 10, False),
+                       (1, self.obj_info, self.variable1, Undef, 20, False)])
         self.assertEquals(changes2,
-                          [(2, self.obj_info, self.variable2, Undef, 10),
-                           (2, self.obj_info, self.variable1, Undef, 20)])
+                      [(2, self.obj_info, self.variable2, Undef, 10, False),
+                       (2, self.obj_info, self.variable1, Undef, 20, False)])
 
         del changes1[:]
         del changes2[:]
@@ -204,11 +206,11 @@ class ObjectInfoTest(TestHelper):
         self.obj.prop2 = None
 
         self.assertEquals(changes1,
-                          [(1, self.obj_info, self.variable1, 20, None),
-                           (1, self.obj_info, self.variable2, 10, None)])
+                      [(1, self.obj_info, self.variable1, 20, None, False),
+                       (1, self.obj_info, self.variable2, 10, None, False)])
         self.assertEquals(changes2,
-                          [(2, self.obj_info, self.variable1, 20, None),
-                           (2, self.obj_info, self.variable2, 10, None)])
+                      [(2, self.obj_info, self.variable1, 20, None, False),
+                       (2, self.obj_info, self.variable2, 10, None, False)])
 
         del changes1[:]
         del changes2[:]
@@ -217,19 +219,23 @@ class ObjectInfoTest(TestHelper):
         del self.obj.prop2
 
         self.assertEquals(changes1,
-                          [(1, self.obj_info, self.variable1, None, Undef),
-                           (1, self.obj_info, self.variable2, None, Undef)])
+                      [(1, self.obj_info, self.variable1, None, Undef, False),
+                       (1, self.obj_info, self.variable2, None, Undef, False)])
         self.assertEquals(changes2,
-                          [(2, self.obj_info, self.variable1, None, Undef),
-                           (2, self.obj_info, self.variable2, None, Undef)])
+                      [(2, self.obj_info, self.variable1, None, Undef, False),
+                       (2, self.obj_info, self.variable2, None, Undef, False)])
 
     def test_add_change_notification_with_arg(self):
         changes1 = []
         changes2 = []
-        def object_changed1(obj_info, variable, old_value, new_value, arg):
-            changes1.append((1, obj_info, variable, old_value, new_value, arg))
-        def object_changed2(obj_info, variable, old_value, new_value, arg):
-            changes2.append((2, obj_info, variable, old_value, new_value, arg))
+        def object_changed1(obj_info, variable,
+                            old_value, new_value, fromdb, arg):
+            changes1.append((1, obj_info, variable,
+                             old_value, new_value, fromdb, arg))
+        def object_changed2(obj_info, variable,
+                            old_value, new_value, fromdb, arg):
+            changes2.append((2, obj_info, variable,
+                             old_value, new_value, fromdb, arg))
 
         self.obj_info.save()
 
@@ -242,11 +248,11 @@ class ObjectInfoTest(TestHelper):
         self.obj.prop1 = 20
 
         self.assertEquals(changes1,
-                          [(1, self.obj_info, self.variable2, Undef, 10, obj),
-                           (1, self.obj_info, self.variable1, Undef, 20, obj)])
-        self.assertEquals(changes2,
-                          [(2, self.obj_info, self.variable2, Undef, 10, obj),
-                           (2, self.obj_info, self.variable1, Undef, 20, obj)])
+                  [(1, self.obj_info, self.variable2, Undef, 10, False, obj),
+                   (1, self.obj_info, self.variable1, Undef, 20, False, obj)])
+        self.assertEquals(changes2,                                        
+                  [(2, self.obj_info, self.variable2, Undef, 10, False, obj),
+                   (2, self.obj_info, self.variable1, Undef, 20, False, obj)])
 
         del changes1[:]
         del changes2[:]
@@ -255,11 +261,11 @@ class ObjectInfoTest(TestHelper):
         self.obj.prop2 = None
 
         self.assertEquals(changes1,
-                          [(1, self.obj_info, self.variable1, 20, None, obj),
-                           (1, self.obj_info, self.variable2, 10, None, obj)])
-        self.assertEquals(changes2,
-                          [(2, self.obj_info, self.variable1, 20, None, obj),
-                           (2, self.obj_info, self.variable2, 10, None, obj)])
+                  [(1, self.obj_info, self.variable1, 20, None, False, obj),
+                   (1, self.obj_info, self.variable2, 10, None, False, obj)])
+        self.assertEquals(changes2,                                       
+                  [(2, self.obj_info, self.variable1, 20, None, False, obj),
+                   (2, self.obj_info, self.variable2, 10, None, False, obj)])
 
         del changes1[:]
         del changes2[:]
@@ -268,19 +274,21 @@ class ObjectInfoTest(TestHelper):
         del self.obj.prop2
 
         self.assertEquals(changes1,
-                          [(1, self.obj_info, self.variable1, None, Undef, obj),
-                           (1, self.obj_info, self.variable2, None, Undef, obj)])
-        self.assertEquals(changes2,
-                          [(2, self.obj_info, self.variable1, None, Undef, obj),
-                           (2, self.obj_info, self.variable2, None, Undef, obj)])
+              [(1, self.obj_info, self.variable1, None, Undef, False, obj),
+               (1, self.obj_info, self.variable2, None, Undef, False, obj)])
+        self.assertEquals(changes2,                                      
+              [(2, self.obj_info, self.variable1, None, Undef, False, obj),
+               (2, self.obj_info, self.variable2, None, Undef, False, obj)])
 
     def test_remove_change_notification(self):
         changes1 = []
         changes2 = []
-        def object_changed1(obj_info, variable, old_value, new_value):
-            changes1.append((1, obj_info, variable, old_value, new_value))
-        def object_changed2(obj_info, variable, old_value, new_value):
-            changes2.append((2, obj_info, variable, old_value, new_value))
+        def object_changed1(obj_info, variable, old_value, new_value, fromdb):
+            changes1.append((1, obj_info, variable,
+                             old_value, new_value, fromdb))
+        def object_changed2(obj_info, variable, old_value, new_value, fromdb):
+            changes2.append((2, obj_info, variable,
+                             old_value, new_value, fromdb))
 
         self.obj_info.save()
 
@@ -293,16 +301,20 @@ class ObjectInfoTest(TestHelper):
 
         self.assertEquals(changes1, [])
         self.assertEquals(changes2,
-                          [(2, self.obj_info, self.variable2, Undef, 20),
-                           (2, self.obj_info, self.variable1, Undef, 10)])
+                      [(2, self.obj_info, self.variable2, Undef, 20, False),
+                       (2, self.obj_info, self.variable1, Undef, 10, False)])
 
     def test_remove_change_notification_with_arg(self):
         changes1 = []
         changes2 = []
-        def object_changed1(obj_info, variable, old_value, new_value, arg):
-            changes1.append((1, obj_info, variable, old_value, new_value, arg))
-        def object_changed2(obj_info, variable, old_value, new_value, arg):
-            changes2.append((2, obj_info, variable, old_value, new_value, arg))
+        def object_changed1(obj_info, variable,
+                            old_value, new_value, fromdb, arg):
+            changes1.append((1, obj_info, variable,
+                             old_value, new_value, fromdb, arg))
+        def object_changed2(obj_info, variable,
+                            old_value, new_value, fromdb, arg):
+            changes2.append((2, obj_info, variable,
+                             old_value, new_value, fromdb, arg))
 
         self.obj_info.save()
 
@@ -317,17 +329,19 @@ class ObjectInfoTest(TestHelper):
 
         self.assertEquals(changes1, [])
         self.assertEquals(changes2,
-                          [(2, self.obj_info, self.variable2, Undef, 20, obj),
-                           (2, self.obj_info, self.variable1, Undef, 10, obj)])
+                  [(2, self.obj_info, self.variable2, Undef, 20, False, obj),
+                   (2, self.obj_info, self.variable1, Undef, 10, False, obj)])
 
     def test_auto_remove_change_notification(self):
         changes1 = []
         changes2 = []
-        def object_changed1(obj_info, variable, old_value, new_value):
-            changes1.append((1, obj_info, variable, old_value, new_value))
+        def object_changed1(obj_info, variable, old_value, new_value, fromdb):
+            changes1.append((1, obj_info, variable,
+                             old_value, new_value, fromdb))
             return False
-        def object_changed2(obj_info, variable, old_value, new_value):
-            changes2.append((2, obj_info, variable, old_value, new_value))
+        def object_changed2(obj_info, variable, old_value, new_value, fromdb):
+            changes2.append((2, obj_info, variable,
+                             old_value, new_value, fromdb))
             return False
 
         self.obj_info.save()
@@ -339,18 +353,22 @@ class ObjectInfoTest(TestHelper):
         self.obj.prop1 = 10
 
         self.assertEquals(changes1,
-                          [(1, self.obj_info, self.variable2, Undef, 20)])
+                      [(1, self.obj_info, self.variable2, Undef, 20, False)])
         self.assertEquals(changes2,
-                          [(2, self.obj_info, self.variable2, Undef, 20)])
+                      [(2, self.obj_info, self.variable2, Undef, 20, False)])
 
     def test_auto_remove_change_notification_with_arg(self):
         changes1 = []
         changes2 = []
-        def object_changed1(obj_info, variable, old_value, new_value, arg):
-            changes1.append((1, obj_info, variable, old_value, new_value, arg))
+        def object_changed1(obj_info, variable,
+                            old_value, new_value, fromdb, arg):
+            changes1.append((1, obj_info, variable,
+                             old_value, new_value, fromdb, arg))
             return False
-        def object_changed2(obj_info, variable, old_value, new_value, arg):
-            changes2.append((2, obj_info, variable, old_value, new_value, arg))
+        def object_changed2(obj_info, variable,
+                            old_value, new_value, fromdb, arg):
+            changes2.append((2, obj_info, variable,
+                             old_value, new_value, fromdb, arg))
             return False
 
         self.obj_info.save()
@@ -364,14 +382,14 @@ class ObjectInfoTest(TestHelper):
         self.obj.prop1 = 10
 
         self.assertEquals(changes1,
-                          [(1, self.obj_info, self.variable2, Undef, 20, obj)])
+                  [(1, self.obj_info, self.variable2, Undef, 20, False, obj)])
         self.assertEquals(changes2,
-                          [(2, self.obj_info, self.variable2, Undef, 20, obj)])
+                  [(2, self.obj_info, self.variable2, Undef, 20, False, obj)])
 
     def test_restore_hooks(self):
         changes = []
-        def object_changed(obj_info, variable, old_value, new_value):
-            changes.append((obj_info, variable, old_value, new_value))
+        def object_changed(obj_info, variable, old_value, new_value, fromdb):
+            changes.append((obj_info, variable, old_value, new_value, fromdb))
 
         self.obj_info.event.hook("changed", object_changed)
         self.obj_info.save()
@@ -382,4 +400,51 @@ class ObjectInfoTest(TestHelper):
         self.obj.prop1 = 20
 
         self.assertEquals(changes,
-                          [(self.obj_info, self.variable1, Undef, 20)])
+                          [(self.obj_info, self.variable1, Undef, 20, False)])
+
+
+class ClassAliasTest(TestHelper):
+
+    def setUp(self):
+        TestHelper.setUp(self)
+        class Class(object):
+            __table__ = "table", "column1"
+            prop1 = Any("column1")
+        self.Class = Class
+        self.obj = Class()
+        self.ClassAlias = ClassAlias(self.Class, "alias")
+        
+    def test_cls_info_cls(self):
+        cls_info = get_cls_info(self.ClassAlias)
+        self.assertEquals(cls_info.cls, self.Class)
+        self.assertEquals(cls_info.table, "alias")
+        self.assertEquals(self.ClassAlias.prop1.name, "column1")
+        self.assertEquals(self.ClassAlias.prop1.table, self.ClassAlias)
+
+    def test_compile(self):
+        statement, parameters = compile(self.ClassAlias)
+        self.assertEquals(statement, "table AS alias")
+
+    def test_compile_in_select(self):
+        expr = Select(self.ClassAlias.prop1, self.ClassAlias.prop1 == 1,
+                      self.ClassAlias)
+        statement, parameters = compile(expr)
+        self.assertEquals(statement,
+                          "SELECT alias.column1 FROM table AS alias "
+                          "WHERE alias.column1 = ?")
+
+
+class TypeCompilerTest(TestHelper):
+
+    def test_nested_classes(self):
+        """Convoluted case checking that the model is right."""
+        class Class1(object):
+            __table__ = "class1", "id"
+            id = Any()
+        class Class2(object):
+            __table__ = Class1, "id"
+            id = Any()
+        statement, parameters = compile(Class2)
+        self.assertEquals(statement, "class1")
+        statement, parameters = compile(ClassAlias(Class2, "alias"))
+        self.assertEquals(statement, "class1 AS alias")

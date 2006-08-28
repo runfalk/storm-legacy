@@ -9,7 +9,7 @@
 #
 from datetime import datetime
 
-from storm.info import get_obj_info
+from storm.info import get_obj_info, get_cls_info
 from storm.expr import Column, Undef
 from storm.variables import *
 from storm import Undef
@@ -91,7 +91,7 @@ class Property(object):
         if column is None:
             if self._name is None:
                 self._detect_name(cls)
-            column = PropertyColumn(self, cls, self._name, cls.__table__[0],
+            column = PropertyColumn(self, cls, self._name,
                                     self._factory_kwargs)
             self._columns[cls] = column
         return column
@@ -99,10 +99,11 @@ class Property(object):
 
 class PropertyColumn(Column):
 
-    def __init__(self, prop, cls, name, table, factory_kwargs):
-        Column.__init__(self, name, table,
+    def __init__(self, prop, cls, name, factory_kwargs):
+        Column.__init__(self, name, cls,
                         VariableFactory(column=self, **factory_kwargs))
-        self.cls = cls
+
+        self.cls = cls # Used by references
 
         # Copy attributes from the property to avoid one additional
         # function call on each access.

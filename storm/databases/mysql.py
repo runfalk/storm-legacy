@@ -21,13 +21,13 @@ except ImportError:
 
 from storm.expr import compile, Select, compile_select, Undef, And, Eq
 from storm.database import *
-from storm.exceptions import install_exceptions, UnsupportedDatabaseError
+from storm.exceptions import install_exceptions, DatabaseModuleError
 
 
 install_exceptions(MySQLdb)
 
 
-compile = compile.copy()
+compile = compile.fork()
 
 @compile.when(Select)
 def compile_select_mysql(compile, state, select):
@@ -68,7 +68,7 @@ class MySQL(Database):
     def __init__(self, dbname, host=None, port=None,
                  username=None, password=None, unix_socket=None):
         if MySQLdb is dummy:
-            raise UnsupportedDatabaseError("'MySQLdb' module not found")
+            raise DatabaseModuleError("'MySQLdb' module not found")
         self._connect_kwargs = {}
         if dbname is not None:
             self._connect_kwargs["db"] = dbname

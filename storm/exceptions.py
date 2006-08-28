@@ -19,6 +19,9 @@ class CompileError(StormError):
 class NoTableError(CompileError):
     pass
 
+class ExprError(StormError):
+    pass
+
 
 class URIError(StormError):
     pass
@@ -27,10 +30,10 @@ class URIError(StormError):
 class ClosedError(StormError):
     pass
 
-class UnsupportedError(StormError):
+class FeatureError(StormError):
     pass
     
-class UnsupportedDatabaseError(UnsupportedError):
+class DatabaseModuleError(StormError):
     pass
 
 
@@ -47,9 +50,6 @@ class NotFlushedError(StoreError):
     pass
 
 class OrderLoopError(StoreError):
-    pass
-
-class SetError(StoreError):
     pass
 
 class NotOneError(StoreError):

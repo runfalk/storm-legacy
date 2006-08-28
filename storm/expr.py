@@ -10,8 +10,8 @@
 from copy import copy
 import sys
 
-from storm.exceptions import CompileError, NoTableError
-from storm.variables import Variable
+from storm.exceptions import CompileError, NoTableError, ExprError
+from storm.variables import Variable, LazyValue
 from storm import Undef
 
 
@@ -21,29 +21,53 @@ from storm import Undef
 class Compile(object):
     """Compiler based on the concept of generic functions."""
 
-    def __init__(self):
+    def __init__(self, parent=None):
+        self._local_dispatch_table = {}
+        self._local_precedence = {}
         self._dispatch_table = {}
         self._precedence = {}
+        self._hash = None
+        self._parents_hash = None
+        self._parents = []
+        if parent:
+            self._parents.extend(parent._parents)
+            self._parents.append(parent)
 
-    def copy(self):
-        copy = self.__class__()
-        copy._dispatch_table = self._dispatch_table.copy()
-        copy._precedence = self._precedence.copy()
-        return copy
+    def _check_parents(self):
+        parents_hash = hash(tuple(parent._hash for parent in self._parents))
+        if parents_hash != self._parents_hash:
+            self._parents_hash = parents_hash
+            for parent in self._parents:
+                self._dispatch_table.update(parent._local_dispatch_table)
+                self._precedence.update(parent._local_precedence)
+            self._dispatch_table.update(self._local_dispatch_table)
+            self._precedence.update(self._local_precedence)
+
+    def _update(self):
+        self._dispatch_table.update(self._local_dispatch_table)
+        self._precedence.update(self._local_precedence)
+        self._hash = hash(tuple(sorted(self._local_dispatch_table.items() +
+                                       self._local_precedence.items())))
+
+    def fork(self):
+        return self.__class__(self)
 
     def when(self, *types):
         def decorator(method):
             for type in types:
-                self._dispatch_table[type] = method
+                self._local_dispatch_table[type] = method
+            self._update()
             return method
         return decorator
 
     def get_precedence(self, type):
+        self._check_parents()
         return self._precedence.get(type, MAX_PRECEDENCE)
 
     def set_precedence(self, precedence, *types):
         for type in types:
-            self._precedence[type] = precedence
+            self._local_precedence[type] = precedence
+        self._update()
 
     def _compile_single(self, state, expr, outer_precedence):
         cls = expr.__class__
@@ -57,7 +81,8 @@ class Compile(object):
                     statement = "(%s)" % statement
                 return statement
         else:
-            raise CompileError("Don't know how to compile %r" % expr.__class__)
+            raise CompileError("Don't know how to compile type %r of %r"
+                               % (expr.__class__, expr))
 
     def _compile(self, state, expr, join=", "):
         outer_precedence = state.precedence
@@ -82,6 +107,7 @@ class Compile(object):
         return statement
 
     def __call__(self, expr):
+        self._check_parents()
         state = State()
         return self._compile(state, expr), state.parameters
 
@@ -104,7 +130,7 @@ class State(object):
         self.precedence = 0
         self.parameters = []
         self.auto_tables = []
-        self.omit_column_tables = False
+        self.column_prefix = False
 
     def push(self, attr, new_value=Undef):
         old_value = getattr(self, attr, None)
@@ -152,7 +178,7 @@ def compile_python_variable(compile, state, variable):
 
 MAX_PRECEDENCE = 1000
 
-class Expr(object):
+class Expr(LazyValue):
     pass
 
 @compile_python.when(Expr)
@@ -272,7 +298,18 @@ def has_tables(state, expr):
 
 def build_tables(compile, state, expr):
     if expr.tables is not Undef:
-        return compile(state, expr.tables)
+        result = []
+        if type(expr.tables) not in (list, tuple):
+            return compile(state, expr.tables)
+        else:
+            for elem in expr.tables:
+                if result:
+                    if not (isinstance(elem, JoinExpr) and elem.left is Undef):
+                        result.append(", ")
+                    else:
+                        result.append(" ")
+                result.append(compile(state, elem))
+            return "".join(result)
     elif state.auto_tables:
         tables = []
         for expr in state.auto_tables:
@@ -301,8 +338,9 @@ def build_table(compile, state, expr):
 
 class Select(Expr):
 
-    def __init__(self, columns, where=Undef, tables=Undef,
-                 default_tables=Undef, order_by=Undef, group_by=Undef,
+    def __init__(self, columns, where=Undef,
+                 tables=Undef, default_tables=Undef,
+                 order_by=Undef, group_by=Undef,
                  limit=Undef, offset=Undef, distinct=False):
         self.columns = columns
         self.where = where
@@ -317,17 +355,12 @@ class Select(Expr):
 @compile.when(Select)
 def compile_select(compile, state, select):
     state.push("auto_tables", [])
+    state.push("column_prefix", True)
     tokens = ["SELECT "]
     if select.distinct:
         tokens.append("DISTINCT ")
     tokens.append(compile(state, select.columns))
-    if has_tables(state, select):
-        tokens.append(" FROM ")
-        # Add a placeholder and compile later to support auto_tables.
-        tables_pos = len(tokens)
-        tokens.append(None)
-    else:
-        tables_pos = None
+    tables_pos = len(tokens)
     if select.where is not Undef:
         tokens.append(" WHERE ")
         tokens.append(compile(state, select.where))
@@ -341,8 +374,10 @@ def compile_select(compile, state, select):
         tokens.append(" LIMIT %d" % select.limit)
     if select.offset is not Undef:
         tokens.append(" OFFSET %d" % select.offset)
-    if tables_pos is not None:
-        tokens[tables_pos] = build_tables(compile, state, select)
+    state.pop()
+    if has_tables(state, select):
+        tokens.insert(tables_pos, " FROM ")
+        tokens.insert(tables_pos+1, build_tables(compile, state, select))
     state.pop()
     return "".join(tokens)
 
@@ -357,9 +392,7 @@ class Insert(Expr):
 
 @compile.when(Insert)
 def compile_insert(compile, state, insert):
-    state.push("omit_column_tables", True)
     columns = compile(state, insert.columns)
-    state.pop()
     tokens = ["INSERT INTO ", build_table(compile, state, insert),
               " (", columns, ") VALUES (", compile(state, insert.values), ")"]
     return "".join(tokens)
@@ -375,16 +408,16 @@ class Update(Expr):
 
 @compile.when(Update)
 def compile_update(compile, state, update):
-    state.push("omit_column_tables", True)
     set = update.set
     sets = ["%s=%s" % (compile(state, col), compile(state, set[col]))
             for col in set]
-    state.pop()
     tokens = ["UPDATE ", build_table(compile, state, update),
               " SET ", ", ".join(sets)]
     if update.where is not Undef:
+        state.push("column_prefix", True)
         tokens.append(" WHERE ")
         tokens.append(compile(state, update.where))
+        state.pop()
     return "".join(tokens)
 
 
@@ -399,15 +432,17 @@ class Delete(Expr):
 def compile_delete(compile, state, delete):
     tokens = ["DELETE FROM ", None]
     if delete.where is not Undef:
+        state.push("column_prefix", True)
         tokens.append(" WHERE ")
         tokens.append(compile(state, delete.where))
+        state.pop()
     # Compile later for auto_tables support.
     tokens[1] = build_table(compile, state, delete)
     return "".join(tokens)
 
 
 # --------------------------------------------------------------------
-# Columns.
+# Columns
 
 class Column(ComparableExpr):
 
@@ -420,13 +455,107 @@ class Column(ComparableExpr):
 def compile_column(compile, state, column):
     if column.table is not Undef:
         state.auto_tables.append(column.table)
-    if column.table is Undef or state.omit_column_tables:
+    if column.table is Undef or not state.column_prefix:
         return column.name
     return "%s.%s" % (compile(state, column.table), column.name)
 
 @compile_python.when(Column)
 def compile_python_column(compile, state, column):
     return "get_column(%s)" % repr(column.name)
+
+
+# --------------------------------------------------------------------
+# From expressions
+
+class FromExpr(Expr):
+    pass
+
+
+class Table(FromExpr):
+
+    def __init__(self, name):
+        self.name = name
+
+@compile.when(Table)
+def compile_table(compile, state, table):
+    return table.name
+
+
+class Alias(FromExpr):
+    
+    auto_counter = 0
+
+    def __init__(self, expr, name=Undef):
+        self.expr = expr
+        if name is Undef:
+            Alias.auto_counter += 1
+            name = "_%x" % Alias.auto_counter
+        self.name = name
+
+
+@compile.when(Alias)
+def compile_alias(compile, state, alias):
+    if state.column_prefix:
+        return alias.name
+    return "%s AS %s" % (compile(state, alias.expr), alias.name)
+
+
+class JoinExpr(FromExpr):
+
+    left = on = Undef
+    oper = "(unknown)"
+
+    def __init__(self, arg1, arg2=Undef, on=Undef):
+        # http://www.postgresql.org/docs/8.1/interactive/explicit-joins.html
+        if arg2 is Undef:
+            self.right = arg1
+            if on is not Undef:
+                self.on = on
+        elif not isinstance(arg2, Expr) or isinstance(arg2, FromExpr):
+            self.left = arg1
+            self.right = arg2
+            if on is not Undef:
+                self.on = on
+        else:
+            self.right = arg1
+            self.on = arg2
+            if on is not Undef:
+                raise ExprError("Improper join arguments: (%r, %r, %r)" %
+                                (arg1, arg2, on))
+
+@compile.when(JoinExpr)
+def compile_join(compile, state, expr):
+    result = []
+    state.precedence += 0.5
+    if expr.left is not Undef:
+        result.append(compile(state, expr.left))
+    result.append(expr.oper)
+    result.append(compile(state, expr.right))
+    if expr.on is not Undef:
+        state.push("column_prefix", True)
+        result.append("ON")
+        result.append(compile(state, expr.on))
+        state.pop()
+    return " ".join(result)
+
+
+class Join(JoinExpr):
+    oper = "JOIN"
+
+class LeftJoin(JoinExpr):
+    oper = "LEFT JOIN"
+
+class RightJoin(JoinExpr):
+    oper = "RIGHT JOIN"
+
+class NaturalJoin(JoinExpr):
+    oper = "NATURAL JOIN"
+
+class NaturalLeftJoin(JoinExpr):
+    oper = "NATURAL LEFT JOIN"
+
+class NaturalRightJoin(JoinExpr):
+    oper = "NATURAL RIGHT JOIN"
 
 
 # --------------------------------------------------------------------
@@ -558,37 +687,49 @@ class Mod(NonAssocBinaryOper):
 # --------------------------------------------------------------------
 # Functions
 
-class Func(ComparableExpr):
+class FuncExpr(ComparableExpr):
     name = "(unknown)"
+
+
+class Count(FuncExpr):
+    name = "COUNT"
+
+    def __init__(self, column=Undef):
+        self.column = column
+
+@compile.when(Count)
+def compile_count(compile, state, count):
+    if count.column is not Undef:
+        return "COUNT(%s)" % compile(state, count.column)
+    return "COUNT(*)"
+
+
+class Func(FuncExpr):
+
+    def __init__(self, name, *args):
+        self.name = name
+        self.args = args
+
+class NamedFunc(FuncExpr):
 
     def __init__(self, *args):
         self.args = args
 
-@compile.when(Func)
+@compile.when(Func, NamedFunc)
 def compile_func(compile, state, func):
     return "%s(%s)" % (func.name, compile(state, func.args))
 
 
-class Count(Func):
-    name = "COUNT"
-
-@compile.when(Count)
-def compile_count(compile, state, count):
-    if count.args:
-        return "COUNT(%s)" % compile(state, count.args)
-    return "COUNT(*)"
-
-
-class Max(Func):
+class Max(NamedFunc):
     name = "MAX"
 
-class Min(Func):
+class Min(NamedFunc):
     name = "MIN"
 
-class Avg(Func):
+class Avg(NamedFunc):
     name = "AVG"
 
-class Sum(Func):
+class Sum(NamedFunc):
     name = "SUM"
 
 
@@ -628,6 +769,29 @@ class Desc(SuffixExpr):
 
 
 # --------------------------------------------------------------------
+# Plain SQL expressions.
+
+class SQL(ComparableExpr):
+
+    def __init__(self, expr, params=Undef, tables=Undef):
+        self.expr = expr
+        self.params = params
+        self.tables = tables
+
+@compile.when(SQL)
+def compile_sql(compile, state, expr):
+    if expr.params is not Undef:
+        if type(expr.params) not in (tuple, list):
+            raise CompileError("Parameters should be a list or a tuple, "
+                               "not %r" % type(expr.params))
+        for param in expr.params:
+            state.parameters.append(param)
+    if expr.tables is not Undef:
+        state.auto_tables.append(expr.tables)
+    return expr.expr
+
+
+# --------------------------------------------------------------------
 # Utility functions.
 
 def compare_columns(columns, values):
@@ -651,16 +815,19 @@ def compare_columns(columns, values):
 # Set operator precedences.
 
 compile.set_precedence(10, Select, Insert, Update, Delete)
-compile.set_precedence(20, Or)
-compile.set_precedence(30, And)
-compile.set_precedence(40, Eq, Ne, Gt, Ge, Lt, Le, Like, In)
-compile.set_precedence(50, LShift, RShift)
-compile.set_precedence(60, Add, Sub)
-compile.set_precedence(70, Mul, Div, Mod)
+compile.set_precedence(10, Join, LeftJoin, RightJoin)
+compile.set_precedence(10, NaturalJoin, NaturalLeftJoin, NaturalRightJoin)
+compile.set_precedence(20, SQL)
+compile.set_precedence(30, Or)
+compile.set_precedence(40, And)
+compile.set_precedence(50, Eq, Ne, Gt, Ge, Lt, Le, Like, In)
+compile.set_precedence(60, LShift, RShift)
+compile.set_precedence(70, Add, Sub)
+compile.set_precedence(80, Mul, Div, Mod)
 
-compile_python.set_precedence(20, Or)
-compile_python.set_precedence(30, And)
-compile_python.set_precedence(40, Eq, Ne, Gt, Ge, Lt, Le, Like, In)
-compile_python.set_precedence(50, LShift, RShift)
-compile_python.set_precedence(60, Add, Sub)
-compile_python.set_precedence(70, Mul, Div, Mod)
+compile_python.set_precedence(10, Or)
+compile_python.set_precedence(20, And)
+compile_python.set_precedence(30, Eq, Ne, Gt, Ge, Lt, Le, Like, In)
+compile_python.set_precedence(40, LShift, RShift)
+compile_python.set_precedence(50, Add, Sub)
+compile_python.set_precedence(60, Mul, Div, Mod)

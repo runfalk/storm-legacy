@@ -7,12 +7,13 @@
 #
 # <license text goes here>
 #
-from storm.expr import Column, Undef
+from storm.expr import Column, FromExpr, CompileError, compile
 from storm.event import EventSystem
+from storm import Undef
 
 
 __all__ = ["get_obj_info", "get_cls_info", "get_info",
-           "ClassInfo", "ObjectInfo"]
+           "ClassInfo", "ObjectInfo", "ClassAlias"]
 
 
 def get_obj_info(obj):
@@ -37,12 +38,26 @@ def get_info(obj):
 
 
 class ClassInfo(dict):
+    """Persistent storm-related information of a class.
+
+    The following attributes are defined:
+
+              table - Expression from where columns will be looked up.
+                cls - Class which should be used to build objects.
+            columns - Tuple of column properties found in the class.
+        primary_key - Tuple of column properties used to form the primary key
+    primary_key_pos - Position of primary_key items in the columns tuple.
+
+    """
 
     def __init__(self, cls):
         __table__ = getattr(cls, "__table__", ())
         if len(__table__) != 2:
             raise RuntimeError("%s.__table__ must be (<table name>, "
                                "<primary key(s)>) tuple." % repr(cls))
+
+        self.table = __table__[0]
+        self.cls = cls
 
         pairs = []
         for attr in dir(cls):
@@ -51,9 +66,7 @@ class ClassInfo(dict):
                 pairs.append((attr, column))
         pairs.sort()
 
-        self.cls = cls
         self.columns = tuple(pair[1] for pair in pairs)
-        self.table = __table__[0]
 
         name_positions = dict((prop.name, i)
                               for i, prop in enumerate(self.columns))
@@ -123,3 +136,30 @@ class ObjectInfo(dict):
             return obj_type(self._copy_object(subobj) for subobj in obj)
         else:
             return obj
+
+
+class ClassAlias(FromExpr):
+
+    alias_count = 0
+
+    def __new__(self_cls, cls, name=Undef):
+        if name is Undef:
+            ClassAlias.alias_count += 1
+            name = "_%x" % ClassAlias.alias_count
+        cls_info = get_cls_info(cls)
+        alias_cls = type(cls.__name__+"Alias", (cls, self_cls),
+                         {"__table__": (name, cls.__table__[1])})
+        alias_cls_info = get_cls_info(alias_cls)
+        alias_cls_info.cls = cls
+        return alias_cls
+
+
+@compile.when(type)
+def compile_type(compile, state, expr):
+    table = getattr(expr, "__table__", None)
+    if table is None:
+        raise CompileError("Don't know how to compile %r" % expr)
+    if not state.column_prefix and issubclass(expr, ClassAlias):
+        cls_info = get_cls_info(expr)
+        return "%s AS %s" % (compile(state, cls_info.cls), table[0])
+    return compile(state, table[0])
