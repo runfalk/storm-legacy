@@ -13,5 +13,5 @@ from storm.references import Reference, ReferenceSet
 from storm.database import create_database
 from storm.exceptions import StormError
 from storm.store import Store
-from storm.expr import Select, Insert, Update, Delete
-from storm.expr import Like, In, Asc, Desc, And, Or
+from storm.expr import Select, Insert, Update, Delete, Join
+from storm.expr import Like, In, Asc, Desc, And, Or, Min, Max
