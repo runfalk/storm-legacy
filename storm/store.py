@@ -10,7 +10,7 @@
 from weakref import WeakValueDictionary, WeakKeyDictionary
 
 from storm.info import get_cls_info, get_obj_info, get_info
-from storm.variables import Variable
+from storm.variables import Variable, LazyValue
 from storm.expr import (
     Expr, Select, Insert, Update, Delete, Column, JoinExpr, Count, Max, Min,
     Avg, Sum, Eq, And, Asc, Desc, compile_python, compare_columns)
@@ -20,7 +20,7 @@ from storm.exceptions import (
 from storm import Undef
 
 
-__all__ = ["Store"]
+__all__ = ["Store", "AutoReload"]
 
 PENDING_ADD = 1
 PENDING_REMOVE = 2
@@ -198,6 +198,16 @@ class Store(object):
         obj_info.checkpoint()
         self._set_clean(obj_info)
 
+    def autoreload(self, obj=None):
+        if obj is not None:
+            obj_info = get_obj_info(obj)
+            for column in obj_info.cls_info.columns:
+                obj_info.variables[column].set(AutoReload)
+        else:
+            for obj_info in self._iter_cached():
+                for column in obj_info.cls_info.columns:
+                    obj_info.variables[column].set(AutoReload)
+        
     def add_flush_order(self, before, after):
         pair = (get_obj_info(before), get_obj_info(after))
         try:
@@ -473,11 +483,14 @@ class Store(object):
         obj_info.event.unhook("resolve-lazy-value", self._resolve_lazy_value)
 
     def _resolve_lazy_value(self, obj_info, variable, lazy_value):
-        # XXX This will do it for now, but it should really flush
-        #     just this single object and ones that it depends on.
-        #     _flush_one() doesn't consider dependencies, so it may
-        #     not be used directly.
-        self.flush()
+        if lazy_value is AutoReload:
+            self.reload(obj_info.obj)
+        else:
+            # XXX This will do it for now, but it should really flush
+            #     just this single object and ones that it depends on.
+            #     _flush_one() doesn't consider dependencies, so it may
+            #     not be used directly.
+            self.flush()
 
 
 class ResultSet(object):
@@ -816,3 +829,9 @@ def get_where_for_args(args, kwargs, cls=None):
     if equals:
         return And(*equals)
     return Undef
+
+
+class AutoReload(LazyValue):
+    pass
+
+AutoReload = AutoReload()

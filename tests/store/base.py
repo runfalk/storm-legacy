@@ -3024,3 +3024,24 @@ class StoreTest(object):
         bar = self.store.get(Bar, 200)
         bar.foo_id = Bar.id+1
         self.assertEquals(bar.foo_id, 201)
+
+    def test_autoreload_attribute(self):
+        foo = self.store.get(Foo, 20)
+        self.store.execute("UPDATE foo SET title='New Title' WHERE id=20")
+        self.assertEquals(foo.title, "Title 20")
+        foo.title = AutoReload
+        self.assertEquals(foo.title, "New Title")
+
+    def test_autoreload_object(self):
+        foo = self.store.get(Foo, 20)
+        self.store.execute("UPDATE foo SET title='New Title' WHERE id=20")
+        self.assertEquals(foo.title, "Title 20")
+        self.store.autoreload(foo)
+        self.assertEquals(foo.title, "New Title")
+
+    def test_autoreload_all_objects(self):
+        foo = self.store.get(Foo, 20)
+        self.store.execute("UPDATE foo SET title='New Title' WHERE id=20")
+        self.assertEquals(foo.title, "Title 20")
+        self.store.autoreload()
+        self.assertEquals(foo.title, "New Title")
