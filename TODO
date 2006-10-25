@@ -19,13 +19,6 @@
   package.group_id = SQL("get_group_id('name')")
   print package.group_id # Flush and get the real id.
 
-- Allow marking objects as "should reload" using lazy values.
-
-  store.invalidate(foo)
-  store.invalidate(foo, Foo.attr)
-
-  foo.attr = ReloadValue
-
 - Generic finds:
 
   foo, count = store.find((Foo, Count(Foo.name))).group_by(Foo.name)
@@ -33,7 +26,7 @@
 
 - not Column => NOT column
 
-- Column.name.lower/startswith/endswith/...
+- Column.name.like/lower/startswith/endswith/...
 
 - Reference.__contains__
 

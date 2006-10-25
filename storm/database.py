@@ -18,6 +18,9 @@ __all__ = ["Database", "Connection", "Result",
            "convert_param_marks", "create_database"]
 
 
+DEBUG = False
+
+
 class Result(object):
 
     _closed = False
@@ -110,11 +113,15 @@ class Connection(object):
         raw_cursor = self._build_raw_cursor()
         statement = convert_param_marks(statement, "?", self._param_mark)
         if params is None:
+            if DEBUG:
+                print statement, () 
             raw_cursor.execute(statement)
         else:
             to_database = self._to_database
-            raw_cursor.execute(statement, tuple(to_database(param)
-                                                for param in params))
+            params = tuple(to_database(param) for param in params)
+            if DEBUG:
+                print statement, params
+            raw_cursor.execute(statement, params)
         if noresult:
             raw_cursor.close()
             return None
