@@ -134,10 +134,10 @@ class Variable(object):
                 self.get_state() != self._checkpoint_state)
 
     def get_state(self):
-        return self._value
+        return (self._lazy_value, self._value)
 
     def set_state(self, state):
-        self._value = state
+        self._lazy_value, self._value = state
 
     def save(self):
         self._saved_state = self._checkpoint_state = self.get_state()
@@ -282,10 +282,11 @@ class PickleVariable(Variable):
             return value
 
     def get_state(self):
-        return pickle.dumps(self._value, -1)
+        return (self._lazy_value, pickle.dumps(self._value, -1))
 
     def set_state(self, state):
-        self._value = pickle.loads(state)
+        self._lazy_value = state[0]
+        self._value = pickle.loads(state[1])
 
 
 def _parse_time(time_str):

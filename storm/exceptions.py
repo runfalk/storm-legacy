@@ -58,6 +58,9 @@ class NotOneError(StoreError):
 class UnorderedError(StoreError):
     pass
 
+class LostObjectError(StoreError):
+    pass
+
 
 class Error(StormError, StandardError):
     pass

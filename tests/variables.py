@@ -132,16 +132,18 @@ class VariableTest(TestHelper):
 
     def test_get_state(self):
         variable = CustomVariable(marker)
-        self.assertEquals(variable.get_state(), ("s", marker))
+        self.assertEquals(variable.get_state(), (Undef, ("s", marker)))
 
     def test_set_state(self):
+        lazy_value = object()
         variable = CustomVariable()
-        variable.set_state(marker)
+        variable.set_state((lazy_value, marker))
         self.assertEquals(variable.get(), ("g", marker))
+        self.assertEquals(variable.get_lazy(), lazy_value)
 
     def test_checkpoint_and_has_changed(self):
         variable = CustomVariable()
-        self.assertFalse(variable.has_changed())
+        self.assertTrue(variable.has_changed())
         variable.set(marker)
         self.assertTrue(variable.has_changed())
         variable.save()
@@ -465,10 +467,10 @@ class PickleVariableTest(TestHelper):
         self.assertEquals(variable.get(), d)
         self.assertEquals(variable.get(to_db=True), d_dump)
 
-        self.assertEquals(variable.get_state(), d_dump)
+        self.assertEquals(variable.get_state(), (Undef, d_dump))
         
         variable.set(marker)
-        variable.set_state(d_dump)
+        variable.set_state((Undef, d_dump))
         self.assertEquals(variable.get(), d)
 
         variable.get()["b"] = 2

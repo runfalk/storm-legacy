@@ -16,7 +16,7 @@ from storm.expr import (
     Avg, Sum, Eq, And, Asc, Desc, compile_python, compare_columns)
 from storm.exceptions import (
     WrongStoreError, NotFlushedError, OrderLoopError, UnorderedError,
-    NotOneError, FeatureError, CompileError)
+    NotOneError, FeatureError, CompileError, LostObjectError)
 from storm import Undef
 
 
@@ -101,6 +101,11 @@ class Store(object):
 
         obj_info = self._cache.get((cls_info.cls, tuple(primary_vars)))
         if obj_info is not None:
+            if obj_info.get("validate-cache"):
+                try:
+                    self._fill_missing_values(obj_info, primary_vars)
+                except LostObjectError:
+                    return None
             return obj_info.obj
 
         where = compare_columns(cls_info.primary_key, primary_vars)
@@ -199,15 +204,23 @@ class Store(object):
         self._set_clean(obj_info)
 
     def autoreload(self, obj=None):
-        if obj is not None:
-            obj_info = get_obj_info(obj)
-            for column in obj_info.cls_info.columns:
-                obj_info.variables[column].set(AutoReload)
+        self._mark_autoreload(obj, False)
+
+    def invalidate(self, obj=None):
+        self._mark_autoreload(obj, True)
+
+    def _mark_autoreload(self, obj=None, invalidate=False):
+        if obj is None:
+            obj_infos = self._iter_cached()
         else:
-            for obj_info in self._iter_cached():
-                for column in obj_info.cls_info.columns:
-                    obj_info.variables[column].set(AutoReload)
-        
+            obj_infos = (get_obj_info(obj),)
+        for obj_info in obj_infos:
+            cls_info = obj_info.cls_info
+            for column in cls_info.columns:
+                obj_info.variables[column].set(AutoReload)
+            if invalidate:
+                obj_info["validate-cache"] = True
+
     def add_flush_order(self, before, after):
         pair = (get_obj_info(before), get_obj_info(after))
         try:
@@ -257,6 +270,9 @@ class Store(object):
                           cls_info.table)
             self._connection.execute(expr, noresult=True)
 
+            # We're sure the cache is valid at this point.
+            obj_info.pop("validate-cache", None)
+
             self._disable_change_notification(obj_info)
             self._set_ghost(obj_info)
             self._remove_from_cache(obj_info)
@@ -280,7 +296,12 @@ class Store(object):
 
             result = self._connection.execute(expr)
 
-            self._fill_missing_values(obj_info, result)
+            # We're sure the cache is valid at this point. We just added
+            # the object.
+            obj_info.pop("validate-cache", None)
+
+            self._fill_missing_values(obj_info, obj_info.primary_vars, result,
+                                      checkpoint=False)
 
             self._enable_change_notification(obj_info)
             self._set_alive(obj_info)
@@ -290,6 +311,9 @@ class Store(object):
 
         else:
 
+            cached_primary_vars = obj_info["primary_vars"]
+            primary_key_idx = cls_info.primary_key_idx
+
             changes = {}
             for column in cls_info.columns:
                 variable = obj_info.variables[column]
@@ -298,38 +322,68 @@ class Store(object):
                         changes[column] = variable
                     else:
                         lazy_value = variable.get_lazy()
+                        if lazy_value is AutoReload:
+                            # If a primary key value is set to auto-reload,
+                            # restore it right now. We can't let an
+                            # auto-reloading primary key variable checkpoint
+                            # (in case of no changes below.. if there are
+                            # changes fill_missing_values will revive the
+                            # reload value). If an auto-reloading primary key
+                            # variable is checkpointed, rollback() will add
+                            # an undef variable as the cache key, which is of
+                            # course a bad thing.
+                            idx = primary_key_idx.get(id(column))
+                            if idx is not None:
+                                variable.set(cached_primary_vars[idx].get())
                         if isinstance(lazy_value, Expr):
                             changes[column] = lazy_value
 
             if changes:
                 expr = Update(changes,
                               compare_columns(cls_info.primary_key,
-                                              obj_info["primary_vars"]),
+                                              cached_primary_vars),
                               cls_info.table)
                 self._connection.execute(expr, noresult=True)
 
-                self._fill_missing_values(obj_info)
+                # We're sure the cache is valid at this point. We've
+                # just updated the object.
+                obj_info.pop("validate-cache", None)
+
+                self._fill_missing_values(obj_info, obj_info.primary_vars,
+                                          checkpoint=False)
 
                 self._add_to_cache(obj_info)
+
 
             obj_info.checkpoint()
 
         obj_info.event.emit("flushed")
 
-    def _fill_missing_values(self, obj_info, result=None):
+    def _fill_missing_values(self, obj_info, primary_vars, result=None,
+                             checkpoint=True):
         # XXX If there are no values which are part of the primary
         #     key missing, they might be set to a lazy value for
         #     on-demand reloading.
         cls_info = obj_info.cls_info
 
+        cached_primary_vars = obj_info.get("primary_vars")
+        primary_key_idx = cls_info.primary_key_idx
+
         missing_columns = []
         for column in cls_info.columns:
-            if not obj_info.variables[column].is_defined():
-                missing_columns.append(column)
+            variable = obj_info.variables[column]
+            if not variable.is_defined():
+                idx = primary_key_idx.get(id(column))
+                if (idx is not None and cached_primary_vars is not None
+                    and variable.get_lazy()):
+                    # For auto-reloading a primary key, just get the
+                    # value out of the cache.
+                    variable.set(cached_primary_vars[idx].get())
+                else:
+                    missing_columns.append(column)
 
         if missing_columns:
             primary_key = cls_info.primary_key
-            primary_vars = obj_info.primary_vars
 
             for variable in primary_vars:
                 if not variable.is_defined():
@@ -342,10 +396,28 @@ class Store(object):
             else:
                 where = compare_columns(primary_key, primary_vars)
 
+            # This procedure will also validate the cache.
             result = self._connection.execute(Select(missing_columns, where))
-
             self._set_values(obj_info, missing_columns,
                              result, result.get_one())
+
+            obj_info.pop("validate-cache", None)
+
+            if checkpoint:
+                for column in missing_columns:
+                    obj_info.variables[column].checkpoint()
+
+        elif obj_info.get("validate-cache"):
+            # In of no explicit missing values, enforce cache validation.
+            # It might happen that the primary key was autoreloaded and
+            # restored from the cache.
+            where = compare_columns(cls_info.primary_key, primary_vars)
+            result = self._connection.execute(Select("1", where))
+            if not result.get_one():
+                raise LostObjectError("Object is not in the database anymore")
+
+            obj_info.pop("validate-cache", None)
+
 
     def _load_objects(self, cls_spec_info, result, values):
         if type(cls_spec_info) is not tuple:
@@ -363,7 +435,7 @@ class Store(object):
 
     def _load_object(self, cls_info, result, values, obj=None):
         # _set_values() need the cls_info columns for the class of the
-        # actual object, not the from a possible wrapper (e.g. an alias).
+        # actual object, not from a possible wrapper (e.g. an alias).
         cls = cls_info.cls
         cls_info = get_cls_info(cls)
         if obj is None:
@@ -381,6 +453,9 @@ class Store(object):
                 return None
             obj_info = self._cache.get((cls, tuple(primary_vars)))
             if obj_info is not None:
+                # Cache must be valid here. The primary key was extracted
+                # from result values.
+                obj_info.pop("validate-cache", None)
                 return obj_info.obj
             obj = cls.__new__(cls)
 
@@ -388,6 +463,10 @@ class Store(object):
         obj_info["store"] = self
 
         self._set_values(obj_info, cls_info.columns, result, values)
+
+        # Cache must be valid here. This specific entry is untested. It'll
+        # only be useful if the obj parameter is not None.
+        obj_info.pop("validate-cache", None)
 
         obj_info.save()
 
@@ -404,6 +483,9 @@ class Store(object):
         return obj
 
     def _set_values(self, obj_info, columns, result, values):
+        if values is None:
+            raise LostObjectError("Can't obtain values from the database "
+                                  "(object got removed?)")
         for column, value in zip(columns, values):
             if value is None:
                 obj_info.variables[column].set(value, from_db=True)
@@ -484,7 +566,18 @@ class Store(object):
 
     def _resolve_lazy_value(self, obj_info, variable, lazy_value):
         if lazy_value is AutoReload:
-            self.reload(obj_info.obj)
+            cached_primary_vars = obj_info.get("primary_vars")
+            if cached_primary_vars is None:
+                # XXX Same comment as below.
+                self.flush()
+            else:
+                idx = obj_info.cls_info.primary_key_idx.get(id(variable.column))
+                if idx is not None:
+                    # No need to touch the database if auto-reloading
+                    # a primary key variable.
+                    variable.set(cached_primary_vars[idx].get())
+                else:
+                    self._fill_missing_values(obj_info, cached_primary_vars)
         else:
             # XXX This will do it for now, but it should really flush
             #     just this single object and ones that it depends on.

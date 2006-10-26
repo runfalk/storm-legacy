@@ -458,8 +458,8 @@ class Relation(object):
         remote_column = self._get_remote_column(local.__class__,
                                                 local_variable.column)
         if remote_column is not None:
-            remote_value = remote_info.variables[remote_column].get()
-            if remote_value != new_value:
+            variable = remote_info.variables[remote_column]
+            if variable.get_lazy() is not None or variable.get() != new_value:
                 self.unlink(local, remote_info.obj)
 
     def _break_on_remote_diverged(self, remote_info, remote_variable,

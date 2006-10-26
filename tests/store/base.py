@@ -3031,6 +3031,16 @@ class StoreTest(object):
         self.assertEquals(foo.title, "Title 20")
         foo.title = AutoReload
         self.assertEquals(foo.title, "New Title")
+        self.assertFalse(get_obj_info(foo).variables[Foo.title].has_changed())
+
+    def test_autoreload_attribute_with_changed_primary_key(self):
+        foo = self.store.get(Foo, 20)
+        self.store.execute("UPDATE foo SET title='New Title' WHERE id=20")
+        self.assertEquals(foo.title, "Title 20")
+        foo.id = 40
+        foo.title = AutoReload
+        self.assertEquals(foo.title, "New Title")
+        self.assertEquals(foo.id, 40)
 
     def test_autoreload_object(self):
         foo = self.store.get(Foo, 20)
@@ -3039,9 +3049,99 @@ class StoreTest(object):
         self.store.autoreload(foo)
         self.assertEquals(foo.title, "New Title")
 
+    def test_autoreload_primary_key_of_unflushed_object(self):
+        foo = Foo()
+        self.store.add(foo)
+        foo.id = AutoReload
+        foo.title = "New Title"
+        self.assertTrue(isinstance(foo.id, (int, long)))
+        self.assertEquals(foo.title, "New Title")
+
+    def test_autoreload_primary_key_doesnt_reload_everything_else(self):
+        foo = self.store.get(Foo, 20)
+        self.store.autoreload(foo)
+        self.assertEquals(foo.id, 20)
+
+        obj_info = get_obj_info(foo)
+        self.assertEquals(obj_info.variables[Foo.title].get_lazy(), AutoReload)
+
     def test_autoreload_all_objects(self):
         foo = self.store.get(Foo, 20)
         self.store.execute("UPDATE foo SET title='New Title' WHERE id=20")
         self.assertEquals(foo.title, "Title 20")
         self.store.autoreload()
         self.assertEquals(foo.title, "New Title")
+
+    def test_autoreload_primary_key_on_get_will_reload(self):
+        foo = self.store.get(Foo, 20)
+        self.store.execute("UPDATE foo SET title='New Title' WHERE id=20")
+        self.store.autoreload(foo)
+
+        obj_info = get_obj_info(foo)
+
+        self.assertEquals(obj_info.variables[Foo.id].get_lazy(), AutoReload)
+        self.store.get(Foo, 20)
+        self.assertEquals(obj_info.variables[Foo.id].get_lazy(), None)
+
+    def test_reference_break_on_local_diverged_doesnt_autoreload(self):
+        foo = self.store.get(Foo, 10)
+        self.store.autoreload(foo)
+
+        bar = self.store.get(Bar, 100)
+        self.assertTrue(bar.foo)
+        bar.foo_id = 40
+        self.assertEquals(bar.foo, None)
+
+        obj_info = get_obj_info(foo)
+        self.assertEquals(obj_info.variables[Foo.title].get_lazy(), AutoReload)
+
+    def test_invalidate_and_get_object(self):
+        foo = self.store.get(Foo, 20)
+        self.store.invalidate(foo)
+        self.assertEquals(self.store.get(Foo, 20), foo)
+        self.assertEquals(self.store.find(Foo, id=20).one(), foo)
+
+    def test_invalidate_and_get_removed_object(self):
+        foo = self.store.get(Foo, 20)
+        self.store.execute("DELETE FROM foo WHERE id=20")
+        self.store.invalidate(foo)
+        self.assertEquals(self.store.get(Foo, 20), None)
+        self.assertEquals(self.store.find(Foo, id=20).one(), None)
+
+    def test_invalidate_and_validate_with_find(self):
+        foo = self.store.get(Foo, 20)
+        self.store.invalidate(foo)
+        self.assertEquals(self.store.find(Foo, id=20).one(), foo)
+
+        # Cache should be considered valid again at this point.
+        self.store.execute("DELETE FROM foo WHERE id=20")
+        self.assertEquals(self.store.get(Foo, 20), foo)
+
+    def test_invalidate_object_gets_validated(self):
+        foo = self.store.get(Foo, 20)
+        self.store.invalidate(foo)
+        self.assertEquals(self.store.get(Foo, 20), foo)
+
+        # At this point the object is valid again, so deleting it
+        # from the database directly shouldn't affect caching.
+        self.store.execute("DELETE FROM foo WHERE id=20")
+        self.assertEquals(self.store.get(Foo, 20), foo)
+
+    def test_invalidate_object_with_only_primary_key(self):
+        link = self.store.get(Link, (20, 200))
+        self.store.execute("DELETE FROM link WHERE foo_id=20 AND bar_id=200")
+        self.store.invalidate(link)
+        self.assertEquals(self.store.get(Link, (20, 200)), None)
+
+    def test_invalidate_added_object(self):
+        foo = Foo()
+        self.store.add(foo)
+        self.store.invalidate(foo)
+        foo.id = 40
+        foo.title = "Title 40"
+        self.store.flush()
+
+        # Object must have a valid cache at this point, since it was
+        # just added.
+        self.store.execute("DELETE FROM foo WHERE id=40")
+        self.assertEquals(self.store.get(Foo, 40), foo)

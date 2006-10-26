@@ -79,6 +79,9 @@ class ClassInfo(dict):
                                      for name in primary_key_names)
         self.primary_key = tuple(self.columns[i]
                                  for i in self.primary_key_pos)
+        self.primary_key_idx = dict((id(column), i)
+                                    for i, column in
+                                    enumerate(self.primary_key))
 
 
 class ObjectInfo(dict):
