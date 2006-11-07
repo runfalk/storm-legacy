@@ -368,6 +368,17 @@ class CompileTest(TestHelper):
                                      "LIMIT 3 OFFSET 4")
         self.assertEquals(parameters, [])
 
+    def test_select_join_where(self):
+        expr = Select("column",
+                      Func1() == "value1",
+                      Join("table", Func2() == "value2"))
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "SELECT column FROM "
+                                     "JOIN table ON func2() = ? "
+                                     "WHERE func1() = ?")
+        self.assertEquals([variable.get() for variable in parameters],
+                          ["value2", "value1"])
+
     def test_select_auto_table(self):
         expr = Select(Column("column1", "table1"),
                       Column("column2", "table2") == 1),

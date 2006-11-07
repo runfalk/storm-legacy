@@ -361,6 +361,7 @@ def compile_select(compile, state, select):
         tokens.append("DISTINCT ")
     tokens.append(compile(state, select.columns))
     tables_pos = len(tokens)
+    parameters_pos = len(state.parameters)
     if select.where is not Undef:
         tokens.append(" WHERE ")
         tokens.append(compile(state, select.where))
@@ -376,8 +377,12 @@ def compile_select(compile, state, select):
         tokens.append(" OFFSET %d" % select.offset)
     state.pop()
     if has_tables(state, select):
+        state.push("parameters", [])
         tokens.insert(tables_pos, " FROM ")
         tokens.insert(tables_pos+1, build_tables(compile, state, select))
+        parameters = state.parameters
+        state.pop()
+        state.parameters[parameters_pos:parameters_pos] = parameters
     state.pop()
     return "".join(tokens)
 
