@@ -779,8 +779,8 @@ class ResultSet(object):
             result.set_variable(variable, value)
             return variable.get()
 
-    def count(self):
-        return int(self._aggregate(Count()))
+    def count(self, column=Undef, distinct=False):
+        return int(self._aggregate(Count(column, distinct)))
 
     def max(self, column):
         return self._aggregate(Max(column), column)

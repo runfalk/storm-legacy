@@ -465,6 +465,13 @@ class StoreTest(object):
     def test_find_count(self):
         self.assertEquals(self.store.find(Foo).count(), 3)
 
+    def test_find_count_column(self):
+        self.assertEquals(self.store.find(Link).count(Link.foo_id), 6)
+
+    def test_find_count_column_distinct(self):
+        count = self.store.find(Link).count(Link.foo_id, distinct=True)
+        self.assertEquals(count, 3)
+
     def test_find_max(self):
         self.assertEquals(self.store.find(Foo).max(Foo.id), 30)
 
