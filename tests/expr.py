@@ -793,6 +793,15 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, "COUNT(*)")
         self.assertEquals(parameters, [])
 
+    def test_count_distinct(self):
+        expr = Count(Func1(), distinct=True)
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "COUNT(DISTINCT func1())")
+        self.assertEquals(parameters, [])
+
+    def test_count_distinct_all(self):
+        self.assertRaises(ValueError, Count, distinct=True)
+
     def test_max(self):
         expr = Max(Func1())
         statement, parameters = compile(expr)

@@ -699,12 +699,17 @@ class FuncExpr(ComparableExpr):
 class Count(FuncExpr):
     name = "COUNT"
 
-    def __init__(self, column=Undef):
+    def __init__(self, column=Undef, distinct=False):
+        if distinct and column is Undef:
+            raise ValueError("Must specify column when using distinct count")
         self.column = column
+        self.distinct = distinct
 
 @compile.when(Count)
 def compile_count(compile, state, count):
     if count.column is not Undef:
+        if count.distinct:
+            return "COUNT(DISTINCT %s)" % compile(state, count.column)
         return "COUNT(%s)" % compile(state, count.column)
     return "COUNT(*)"
 
