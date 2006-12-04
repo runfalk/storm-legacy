@@ -165,6 +165,15 @@ def convert_param_marks(statement, from_param_mark, to_param_mark):
 
 
 def create_database(uri):
+    """Create a database instance.
+
+    @param uri: An URI instance, or a string describing the URI. Some examples:
+        "sqlite:" An in memory sqlite database.
+        "sqlite:example.db" A SQLite database called example.db
+        "postgres:test" The database 'test' from the local postgres server.
+        "postgres://user:password@host/test" The database test on machine host
+            with supplied user credentials, using postgres.
+    """
     if isinstance(uri, basestring):
         uri = URI.parse(uri)
     module = __import__("%s.databases.%s" % (storm.__name__, uri.scheme),
