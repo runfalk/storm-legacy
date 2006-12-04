@@ -214,6 +214,18 @@ class StoreTest(object):
         foo = self.store.get(Foo, 10)
         self.assertFalse(getattr(foo, "taint", False))
 
+    def test_add_and_stop_referencing(self):
+        # After adding an object, no references should be needed in
+        # python for it still to be added to the database.
+        foo = Foo()
+        foo.title = "live"
+        self.store.add(foo)
+
+        del foo
+        gc.collect()
+
+        self.assertTrue(self.store.find(Foo, title="live").one())
+
     def test_get_tuple(self):
         class Foo(object):
             __table__ = "foo", ("title", "id")
