@@ -24,6 +24,24 @@
   foo, count = store.find((Foo, Count(Foo.name))).group_by(Foo.name)
   foo_name, count = store.find((Foo.name, Count(Foo.name))).group_by(Foo.name)
 
+- Lazy-by-default attributes:
+
+  class C(object):
+      ...
+      attr = Unicode(lazy=True)
+
+  This would make attr be loaded only if touched.
+
+  Or maybe lazy groups:
+
+  class C(object):
+      ...
+      lazy_group = LazyGroup()
+      attr = Unicode(lazy=True, lazy_group=lazy_group)
+
+  Once one of the group attributes are accessed all of them are retrieved
+  at the same time.
+
 - not Column => NOT column
 
 - Column.name.like/lower/startswith/endswith/...

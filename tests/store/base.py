@@ -3079,9 +3079,15 @@ class StoreTest(object):
     def test_autoreload_primary_key_doesnt_reload_everything_else(self):
         foo = self.store.get(Foo, 20)
         self.store.autoreload(foo)
-        self.assertEquals(foo.id, 20)
 
         obj_info = get_obj_info(foo)
+
+        self.assertEquals(obj_info.variables[Foo.id].get_lazy(), None)
+        self.assertEquals(obj_info.variables[Foo.title].get_lazy(), AutoReload)
+
+        self.assertEquals(foo.id, 20)
+
+        self.assertEquals(obj_info.variables[Foo.id].get_lazy(), None)
         self.assertEquals(obj_info.variables[Foo.title].get_lazy(), AutoReload)
 
     def test_autoreload_all_objects(self):
@@ -3091,16 +3097,17 @@ class StoreTest(object):
         self.store.autoreload()
         self.assertEquals(foo.title, "New Title")
 
-    def test_autoreload_primary_key_on_get_will_reload(self):
+    def test_autoreload_and_get_will_not_reload(self):
         foo = self.store.get(Foo, 20)
         self.store.execute("UPDATE foo SET title='New Title' WHERE id=20")
         self.store.autoreload(foo)
 
         obj_info = get_obj_info(foo)
 
-        self.assertEquals(obj_info.variables[Foo.id].get_lazy(), AutoReload)
+        self.assertEquals(obj_info.variables[Foo.title].get_lazy(), AutoReload)
         self.store.get(Foo, 20)
-        self.assertEquals(obj_info.variables[Foo.id].get_lazy(), None)
+        self.assertEquals(obj_info.variables[Foo.title].get_lazy(), AutoReload)
+        self.assertEquals(foo.title, "New Title")
 
     def test_reference_break_on_local_diverged_doesnt_autoreload(self):
         foo = self.store.get(Foo, 10)

@@ -217,7 +217,8 @@ class Store(object):
         for obj_info in obj_infos:
             cls_info = obj_info.cls_info
             for column in cls_info.columns:
-                obj_info.variables[column].set(AutoReload)
+                if id(column) not in cls_info.primary_key_idx:
+                    obj_info.variables[column].set(AutoReload)
             if invalidate:
                 obj_info["validate-cache"] = True
 
@@ -554,7 +555,8 @@ class Store(object):
         # The fromdb check makes sure that values coming from the
         # database don't mark the object as dirty again.
         # XXX The fromdb check is untested. How to test it?
-        if not fromdb and new_value is not Undef:
+        if not fromdb and (new_value is not Undef and
+                           new_value is not AutoReload):
             self._dirty.add(obj_info)
 
 
