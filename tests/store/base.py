@@ -3109,6 +3109,11 @@ class StoreTest(object):
         self.assertEquals(obj_info.variables[Foo.title].get_lazy(), AutoReload)
         self.assertEquals(foo.title, "New Title")
 
+    def test_autoreload_object_doesnt_tag_as_dirty(self):
+        foo = self.store.get(Foo, 20)
+        self.store.autoreload(foo)
+        self.assertTrue(get_obj_info(foo) not in self.store._dirty)
+
     def test_reference_break_on_local_diverged_doesnt_autoreload(self):
         foo = self.store.get(Foo, 10)
         self.store.autoreload(foo)
