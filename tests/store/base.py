@@ -3176,3 +3176,135 @@ class StoreTest(object):
         # just added.
         self.store.execute("DELETE FROM foo WHERE id=40")
         self.assertEquals(self.store.get(Foo, 40), foo)
+
+
+class EmptyResultSetTest(object):
+
+    def setUp(self):
+        self.create_database()
+        self.drop_tables()
+        self.create_tables()
+        self.create_store()
+        self.empty = EmptyResultSet()
+        self.result = self.store.find(Foo)
+        
+    def tearDown(self):
+        self.drop_store()
+        self.drop_tables()
+        self.drop_database()
+
+    def create_database(self):
+        raise NotImplementedError
+
+    def create_tables(self):
+        raise NotImplementedError
+
+    def create_store(self):
+        self.store = Store(self.database)
+
+    def drop_database(self):
+        pass
+
+    def drop_tables(self):
+        for table in ["foo", "bar", "bin", "link"]:
+            connection = self.database.connect()
+            try:
+                connection.execute("DROP TABLE %s" % table)
+                connection.commit()
+            except:
+                connection.rollback()
+
+    def drop_store(self):
+        self.store.rollback()
+        # Closing the store is needed because testcase objects are all
+        # instantiated at once, and thus connections are kept open.
+        self.store.close()
+
+    def test_iter(self):
+        self.assertEquals(list(self.result), list(self.empty))
+
+    def test_copy(self):
+        self.assertNotEquals(self.result.copy(), self.result)
+        self.assertNotEquals(self.empty.copy(), self.empty)
+        self.assertEquals(list(self.result.copy()), list(self.empty.copy()))
+
+    def test_config(self):
+        self.result.config(distinct=True, offset=1, limit=1)
+        self.empty.config(distinct=True, offset=1, limit=1)
+        self.assertEquals(list(self.result), list(self.empty))
+
+    def test_slice(self):
+        self.assertEquals(list(self.result[:]), [])
+        self.assertEquals(list(self.empty[:]), [])
+
+    def test_any(self):
+        self.assertEquals(self.result.any(), None)
+        self.assertEquals(self.empty.any(), None)        
+
+    def test_first_unordered(self):
+        self.assertRaises(UnorderedError, self.result.first)
+        self.assertRaises(UnorderedError, self.empty.first)
+
+    def test_first_ordered(self):
+        self.result.order_by(Foo.title)
+        self.assertEquals(self.result.first(), None)
+        self.empty.order_by(Foo.title)
+        self.assertEquals(self.empty.first(), None)
+
+    def test_last_unordered(self):
+        self.assertRaises(UnorderedError, self.result.last)
+        self.assertRaises(UnorderedError, self.empty.last)
+
+    def test_last_ordered(self):
+        self.result.order_by(Foo.title)
+        self.assertEquals(self.result.last(), None)
+        self.empty.order_by(Foo.title)
+        self.assertEquals(self.empty.last(), None)
+
+    def test_one(self):
+        self.assertEquals(self.result.one(), None)
+        self.assertEquals(self.empty.one(), None)
+
+    def test_order_by(self):
+        self.assertEquals(self.result.order_by(Foo.title), self.result)
+        self.assertEquals(self.empty.order_by(Foo.title), self.empty)
+
+    def test_remove(self):
+        self.assertEquals(self.result.remove(), None)
+        self.assertEquals(self.empty.remove(), None)
+
+    def test_count(self):
+        self.assertEquals(self.result.count(), 0)
+        self.assertEquals(self.empty.count(), 0)
+
+    def test_max(self):
+        self.assertEquals(self.result.max(Foo.id), None)
+        self.assertEquals(self.empty.max(Foo.id), None)
+
+    def test_min(self):
+        self.assertEquals(self.result.min(Foo.id), None)
+        self.assertEquals(self.empty.min(Foo.id), None)
+
+    def test_avg(self):
+        self.assertEquals(self.result.avg(Foo.id), None)
+        self.assertEquals(self.empty.avg(Foo.id), None)
+
+    def test_sum(self):
+        self.assertEquals(self.result.sum(Foo.id), None)
+        self.assertEquals(self.empty.sum(Foo.id), None)
+
+    def test_values_no_columns(self):
+        self.assertRaises(FeatureError, list, self.result.values())
+        self.assertRaises(FeatureError, list, self.empty.values())
+
+    def test_values(self):
+        self.assertEquals(list(self.result.values(Foo.title)), [])
+        self.assertEquals(list(self.empty.values(Foo.title)), [])
+
+    def test_set_no_args(self):
+        self.assertEquals(self.result.set(), None)
+        self.assertEquals(self.empty.set(), None)        
+
+    def test_cached(self):
+        self.assertEquals(self.result.cached(), [])
+        self.assertEquals(self.empty.cached(), [])

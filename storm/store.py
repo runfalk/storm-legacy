@@ -20,7 +20,7 @@ from storm.exceptions import (
 from storm import Undef
 
 
-__all__ = ["Store", "AutoReload"]
+__all__ = ["Store", "AutoReload", "EmptyResultSet"]
 
 PENDING_ADD = 1
 PENDING_REMOVE = 2
@@ -791,7 +791,10 @@ class ResultSet(object):
         return self._aggregate(Min(column), column)
 
     def avg(self, column):
-        return float(self._aggregate(Avg(column)))
+        value = self._aggregate(Avg(column))
+        if value is None:
+            return value
+        return float(value)
 
     def sum(self, column):
         return self._aggregate(Sum(column), column)
@@ -888,6 +891,77 @@ class ResultSet(object):
                 (match is None or match(get_column))):
                 objects.append(obj_info.obj)
         return objects
+
+
+class EmptyResultSet(object):
+
+    def __init__(self, ordered=False):
+        self._order_by = ordered
+
+    def copy(self):
+        result = EmptyResultSet(self._order_by)
+        return result
+
+    def config(self, distinct=None, offset=None, limit=None):
+        pass
+
+    def __iter__(self):
+        return
+        yield None
+
+    def __getitem__(self, index):
+        return self.copy()
+
+    def any(self):
+        return None
+
+    def first(self):
+        if self._order_by:
+            return None
+        raise UnorderedError("Can't use first() on unordered result set")
+
+    def last(self):
+        if self._order_by:
+            return None
+        raise UnorderedError("Can't use last() on unordered result set")
+
+    def one(self):
+        return None
+
+    def order_by(self, *args):
+        self._order_by = True
+        return self
+
+    def remove(self):
+        pass
+
+    def count(self):
+        return 0
+
+    def max(self, column):
+        return None
+
+    def min(self, column):
+        return None
+
+    def avg(self, column):
+        return None
+
+    def sum(self, column):
+        return None
+
+    def values(self, *columns):
+        if not columns:
+            raise FeatureError("values() takes at least one column "
+                               "as argument")
+        return
+        yield None
+
+    def set(self, *args, **kwargs):
+        pass
+
+    def cached(self):
+        return []
 
 
 class TableSet(object):

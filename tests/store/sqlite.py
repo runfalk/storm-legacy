@@ -1,6 +1,6 @@
 from storm.databases.sqlite import SQLite
 
-from tests.store.base import StoreTest
+from tests.store.base import StoreTest, EmptyResultSetTest
 from tests.helper import TestHelper, MakePath
 
 
@@ -31,6 +31,32 @@ class SQLiteStoreTest(TestHelper, StoreTest):
                            "(id INTEGER PRIMARY KEY, bin BLOB)")
         connection.execute("CREATE TABLE link "
                            "(foo_id INTEGER, bar_id INTEGER)")
+        connection.commit()
+
+    def drop_tables(self):
+        pass
+
+
+class SQLiteEmptyResultSetTest(TestHelper, EmptyResultSetTest):
+
+    helpers = [MakePath]
+
+    def setUp(self):
+        TestHelper.setUp(self)
+        EmptyResultSetTest.setUp(self)
+
+    def tearDown(self):
+        TestHelper.tearDown(self)
+        EmptyResultSetTest.tearDown(self)
+
+    def create_database(self):
+        self.database = SQLite(self.make_path())
+
+    def create_tables(self):
+        connection = self.database.connect()
+        connection.execute("CREATE TABLE foo "
+                           "(id INTEGER PRIMARY KEY,"
+                           " title VARCHAR DEFAULT 'Default Title')")
         connection.commit()
 
     def drop_tables(self):
