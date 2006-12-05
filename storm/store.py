@@ -791,7 +791,10 @@ class ResultSet(object):
         return self._aggregate(Min(column), column)
 
     def avg(self, column):
-        return float(self._aggregate(Avg(column)))
+        value = self._aggregate(Avg(column))
+        if value is None:
+            return value
+        return float(value)
 
     def sum(self, column):
         return self._aggregate(Sum(column), column)
@@ -892,23 +895,22 @@ class ResultSet(object):
 
 class EmptyResultSet(object):
 
-    def __init__(self):
-        self._order_by = None
+    def __init__(self, ordered=False):
+        self._order_by = ordered
 
     def copy(self):
-        result = EmptyResultSet()
-        result._order_by = self._order_by
+        result = EmptyResultSet(self._order_by)
         return result
 
     def config(self, distinct=None, offset=None, limit=None):
         pass
 
     def __iter__(self):
-        for i in ():
-            yield i
+        return
+        yield None
 
     def __getitem__(self, index):
-        raise IndexError("Index out of range")
+        return self.copy()
 
     def any(self):
         return None
@@ -943,9 +945,7 @@ class EmptyResultSet(object):
         return None
 
     def avg(self, column):
-        # This is to simulate the TypeError that gets raised when
-        # avg() is called on an empty ResultSet.
-        float(column)
+        return None
 
     def sum(self, column):
         return None
@@ -954,8 +954,8 @@ class EmptyResultSet(object):
         if not columns:
             raise FeatureError("values() takes at least one column "
                                "as argument")
-        for i in ():
-            yield i
+        return
+        yield None
 
     def set(self, *args, **kwargs):
         pass

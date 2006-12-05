@@ -47,6 +47,9 @@ class PostgresEmptyResultSetTest(TestHelper, EmptyResultSetTest):
         TestHelper.tearDown(self)
         EmptyResultSetTest.tearDown(self)
 
+    def is_supported(self):
+        return bool(os.environ.get("STORM_POSTGRES_URI"))
+
     def create_database(self):
         self.database = create_database(os.environ["STORM_POSTGRES_URI"])
 

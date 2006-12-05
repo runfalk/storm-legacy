@@ -3233,9 +3233,9 @@ class EmptyResultSetTest(object):
         self.empty.config(distinct=True, offset=1, limit=1)
         self.assertEquals(list(self.result), list(self.empty))
 
-    def test_getitem(self):
-        self.assertRaises(IndexError, self.result.__getitem__, 0)
-        self.assertRaises(IndexError, self.empty.__getitem__, 0)        
+    def test_slice(self):
+        self.assertEquals(list(self.result[:]), [])
+        self.assertEquals(list(self.empty[:]), [])
 
     def test_any(self):
         self.assertEquals(self.result.any(), None)
@@ -3284,6 +3284,10 @@ class EmptyResultSetTest(object):
     def test_min(self):
         self.assertEquals(self.result.min(Foo.id), None)
         self.assertEquals(self.empty.min(Foo.id), None)
+
+    def test_avg(self):
+        self.assertEquals(self.result.avg(Foo.id), None)
+        self.assertEquals(self.empty.avg(Foo.id), None)
 
     def test_sum(self):
         self.assertEquals(self.result.sum(Foo.id), None)
