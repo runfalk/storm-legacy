@@ -935,7 +935,7 @@ class EmptyResultSet(object):
     def remove(self):
         pass
 
-    def count(self):
+    def count(self, column=Undef, distinct=False):
         return 0
 
     def max(self, column):

@@ -3276,6 +3276,8 @@ class EmptyResultSetTest(object):
     def test_count(self):
         self.assertEquals(self.result.count(), 0)
         self.assertEquals(self.empty.count(), 0)
+        self.assertEquals(self.empty.count(column="abc"), 0)
+        self.assertEquals(self.empty.count(distinct=True), 0)
 
     def test_max(self):
         self.assertEquals(self.result.max(Foo.id), None)
