@@ -62,10 +62,10 @@ class LostObjectError(StoreError):
     pass
 
 
-class Error(StormError, StandardError):
+class Error(StormError):
     pass
 
-class Warning(StormError, StandardError):
+class Warning(StormError):
     pass
 
 class InterfaceError(Error):

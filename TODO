@@ -42,6 +42,14 @@
   Once one of the group attributes are accessed all of them are retrieved
   at the same time.
 
+  Lazy groups may be integers as well:
+
+  class C(object):
+      ...
+      attr = Unicode(lazy_group=1)
+
+  lazy_group=None means not lazy.
+
 - not Column => NOT column
 
 - Column.name.like/lower/startswith/endswith/...
