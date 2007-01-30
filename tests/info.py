@@ -6,17 +6,13 @@ from storm.info import *
 from tests.helper import TestHelper
 
 
-def Any(name=None, **kwargs):
-    return Property(name, cls=Variable, **kwargs)
-
-
 class GetTest(TestHelper):
 
     def setUp(self):
         TestHelper.setUp(self)
         class Class(object):
             __table__ = "table", "column1"
-            prop1 = Any("column1")
+            prop1 = Property("column1")
         self.Class = Class
         self.obj = Class()
 
@@ -45,8 +41,8 @@ class ClassInfoTest(TestHelper):
         TestHelper.setUp(self)
         class Class(object):
             __table__ = "table", "column1"
-            prop1 = Any("column1")
-            prop2 = Any("column2")
+            prop1 = Property("column1")
+            prop2 = Property("column2")
         self.Class = Class
         self.cls_info = get_cls_info(Class)
 
@@ -68,8 +64,8 @@ class ClassInfoTest(TestHelper):
     def test_primary_key_composed(self):
         class Class(object):
             __table__ = "table", ("column2", "column1")
-            prop1 = Any("column1")
-            prop2 = Any("column2")
+            prop1 = Property("column1")
+            prop2 = Property("column2")
         cls_info = ClassInfo(Class)
 
         # Can't use == for props, since they're columns.
@@ -80,9 +76,9 @@ class ClassInfoTest(TestHelper):
     def test_primary_key_pos(self):
         class Class(object):
             __table__ = "table", ("column3", "column1")
-            prop1 = Any("column1")
-            prop2 = Any("column2")
-            prop3 = Any("column3")
+            prop1 = Property("column1")
+            prop2 = Property("column2")
+            prop3 = Property("column3")
         cls_info = ClassInfo(Class)
         self.assertEquals(cls_info.primary_key_pos, (2, 0))
 
@@ -93,8 +89,8 @@ class ObjectInfoTest(TestHelper):
         TestHelper.setUp(self)
         class Class(object):
             __table__ = "table", "column1"
-            prop1 = Any("column1")
-            prop2 = Any("column2")
+            prop1 = Property("column1")
+            prop2 = Property("column2")
         self.Class = Class
         self.obj = Class()
         self.obj_info = get_obj_info(self.obj)
@@ -409,7 +405,7 @@ class ClassAliasTest(TestHelper):
         TestHelper.setUp(self)
         class Class(object):
             __table__ = "table", "column1"
-            prop1 = Any("column1")
+            prop1 = Property("column1")
         self.Class = Class
         self.obj = Class()
         self.ClassAlias = ClassAlias(self.Class, "alias")
@@ -440,10 +436,10 @@ class TypeCompilerTest(TestHelper):
         """Convoluted case checking that the model is right."""
         class Class1(object):
             __table__ = "class1", "id"
-            id = Any()
+            id = Property()
         class Class2(object):
             __table__ = Class1, "id"
-            id = Any()
+            id = Property()
         statement, parameters = compile(Class2)
         self.assertEquals(statement, "class1")
         statement, parameters = compile(ClassAlias(Class2, "alias"))

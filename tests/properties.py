@@ -11,8 +11,8 @@ from tests.helper import TestHelper
 class CustomVariable(Variable):
     pass
 
-def Custom(name=None, default=Undef, not_none=False):
-    return Property(name, cls=CustomVariable, value=default, not_none=not_none)
+class Custom(SimpleProperty):
+    variable_class = CustomVariable
 
 
 class PropertyTest(TestHelper):

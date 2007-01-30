@@ -68,7 +68,7 @@ class DecorateVariable(Variable):
 
 
 class FooVariable(Foo):
-    title = Property(None, cls=DecorateVariable)
+    title = Property(variable_class=DecorateVariable)
 
 
 class Proxy(object):
