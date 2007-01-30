@@ -571,6 +571,12 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, "NULL")
         self.assertEquals(parameters, [])
 
+    def test_is_in_expr(self):
+        expr = Func1().is_in(Select("column"))
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "func1() IN (SELECT column)")
+        self.assertEquals(parameters, [])
+
     def test_eq_none(self):
         expr = Func1() == None
 
