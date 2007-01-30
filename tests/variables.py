@@ -114,7 +114,7 @@ class VariableTest(TestHelper):
             variable.set(None)
         except NoneError, e:
             pass
-        self.assertTrue("column_name.table_name" in str(e))
+        self.assertTrue("table_name.column_name" in str(e))
 
     def test_event_changed(self):
         event = EventSystem(marker)

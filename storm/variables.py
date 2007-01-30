@@ -107,7 +107,7 @@ class Variable(object):
                         if self.column.table is not Undef:
                             try:
                                 table, parameters = compile(self.column.table)
-                                column += "." + table
+                                column = "%s.%s" % (table, column)
                             except CompileError:
                                 pass
                         raise NoneError("None isn't acceptable as a "
