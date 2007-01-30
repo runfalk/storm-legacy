@@ -264,6 +264,8 @@ class Comparable(object):
         return Mod(self, other)
 
     def is_in(self, others):
+        if not others:
+            return None
         # FIXME others should support non-list argument
         others = list(others)
         variable_factory = getattr(self, "variable_factory", Variable)
