@@ -843,6 +843,28 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, "SUM(func1())")
         self.assertEquals(parameters, [])
 
+    def test_lower(self):
+        expr = Lower(Func1())
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "LOWER(func1())")
+        self.assertEquals(parameters, [])
+
+        expr = Func1().lower()
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "LOWER(func1())")
+        self.assertEquals(parameters, [])
+
+    def test_upper(self):
+        expr = Upper(Func1())
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "UPPER(func1())")
+        self.assertEquals(parameters, [])
+
+        expr = Func1().upper()
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "UPPER(func1())")
+        self.assertEquals(parameters, [])
+
     def test_not(self):
         expr = Not(Func1())
         statement, parameters = compile(expr)

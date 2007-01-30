@@ -279,6 +279,12 @@ class Comparable(object):
             other = getattr(self, "variable_factory", Variable)(value=other)
         return Like(self, other)
 
+    def lower(self):
+        return Lower(self)
+
+    def upper(self):
+        return Upper(self)
+
 
 class ComparableExpr(Expr, Comparable):
     pass
@@ -748,6 +754,13 @@ class Avg(NamedFunc):
 
 class Sum(NamedFunc):
     name = "SUM"
+
+
+class Lower(NamedFunc):
+    name = "LOWER"
+
+class Upper(NamedFunc):
+    name = "UPPER"
 
 
 # --------------------------------------------------------------------
