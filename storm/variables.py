@@ -10,11 +10,11 @@
 from datetime import datetime, date, time
 import cPickle as pickle
 
+from storm.exceptions import NoneError
 from storm import Undef
 
 
 __all__ = [
-    "NotNoneError",
     "VariableFactory",
     "Variable",
     "LazyValue",
@@ -28,10 +28,6 @@ __all__ = [
     "TimeVariable",
     "PickleVariable",
 ]
-
-
-class NotNoneError(Exception):
-    pass
 
 
 def VariableFactory(cls, **old_kwargs):
@@ -53,15 +49,15 @@ class Variable(object):
     _lazy_value = Undef
     _saved_state = Undef
     _checkpoint_state = Undef
-    _not_none = False
+    _allow_none = True
 
     column = None
     event = None
 
     def __init__(self, value=Undef, value_factory=Undef, from_db=False,
-                 not_none=False, column=None, event=None):
-        if not_none:
-            self._not_none = True
+                 allow_none=True, column=None, event=None):
+        if not allow_none:
+            self._allow_none = False
         if value is not Undef:
             self.set(value, from_db)
         elif value_factory is not Undef:
@@ -101,8 +97,21 @@ class Variable(object):
                 del self._lazy_value
             if value is None:
                 # XXX This check should be opted in by the variable types.
-                if self._not_none is True:
-                    raise NotNoneError("None isn't acceptable as a value")
+                if self._allow_none is False:
+                    if not self.column:
+                        raise NoneError("None isn't acceptable as a value")
+                    else:
+                        # Try to help on debugging.
+                        from storm.expr import compile, CompileError
+                        column = self.column.name
+                        if self.column.table is not Undef:
+                            try:
+                                table, parameters = compile(self.column.table)
+                                column += "." + table
+                            except CompileError:
+                                pass
+                        raise NoneError("None isn't acceptable as a "
+                                        "value for %s" % column)
                 new_value = None
             else:
                 new_value = self._parse_set(value, from_db)

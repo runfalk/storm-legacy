@@ -22,6 +22,9 @@ class NoTableError(CompileError):
 class ExprError(StormError):
     pass
 
+class NoneError(StormError):
+    pass
+
 
 class URIError(StormError):
     pass

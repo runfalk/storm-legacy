@@ -83,8 +83,8 @@ class SimpleProperty(Property):
     variable_class = None
 
     def __init__(self, name=None, default=Undef,
-                 default_factory=Undef, not_none=False):
-        variable_kwargs = {"not_none": not_none,
+                 default_factory=Undef, allow_none=True):
+        variable_kwargs = {"allow_none": allow_none,
                            "value": default,
                            "value_factory": default_factory}
         Property.__init__(self, name, self.variable_class, variable_kwargs)
