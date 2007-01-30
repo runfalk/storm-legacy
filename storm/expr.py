@@ -274,6 +274,11 @@ class Comparable(object):
                     others[i] = variable_factory(value=other)
         return In(self, others)
 
+    def like(self, other):
+        if not isinstance(other, (Expr, Variable)):
+            other = getattr(self, "variable_factory", Variable)(value=other)
+        return Like(self, other)
+
 
 class ComparableExpr(Expr, Comparable):
     pass
@@ -769,6 +774,9 @@ class SuffixExpr(Expr):
 def compile_suffix_expr(compile, state, expr):
     return "%s %s" % (compile(state, expr.expr), expr.suffix)
 
+
+class Not(PrefixExpr):
+    prefix = "NOT"
 
 class Exists(PrefixExpr):
     prefix = "EXISTS"

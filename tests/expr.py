@@ -1,6 +1,6 @@
 from tests.helper import TestHelper
 
-from storm.variables import Variable
+from storm.variables import Variable, UnicodeVariable
 from storm.expr import *
 
 
@@ -678,6 +678,11 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, "func1() LIKE func2()")
         self.assertEquals(parameters, [])
 
+        expr = Func1().like("Hello")
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "func1() LIKE ?")
+        self.assertEquals(parameters, [Variable("Hello")])
+
     def test_in(self):
         expr = In(Func1(), Func2())
         statement, parameters = compile(expr)
@@ -836,6 +841,18 @@ class CompileTest(TestHelper):
         expr = Sum(Func1())
         statement, parameters = compile(expr)
         self.assertEquals(statement, "SUM(func1())")
+        self.assertEquals(parameters, [])
+
+    def test_not(self):
+        expr = Not(Func1())
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "NOT func1()")
+        self.assertEquals(parameters, [])
+
+    def test_exists(self):
+        expr = Exists(Func1())
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "EXISTS func1()")
         self.assertEquals(parameters, [])
 
     def test_asc(self):
