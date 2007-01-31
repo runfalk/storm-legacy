@@ -96,22 +96,8 @@ class Variable(object):
             if self._lazy_value is not Undef:
                 del self._lazy_value
             if value is None:
-                # XXX This check should be opted in by the variable types.
                 if self._allow_none is False:
-                    if not self.column:
-                        raise NoneError("None isn't acceptable as a value")
-                    else:
-                        # Try to help on debugging.
-                        from storm.expr import compile, CompileError
-                        column = self.column.name
-                        if self.column.table is not Undef:
-                            try:
-                                table, parameters = compile(self.column.table)
-                                column = "%s.%s" % (table, column)
-                            except CompileError:
-                                pass
-                        raise NoneError("None isn't acceptable as a "
-                                        "value for %s" % column)
+                    raise self._get_none_error()
                 new_value = None
             else:
                 new_value = self._parse_set(value, from_db)
@@ -168,11 +154,26 @@ class Variable(object):
                 self._value == other._value)
 
     def __hash__(self):
-        return hash((self.__class__, self._value))
+        return hash(self._value)
+
+    def _get_none_error(self):
+        if not self.column:
+            return NoneError("None isn't acceptable as a value")
+        else:
+            from storm.expr import compile, CompileError
+            column = self.column.name
+            if self.column.table is not Undef:
+                try:
+                    table, parameters = compile(self.column.table)
+                    column = "%s.%s" % (table, column)
+                except CompileError:
+                    pass
+            return NoneError("None isn't acceptable as a value for %s"
+                             % column)
 
 
 class LazyValue(object):
-    pass
+    """Marker to be used as a base class on lazily evaluated values."""
 
 
 class BoolVariable(Variable):
@@ -276,6 +277,16 @@ class TimeVariable(Variable):
 
 class PickleVariable(Variable):
 
+    def __init__(self, *args, **kwargs):
+        Variable.__init__(self, *args, **kwargs)
+        if self.event:
+            self.event.hook("flush", self._detect_changes)
+            self.event.hook("object-deleted", self._detect_changes)
+
+    def _detect_changes(self, obj_info):
+        if self.get_state() != self._checkpoint_state:
+            self.event.emit("changed", self, None, self._value, False)
+
     @staticmethod
     def _parse_set(value, db):
         if db:
@@ -296,6 +307,12 @@ class PickleVariable(Variable):
     def set_state(self, state):
         self._lazy_value = state[0]
         self._value = pickle.loads(state[1])
+
+    def __hash__(self):
+        try:
+            return hash(self._value)
+        except TypeError:
+            return hash(pickle.dumps(self._value, -1))
 
 
 def _parse_time(time_str):

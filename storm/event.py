@@ -7,12 +7,13 @@
 #
 # <license text goes here>
 #
+import weakref
 
 
 class EventSystem(object):
 
     def __init__(self, owner):
-        self._owner = owner
+        self._owner_ref = weakref.ref(owner)
         self._hooks = {}
         self._saved_hooks = {}
 
@@ -41,9 +42,10 @@ class EventSystem(object):
             callbacks.discard((callback, data))
 
     def emit(self, name, *args):
-        owner = self._owner
-        callbacks = self._hooks.get(name)
-        if callbacks is not None:
-            for callback, data in callbacks.copy():
-                if callback(owner, *(args+data)) is False:
-                    callbacks.discard((callback, data))
+        owner = self._owner_ref()
+        if owner is not None:
+            callbacks = self._hooks.get(name)
+            if callbacks is not None:
+                for callback, data in callbacks.copy():
+                    if callback(owner, *(args+data)) is False:
+                        callbacks.discard((callback, data))

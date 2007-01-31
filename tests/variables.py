@@ -10,7 +10,10 @@ from storm import Undef
 from tests.helper import TestHelper
 
 
-marker = object()
+class Marker(object):
+    pass
+
+marker = Marker()
 
 
 class CustomVariable(Variable):
@@ -201,6 +204,7 @@ class VariableTest(TestHelper):
         self.assertTrue(variable == variable_copy)
 
     def test_hash(self):
+        # They must hash the same to be used as cache keys.
         obj1 = CustomVariable(marker)
         obj2 = CustomVariable(marker)
         self.assertEquals(hash(obj1), hash(obj2))

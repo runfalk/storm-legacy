@@ -7,12 +7,14 @@
 #
 # <license text goes here>
 #
+import weakref
+
 from storm.expr import Column, FromExpr, CompileError, compile
 from storm.event import EventSystem
 from storm import Undef
 
 
-__all__ = ["get_obj_info", "get_cls_info", "get_info",
+__all__ = ["get_obj_info", "set_obj_info", "get_cls_info", "get_info",
            "ClassInfo", "ObjectInfo", "ClassAlias"]
 
 
@@ -21,6 +23,9 @@ def get_obj_info(obj):
         return obj.__object_info
     except AttributeError:
         return obj.__dict__.setdefault("__object_info", ObjectInfo(obj))
+
+def set_obj_info(obj, obj_info):
+    obj.__dict__["__object_info"] = obj_info
 
 def get_cls_info(cls):
     try:
@@ -32,9 +37,10 @@ def get_cls_info(cls):
 
 def get_info(obj):
     try:
-        return obj.__object_info, obj.__class__.__class__info
+        obj_info = obj.__object_info
     except AttributeError:
-        return get_obj_info(obj), get_cls_info(obj.__class__)
+        obj_info = get_obj_info(obj)
+    return obj_info, obj_info.cls_info
 
 
 class ClassInfo(dict):
@@ -89,7 +95,8 @@ class ObjectInfo(dict):
     __hash__ = object.__hash__
 
     def __init__(self, obj):
-        self.obj = obj
+        self.set_obj(obj)
+
         self.event = EventSystem(self)
         self.variables = {}
 
@@ -108,15 +115,28 @@ class ObjectInfo(dict):
 
         self._variable_sequence = self.variables.values()
 
+    def set_obj(self, obj):
+        self.get_obj = weakref.ref(obj, self._emit_object_deleted)
+
     def save(self):
         for variable in self._variable_sequence:
             variable.save()
         self.event.save()
-        self._saved_attrs = self.obj.__dict__.copy()
         self._saved_self = self._copy_object(self.items())
+        obj = self.get_obj()
+        if obj is None:
+            self._saved_attrs = None
+        else:
+            self._saved_attrs = obj.__dict__.copy()
+            self._saved_attrs.pop("__object_info", None) # Circular reference.
 
     def save_attributes(self):
-        self._saved_attrs = self.obj.__dict__.copy()
+        obj = self.get_obj()
+        if obj is None:
+            self._saved_attrs = None
+        else:
+            self._saved_attrs = obj.__dict__.copy()
+            self._saved_attrs.pop("__object_info", None) # Circular reference.
 
     def checkpoint(self):
         for variable in self._variable_sequence:
@@ -126,9 +146,16 @@ class ObjectInfo(dict):
         for variable in self._variable_sequence:
             variable.restore()
         self.event.restore()
-        self.obj.__dict__ = self._saved_attrs.copy()
         self.clear()
         self.update(self._saved_self)
+        obj = self.get_obj()
+        if obj is not None:
+            attrs = self._saved_attrs.copy()
+            try:
+                attrs["__object_info"] = obj.__dict__["__object_info"]
+            except KeyError:
+                pass
+            obj.__dict__ = attrs
 
     def _copy_object(self, obj):
         obj_type = type(obj)
@@ -139,6 +166,13 @@ class ObjectInfo(dict):
             return obj_type(self._copy_object(subobj) for subobj in obj)
         else:
             return obj
+
+    def _emit_object_deleted(self, obj_ref):
+        self.event.emit("object-deleted")
+
+
+# For get_obj_info(), an ObjectInfo is its own obj_info.
+ObjectInfo.__object_info = property(lambda self: self)
 
 
 class ClassAlias(FromExpr):
