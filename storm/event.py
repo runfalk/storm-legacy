@@ -10,6 +10,9 @@
 import weakref
 
 
+__all__ = ["EventSystem"]
+
+
 class EventSystem(object):
 
     def __init__(self, owner):

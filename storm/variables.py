@@ -27,6 +27,7 @@ __all__ = [
     "DateVariable",
     "TimeVariable",
     "PickleVariable",
+    "ListVariable",
 ]
 
 
@@ -313,6 +314,47 @@ class PickleVariable(Variable):
             return hash(self._value)
         except TypeError:
             return hash(pickle.dumps(self._value, -1))
+
+
+class ListVariable(Variable):
+
+    def __init__(self, item_factory, *args, **kwargs):
+        self._item_factory = item_factory
+        value_factory = kwargs.get("value_factory", Undef)
+        if value_factory is Undef:
+            kwargs["value_factory"] = list
+        Variable.__init__(self, *args, **kwargs)
+        if self.event:
+            self.event.hook("flush", self._detect_changes)
+            self.event.hook("object-deleted", self._detect_changes)
+
+    def _detect_changes(self, obj_info):
+        if self.get_state() != self._checkpoint_state:
+            self.event.emit("changed", self, None, self._value, False)
+
+    def _parse_set(self, value, db):
+        if db:
+            item_factory = self._item_factory
+            return [item_factory(value=val, from_db=db).get() for val in value]
+        else:
+            return value
+
+    def _parse_get(self, value, db):
+        if db:
+            item_factory = self._item_factory
+            return [item_factory(value=val, from_db=db) for val in value]
+        else:
+            return value
+
+    def get_state(self):
+        return (self._lazy_value, pickle.dumps(self._value, -1))
+
+    def set_state(self, state):
+        self._lazy_value = state[0]
+        self._value = pickle.loads(state[1])
+
+    def __hash__(self):
+        return hash(pickle.dumps(self._value, -1))
 
 
 def _parse_time(time_str):

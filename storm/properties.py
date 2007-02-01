@@ -17,7 +17,7 @@ from storm import Undef
 
 __all__ = ["Property", "SimpleProperty",
            "Bool", "Int", "Float", "Str", "Unicode",
-           "DateTime", "Date", "Time", "Pickle"]
+           "DateTime", "Date", "Time", "Pickle", "List"]
 
 
 class Property(object):
@@ -116,3 +116,15 @@ class Time(SimpleProperty):
 
 class Pickle(SimpleProperty):
     variable_class = PickleVariable
+
+
+class List(Property):
+
+    def __init__(self, name=None, type=Property(),
+                 default_factory=Undef, allow_none=True):
+        item_factory = VariableFactory(type._variable_class,
+                                       **type._variable_kwargs)
+        variable_kwargs = {"item_factory": item_factory,
+                           "allow_none": allow_none,
+                           "value_factory": default_factory}
+        Property.__init__(self, name, ListVariable, variable_kwargs)
