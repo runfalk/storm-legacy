@@ -37,8 +37,6 @@
 
   result3 = result1.union(result2)
 
-- Fix support for mutable variables (such as PickleVariable).
-
 - Add support to cyclic references.
 
 - Implement support for negative caches to tell when an object
