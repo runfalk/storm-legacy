@@ -264,13 +264,26 @@ class Comparable(object):
         return Mod(self, other)
 
     def is_in(self, others):
-        # FIXME others should support non-list argument
-        others = list(others)
-        variable_factory = getattr(self, "variable_factory", Variable)
-        for i, other in enumerate(others):
-            if not isinstance(other, (Expr, Variable)):
-                others[i] = variable_factory(value=other)
+        if not isinstance(others, Expr):
+            if not others:
+                return None
+            others = list(others)
+            variable_factory = getattr(self, "variable_factory", Variable)
+            for i, other in enumerate(others):
+                if not isinstance(other, (Expr, Variable)):
+                    others[i] = variable_factory(value=other)
         return In(self, others)
+
+    def like(self, other):
+        if not isinstance(other, (Expr, Variable)):
+            other = getattr(self, "variable_factory", Variable)(value=other)
+        return Like(self, other)
+
+    def lower(self):
+        return Lower(self)
+
+    def upper(self):
+        return Upper(self)
 
 
 class ComparableExpr(Expr, Comparable):
@@ -743,6 +756,13 @@ class Sum(NamedFunc):
     name = "SUM"
 
 
+class Lower(NamedFunc):
+    name = "LOWER"
+
+class Upper(NamedFunc):
+    name = "UPPER"
+
+
 # --------------------------------------------------------------------
 # Prefix and suffix expressions
 
@@ -767,6 +787,9 @@ class SuffixExpr(Expr):
 def compile_suffix_expr(compile, state, expr):
     return "%s %s" % (compile(state, expr.expr), expr.suffix)
 
+
+class Not(PrefixExpr):
+    prefix = "NOT"
 
 class Exists(PrefixExpr):
     prefix = "EXISTS"

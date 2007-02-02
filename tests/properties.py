@@ -1,5 +1,6 @@
 from datetime import datetime, date, time
 
+from storm.exceptions import NoneError
 from storm.properties import *
 from storm.variables import *
 from storm.info import get_obj_info
@@ -11,8 +12,8 @@ from tests.helper import TestHelper
 class CustomVariable(Variable):
     pass
 
-def Custom(name=None, default=Undef, not_none=False):
-    return Property(name, cls=CustomVariable, value=default, not_none=not_none)
+class Custom(SimpleProperty):
+    variable_class = CustomVariable
 
 
 class PropertyTest(TestHelper):
@@ -23,7 +24,7 @@ class PropertyTest(TestHelper):
             __table__ = "table", "column1"
             prop1 = Custom("column1")
             prop2 = Custom()
-            prop3 = Custom("column3", default=50, not_none=True)
+            prop3 = Custom("column3", default=50, allow_none=False)
         class SubClass(Class):
             __table__ = "subtable", "column1"
         self.Class = Class
@@ -100,7 +101,7 @@ class PropertyTest(TestHelper):
         obj.prop2 = None
         self.assertEquals(obj.prop1, None)
         self.assertEquals(obj.prop2, None)
-        self.assertRaises(NotNoneError, setattr, obj, "prop3", None)
+        self.assertRaises(NoneError, setattr, obj, "prop3", None)
 
     def test_set_get_subclass(self):
         obj = self.SubClass()
@@ -235,7 +236,7 @@ class PropertyKindsTest(TestHelper):
         self.variable2 = self.obj_info.variables[self.column2]
 
     def test_bool(self):
-        self.setup(Bool, default=True, not_none=True)
+        self.setup(Bool, default=True, allow_none=False)
 
         self.assertTrue(isinstance(self.column1, Column))
         self.assertTrue(isinstance(self.column2, Column))
@@ -247,7 +248,7 @@ class PropertyKindsTest(TestHelper):
         self.assertTrue(isinstance(self.variable2, BoolVariable))
 
         self.assertEquals(self.obj.prop1, True)
-        self.assertRaises(NotNoneError, setattr, self.obj, "prop1", None)
+        self.assertRaises(NoneError, setattr, self.obj, "prop1", None)
         self.obj.prop2 = None
         self.assertEquals(self.obj.prop2, None)
 
@@ -257,7 +258,7 @@ class PropertyKindsTest(TestHelper):
         self.assertTrue(self.obj.prop1 is False)
 
     def test_int(self):
-        self.setup(Int, default=50, not_none=True)
+        self.setup(Int, default=50, allow_none=False)
 
         self.assertTrue(isinstance(self.column1, Column))
         self.assertTrue(isinstance(self.column2, Column))
@@ -269,7 +270,7 @@ class PropertyKindsTest(TestHelper):
         self.assertTrue(isinstance(self.variable2, IntVariable))
 
         self.assertEquals(self.obj.prop1, 50)
-        self.assertRaises(NotNoneError, setattr, self.obj, "prop1", None)
+        self.assertRaises(NoneError, setattr, self.obj, "prop1", None)
         self.obj.prop2 = None
         self.assertEquals(self.obj.prop2, None)
 
@@ -279,7 +280,7 @@ class PropertyKindsTest(TestHelper):
         self.assertEquals(self.obj.prop1, 1)
 
     def test_float(self):
-        self.setup(Float, default=50.5, not_none=True)
+        self.setup(Float, default=50.5, allow_none=False)
 
         self.assertTrue(isinstance(self.column1, Column))
         self.assertTrue(isinstance(self.column2, Column))
@@ -291,7 +292,7 @@ class PropertyKindsTest(TestHelper):
         self.assertTrue(isinstance(self.variable2, FloatVariable))
 
         self.assertEquals(self.obj.prop1, 50.5)
-        self.assertRaises(NotNoneError, setattr, self.obj, "prop1", None)
+        self.assertRaises(NoneError, setattr, self.obj, "prop1", None)
         self.obj.prop2 = None
         self.assertEquals(self.obj.prop2, None)
 
@@ -299,7 +300,7 @@ class PropertyKindsTest(TestHelper):
         self.assertTrue(isinstance(self.obj.prop1, float))
 
     def test_str(self):
-        self.setup(Str, default="def", not_none=True)
+        self.setup(Str, default="def", allow_none=False)
 
         self.assertTrue(isinstance(self.column1, Column))
         self.assertTrue(isinstance(self.column2, Column))
@@ -311,7 +312,7 @@ class PropertyKindsTest(TestHelper):
         self.assertTrue(isinstance(self.variable2, StrVariable))
 
         self.assertEquals(self.obj.prop1, "def")
-        self.assertRaises(NotNoneError, setattr, self.obj, "prop1", None)
+        self.assertRaises(NoneError, setattr, self.obj, "prop1", None)
         self.obj.prop2 = None
         self.assertEquals(self.obj.prop2, None)
 
@@ -319,7 +320,7 @@ class PropertyKindsTest(TestHelper):
         self.assertTrue(isinstance(self.obj.prop1, str))
 
     def test_unicode(self):
-        self.setup(Unicode, default=u"def", not_none=True)
+        self.setup(Unicode, default=u"def", allow_none=False)
 
         self.assertTrue(isinstance(self.column1, Column))
         self.assertTrue(isinstance(self.column2, Column))
@@ -331,7 +332,7 @@ class PropertyKindsTest(TestHelper):
         self.assertTrue(isinstance(self.variable2, UnicodeVariable))
 
         self.assertEquals(self.obj.prop1, u"def")
-        self.assertRaises(NotNoneError, setattr, self.obj, "prop1", None)
+        self.assertRaises(NoneError, setattr, self.obj, "prop1", None)
         self.obj.prop2 = None
         self.assertEquals(self.obj.prop2, None)
 
@@ -339,7 +340,7 @@ class PropertyKindsTest(TestHelper):
         self.assertTrue(isinstance(self.obj.prop1, unicode))
 
     def test_datetime(self):
-        self.setup(DateTime, default=0, not_none=True)
+        self.setup(DateTime, default=0, allow_none=False)
 
         self.assertTrue(isinstance(self.column1, Column))
         self.assertTrue(isinstance(self.column2, Column))
@@ -351,7 +352,7 @@ class PropertyKindsTest(TestHelper):
         self.assertTrue(isinstance(self.variable2, DateTimeVariable))
 
         self.assertEquals(self.obj.prop1, datetime.utcfromtimestamp(0))
-        self.assertRaises(NotNoneError, setattr, self.obj, "prop1", None)
+        self.assertRaises(NoneError, setattr, self.obj, "prop1", None)
         self.obj.prop2 = None
         self.assertEquals(self.obj.prop2, None)
 
@@ -363,7 +364,7 @@ class PropertyKindsTest(TestHelper):
         self.assertRaises(TypeError, setattr, self.obj, "prop1", object())
 
     def test_date(self):
-        self.setup(Date, default=date(2006, 1, 1), not_none=1)
+        self.setup(Date, default=date(2006, 1, 1), allow_none=False)
 
         self.assertTrue(isinstance(self.column1, Column))
         self.assertTrue(isinstance(self.column2, Column))
@@ -375,7 +376,7 @@ class PropertyKindsTest(TestHelper):
         self.assertTrue(isinstance(self.variable2, DateVariable))
 
         self.assertEquals(self.obj.prop1, date(2006, 1, 1))
-        self.assertRaises(NotNoneError, setattr, self.obj, "prop1", None)
+        self.assertRaises(NoneError, setattr, self.obj, "prop1", None)
         self.obj.prop2 = None
         self.assertEquals(self.obj.prop2, None)
 
@@ -387,7 +388,7 @@ class PropertyKindsTest(TestHelper):
         self.assertRaises(TypeError, setattr, self.obj, "prop1", object())
 
     def test_time(self):
-        self.setup(Time, default=time(12, 34), not_none=True)
+        self.setup(Time, default=time(12, 34), allow_none=False)
 
         self.assertTrue(isinstance(self.column1, Column))
         self.assertTrue(isinstance(self.column2, Column))
@@ -399,7 +400,7 @@ class PropertyKindsTest(TestHelper):
         self.assertTrue(isinstance(self.variable2, TimeVariable))
 
         self.assertEquals(self.obj.prop1, time(12, 34))
-        self.assertRaises(NotNoneError, setattr, self.obj, "prop1", None)
+        self.assertRaises(NoneError, setattr, self.obj, "prop1", None)
         self.obj.prop2 = None
         self.assertEquals(self.obj.prop2, None)
 
@@ -411,7 +412,7 @@ class PropertyKindsTest(TestHelper):
         self.assertRaises(TypeError, setattr, self.obj, "prop1", object())
 
     def test_pickle(self):
-        self.setup(Pickle, default_factory=dict, not_none=True)
+        self.setup(Pickle, default_factory=dict, allow_none=False)
 
         self.assertTrue(isinstance(self.column1, Column))
         self.assertTrue(isinstance(self.column2, Column))
@@ -423,7 +424,7 @@ class PropertyKindsTest(TestHelper):
         self.assertTrue(isinstance(self.variable2, PickleVariable))
 
         self.assertEquals(self.obj.prop1, {})
-        self.assertRaises(NotNoneError, setattr, self.obj, "prop1", None)
+        self.assertRaises(NoneError, setattr, self.obj, "prop1", None)
         self.obj.prop2 = None
         self.assertEquals(self.obj.prop2, None)
 
@@ -431,6 +432,85 @@ class PropertyKindsTest(TestHelper):
         self.assertEquals(self.obj.prop1, [])
         self.obj.prop1.append("a")
         self.assertEquals(self.obj.prop1, ["a"])
+
+    def test_pickle_events(self):
+        self.setup(Pickle, default_factory=list, allow_none=False)
+
+        changes = []
+        def changed(owner, variable, old_value, new_value, fromdb):
+            changes.append((variable, old_value, new_value, fromdb))
+
+        # Can't checkpoint Undef.
+        self.obj.prop2 = []
+
+        self.obj_info.checkpoint()
+        self.obj_info.event.hook("changed", changed)
+
+        self.assertEquals(self.obj.prop1, [])
+        self.assertEquals(changes, [])
+        self.obj.prop1.append("a")
+        self.assertEquals(changes, [])
+
+        # Check "flush" event. Notice that the other variable wasn't
+        # listed, since it wasn't changed.
+        self.obj_info.event.emit("flush")
+        self.assertEquals(changes, [(self.variable1, None, ["a"], False)])
+
+        del changes[:]
+
+        # Check "object-deleted" event. Notice that the other variable
+        # wasn't listed again, since it wasn't changed.
+        del self.obj
+        self.assertEquals(changes, [(self.variable1, None, ["a"], False)])
+
+    def test_list(self):
+        self.setup(List, default_factory=list, allow_none=False)
+
+        self.assertTrue(isinstance(self.column1, Column))
+        self.assertTrue(isinstance(self.column2, Column))
+        self.assertEquals(self.column1.name, "column1")
+        self.assertEquals(self.column1.table, self.SubClass)
+        self.assertEquals(self.column2.name, "prop2")
+        self.assertEquals(self.column2.table, self.SubClass)
+        self.assertTrue(isinstance(self.variable1, ListVariable))
+        self.assertTrue(isinstance(self.variable2, ListVariable))
+
+        self.assertEquals(self.obj.prop1, [])
+        self.assertRaises(NoneError, setattr, self.obj, "prop1", None)
+        self.obj.prop2 = None
+        self.assertEquals(self.obj.prop2, None)
+
+        self.obj.prop1 = ["a"]
+        self.assertEquals(self.obj.prop1, ["a"])
+        self.obj.prop1.append("b")
+        self.assertEquals(self.obj.prop1, ["a", "b"])
+
+    def test_list_events(self):
+        self.setup(List, default_factory=list, allow_none=False)
+
+        changes = []
+        def changed(owner, variable, old_value, new_value, fromdb):
+            changes.append((variable, old_value, new_value, fromdb))
+
+        self.obj_info.checkpoint()
+        self.obj_info.event.hook("changed", changed)
+
+        self.assertEquals(self.obj.prop1, [])
+        self.assertEquals(changes, [])
+        self.obj.prop1.append("a")
+        self.assertEquals(changes, [])
+
+        # Check "flush" event. Notice that the other variable wasn't
+        # listed, since it wasn't changed.
+        self.obj_info.event.emit("flush")
+        self.assertEquals(changes, [(self.variable1, None, ["a"], False)])
+
+        del changes[:]
+
+        # Check "object-deleted" event. Notice that the other variable
+        # wasn't listed again, since it wasn't changed.
+        del self.obj
+        self.assertEquals(changes, [(self.variable1, None, ["a"], False)])
 
     def test_variable_factory_arguments(self):
         class Class(object):
@@ -448,7 +528,7 @@ class PropertyKindsTest(TestHelper):
                                (Pickle, PickleVariable, {}),
                                      ]:
 
-            # Test no default and not_none=False.
+            # Test no default and allow_none=True.
             prop = func(name="name")
             column = prop.__get__(None, Class)
             self.assertEquals(column.name, "name")
@@ -460,15 +540,15 @@ class PropertyKindsTest(TestHelper):
             variable.set(None)
             self.assertEquals(variable.get(), None)
 
-            # Test default and not_none=True.
-            prop = func(name="name", default=value, not_none=True)
+            # Test default and allow_none=False.
+            prop = func(name="name", default=value, allow_none=False)
             column = prop.__get__(None, Class)
             self.assertEquals(column.name, "name")
             self.assertEquals(column.table, Class)
 
             variable = column.variable_factory()
             self.assertTrue(isinstance(variable, cls))
-            self.assertRaises(NotNoneError, variable.set, None)
+            self.assertRaises(NoneError, variable.set, None)
             self.assertEquals(variable.get(), value)
 
             # Test default_factory.

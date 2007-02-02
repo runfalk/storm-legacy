@@ -42,17 +42,15 @@ class Result(object):
             self._raw_cursor = None
 
     def get_one(self):
-        result = self._raw_cursor.fetchone()
-        if result is not None:
-            from_database = self._from_database
-            return tuple(from_database(x) for x in result)
+        row = self._raw_cursor.fetchone()
+        if row is not None:
+            return tuple(self._from_database(row))
         return None
 
     def get_all(self):
         result = self._raw_cursor.fetchall()
         if result:
-            from_database = self._from_database
-            return [tuple(from_database(x) for x in item) for item in result]
+            return [tuple(self._from_database(row)) for row in result]
         return result
 
     def __iter__(self):
@@ -78,8 +76,8 @@ class Result(object):
         variable.set(value, from_db=True)
 
     @staticmethod
-    def _from_database(value):
-        return value
+    def _from_database(row):
+        return row
 
 
 class Connection(object):
@@ -117,8 +115,7 @@ class Connection(object):
                 print statement, () 
             raw_cursor.execute(statement)
         else:
-            to_database = self._to_database
-            params = tuple(to_database(param) for param in params)
+            params = tuple(self._to_database(params))
             if DEBUG:
                 print statement, params
             raw_cursor.execute(statement, params)
@@ -140,10 +137,12 @@ class Connection(object):
         self._raw_connection.rollback()
 
     @staticmethod
-    def _to_database(value):
-        if isinstance(value, Variable):
-            return value.get(to_db=True)
-        return value
+    def _to_database(params):
+        for param in params:
+            if isinstance(param, Variable):
+                yield param.get(to_db=True)
+            else:
+                yield param
 
 
 class Database(object):

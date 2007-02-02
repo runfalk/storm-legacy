@@ -1,6 +1,6 @@
 from tests.helper import TestHelper
 
-from storm.variables import Variable
+from storm.variables import Variable, UnicodeVariable
 from storm.expr import *
 
 
@@ -565,6 +565,18 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, "func1() IN (?, ?)")
         self.assertEquals(parameters, [Variable("Hello"), Variable("World")])
 
+    def test_is_in_empty(self):
+        expr = Func1().is_in([])
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "NULL")
+        self.assertEquals(parameters, [])
+
+    def test_is_in_expr(self):
+        expr = Func1().is_in(Select("column"))
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "func1() IN (SELECT column)")
+        self.assertEquals(parameters, [])
+
     def test_eq_none(self):
         expr = Func1() == None
 
@@ -665,6 +677,11 @@ class CompileTest(TestHelper):
         statement, parameters = compile(expr)
         self.assertEquals(statement, "func1() LIKE func2()")
         self.assertEquals(parameters, [])
+
+        expr = Func1().like("Hello")
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "func1() LIKE ?")
+        self.assertEquals(parameters, [Variable("Hello")])
 
     def test_in(self):
         expr = In(Func1(), Func2())
@@ -824,6 +841,40 @@ class CompileTest(TestHelper):
         expr = Sum(Func1())
         statement, parameters = compile(expr)
         self.assertEquals(statement, "SUM(func1())")
+        self.assertEquals(parameters, [])
+
+    def test_lower(self):
+        expr = Lower(Func1())
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "LOWER(func1())")
+        self.assertEquals(parameters, [])
+
+        expr = Func1().lower()
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "LOWER(func1())")
+        self.assertEquals(parameters, [])
+
+    def test_upper(self):
+        expr = Upper(Func1())
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "UPPER(func1())")
+        self.assertEquals(parameters, [])
+
+        expr = Func1().upper()
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "UPPER(func1())")
+        self.assertEquals(parameters, [])
+
+    def test_not(self):
+        expr = Not(Func1())
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "NOT func1()")
+        self.assertEquals(parameters, [])
+
+    def test_exists(self):
+        expr = Exists(Func1())
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "EXISTS func1()")
         self.assertEquals(parameters, [])
 
     def test_asc(self):

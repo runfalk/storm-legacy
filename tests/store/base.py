@@ -68,7 +68,7 @@ class DecorateVariable(Variable):
 
 
 class FooVariable(Foo):
-    title = Property(None, cls=DecorateVariable)
+    title = Property(variable_class=DecorateVariable)
 
 
 class Proxy(object):
@@ -225,6 +225,57 @@ class StoreTest(object):
         gc.collect()
 
         self.assertTrue(self.store.find(Foo, title="live").one())
+
+    def test_obj_info_with_deleted_object(self):
+        # Let's try to put Storm in trouble by killing the object
+        # while still holding a reference to the obj_info.
+        class MyFoo(Foo):
+            loaded = False
+            def __load__(self):
+                self.loaded = True
+
+        foo = self.store.get(MyFoo, 20)
+        foo.tainted = True
+        obj_info = get_obj_info(foo)
+
+        del foo
+        gc.collect()
+        
+        self.assertEquals(obj_info.get_obj(), None)
+
+        foo = self.store.find(MyFoo, id=20).one()
+        self.assertTrue(foo)
+        self.assertFalse(getattr(foo, "tainted", False))
+
+        # The object was rebuilt, so the loaded hook must have run.
+        self.assertTrue(foo.loaded)
+
+    def test_obj_info_with_deleted_object_with_get(self):
+        # Same thing, but using get rather than find.
+        foo = self.store.get(Foo, 20)
+        foo.tainted = True
+        obj_info = get_obj_info(foo)
+
+        del foo
+        gc.collect()
+        
+        self.assertEquals(obj_info.get_obj(), None)
+
+        foo = self.store.get(Foo, 20)
+        self.assertTrue(foo)
+        self.assertFalse(getattr(foo, "tainted", False))
+
+    def test_delete_object_when_obj_info_is_dirty(self):
+        # Object should stay in memory if dirty.
+        foo = self.store.get(Foo, 20)
+        foo.title = "Changed"
+        foo.tainted = True
+        obj_info = get_obj_info(foo)
+
+        del foo
+        gc.collect()
+        
+        self.assertTrue(obj_info.get_obj())
 
     def test_get_tuple(self):
         class Foo(object):
@@ -2780,7 +2831,7 @@ class StoreTest(object):
 
         self.assertEquals(foo.title, "Some default value")
 
-    def test_pickle_kind(self):
+    def test_pickle_variable(self):
         class PickleBlob(Blob):
             bin = Pickle()
 
@@ -2792,10 +2843,30 @@ class StoreTest(object):
         self.assertEquals(pickle_blob.bin["a"], 1)
 
         pickle_blob.bin["b"] = 2
-        
-        # FIXME
-        #self.store.reload(blob)
-        #self.assertEquals(blob.bin, "\x80\x02}q\x01(U\x01aK\x01U\x01bK\x02u.")
+
+        self.store.flush()
+        self.store.reload(blob)
+        self.assertEquals(blob.bin, "\x80\x02}q\x01(U\x01aK\x01U\x01bK\x02u.")
+
+    def test_pickle_variable_with_deleted_object(self):
+        class PickleBlob(Blob):
+            bin = Pickle()
+
+        blob = self.store.get(Blob, 20)
+        blob.bin = "\x80\x02}q\x01U\x01aK\x01s."
+        self.store.flush()
+
+        pickle_blob = self.store.get(PickleBlob, 20)
+        self.assertEquals(pickle_blob.bin["a"], 1)
+
+        pickle_blob.bin["b"] = 2
+
+        del pickle_blob
+        gc.collect()
+
+        self.store.flush()
+        self.store.reload(blob)
+        self.assertEquals(blob.bin, "\x80\x02}q\x01(U\x01aK\x01U\x01bK\x02u.")
 
     def test_unhashable_object(self):
 

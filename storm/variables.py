@@ -10,11 +10,11 @@
 from datetime import datetime, date, time
 import cPickle as pickle
 
+from storm.exceptions import NoneError
 from storm import Undef
 
 
 __all__ = [
-    "NotNoneError",
     "VariableFactory",
     "Variable",
     "LazyValue",
@@ -27,11 +27,8 @@ __all__ = [
     "DateVariable",
     "TimeVariable",
     "PickleVariable",
+    "ListVariable",
 ]
-
-
-class NotNoneError(Exception):
-    pass
 
 
 def VariableFactory(cls, **old_kwargs):
@@ -53,15 +50,15 @@ class Variable(object):
     _lazy_value = Undef
     _saved_state = Undef
     _checkpoint_state = Undef
-    _not_none = False
+    _allow_none = True
 
     column = None
     event = None
 
     def __init__(self, value=Undef, value_factory=Undef, from_db=False,
-                 not_none=False, column=None, event=None):
-        if not_none:
-            self._not_none = True
+                 allow_none=True, column=None, event=None):
+        if not allow_none:
+            self._allow_none = False
         if value is not Undef:
             self.set(value, from_db)
         elif value_factory is not Undef:
@@ -100,9 +97,8 @@ class Variable(object):
             if self._lazy_value is not Undef:
                 del self._lazy_value
             if value is None:
-                # XXX This check should be opted in by the variable types.
-                if self._not_none is True:
-                    raise NotNoneError("None isn't acceptable as a value")
+                if self._allow_none is False:
+                    raise self._get_none_error()
                 new_value = None
             else:
                 new_value = self._parse_set(value, from_db)
@@ -159,11 +155,26 @@ class Variable(object):
                 self._value == other._value)
 
     def __hash__(self):
-        return hash((self.__class__, self._value))
+        return hash(self._value)
+
+    def _get_none_error(self):
+        if not self.column:
+            return NoneError("None isn't acceptable as a value")
+        else:
+            from storm.expr import compile, CompileError
+            column = self.column.name
+            if self.column.table is not Undef:
+                try:
+                    table, parameters = compile(self.column.table)
+                    column = "%s.%s" % (table, column)
+                except CompileError:
+                    pass
+            return NoneError("None isn't acceptable as a value for %s"
+                             % column)
 
 
 class LazyValue(object):
-    pass
+    """Marker to be used as a base class on lazily evaluated values."""
 
 
 class BoolVariable(Variable):
@@ -267,6 +278,16 @@ class TimeVariable(Variable):
 
 class PickleVariable(Variable):
 
+    def __init__(self, *args, **kwargs):
+        Variable.__init__(self, *args, **kwargs)
+        if self.event:
+            self.event.hook("flush", self._detect_changes)
+            self.event.hook("object-deleted", self._detect_changes)
+
+    def _detect_changes(self, obj_info):
+        if self.get_state() != self._checkpoint_state:
+            self.event.emit("changed", self, None, self._value, False)
+
     @staticmethod
     def _parse_set(value, db):
         if db:
@@ -287,6 +308,53 @@ class PickleVariable(Variable):
     def set_state(self, state):
         self._lazy_value = state[0]
         self._value = pickle.loads(state[1])
+
+    def __hash__(self):
+        try:
+            return hash(self._value)
+        except TypeError:
+            return hash(pickle.dumps(self._value, -1))
+
+
+class ListVariable(Variable):
+
+    def __init__(self, item_factory, *args, **kwargs):
+        self._item_factory = item_factory
+        value_factory = kwargs.get("value_factory", Undef)
+        if value_factory is Undef:
+            kwargs["value_factory"] = list
+        Variable.__init__(self, *args, **kwargs)
+        if self.event:
+            self.event.hook("flush", self._detect_changes)
+            self.event.hook("object-deleted", self._detect_changes)
+
+    def _detect_changes(self, obj_info):
+        if self.get_state() != self._checkpoint_state:
+            self.event.emit("changed", self, None, self._value, False)
+
+    def _parse_set(self, value, db):
+        if db:
+            item_factory = self._item_factory
+            return [item_factory(value=val, from_db=db).get() for val in value]
+        else:
+            return value
+
+    def _parse_get(self, value, db):
+        if db:
+            item_factory = self._item_factory
+            return [item_factory(value=val, from_db=db) for val in value]
+        else:
+            return value
+
+    def get_state(self):
+        return (self._lazy_value, pickle.dumps(self._value, -1))
+
+    def set_state(self, state):
+        self._lazy_value = state[0]
+        self._value = pickle.loads(state[1])
+
+    def __hash__(self):
+        return hash(pickle.dumps(self._value, -1))
 
 
 def _parse_time(time_str):
