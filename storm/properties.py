@@ -14,8 +14,6 @@ import weakref
 import thread
 import sys
 
-from storm.advice import isClassAdvisor, determineMetaclass
-
 from storm.exceptions import PropertyPathError
 from storm.info import get_obj_info, get_cls_info
 from storm.expr import Column, Undef
