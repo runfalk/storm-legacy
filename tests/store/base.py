@@ -3,6 +3,7 @@ import gc
 from storm.references import Reference, ReferenceSet
 from storm.database import Result
 from storm.properties import Int, Str, Unicode, Property, Pickle
+from storm.properties import PropertyPublisherMeta
 from storm.expr import Asc, Desc, Select, Func, LeftJoin, SQL
 from storm.variables import Variable, UnicodeVariable, IntVariable
 from storm.info import get_obj_info, ClassAlias
@@ -2678,6 +2679,60 @@ class StoreTest(object):
         self.assertRaises(NoStoreError, foo1.bars.clear)
         self.assertRaises(NoStoreError, foo2.bars.clear)
         self.assertRaises(NoStoreError, foo2.bars.remove, object())
+
+    def test_string_reference(self):
+        class Base(object):
+            __metaclass__ = PropertyPublisherMeta
+
+        class MyBar(Base):
+            __table__ = "bar", "id"
+            id = Int()
+            title = Unicode()
+            foo_id = Int()
+            foo = Reference("foo_id", "MyFoo.id")
+
+        class MyFoo(Base):
+            __table__ = "foo", "id"
+            id = Int()
+            title = Unicode()
+
+        bar = self.store.get(MyBar, 100)
+        self.assertTrue(bar.foo)
+        self.assertEquals(bar.foo.title, "Title 30")
+        self.assertEquals(type(bar.foo), MyFoo)
+
+    def test_string_indirect_reference_set(self):
+        class Base(object):
+            __metaclass__ = PropertyPublisherMeta
+
+        class MyFoo(Base):
+            __table__ = "foo", "id"
+            id = Int()
+            title = Unicode()
+            bars = ReferenceSet("id", "MyLink.foo_id",
+                                "MyLink.bar_id", "MyBar.id")
+
+        class MyBar(Base):
+            __table__ = "bar", "id"
+            id = Int()
+            title = Unicode()
+
+        class MyLink(Base):
+            __table__ = "link", ("foo_id", "bar_id")
+            foo_id = Int()
+            bar_id = Int()
+
+        foo = self.store.get(MyFoo, 20)
+
+        items = []
+        for bar in foo.bars:
+            items.append((bar.id, bar.title))
+        items.sort()
+
+        self.assertEquals(items, [
+                          (100, "Title 300"),
+                          (200, "Title 200"),
+                         ])
 
     def test_flush_order(self):
         foo1 = Foo()

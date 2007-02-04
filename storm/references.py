@@ -16,11 +16,17 @@ from storm.info import *
 class Reference(object):
 
     def __init__(self, local_key, remote_key, on_remote=False):
-        self._relation = Relation(local_key, remote_key, False, on_remote)
+        self._local_key = local_key
+        self._remote_key = remote_key
+        self._on_remote = on_remote
+        self._relation = None
 
     def __get__(self, local, cls=None):
         if local is None:
             return self
+
+        if self._relation is None:
+            self._build_relation(local)
 
         remote = self._relation.get_remote(local)
         if remote is not None:
@@ -43,6 +49,9 @@ class Reference(object):
         return remote
 
     def __set__(self, local, remote):
+        if self._relation is None:
+            self._build_relation(local)
+
         if remote is None:
             remote = self._relation.get_remote(local)
             if remote is not None:
@@ -51,30 +60,57 @@ class Reference(object):
         else:
             self._relation.link(local, remote, True)
 
+    def _build_relation(self, local):
+        self._local_key, self._remote_key = \
+            _resolve_property_paths(self, local,
+                                    self._local_key, self._remote_key)
+        self._relation = Relation(self._local_key, self._remote_key,
+                                  False, self._on_remote)
+
+
 
 class ReferenceSet(object):
 
     def __init__(self, local_key1, remote_key1,
                  remote_key2=None, local_key2=None, order_by=None):
-        self._relation1 = Relation(local_key1, remote_key1, True, True)
-        if local_key2 and remote_key2:
-            self._relation2 = Relation(local_key2, remote_key2, True, True)
-        else:
-            self._relation2 = None
+        self._local_key1 = local_key1
+        self._remote_key1 = remote_key1
+        self._remote_key2 = remote_key2
+        self._local_key2 = local_key2
         self._order_by = order_by
+        self._relation1 = None
+        self._relation2 = None
 
     def __get__(self, local, cls=None):
         if local is None:
             return self
+
+        if self._relation1 is None:
+            self._build_relations(local)
+
         #store = Store.of(local)
         #if store is None:
         #    return None
+
         if self._relation2 is None:
             return BoundReferenceSet(self._relation1, local, self._order_by)
         else:
             return BoundIndirectReferenceSet(self._relation1,
                                              self._relation2, local,
                                              self._order_by)
+
+    def _build_relations(self, local):
+        (self._local_key1, self._remote_key1,
+         self._local_key2, self._remote_key2) = \
+            _resolve_property_paths(self, local,
+                                    self._local_key1, self._remote_key1,
+                                    self._local_key2, self._remote_key2)
+
+        self._relation1 = Relation(self._local_key1, self._remote_key1,
+                                   True, True)
+        if self._local_key2 and self._remote_key2:
+            self._relation2 = Relation(self._local_key2, self._remote_key2,
+                                       True, True)
 
 
 class BoundReferenceSet(object):
@@ -530,3 +566,38 @@ class Relation(object):
                 map[_remote_column] = local_prop.__get__(None, local_cls)
             return self._r_to_l.setdefault(local_cls, map).get(remote_column)
 
+
+
+def _resolve_property_paths(reference, obj, *args):
+    for arg in args:
+        if isinstance(arg, basestring):
+            break
+    else:
+        return args
+
+    try:
+        registry = obj._storm_property_registry
+    except AttributeError:
+        raise RuntimeError("When using strings on references, classes "
+                           "involved must be subclasses of 'Storm'")
+
+    reference_id = id(reference)
+    for cls in obj.__class__.__mro__:
+        for attr, prop in cls.__dict__.iteritems():
+            if id(prop) == reference_id:
+                namespace = "%s.%s" % (cls.__module__, cls.__name__)
+                break
+        else:
+            continue
+        break
+    else:
+        raise RuntimeError("Reference used in an unknown class")
+
+    result = []
+    for arg in args:
+        if isinstance(arg, basestring):
+            result.append(registry.get(arg, namespace))
+        else:
+            result.append(arg)
+
+    return result

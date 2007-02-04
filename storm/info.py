@@ -73,6 +73,7 @@ class ClassInfo(dict):
         pairs.sort()
 
         self.columns = tuple(pair[1] for pair in pairs)
+        self.attributes = dict(pairs)
 
         name_positions = dict((prop.name, i)
                               for i, prop in enumerate(self.columns))

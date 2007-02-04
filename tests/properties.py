@@ -1,6 +1,8 @@
 from datetime import datetime, date, time
+import gc
 
-from storm.exceptions import NoneError
+from storm.exceptions import NoneError, PropertyPathError
+from storm.properties import PropertyPublisherMeta
 from storm.properties import *
 from storm.variables import *
 from storm.info import get_obj_info
@@ -560,3 +562,148 @@ class PropertyKindsTest(TestHelper):
             variable = column.variable_factory()
             self.assertTrue(isinstance(variable, cls))
             self.assertEquals(variable.get(), value)
+
+
+class PropertyRegistryTest(TestHelper):
+
+    def setUp(self):
+        TestHelper.setUp(self)
+
+        class Class(object):
+            __table__ = "table", "column1"
+            prop1 = Property("column1")
+            prop2 = Property()
+
+        class SubClass(Class):
+            __table__ = "subtable", "column1"
+
+        self.Class = Class
+        self.SubClass = SubClass
+        self.AnotherClass = type("Class", (Class,), {})
+
+        self.registry = PropertyRegistry()
+
+    def test_get_empty(self):
+        self.assertRaises(PropertyPathError, self.registry.get, "unexistent")
+
+    def test_get(self):
+        self.registry.add_class(self.Class)
+        prop1 = self.registry.get("prop1")
+        prop2 = self.registry.get("prop2")
+        self.assertTrue(prop1 is self.Class.prop1)
+        self.assertTrue(prop2 is self.Class.prop2)
+
+    def test_get_with_class_name(self):
+        self.registry.add_class(self.Class)
+        prop1 = self.registry.get("Class.prop1")
+        prop2 = self.registry.get("Class.prop2")
+        self.assertTrue(prop1 is self.Class.prop1)
+        self.assertTrue(prop2 is self.Class.prop2)
+
+    def test_get_with_two_classes(self):
+        self.registry.add_class(self.Class)
+        self.registry.add_class(self.SubClass)
+        prop1 = self.registry.get("Class.prop1")
+        prop2 = self.registry.get("Class.prop2")
+        self.assertTrue(prop1 is self.Class.prop1)
+        self.assertTrue(prop2 is self.Class.prop2)
+        prop1 = self.registry.get("SubClass.prop1")
+        prop2 = self.registry.get("SubClass.prop2")
+        self.assertTrue(prop1 is self.SubClass.prop1)
+        self.assertTrue(prop2 is self.SubClass.prop2)
+
+    def test_get_ambiguous(self):
+        self.AnotherClass.__module__ += ".foo"
+        self.registry.add_class(self.Class)
+        self.registry.add_class(self.SubClass)
+        self.registry.add_class(self.AnotherClass)
+        self.assertRaises(PropertyPathError, self.registry.get, "Class.prop1")
+        self.assertRaises(PropertyPathError, self.registry.get, "Class.prop2")
+        prop1 = self.registry.get("SubClass.prop1")
+        prop2 = self.registry.get("SubClass.prop2")
+        self.assertTrue(prop1 is self.SubClass.prop1)
+        self.assertTrue(prop2 is self.SubClass.prop2)
+
+    def test_get_ambiguous_but_different_path(self):
+        self.AnotherClass.__module__ += ".foo"
+        self.registry.add_class(self.Class)
+        self.registry.add_class(self.SubClass)
+        self.registry.add_class(self.AnotherClass)
+        prop1 = self.registry.get("properties.Class.prop1")
+        prop2 = self.registry.get("properties.Class.prop2")
+        self.assertTrue(prop1 is self.Class.prop1)
+        self.assertTrue(prop2 is self.Class.prop2)
+        prop1 = self.registry.get("SubClass.prop1")
+        prop2 = self.registry.get("SubClass.prop2")
+        self.assertTrue(prop1 is self.SubClass.prop1)
+        self.assertTrue(prop2 is self.SubClass.prop2)
+        prop1 = self.registry.get("foo.Class.prop1")
+        prop2 = self.registry.get("foo.Class.prop2")
+        self.assertTrue(prop1 is self.AnotherClass.prop1)
+        self.assertTrue(prop2 is self.AnotherClass.prop2)
+
+    def test_get_ambiguous_but_different_path_with_namespace(self):
+        self.AnotherClass.__module__ += ".foo"
+        self.registry.add_class(self.Class)
+        self.registry.add_class(self.SubClass)
+        self.registry.add_class(self.AnotherClass)
+        prop1 = self.registry.get("Class.prop1", "tests.properties")
+        prop2 = self.registry.get("Class.prop2", "tests.properties.bar")
+        self.assertTrue(prop1 is self.Class.prop1)
+        self.assertTrue(prop2 is self.Class.prop2)
+        prop1 = self.registry.get("Class.prop1", "tests.properties.foo")
+        prop2 = self.registry.get("Class.prop2", "tests.properties.foo.bar")
+        self.assertTrue(prop1 is self.AnotherClass.prop1)
+        self.assertTrue(prop2 is self.AnotherClass.prop2)
+
+    def test_class_is_collectable(self):
+        self.AnotherClass.__module__ += ".foo"
+        self.registry.add_class(self.Class)
+        self.registry.add_class(self.AnotherClass)
+        del self.AnotherClass
+        gc.collect()
+        prop1 = self.registry.get("prop1")
+        prop2 = self.registry.get("prop2")
+        self.assertTrue(prop1 is self.Class.prop1)
+        self.assertTrue(prop2 is self.Class.prop2)
+
+
+class PropertyPublisherMetaTest(TestHelper):
+
+    def setUp(self):
+        TestHelper.setUp(self)
+
+        class Base(object):
+            __metaclass__ = PropertyPublisherMeta
+
+        class Class(Base):
+            __table__ = "table", "column1"
+            prop1 = Property("column1")
+            prop2 = Property()
+
+        class SubClass(Class):
+            __table__ = "subtable", "column1"
+
+        self.Class = Class
+        self.SubClass = SubClass
+
+        class Class(Class):
+            __module__ += ".foo"
+            prop3 = Property("column3")
+
+        self.AnotherClass = Class
+
+        self.registry = Base._storm_property_registry
+
+    def test_get_empty(self):
+        self.assertRaises(PropertyPathError, self.registry.get, "unexistent")
+
+    def test_get_subclass(self):
+        prop1 = self.registry.get("SubClass.prop1")
+        prop2 = self.registry.get("SubClass.prop2")
+        self.assertTrue(prop1 is self.SubClass.prop1)
+        self.assertTrue(prop2 is self.SubClass.prop2)
+
+    def test_get_ambiguous(self):
+        self.assertRaises(PropertyPathError, self.registry.get, "Class.prop1")
+        self.assertRaises(PropertyPathError, self.registry.get, "Class.prop2")

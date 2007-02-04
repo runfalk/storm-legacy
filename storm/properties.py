@@ -7,8 +7,16 @@
 #
 # <license text goes here>
 #
+from bisect import insort_left, bisect_left
 from datetime import datetime
+from types import ClassType
+import weakref
+import thread
+import sys
 
+from storm.advice import isClassAdvisor, determineMetaclass
+
+from storm.exceptions import PropertyPathError
 from storm.info import get_obj_info, get_cls_info
 from storm.expr import Column, Undef
 from storm.variables import *
@@ -17,7 +25,8 @@ from storm import Undef
 
 __all__ = ["Property", "SimpleProperty",
            "Bool", "Int", "Float", "Str", "Unicode",
-           "DateTime", "Date", "Time", "Pickle", "List"]
+           "DateTime", "Date", "Time", "Pickle", "List",
+           "PropertyRegistry"]
 
 
 class Property(object):
@@ -26,7 +35,6 @@ class Property(object):
         self._name = name
         self._variable_class = variable_class
         self._variable_kwargs = variable_kwargs
-        self._columns = {}
 
     def __get__(self, obj, cls=None):
         if obj is None:
@@ -52,14 +60,24 @@ class Property(object):
         raise RuntimeError("Property used in an unknown class")
 
     def _get_column(self, cls):
-        column = self._columns.get(cls)
+        # Cache per-class column values in the class itself, to avoid
+        # holding a strong reference to it here, and thus rendering
+        # classes uncollectable in certain situations (e.g. subclasses
+        # where the property is stored in the base).
+        try:
+            # Use class dictionary explicitly to get sensible
+            # results on subclasses.
+            column = cls.__dict__["_storm_columns"].get(self)
+        except KeyError:
+            cls._storm_columns = {}
+            column = None
         if column is None:
             if self._name is None:
                 self._detect_name(cls)
             column = PropertyColumn(self, cls, self._name,
                                     self._variable_class,
                                     self._variable_kwargs)
-            self._columns[cls] = column
+            cls._storm_columns[self] = column
         return column
 
 
@@ -120,11 +138,107 @@ class Pickle(SimpleProperty):
 
 class List(Property):
 
-    def __init__(self, name=None, type=Property(),
+    def __init__(self, name=None, type=None,
                  default_factory=Undef, allow_none=True):
+        if type is None:
+            type = Property()
         item_factory = VariableFactory(type._variable_class,
                                        **type._variable_kwargs)
         variable_kwargs = {"item_factory": item_factory,
                            "allow_none": allow_none,
                            "value_factory": default_factory}
         Property.__init__(self, name, ListVariable, variable_kwargs)
+
+
+class PropertyRegistry(object):
+
+    def __init__(self):
+        self._properties = []
+        self._properties_lock = thread.allocate_lock()
+
+    def get(self, name, namespace=None):
+        self._properties_lock.acquire()
+        try:
+            key = ".".join(reversed(name.split(".")))+"."
+            i = bisect_left(self._properties, (key,))
+            l = len(self._properties)
+            best_props = []
+            if namespace is None:
+                while i < l and self._properties[i][0].startswith(key):
+                    path, prop_ref = self._properties[i]
+                    prop = prop_ref()
+                    if prop is not None:
+                        best_props.append((path, prop))
+                    i += 1
+            else:
+                namespace_parts = ("." + namespace).split(".")
+                best_path_info = (0, sys.maxint)
+                while i < l and self._properties[i][0].startswith(key):
+                    path, prop_ref = self._properties[i]
+                    prop = prop_ref()
+                    if prop is None:
+                        i += 1
+                        continue
+                    path_parts = path.split(".")
+                    path_parts.reverse()
+                    common_prefix = 0
+                    for part, ns_part in zip(path_parts, namespace_parts):
+                        if part == ns_part:
+                            common_prefix += 1
+                        else:
+                            break
+                    path_info = (-common_prefix, len(path_parts)-common_prefix)
+                    if path_info < best_path_info:
+                        best_path_info = path_info
+                        best_props = [(path, prop)]
+                    elif path_info == best_path_info:
+                        best_props.append((path, prop))
+                    i += 1
+            if not best_props:
+                raise PropertyPathError("Path '%s' matches no known property."
+                                        % name)
+            elif len(best_props) > 1:
+                paths = [".".join(reversed(path.split(".")[:-1]))
+                         for path, prop in best_props]
+                raise PropertyPathError("Path '%s' matches multiple "
+                                        "properties: %s" %
+                                        (name, ", ".join(paths)))
+            return best_props[0][1]
+        finally:
+            self._properties_lock.release()
+
+    def add_class(self, cls):
+        suffix = cls.__module__.split(".")
+        suffix.append(cls.__name__)
+        suffix.reverse()
+        suffix = ".%s." % ".".join(suffix)
+        cls_info = get_cls_info(cls)
+        self._properties_lock.acquire()
+        try:
+            for attr in cls_info.attributes:
+                prop = cls_info.attributes[attr]
+                prop_ref = weakref.KeyedRef(prop, self._remove, None)
+                pair = (attr+suffix, prop_ref)
+                prop_ref.key = pair
+                insort_left(self._properties, pair)
+        finally:
+            self._properties_lock.release()
+
+    def _remove(self, ref):
+        self._properties_lock.acquire()
+        try:
+            self._properties.remove(ref.key)
+        finally:
+            self._properties_lock.release()
+
+
+global_property_registry = PropertyRegistry()
+
+
+class PropertyPublisherMeta(type):
+
+    def __init__(self, name, bases, dict):
+        if not hasattr(self, "_storm_property_registry"):
+            self._storm_property_registry = PropertyRegistry()
+        else:
+            self._storm_property_registry.add_class(self)
