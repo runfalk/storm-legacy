@@ -98,12 +98,10 @@ class SimpleProperty(Property):
 
     variable_class = None
 
-    def __init__(self, name=None, default=Undef,
-                 default_factory=Undef, allow_none=True):
-        variable_kwargs = {"allow_none": allow_none,
-                           "value": default,
-                           "value_factory": default_factory}
-        Property.__init__(self, name, self.variable_class, variable_kwargs)
+    def __init__(self, name=None, **kwargs):
+        kwargs["value"] = kwargs.pop("default", Undef)
+        kwargs["value_factory"] = kwargs.pop("default_factory", Undef)
+        Property.__init__(self, name, self.variable_class, kwargs)
 
 
 class Bool(SimpleProperty):
@@ -134,18 +132,20 @@ class Pickle(SimpleProperty):
     variable_class = PickleVariable
 
 
-class List(Property):
+class List(SimpleProperty):
 
-    def __init__(self, name=None, type=None,
-                 default_factory=Undef, allow_none=True):
+    variable_class = ListVariable
+
+    def __init__(self, name=None, **kwargs):
+        if "default" in kwargs:
+            raise ValueError("'default' not allowed for List. "
+                             "Use 'default_factory' instead.")
+        type = kwargs.pop("type", None)
         if type is None:
             type = Property()
-        item_factory = VariableFactory(type._variable_class,
-                                       **type._variable_kwargs)
-        variable_kwargs = {"item_factory": item_factory,
-                           "allow_none": allow_none,
-                           "value_factory": default_factory}
-        Property.__init__(self, name, ListVariable, variable_kwargs)
+        kwargs["item_factory"] = VariableFactory(type._variable_class,
+                                                 **type._variable_kwargs)
+        SimpleProperty.__init__(self, name, **kwargs)
 
 
 class PropertyRegistry(object):

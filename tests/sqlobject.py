@@ -1,7 +1,11 @@
+import datetime
+
 from storm.database import create_database
+from storm.exceptions import NoneError
 from storm.sqlobject import *
 from storm.store import Store
 from storm.expr import Asc
+from storm.tz import tzutc
 
 from tests.helper import TestHelper
 
@@ -20,14 +24,18 @@ class SQLObjectTest(TestHelper):
         self.SQLObject = SQLObject
 
         self.store.execute("CREATE TABLE person "
-                           "(id INTEGER PRIMARY KEY, name TEXT, age INTEGER)")
-        self.store.execute("INSERT INTO person VALUES (1, 'John Joe', 20)")
-        self.store.execute("INSERT INTO person VALUES (2, 'John Doe', 20)")
+                           "(id INTEGER PRIMARY KEY, name TEXT, age INTEGER,"
+                           " ts TIMESTAMP)")
+        self.store.execute("INSERT INTO person VALUES "
+                           "(1, 'John Joe', 20, '2007-02-05 19:53:15')")
+        self.store.execute("INSERT INTO person VALUES "
+                           "(2, 'John Doe', 20, '2007-02-05 20:53:15')")
 
         class Person(self.SQLObject):
             _defaultOrder = "-name"
             name = StringCol()
             age = IntCol()
+            ts = UtcDateTimeCol()
 
         self.Person = Person
 
@@ -87,68 +95,98 @@ class SQLObjectTest(TestHelper):
         self.assertEquals(result[0].name, "John Joe")
 
     def test_selectOne(self):
-        john = self.Person.selectOne("name = 'John Joe'")
+        person = self.Person.selectOne("name = 'John Joe'")
 
-        self.assertTrue(john)
-        self.assertEquals(john.name, "John Joe")
+        self.assertTrue(person)
+        self.assertEquals(person.name, "John Joe")
 
         nobody = self.Person.selectOne("name = 'John None'")
 
         self.assertEquals(nobody, None)
 
     def test_selectOneBy(self):
-        john = self.Person.selectOneBy(name="John Joe")
+        person = self.Person.selectOneBy(name="John Joe")
 
-        self.assertTrue(john)
-        self.assertEquals(john.name, "John Joe")
+        self.assertTrue(person)
+        self.assertEquals(person.name, "John Joe")
 
         nobody = self.Person.selectOneBy(name="John None")
 
         self.assertEquals(nobody, None)
 
     def test_selectFirst(self):
-        john = self.Person.selectFirst("name LIKE 'John%'", orderBy="name")
+        person = self.Person.selectFirst("name LIKE 'John%'", orderBy="name")
 
-        self.assertTrue(john)
-        self.assertEquals(john.name, "John Doe")
+        self.assertTrue(person)
+        self.assertEquals(person.name, "John Doe")
 
-        john = self.Person.selectFirst("name LIKE 'John%'", orderBy="-name")
+        person = self.Person.selectFirst("name LIKE 'John%'", orderBy="-name")
 
-        self.assertTrue(john)
-        self.assertEquals(john.name, "John Joe")
+        self.assertTrue(person)
+        self.assertEquals(person.name, "John Joe")
 
         nobody = self.Person.selectFirst("name = 'John None'", orderBy="name")
 
         self.assertEquals(nobody, None)
 
     def test_selectFirst_default_order(self):
-        john = self.Person.selectFirst("name LIKE 'John%'")
+        person = self.Person.selectFirst("name LIKE 'John%'")
 
-        self.assertTrue(john)
-        self.assertEquals(john.name, "John Joe")
+        self.assertTrue(person)
+        self.assertEquals(person.name, "John Joe")
 
     def test_selectFirstBy(self):
-        john = self.Person.selectFirstBy(age=20, orderBy="name")
+        person = self.Person.selectFirstBy(age=20, orderBy="name")
 
-        self.assertTrue(john)
-        self.assertEquals(john.name, "John Doe")
+        self.assertTrue(person)
+        self.assertEquals(person.name, "John Doe")
 
-        john = self.Person.selectFirstBy(age=20, orderBy="-name")
+        person = self.Person.selectFirstBy(age=20, orderBy="-name")
 
-        self.assertTrue(john)
-        self.assertEquals(john.name, "John Joe")
+        self.assertTrue(person)
+        self.assertEquals(person.name, "John Joe")
 
         nobody = self.Person.selectFirstBy(age=1000, orderBy="name")
 
         self.assertEquals(nobody, None)
 
     def test_selectFirstBy_default_order(self):
-        john = self.Person.selectFirstBy(age=20)
+        person = self.Person.selectFirstBy(age=20)
 
-        self.assertTrue(john)
-        self.assertEquals(john.name, "John Joe")
+        self.assertTrue(person)
+        self.assertEquals(person.name, "John Joe")
 
     def test_dummy_methods(self):
         person = self.Person.get(id=1)
         person.sync()
         person.syncUpdate()
+
+    def test_string_col(self):
+        class Person(self.SQLObject):
+            foo = StringCol("name", notNull=True)
+        person = Person.get(2)
+        self.assertEquals(person.foo, "John Doe")
+        self.assertRaises(NoneError, setattr, person, "foo", None)
+
+    def test_int_col(self):
+        class Person(self.SQLObject):
+            foo = IntCol("age", notNull=True)
+        person = Person.get(2)
+        self.assertEquals(person.foo, 20)
+        self.assertRaises(NoneError, setattr, person, "foo", None)
+
+    def test_bool_col(self):
+        class Person(self.SQLObject):
+            foo = BoolCol("age", notNull=True)
+        person = Person.get(2)
+        self.assertEquals(person.foo, True)
+        self.assertRaises(NoneError, setattr, person, "foo", None)
+
+    def test_utcdatetime_col(self):
+        class Person(self.SQLObject):
+            foo = UtcDateTimeCol("ts", notNull=True)
+        person = Person.get(2)
+        self.assertEquals(person.foo,
+                          datetime.datetime(2007, 2, 5, 20, 53, 15,
+                                            tzinfo=tzutc()))
+        self.assertRaises(NoneError, setattr, person, "foo", None)

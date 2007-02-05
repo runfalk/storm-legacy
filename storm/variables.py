@@ -214,25 +214,35 @@ class UnicodeVariable(Variable):
 
 class DateTimeVariable(Variable):
 
-    @staticmethod
-    def _parse_set(value, db):
+    def __init__(self, *args, **kwargs):
+        self._tzinfo = kwargs.pop("tzinfo", None)
+        super(DateTimeVariable, self).__init__(*args, **kwargs)
+
+    def _parse_set(self, value, db):
         if db:
-            if value is None:
-                return None
             if isinstance(value, datetime):
-                return value
-            if not isinstance(value, (str, unicode)):
+                pass
+            elif isinstance(value, (str, unicode)):
+                if " " not in value:
+                    raise ValueError("Unknown date/time format: %r" % value)
+                date_str, time_str = value.split(" ")
+                value = datetime(*(_parse_date(date_str) +
+                                   _parse_time(time_str)))
+            else:
                 raise TypeError("Expected datetime, found %s" % repr(value))
-            if " " not in value:
-                raise ValueError("Unknown date/time format: %r" % value)
-            date_str, time_str = value.split(" ")
-            return datetime(*(_parse_date(date_str)+_parse_time(time_str)))
+            if self._tzinfo is not None:
+                if value.tzinfo is None:
+                    value = value.replace(tzinfo=self._tzinfo)
+                else:
+                    value = value.astimezone(self._tzinfo)
         else:
             if type(value) in (int, long, float):
                 value = datetime.utcfromtimestamp(value)
             elif not isinstance(value, datetime):
                 raise TypeError("Expected datetime, found %s" % repr(value))
-            return value
+            if self._tzinfo is not None:
+                value = value.astimezone(self._tzinfo)
+        return value
 
 
 class DateVariable(Variable):

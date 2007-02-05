@@ -1,12 +1,14 @@
 import re
 
-from storm.properties import Unicode, Str, Int
+from storm.properties import Unicode, Str, Int, Bool, DateTime
 from storm.store import Store
 from storm.base import Storm
 from storm.expr import SQL, Desc
+from storm.tz import tzutc
 
 
-__all__ = ["SQLObjectBase", "StringCol", "IntCol"]
+__all__ = ["SQLObjectBase", "StringCol", "IntCol", "BoolCol",
+           "UtcDateTimeCol"]
 
 
 class SQLObjectStyle(object):
@@ -204,8 +206,22 @@ class SQLObjectResultSet(object):
         return self._result_set[index]
 
 
-def StringCol():
-    return Unicode()
+class PropertyAdapter(object):
+    def __init__(self, dbName=None, notNull=False):
+        super(PropertyAdapter, self).__init__(dbName, allow_none=not notNull)
 
-def IntCol():
-    return Int()
+
+class StringCol(PropertyAdapter, Unicode):
+    pass
+
+class IntCol(PropertyAdapter, Int):
+    pass
+
+class BoolCol(PropertyAdapter, Bool):
+    pass
+
+class UtcDateTimeCol(DateTime):
+    _utc = tzutc()
+    def __init__(self, dbName=None, notNull=False):
+        super(UtcDateTimeCol, self).__init__(dbName, allow_none=not notNull,
+                                             tzinfo=self._utc)

@@ -5,6 +5,7 @@ from storm.exceptions import NoneError
 from storm.variables import *
 from storm.event import EventSystem
 from storm.expr import Column
+from storm.tz import tzutc, tzoffset
 from storm import Undef
 
 from tests.helper import TestHelper
@@ -394,6 +395,38 @@ class DateTimeVariableTest(TestHelper):
         self.assertRaises(TypeError, variable.set, marker, from_db=True)
         self.assertRaises(ValueError, variable.set, "foobar", from_db=True)
         self.assertRaises(ValueError, variable.set, "foo bar", from_db=True)
+
+    def test_get_set_with_tzinfo(self):
+        datetime_str = "1977-05-04 12:34:56.78"
+        datetime_obj = datetime(1977, 5, 4, 12, 34, 56, 780000, tzinfo=tzutc())
+
+        variable = DateTimeVariable(tzinfo=tzutc())
+
+        # Naive timezone, from_db=True.
+        variable.set(datetime_str, from_db=True)
+        self.assertEquals(variable.get(), datetime_obj)
+        variable.set(datetime_obj, from_db=True)
+        self.assertEquals(variable.get(), datetime_obj)
+
+        # Naive timezone, from_db=False (doesn't work).
+        datetime_obj = datetime(1977, 5, 4, 12, 34, 56, 780000)
+        self.assertRaises(ValueError, variable.set, datetime_obj)
+
+        # Different timezone, from_db=False.
+        datetime_obj = datetime(1977, 5, 4, 12, 34, 56, 780000,
+                                tzinfo=tzoffset("1h", 3600))
+        variable.set(datetime_obj, from_db=False)
+        converted_obj = variable.get()
+        self.assertEquals(converted_obj, datetime_obj)
+        self.assertEquals(type(converted_obj.tzinfo), tzutc)
+
+        # Different timezone, from_db=True.
+        datetime_obj = datetime(1977, 5, 4, 12, 34, 56, 780000,
+                                tzinfo=tzoffset("1h", 3600))
+        variable.set(datetime_obj, from_db=True)
+        converted_obj = variable.get()
+        self.assertEquals(converted_obj, datetime_obj)
+        self.assertEquals(type(converted_obj.tzinfo), tzutc)
 
 
 class DateVariableTest(TestHelper):
