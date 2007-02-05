@@ -1,6 +1,7 @@
 import re
 
 from storm.properties import Unicode, Str, Int, Bool, DateTime
+from storm.references import Reference
 from storm.store import Store
 from storm.base import Storm
 from storm.expr import SQL, Desc
@@ -9,7 +10,7 @@ from storm import Undef
 
 
 __all__ = ["SQLObjectBase", "StringCol", "IntCol", "BoolCol",
-           "UtcDateTimeCol"]
+           "UtcDateTimeCol", "ForeignKey"]
 
 
 class SQLObjectStyle(object):
@@ -26,7 +27,7 @@ class SQLObjectStyle(object):
         return self._lowerword(class_name)
 
     def instanceAttrToIDAttr(self, attr_name):
-        return attr + "ID"
+        return attr_name + "ID"
 
     def pythonAttrToDBColumn(self, attr_name):
         return self._mixed_to_under(attr_name)
@@ -78,6 +79,13 @@ class SQLObjectStyle(object):
         return s[0].lower() + s[1:]
 
 
+class ForeignKey(object):
+
+    def __init__(self, foreignKey, **kwargs):
+        self.foreignKey = foreignKey
+        self.kwargs = kwargs
+
+
 class SQLObjectMeta(type(Storm)):
 
     @staticmethod
@@ -108,6 +116,18 @@ class SQLObjectMeta(type(Storm)):
             dict["__order__"] = default_order
 
         dict["__table__"] = table_name, id_name
+
+        for attr, prop in dict.items():
+            if isinstance(prop, ForeignKey):
+                local_prop_name = prop.kwargs.get("dbName")
+                if local_prop_name is None:
+                    # XXX UNTESTED!
+                    local_prop_name = style.instanceAttrToIDAttr(attr)
+                dict[local_prop_name] = local_prop = Int()
+                # XXX 'id' shouldn't be hardcoded here. Instead, use a
+                #     special PropertyRegistry that is able to interpret
+                #     SQLObject IDs dynamically.
+                dict[attr] = Reference(local_prop, "%s.id" % prop.foreignKey)
 
         dict[id_name] = {int: Int(),
                          str: Str(),

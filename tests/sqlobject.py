@@ -25,11 +25,16 @@ class SQLObjectTest(TestHelper):
 
         self.store.execute("CREATE TABLE person "
                            "(id INTEGER PRIMARY KEY, name TEXT, age INTEGER,"
-                           " ts TIMESTAMP)")
+                           " ts TIMESTAMP, phone_id INTEGER)")
         self.store.execute("INSERT INTO person VALUES "
-                           "(1, 'John Joe', 20, '2007-02-05 19:53:15')")
+                           "(1, 'John Joe', 20, '2007-02-05 19:53:15', 1)")
         self.store.execute("INSERT INTO person VALUES "
-                           "(2, 'John Doe', 20, '2007-02-05 20:53:15')")
+                           "(2, 'John Doe', 20, '2007-02-05 20:53:15', 2)")
+
+        self.store.execute("CREATE TABLE phone "
+                           "(id INTEGER PRIMARY KEY, number TEXT)")
+        self.store.execute("INSERT INTO phone VALUES (1, '1234-5678')")
+        self.store.execute("INSERT INTO phone VALUES (2, '8765-4321')")
 
         class Person(self.SQLObject):
             _defaultOrder = "-name"
@@ -215,3 +220,31 @@ class SQLObjectTest(TestHelper):
         self.assertEquals(person.ts,
                           datetime.datetime(2007, 2, 5, 20, 53, 15,
                                             tzinfo=tzutc()))
+
+    def test_foreign_key(self):
+        class Person(self.Person):
+            phone = ForeignKey(foreignKey="Phone", dbName="phone_id",
+                               notNull=True)
+
+        class Phone(self.SQLObject):
+            number = StringCol()
+
+        person = Person.get(2)
+
+        self.assertEquals(person.phone_id, 2)
+        self.assertEquals(person.phone.number, "8765-4321")
+
+    def test_foreign_key_no_dbname(self):
+        self.store.execute("CREATE TABLE another_person "
+                           "(id INTEGER PRIMARY KEY, name TEXT, age INTEGER,"
+                           " ts TIMESTAMP, phoneID INTEGER)")
+        self.store.execute("INSERT INTO another_person VALUES "
+                           "(2, 'John Doe', 20, '2007-02-05 20:53:15', 2)")
+
+        class AnotherPerson(self.Person):
+            phone = ForeignKey(foreignKey="Phone", notNull=True)
+
+        person = AnotherPerson.get(2)
+
+        self.assertEquals(person.phoneID, 2)
+        self.assertEquals(person.phone.number, "8765-4321")
