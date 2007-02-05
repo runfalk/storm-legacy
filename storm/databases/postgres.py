@@ -60,7 +60,8 @@ class PostgresResult(Result):
 
     def set_variable(self, variable, value):
         if isinstance(variable, UnicodeVariable):
-            value = unicode(value, self._connection._database._encoding)
+            if not isinstance(value, unicode):
+                value = unicode(value, self._connection._database._encoding)
         elif isinstance(variable, ListVariable):
             if value == "{}":
                 value = []

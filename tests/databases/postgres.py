@@ -82,6 +82,18 @@ class PostgresTest(TestHelper, DatabaseTest):
         result.set_variable(variable, title)
         self.assertEquals(variable.get(), uni_str)
 
+    def test_unicode_with_unicode_data(self):
+        # Psycopg can be configured to return unicode objects for
+        # string columns (for example, psycopgda does this).
+        uni_str = u'\xe1\xe9\xed\xf3\xfa'
+
+        connection = self.database.connect()
+        result = connection.execute("SELECT TRUE")
+
+        variable = UnicodeVariable()
+        result.set_variable(variable, uni_str)
+        self.assertEquals(variable.get(), uni_str)
+
     def test_datetime_with_none(self):
         self.connection.execute("INSERT INTO datetime_test (dt) VALUES (NULL)")
         result = self.connection.execute("SELECT dt FROM datetime_test")
