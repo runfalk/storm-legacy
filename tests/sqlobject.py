@@ -161,32 +161,57 @@ class SQLObjectTest(TestHelper):
         person.sync()
         person.syncUpdate()
 
-    def test_string_col(self):
+    def test_col_name(self):
         class Person(self.SQLObject):
-            foo = StringCol("name", notNull=True)
+            foo = StringCol(dbName="name")
         person = Person.get(2)
         self.assertEquals(person.foo, "John Doe")
-        self.assertRaises(NoneError, setattr, person, "foo", None)
+
+        class Person(self.SQLObject):
+            foo = StringCol("name")
+        person = Person.get(2)
+        self.assertEquals(person.foo, "John Doe")
+
+    def test_col_default(self):
+        class Person(self.SQLObject):
+            name = StringCol(default="Johny")
+        person = Person()
+        self.assertEquals(person.name, "Johny")
+
+    def test_col_default_factory(self):
+        class Person(self.SQLObject):
+            name = StringCol(default=lambda: "Johny")
+        person = Person()
+        self.assertEquals(person.name, "Johny")
+
+    def test_col_not_null(self):
+        class Person(self.SQLObject):
+            name = StringCol(notNull=True)
+        person = Person.get(2)
+        self.assertRaises(NoneError, setattr, person, "name", None)
+
+    def test_string_col(self):
+        class Person(self.SQLObject):
+            name = StringCol()
+        person = Person.get(2)
+        self.assertEquals(person.name, "John Doe")
 
     def test_int_col(self):
         class Person(self.SQLObject):
-            foo = IntCol("age", notNull=True)
+            age = IntCol()
         person = Person.get(2)
-        self.assertEquals(person.foo, 20)
-        self.assertRaises(NoneError, setattr, person, "foo", None)
+        self.assertEquals(person.age, 20)
 
     def test_bool_col(self):
         class Person(self.SQLObject):
-            foo = BoolCol("age", notNull=True)
+            age = BoolCol()
         person = Person.get(2)
-        self.assertEquals(person.foo, True)
-        self.assertRaises(NoneError, setattr, person, "foo", None)
+        self.assertEquals(person.age, True)
 
     def test_utcdatetime_col(self):
         class Person(self.SQLObject):
-            foo = UtcDateTimeCol("ts", notNull=True)
+            ts = UtcDateTimeCol()
         person = Person.get(2)
-        self.assertEquals(person.foo,
+        self.assertEquals(person.ts,
                           datetime.datetime(2007, 2, 5, 20, 53, 15,
                                             tzinfo=tzutc()))
-        self.assertRaises(NoneError, setattr, person, "foo", None)

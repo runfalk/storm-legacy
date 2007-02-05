@@ -5,6 +5,7 @@ from storm.store import Store
 from storm.base import Storm
 from storm.expr import SQL, Desc
 from storm.tz import tzutc
+from storm import Undef
 
 
 __all__ = ["SQLObjectBase", "StringCol", "IntCol", "BoolCol",
@@ -207,8 +208,18 @@ class SQLObjectResultSet(object):
 
 
 class PropertyAdapter(object):
-    def __init__(self, dbName=None, notNull=False):
-        super(PropertyAdapter, self).__init__(dbName, allow_none=not notNull)
+
+    _kwargs = {}
+
+    def __init__(self, dbName=None, notNull=False, default=Undef):
+        if callable(default):
+            default_factory = default
+            default = Undef
+        else:
+            default_factory = Undef
+        super(PropertyAdapter, self).__init__(dbName, allow_none=not notNull,
+                                              default_factory=default_factory,
+                                              default=default, **self._kwargs)
 
 
 class StringCol(PropertyAdapter, Unicode):
@@ -220,8 +231,5 @@ class IntCol(PropertyAdapter, Int):
 class BoolCol(PropertyAdapter, Bool):
     pass
 
-class UtcDateTimeCol(DateTime):
-    _utc = tzutc()
-    def __init__(self, dbName=None, notNull=False):
-        super(UtcDateTimeCol, self).__init__(dbName, allow_none=not notNull,
-                                             tzinfo=self._utc)
+class UtcDateTimeCol(PropertyAdapter, DateTime):
+    _kwargs = {"tzinfo": tzutc()}
