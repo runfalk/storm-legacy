@@ -9,7 +9,7 @@
 #
 import weakref
 
-from storm.expr import Column, FromExpr, CompileError, compile
+from storm.expr import Column, FromExpr, CompileError, Desc, compile
 from storm.event import EventSystem
 from storm import Undef
 
@@ -89,6 +89,23 @@ class ClassInfo(dict):
         self.primary_key_idx = dict((id(column), i)
                                     for i, column in
                                     enumerate(self.primary_key))
+
+        __order__ = getattr(cls, "__order__", None)
+        if __order__ is None:
+            self.default_order = Undef
+        else:
+            if type(__order__) is not tuple:
+                __order__ = (__order__,)
+            self.default_order = []
+            for item in __order__:
+                if isinstance(item, basestring):
+                    if item.startswith("-"):
+                        prop = Desc(getattr(cls, item[1:]))
+                    else:
+                        prop = getattr(cls, item)
+                else:
+                    prop = item
+                self.default_order.append(prop)
 
 
 class ObjectInfo(dict):

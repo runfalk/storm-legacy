@@ -364,6 +364,61 @@ class StoreTest(object):
                           (30, "Title 10"),
                          ])
 
+    def test_find_default_order_asc(self):
+        class MyFoo(Foo):
+            __order__ = "title"
+
+        result = self.store.find(MyFoo)
+        lst = [(foo.id, foo.title) for foo in result]
+        self.assertEquals(lst, [
+                          (30, "Title 10"),
+                          (20, "Title 20"),
+                          (10, "Title 30"),
+                         ])
+
+    def test_find_default_order_asc(self):
+        class MyFoo(Foo):
+            __order__ = "-title"
+
+        result = self.store.find(MyFoo)
+        lst = [(foo.id, foo.title) for foo in result]
+        self.assertEquals(lst, [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                         ])
+
+    def test_find_default_order_with_tuple(self):
+        class MyLink(Link):
+            __order__ = ("foo_id", "-bar_id")
+
+        result = self.store.find(MyLink)
+        lst = [(link.foo_id, link.bar_id) for link in result]
+        self.assertEquals(lst, [
+                          (10, 300),
+                          (10, 200),
+                          (10, 100),
+                          (20, 200),
+                          (20, 100),
+                          (30, 300),
+                         ])
+
+    def test_find_default_order_with_tuple_and_expr(self):
+        class MyLink(Link):
+            __order__ = ("foo_id", Desc(Link.bar_id))
+
+        result = self.store.find(MyLink)
+        lst = [(link.foo_id, link.bar_id) for link in result]
+        self.assertEquals(lst, [
+                          (10, 300),
+                          (10, 200),
+                          (10, 100),
+                          (20, 200),
+                          (20, 100),
+                          (30, 300),
+                         ])
+
+
     def test_find_index(self):
         foo = self.store.find(Foo).order_by(Foo.title)[0]
         self.assertEquals(foo.id, 30)
