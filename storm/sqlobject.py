@@ -187,6 +187,10 @@ class SQLObjectBase(Storm):
             else:
                 yield item
 
+    # Dummy methods.
+    def sync(self): pass
+    def syncUpdate(self): pass
+
 
 class SQLObjectResultSet(object):
 

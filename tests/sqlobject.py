@@ -147,3 +147,8 @@ class SQLObjectTest(TestHelper):
 
         self.assertTrue(john)
         self.assertEquals(john.name, "John Joe")
+
+    def test_dummy_methods(self):
+        person = self.Person.get(id=1)
+        person.sync()
+        person.syncUpdate()
