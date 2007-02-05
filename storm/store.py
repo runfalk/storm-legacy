@@ -628,7 +628,7 @@ class ResultSet(object):
         self._cls_spec_info = cls_spec_info
         self._where = where
         self._tables = tables
-        self._order_by = Undef
+        self._order_by = getattr(cls_spec_info, "default_order", Undef)
         self._offset = Undef
         self._limit = Undef
         self._distinct = False
