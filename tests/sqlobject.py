@@ -1,4 +1,5 @@
 import datetime
+import thread
 
 from storm.database import create_database
 from storm.exceptions import NoneError
@@ -25,7 +26,7 @@ class SQLObjectTest(TestHelper):
 
         self.store.execute("CREATE TABLE person "
                            "(id INTEGER PRIMARY KEY, name TEXT, age INTEGER,"
-                           " ts TIMESTAMP, phone_id INTEGER)")
+                           " ts TIMESTAMP, phone INTEGER)")
         self.store.execute("INSERT INTO person VALUES "
                            "(1, 'John Joe', 20, '2007-02-05 19:53:15', 1)")
         self.store.execute("INSERT INTO person VALUES "
@@ -43,6 +44,7 @@ class SQLObjectTest(TestHelper):
             ts = UtcDateTimeCol()
 
         self.Person = Person
+
 
     def test_get(self):
         person = self.Person.get(2)
@@ -223,21 +225,21 @@ class SQLObjectTest(TestHelper):
 
     def test_foreign_key(self):
         class Person(self.Person):
-            phone = ForeignKey(foreignKey="Phone", dbName="phone_id",
-                               notNull=True)
+            phonenumber = ForeignKey(foreignKey="Phone", dbName="phone",
+                                     notNull=True)
 
         class Phone(self.SQLObject):
             number = StringCol()
 
         person = Person.get(2)
 
-        self.assertEquals(person.phone_id, 2)
-        self.assertEquals(person.phone.number, "8765-4321")
+        self.assertEquals(person.phonenumberID, 2)
+        self.assertEquals(person.phonenumber.number, "8765-4321")
 
     def test_foreign_key_no_dbname(self):
         self.store.execute("CREATE TABLE another_person "
                            "(id INTEGER PRIMARY KEY, name TEXT, age INTEGER,"
-                           " ts TIMESTAMP, phoneID INTEGER)")
+                           " ts TIMESTAMP, phone INTEGER)")
         self.store.execute("INSERT INTO another_person VALUES "
                            "(2, 'John Doe', 20, '2007-02-05 20:53:15', 2)")
 
@@ -248,3 +250,16 @@ class SQLObjectTest(TestHelper):
 
         self.assertEquals(person.phoneID, 2)
         self.assertEquals(person.phone.number, "8765-4321")
+
+    def test_table_dot_q(self):
+        # Table.q.fieldname is a syntax used in SQLObject for
+        # sqlbuilder expressions.  Storm can use the main properties
+        # for this, so the Table.q syntax just returns those
+        # properties:
+        class Person(self.Person):
+            phone = ForeignKey(foreignKey="Phone", notNull=True)
+
+        self.assertEqual(id(Person.q.id), id(Person.id))
+        self.assertEqual(id(Person.q.name), id(Person.name))
+        self.assertEqual(id(Person.q.phone), id(Person.phone))
+        self.assertEqual(id(Person.q.phoneID), id(Person.phoneID))
