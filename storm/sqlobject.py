@@ -1,7 +1,7 @@
 import re
 
-from storm.properties import Unicode, Str, Int, Bool, DateTime
-from storm.references import Reference
+from storm.properties import Unicode, Str, Int, Bool, DateTime, Date
+from storm.references import Reference, ReferenceSet
 from storm.store import Store
 from storm.base import Storm
 from storm.expr import SQL, Desc
@@ -9,8 +9,9 @@ from storm.tz import tzutc
 from storm import Undef
 
 
-__all__ = ["SQLObjectBase", "StringCol", "IntCol", "BoolCol",
-           "UtcDateTimeCol", "ForeignKey"]
+__all__ = ["SQLObjectBase", "StringCol", "IntCol", "BoolCol", "DateCol",
+           "UtcDateTimeCol", "ForeignKey", "SQLMultipleJoin",
+           "SQLRelatedJoin"]
 
 
 class SQLObjectStyle(object):
@@ -122,16 +123,18 @@ class SQLObjectMeta(type(Storm)):
                 dbName = prop.kwargs.get("dbName", attr)
                 local_prop_name = style.instanceAttrToIDAttr(attr)
                 dict[local_prop_name] = local_prop = Int(dbName)
-                # XXX 'id' shouldn't be hardcoded here. Instead, use a
-                #     special PropertyRegistry that is able to interpret
-                #     SQLObject IDs dynamically.
-                dict[attr] = Reference(local_prop, "%s.id" % prop.foreignKey)
+                dict[attr] = Reference(local_prop,
+                                       "%s.<primary key>" % prop.foreignKey)
 
         dict[id_name] = {int: Int(),
                          str: Str(),
                          unicode: Unicode()}[dict.get("_idType", int)]
 
-        return super(SQLObjectMeta, cls).__new__(cls, name, bases, dict)
+        obj = super(SQLObjectMeta, cls).__new__(cls, name, bases, dict)
+
+        obj._storm_property_registry.add_property(obj, getattr(obj, id_name),
+                                                  "<primary key>")
+        return obj
 
 
 class TableDotQ(object):
@@ -186,12 +189,12 @@ class SQLObjectBase(Storm):
         result = store.find(cls, *args)
         if orderBy is not None:
             result.order_by(tuple(cls._parse_orderBy(orderBy)))
-        return SQLObjectResultSet(result)
+        return SQLObjectResultSet(result, cls)
 
     @classmethod
     def selectBy(cls, **kwargs):
         store = cls._get_store()
-        return SQLObjectResultSet(store.find(cls, **kwargs))
+        return SQLObjectResultSet(store.find(cls, **kwargs), cls)
 
     @classmethod
     def selectOne(cls, expr):
@@ -220,7 +223,7 @@ class SQLObjectBase(Storm):
             args = (expr,)
         result = store.find(cls, *args)
         if orderBy is not None:
-            result.order_by(tuple(cls._parse_orderBy(orderBy)))
+            result.order_by(*cls._parse_orderBy(orderBy))
         return result.first()
 
     @classmethod
@@ -228,21 +231,23 @@ class SQLObjectBase(Storm):
         store = cls._get_store()
         result = store.find(cls, **kwargs)
         if orderBy is not None:
-            result.order_by(tuple(cls._parse_orderBy(orderBy)))
+            result.order_by(*cls._parse_orderBy(orderBy))
         return result.first()
 
     @classmethod
     def _parse_orderBy(cls, orderBy):
+        result = []
         if not isinstance(orderBy, (tuple, list)):
             orderBy = (orderBy,)
         for item in orderBy:
             if isinstance(item, basestring):
                 if item.startswith("-"):
-                    yield Desc(getattr(cls, item[1:]))
+                    result.append(Desc(getattr(cls, item[1:])))
                 else:
-                    yield getattr(cls, item)
+                    result.append(getattr(cls, item))
             else:
-                yield item
+                result.append(item)
+        return tuple(result)
 
     # Dummy methods.
     def sync(self): pass
@@ -251,8 +256,9 @@ class SQLObjectBase(Storm):
 
 class SQLObjectResultSet(object):
 
-    def __init__(self, result_set):
+    def __init__(self, result_set, cls):
         self._result_set = result_set
+        self._cls = cls
 
     def count(self):
         return self._result_set.count()
@@ -260,12 +266,33 @@ class SQLObjectResultSet(object):
     def __getitem__(self, index):
         return self._result_set[index]
 
+    def orderBy(self, orderBy):
+        result_set = self._result_set.copy()
+        result_set.order_by(*self._cls._parse_orderBy(orderBy))
+        return SQLObjectResultSet(result_set, self._cls)
+
 
 class PropertyAdapter(object):
 
     _kwargs = {}
 
-    def __init__(self, dbName=None, notNull=False, default=Undef):
+    def __init__(self, dbName=None, notNull=False, default=Undef,
+                 alternateID=None, unique=None, name=None,
+                 alternateMethodName=None, length=None, immutable=None):
+
+        # XXX TEST THIS FOR GOD's SAKE!
+
+        # XXX: handle:
+        #   - alternateID
+        #   - alternateMethodName
+        #        (define a method "by + alternateID.capitalized()")
+        #   - immutable (causes setting the attribute to fail)
+
+        # XXX: ignore
+        #   - unique (for tablebuilder)
+        #   - length (for tablebuilder for StringCol)
+        #   - name (for _columns stuff)
+
         if callable(default):
             default_factory = default
             default = Undef
@@ -287,3 +314,33 @@ class BoolCol(PropertyAdapter, Bool):
 
 class UtcDateTimeCol(PropertyAdapter, DateTime):
     _kwargs = {"tzinfo": tzutc()}
+
+class DateCol(PropertyAdapter, Date):
+    pass
+
+
+class SQLMultipleJoin(ReferenceSet):
+
+    def __init__(self, otherClass=None, joinColumn=None,
+                 intermediateTable=None, otherColumn=None, orderBy=None):
+        if intermediateTable:
+            args = ("<primary key>",
+                    "%s.%s" % (intermediateTable, joinColumn),
+                    "%s.%s" % (intermediateTable, otherColumn),
+                    "%s.<primary key>" % otherClass)
+        else:
+            args = ("<primary key>", "%s.%s" % (otherClass, joinColumn))
+        ReferenceSet.__init__(self, *args)
+        self._orderBy = orderBy
+
+    def __get__(self, obj, cls=None):
+        if obj is None:
+            return self
+        bound_reference_set = ReferenceSet.__get__(self, obj)
+        target_cls = bound_reference_set._target_cls
+        result_set = bound_reference_set.find()
+        if self._orderBy:
+            result_set.order_by(*target_cls._parse_orderBy(self._orderBy))
+        return SQLObjectResultSet(result_set, target_cls)
+
+SQLRelatedJoin = SQLMultipleJoin

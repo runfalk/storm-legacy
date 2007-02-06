@@ -1,5 +1,4 @@
 import datetime
-import thread
 
 from storm.database import create_database
 from storm.exceptions import NoneError
@@ -16,6 +15,10 @@ class SQLObjectTest(TestHelper):
     def setUp(self):
         TestHelper.setUp(self)
 
+        # Allow classes with the same name in different tests to resolve
+        # property path strings properly.
+        SQLObjectBase._storm_property_registry.clear()
+
         self.store = Store(create_database("sqlite:"))
         class SQLObject(SQLObjectBase):
             @staticmethod
@@ -26,16 +29,29 @@ class SQLObjectTest(TestHelper):
 
         self.store.execute("CREATE TABLE person "
                            "(id INTEGER PRIMARY KEY, name TEXT, age INTEGER,"
-                           " ts TIMESTAMP, phone INTEGER)")
+                           " ts TIMESTAMP, address_id INTEGER)")
         self.store.execute("INSERT INTO person VALUES "
                            "(1, 'John Joe', 20, '2007-02-05 19:53:15', 1)")
         self.store.execute("INSERT INTO person VALUES "
                            "(2, 'John Doe', 20, '2007-02-05 20:53:15', 2)")
 
+        self.store.execute("CREATE TABLE address "
+                           "(id INTEGER PRIMARY KEY, city TEXT)")
+        self.store.execute("INSERT INTO address VALUES (1, 'Curitiba')")
+        self.store.execute("INSERT INTO address VALUES (2, 'Sao Carlos')")
+
         self.store.execute("CREATE TABLE phone "
-                           "(id INTEGER PRIMARY KEY, number TEXT)")
-        self.store.execute("INSERT INTO phone VALUES (1, '1234-5678')")
-        self.store.execute("INSERT INTO phone VALUES (2, '8765-4321')")
+                           "(id INTEGER PRIMARY KEY, person_id INTEGER,"
+                           "number TEXT)")
+        self.store.execute("INSERT INTO phone VALUES (1, 2, '1234-5678')")
+        self.store.execute("INSERT INTO phone VALUES (2, 1, '8765-4321')")
+        self.store.execute("INSERT INTO phone VALUES (3, 2, '8765-5678')")
+
+        self.store.execute("CREATE TABLE person_phone "
+                           "(person_id INTEGER , phone_id INTEGER)")
+        self.store.execute("INSERT INTO person_phone VALUES (2, 1)")
+        self.store.execute("INSERT INTO person_phone VALUES (2, 2)")
+        self.store.execute("INSERT INTO person_phone VALUES (1, 1)")
 
         class Person(self.SQLObject):
             _defaultOrder = "-name"
@@ -222,34 +238,103 @@ class SQLObjectTest(TestHelper):
         self.assertEquals(person.ts,
                           datetime.datetime(2007, 2, 5, 20, 53, 15,
                                             tzinfo=tzutc()))
+    def test_date_col(self):
+        class Person(self.SQLObject):
+            ts = DateCol()
+        person = Person.get(2)
+        self.assertEquals(person.ts, datetime.date(2007, 2, 5))
 
     def test_foreign_key(self):
         class Person(self.Person):
-            phonenumber = ForeignKey(foreignKey="Phone", dbName="phone",
-                                     notNull=True)
+            address = ForeignKey(foreignKey="Address", dbName="address_id",
+                                 notNull=True)
 
-        class Phone(self.SQLObject):
-            number = StringCol()
+        class Address(self.SQLObject):
+            city = StringCol()
 
         person = Person.get(2)
 
-        self.assertEquals(person.phonenumberID, 2)
-        self.assertEquals(person.phonenumber.number, "8765-4321")
+        self.assertEquals(person.addressID, 2)
+        self.assertEquals(person.address.city, "Sao Carlos")
 
     def test_foreign_key_no_dbname(self):
         self.store.execute("CREATE TABLE another_person "
                            "(id INTEGER PRIMARY KEY, name TEXT, age INTEGER,"
-                           " ts TIMESTAMP, phone INTEGER)")
+                           " ts TIMESTAMP, address INTEGER)")
         self.store.execute("INSERT INTO another_person VALUES "
                            "(2, 'John Doe', 20, '2007-02-05 20:53:15', 2)")
 
         class AnotherPerson(self.Person):
-            phone = ForeignKey(foreignKey="Phone", notNull=True)
+            address = ForeignKey(foreignKey="Address", notNull=True)
+
+        class Address(self.SQLObject):
+            city = StringCol()
 
         person = AnotherPerson.get(2)
 
-        self.assertEquals(person.phoneID, 2)
-        self.assertEquals(person.phone.number, "8765-4321")
+        self.assertEquals(person.addressID, 2)
+        self.assertEquals(person.address.city, "Sao Carlos")
+
+    def test_multiple_join(self):
+        class AnotherPerson(self.Person):
+            _table = "person"
+            phones = SQLMultipleJoin("Phone", joinColumn="person_id")
+
+        class Phone(self.SQLObject):
+            person_id = IntCol()
+            number = StringCol()
+
+        person = AnotherPerson.get(2)
+
+        # Make sure that the result is wrapped.
+        result = person.phones.orderBy("-number")
+
+        self.assertEquals([phone.number for phone in result],
+                          ["8765-5678", "1234-5678"])
+
+    def test_related_join(self):
+        class AnotherPerson(self.Person):
+            _table = "person"
+            phones = SQLRelatedJoin("Phone", otherColumn="phone_id",
+                                    intermediateTable="PersonPhone",
+                                    joinColumn="person_id", orderBy="id")
+
+        class PersonPhone(self.Person):
+            person_id = IntCol()
+            phone_id = IntCol()
+
+        class Phone(self.SQLObject):
+            number = StringCol()
+
+        person = AnotherPerson.get(2)
+
+        self.assertEquals([phone.number for phone in person.phones],
+                          ["1234-5678", "8765-4321"])
+
+        # Make sure that the result is wrapped.
+        result = person.phones.orderBy("-number")
+
+        self.assertEquals([phone.number for phone in result],
+                          ["8765-4321", "1234-5678"])
+
+    def test_result_set_orderBy(self):
+        result = self.Person.select()
+
+        result = result.orderBy("-name")
+        self.assertEquals([person.name for person in result],
+                          ["John Joe", "John Doe"])
+
+        result = result.orderBy("name")
+        self.assertEquals([person.name for person in result],
+                          ["John Doe", "John Joe"])
+
+    def test_result_set_count(self):
+        result = self.Person.select()
+        self.assertEquals(result.count(), 2)
+
+    def test_result_set__getitem__(self):
+        result = self.Person.select()
+        self.assertEquals(result[0].name, "John Joe")
 
     def test_table_dot_q(self):
         # Table.q.fieldname is a syntax used in SQLObject for
@@ -257,9 +342,10 @@ class SQLObjectTest(TestHelper):
         # for this, so the Table.q syntax just returns those
         # properties:
         class Person(self.Person):
-            phone = ForeignKey(foreignKey="Phone", notNull=True)
+            address = ForeignKey(foreignKey="Phone", dbName='address_id',
+                                 notNull=True)
 
         self.assertEqual(id(Person.q.id), id(Person.id))
         self.assertEqual(id(Person.q.name), id(Person.name))
-        self.assertEqual(id(Person.q.phone), id(Person.phone))
-        self.assertEqual(id(Person.q.phoneID), id(Person.phoneID))
+        self.assertEqual(id(Person.q.address), id(Person.address))
+        self.assertEqual(id(Person.q.addressID), id(Person.addressID))
