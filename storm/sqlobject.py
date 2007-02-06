@@ -1,6 +1,6 @@
 import re
 
-from storm.properties import Unicode, Str, Int, Bool, DateTime
+from storm.properties import Unicode, Str, Int, Bool, DateTime, Date
 from storm.references import Reference, ReferenceSet
 from storm.store import Store
 from storm.base import Storm
@@ -9,7 +9,7 @@ from storm.tz import tzutc
 from storm import Undef
 
 
-__all__ = ["SQLObjectBase", "StringCol", "IntCol", "BoolCol",
+__all__ = ["SQLObjectBase", "StringCol", "IntCol", "BoolCol", "DateCol",
            "UtcDateTimeCol", "ForeignKey", "SQLMultipleJoin",
            "SQLRelatedJoin"]
 
@@ -242,7 +242,23 @@ class PropertyAdapter(object):
 
     _kwargs = {}
 
-    def __init__(self, dbName=None, notNull=False, default=Undef):
+    def __init__(self, dbName=None, notNull=False, default=Undef,
+                 alternateID=None, unique=None, name=None,
+                 alternateMethodName=None, length=None, immutable=None):
+
+        # XXX TEST THIS FOR GOD's SAKE!
+
+        # XXX: handle:
+        #   - alternateID
+        #   - alternateMethodName
+        #        (define a method "by + alternateID.capitalized()")
+        #   - immutable (causes setting the attribute to fail)
+
+        # XXX: ignore
+        #   - unique (for tablebuilder)
+        #   - length (for tablebuilder for StringCol)
+        #   - name (for _columns stuff)
+
         if callable(default):
             default_factory = default
             default = Undef
@@ -264,6 +280,9 @@ class BoolCol(PropertyAdapter, Bool):
 
 class UtcDateTimeCol(PropertyAdapter, DateTime):
     _kwargs = {"tzinfo": tzutc()}
+
+class DateCol(PropertyAdapter, Date):
+    pass
 
 
 class SQLMultipleJoin(ReferenceSet):

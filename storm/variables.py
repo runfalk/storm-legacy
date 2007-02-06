@@ -256,6 +256,8 @@ class DateVariable(Variable):
                 return value
             if not isinstance(value, (str, unicode)):
                 raise TypeError("Expected date, found %s" % repr(value))
+            if " " in value:
+                value, time_str = value.split(" ")
             return date(*_parse_date(value))
         else:
             if isinstance(value, datetime):
@@ -277,6 +279,8 @@ class TimeVariable(Variable):
                 return value
             if not isinstance(value, (str, unicode)):
                 raise TypeError("Expected time, found %s" % repr(value))
+            if " " in value:
+                date_str, value = value.split(" ")
             return time(*_parse_time(value))
         else:
             if isinstance(value, datetime):

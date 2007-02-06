@@ -237,6 +237,11 @@ class SQLObjectTest(TestHelper):
         self.assertEquals(person.ts,
                           datetime.datetime(2007, 2, 5, 20, 53, 15,
                                             tzinfo=tzutc()))
+    def test_date_col(self):
+        class Person(self.SQLObject):
+            ts = DateCol()
+        person = Person.get(2)
+        self.assertEquals(person.ts, datetime.date(2007, 2, 5))
 
     def test_foreign_key(self):
         class Person(self.Person):
