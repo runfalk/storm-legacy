@@ -4,7 +4,7 @@ from storm.database import create_database
 from storm.exceptions import NoneError
 from storm.sqlobject import *
 from storm.store import Store
-from storm.expr import Asc
+from storm.expr import Asc, Like
 from storm.tz import tzutc
 
 from tests.helper import TestHelper
@@ -100,6 +100,10 @@ class SQLObjectTest(TestHelper):
         result = self.Person.select("name = 'John Joe'")
         self.assertEquals(result[0].name, "John Joe")
 
+    def test_select_sqlbuilder(self):
+        result = self.Person.select(self.Person.q.name == 'John Joe')
+        self.assertEqual(result[0].name, "John Joe")
+
     def test_select_orderBy(self):
         result = self.Person.select("name LIKE 'John%'", orderBy=("name","id"))
         self.assertEquals(result[0].name, "John Doe")
@@ -127,6 +131,12 @@ class SQLObjectTest(TestHelper):
 
         self.assertEquals(nobody, None)
 
+        # SQLBuilder style expression:
+        person = self.Person.selectOne(self.Person.q.name == 'John Joe')
+
+        self.assertNotEqual(person, None)
+        self.assertEqual(person.name, 'John Joe')
+
     def test_selectOneBy(self):
         person = self.Person.selectOneBy(name="John Joe")
 
@@ -151,6 +161,14 @@ class SQLObjectTest(TestHelper):
         nobody = self.Person.selectFirst("name = 'John None'", orderBy="name")
 
         self.assertEquals(nobody, None)
+
+        # SQLBuilder style expression:
+        # XXX: 20070206 jamesh
+        # This should use an sqlbuilder-style LIKE() function instead.
+        person = self.Person.selectFirst(self.Person.q.name.like('John%'),
+                                         orderBy="name")
+        self.assertNotEqual(person, None)
+        self.assertEqual(person.name, 'John Doe')
 
     def test_selectFirst_default_order(self):
         person = self.Person.selectFirst("name LIKE 'John%'")
