@@ -26,6 +26,7 @@ __all__ = [
     "DateTimeVariable",
     "DateVariable",
     "TimeVariable",
+    "EnumVariable",
     "PickleVariable",
     "ListVariable",
 ]
@@ -288,6 +289,32 @@ class TimeVariable(Variable):
             if not isinstance(value, time):
                 raise TypeError("Expected time, found %s" % repr(value))
             return value
+
+
+class EnumVariable(Variable):
+
+    def __init__(self, map, *args, **kwargs):
+        # XXX These maps should be cached in the property.
+        self._py_to_db = dict(map)
+        self._db_to_py = dict((value, key)
+                              for key, value in self._py_to_db.items())
+        Variable.__init__(self, *args, **kwargs)
+
+    def _parse_set(self, value, db):
+        if db:
+            return value
+        try:
+            return self._py_to_db[value]
+        except KeyError:
+            raise ValueError("Invalid enum value: %s" % repr(value))
+
+    def _parse_get(self, value, db):
+        if db:
+            return value
+        try:
+            return self._db_to_py[value]
+        except KeyError:
+            raise ValueError("Invalid enum value: %s" % repr(value))
 
 
 class PickleVariable(Variable):

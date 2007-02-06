@@ -547,3 +547,15 @@ class PickleVariableTest(TestHelper):
         variable.get()["b"] = 2
         self.assertEquals(variable.get(), {"a": 1, "b": 2})
 
+
+class EnumVariableTest(TestHelper):
+
+    def test_set_get(self):
+        variable = EnumVariable({"foo": 1, "bar": 2})
+        variable.set("foo")
+        self.assertEquals(variable.get(), "foo")
+        self.assertEquals(variable.get(to_db=True), 1)
+        variable.set(2, from_db=True)
+        self.assertEquals(variable.get(), "bar")
+        self.assertEquals(variable.get(to_db=True), 2)
+        self.assertRaises(ValueError, variable.set, "foobar")

@@ -222,10 +222,11 @@ class PropertyTest(TestHelper):
 class PropertyKindsTest(TestHelper):
 
     def setup(self, property, *args, **kwargs):
+        prop2_kwargs = kwargs.pop("prop2_kwargs", {})
         class Class(object):
             __table__ = "table", "column1"
             prop1 = property("column1", *args, **kwargs)
-            prop2 = property()
+            prop2 = property(**prop2_kwargs)
         class SubClass(Class):
             pass
         self.Class = Class
@@ -412,6 +413,32 @@ class PropertyKindsTest(TestHelper):
         self.assertEquals(self.obj.prop1, time(12, 34, 56))
 
         self.assertRaises(TypeError, setattr, self.obj, "prop1", object())
+
+    def test_enum(self):
+        self.setup(Enum, map={"foo": 1, "bar": 2},
+                   default="foo", allow_none=False,
+                   prop2_kwargs=dict(map={"foo": 1, "bar": 2}))
+
+        self.assertTrue(isinstance(self.column1, Column))
+        self.assertTrue(isinstance(self.column2, Column))
+        self.assertEquals(self.column1.name, "column1")
+        self.assertEquals(self.column1.table, self.SubClass)
+        self.assertEquals(self.column2.name, "prop2")
+        self.assertEquals(self.column2.table, self.SubClass)
+        self.assertTrue(isinstance(self.variable1, EnumVariable))
+        self.assertTrue(isinstance(self.variable2, EnumVariable))
+
+        self.assertEquals(self.obj.prop1, "foo")
+        self.assertRaises(NoneError, setattr, self.obj, "prop1", None)
+        self.obj.prop2 = None
+        self.assertEquals(self.obj.prop2, None)
+
+        self.obj.prop1 = "foo"
+        self.assertEquals(self.obj.prop1, "foo")
+        self.obj.prop1 = "bar"
+        self.assertEquals(self.obj.prop1, "bar")
+
+        self.assertRaises(ValueError, setattr, self.obj, "prop1", "baz")
 
     def test_pickle(self):
         self.setup(Pickle, default_factory=dict, allow_none=False)
