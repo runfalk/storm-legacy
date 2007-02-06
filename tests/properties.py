@@ -667,6 +667,12 @@ class PropertyRegistryTest(TestHelper):
         self.assertTrue(prop1 is self.Class.prop1)
         self.assertTrue(prop2 is self.Class.prop2)
 
+    def test_add_property(self):
+        self.registry.add_property(self.Class, self.Class.prop1, "custom_name")
+        prop1 = self.registry.get("Class.custom_name")
+        self.assertEquals(prop1, self.Class.prop1)
+        self.assertRaises(PropertyPathError, self.registry.get, "Class.prop1")
+
 
 class PropertyPublisherMetaTest(TestHelper):
 

@@ -124,16 +124,18 @@ class SQLObjectMeta(type(Storm)):
                     # XXX UNTESTED!
                     local_prop_name = style.instanceAttrToIDAttr(attr)
                 dict[local_prop_name] = local_prop = Int()
-                # XXX 'id' shouldn't be hardcoded here. Instead, use a
-                #     special PropertyRegistry that is able to interpret
-                #     SQLObject IDs dynamically.
-                dict[attr] = Reference(local_prop, "%s.id" % prop.foreignKey)
+                dict[attr] = Reference(local_prop,
+                                       "%s.<primary key>" % prop.foreignKey)
 
         dict[id_name] = {int: Int(),
                          str: Str(),
                          unicode: Unicode()}[dict.get("_idType", int)]
 
-        return super(SQLObjectMeta, cls).__new__(cls, name, bases, dict)
+        obj = super(SQLObjectMeta, cls).__new__(cls, name, bases, dict)
+
+        obj._storm_property_registry.add_property(obj, getattr(obj, id_name),
+                                                  "<primary key>")
+        return obj
 
 
 class SQLObjectBase(Storm):

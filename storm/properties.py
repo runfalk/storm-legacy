@@ -222,6 +222,20 @@ class PropertyRegistry(object):
         finally:
             self._properties_lock.release()
 
+    def add_property(self, cls, prop, attr_name):
+        suffix = cls.__module__.split(".")
+        suffix.append(cls.__name__)
+        suffix.reverse()
+        suffix = ".%s." % ".".join(suffix)
+        self._properties_lock.acquire()
+        try:
+            prop_ref = weakref.KeyedRef(prop, self._remove, None)
+            pair = (attr_name+suffix, prop_ref)
+            prop_ref.key = pair
+            insort_left(self._properties, pair)
+        finally:
+            self._properties_lock.release()
+
     def _remove(self, ref):
         self._properties_lock.acquire()
         try:
