@@ -4,7 +4,7 @@ import cPickle as pickle
 from storm.exceptions import NoneError
 from storm.variables import *
 from storm.event import EventSystem
-from storm.expr import Column
+from storm.expr import Column, SQLToken
 from storm.tz import tzutc, tzoffset
 from storm import Undef
 
@@ -112,7 +112,7 @@ class VariableTest(TestHelper):
         self.assertTrue("column_name" in str(e))
 
     def test_set_none_with_allow_none_and_column_with_table(self):
-        column = Column("column_name", "table_name")
+        column = Column("column_name", SQLToken("table_name"))
         variable = CustomVariable(allow_none=False, column=column)
         try:
             variable.set(None)

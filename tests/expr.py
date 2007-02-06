@@ -1,6 +1,6 @@
 from tests.helper import TestHelper
 
-from storm.variables import Variable, UnicodeVariable
+from storm.variables import *
 from storm.expr import *
 
 
@@ -230,6 +230,21 @@ class Func2(NamedFunc):
     name = "func2"
 
 
+column1 = SQLRaw("column1")
+column2 = SQLRaw("column2")
+column3 = SQLRaw("column3")
+table1 = SQLRaw("table1")
+table2 = SQLRaw("table2")
+table3 = SQLRaw("table3")
+table4 = SQLRaw("table4")
+elem1 = SQLRaw("elem1")
+elem2 = SQLRaw("elem2")
+elem3 = SQLRaw("elem3")
+elem4 = SQLRaw("elem4")
+elem5 = SQLRaw("elem5")
+elem6 = SQLRaw("elem6")
+
+
 class CompileTest(TestHelper):
 
     def test_customize(self):
@@ -258,8 +273,10 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, "child")
 
     def test_precedence(self):
-        expr = And("1", Or("2", "3"),
-                   Add("4", Mul("5", Sub("6", Div("7", Div("8", "9"))))))
+        for i in range(10):
+            exec "e%d = SQLRaw('%d')" % (i, i)
+        expr = And(e1, Or(e2, e3),
+                   Add(e4, Mul(e5, Sub(e6, Div(e7, Div(e8, e9))))))
         statement, parameters = compile(expr)
         self.assertEquals(statement, "1 AND (2 OR 3) AND 4+5*(6-7/(8/9))")
 
@@ -277,27 +294,27 @@ class CompileTest(TestHelper):
                         compile.get_precedence(Div))
 
     def test_customize_precedence(self):
-        expr = And("and1", Or("or1", "or2"))
+        expr = And(elem1, Or(elem2, elem3))
         custom_compile = compile.fork()
         custom_compile.set_precedence(10, And)
 
         custom_compile.set_precedence(11, Or)
         statement, parameters = custom_compile(expr)
-        self.assertEquals(statement, "and1 AND or1 OR or2")
+        self.assertEquals(statement, "elem1 AND elem2 OR elem3")
 
         custom_compile.set_precedence(10, Or)
         statement, parameters = custom_compile(expr)
-        self.assertEquals(statement, "and1 AND or1 OR or2")
+        self.assertEquals(statement, "elem1 AND elem2 OR elem3")
 
         custom_compile.set_precedence(9, Or)
         statement, parameters = custom_compile(expr)
-        self.assertEquals(statement, "and1 AND (or1 OR or2)")
+        self.assertEquals(statement, "elem1 AND (elem2 OR elem3)")
 
     def test_customize_precedence_inheritance(self):
         compile_parent = compile.fork()
         compile_child = compile_parent.fork()
 
-        expr = And("and1", Or("or1", "or2"))
+        expr = And(elem1, Or(elem2, elem3))
 
         compile_parent.set_precedence(10, And)
 
@@ -305,25 +322,25 @@ class CompileTest(TestHelper):
         self.assertEquals(compile_child.get_precedence(Or), 11)
         self.assertEquals(compile_parent.get_precedence(Or), 11)
         statement, parameters = compile_child(expr)
-        self.assertEquals(statement, "and1 AND or1 OR or2")
+        self.assertEquals(statement, "elem1 AND elem2 OR elem3")
 
         compile_parent.set_precedence(10, Or)
         self.assertEquals(compile_child.get_precedence(Or), 10)
         self.assertEquals(compile_parent.get_precedence(Or), 10)
         statement, parameters = compile_child(expr)
-        self.assertEquals(statement, "and1 AND or1 OR or2")
+        self.assertEquals(statement, "elem1 AND elem2 OR elem3")
 
         compile_child.set_precedence(9, Or)
         self.assertEquals(compile_child.get_precedence(Or), 9)
         self.assertEquals(compile_parent.get_precedence(Or), 10)
         statement, parameters = compile_child(expr)
-        self.assertEquals(statement, "and1 AND (or1 OR or2)")
+        self.assertEquals(statement, "elem1 AND (elem2 OR elem3)")
 
 
     def test_compile_sequence(self):
-        expr = ["str", Func1(), (Func2(), None)]
+        expr = [elem1, Func1(), (Func2(), None)]
         statement, parameters = compile(expr)
-        self.assertEquals(statement, "str, func1(), func2(), NULL")
+        self.assertEquals(statement, "elem1, func1(), func2(), NULL")
 
     def test_compile_invalid(self):
         self.assertRaises(CompileError, compile, object())
@@ -331,8 +348,51 @@ class CompileTest(TestHelper):
 
     def test_str(self):
         statement, parameters = compile("str")
-        self.assertEquals(statement, "str")
-        self.assertEquals(parameters, [])
+        self.assertEquals(statement, "?")
+        self.assertEquals(parameters, [StrVariable("str")])
+
+    def test_unicode(self):
+        statement, parameters = compile(u"str")
+        self.assertEquals(statement, "?")
+        self.assertEquals(parameters, [UnicodeVariable(u"str")])
+
+    def test_int(self):
+        statement, parameters = compile(1)
+        self.assertEquals(statement, "?")
+        self.assertEquals(parameters, [IntVariable(1)])
+
+    def test_long(self):
+        statement, parameters = compile(1L)
+        self.assertEquals(statement, "?")
+        self.assertEquals(parameters, [IntVariable(1)])
+
+    def test_bool(self):
+        statement, parameters = compile(True)
+        self.assertEquals(statement, "?")
+        self.assertEquals(parameters, [BoolVariable(1)])
+
+    def test_float(self):
+        statement, parameters = compile(1.1)
+        self.assertEquals(statement, "?")
+        self.assertEquals(parameters, [FloatVariable(1.1)])
+
+    def test_datetime(self):
+        dt = datetime(1977, 5, 4, 12, 34)
+        statement, parameters = compile(dt)
+        self.assertEquals(statement, "?")
+        self.assertEquals(parameters, [DateTimeVariable(dt)])
+
+    def test_date(self):
+        d = date(1977, 5, 4)
+        statement, parameters = compile(d)
+        self.assertEquals(statement, "?")
+        self.assertEquals(parameters, [DateVariable(d)])
+
+    def test_time(self):
+        t = time(12, 34)
+        statement, parameters = compile(t)
+        self.assertEquals(statement, "?")
+        self.assertEquals(parameters, [TimeVariable(t)])
 
     def test_none(self):
         statement, parameters = compile(None)
@@ -340,24 +400,24 @@ class CompileTest(TestHelper):
         self.assertEquals(parameters, [])
 
     def test_select(self):
-        expr = Select(["column1", "column2"])
+        expr = Select([column1, column2])
         statement, parameters = compile(expr)
         self.assertEquals(statement, "SELECT column1, column2")
         self.assertEquals(parameters, [])
 
     def test_select_distinct(self):
-        expr = Select(["column1", "column2"], Undef, ["table"], distinct=True)
+        expr = Select([column1, column2], Undef, [table1], distinct=True)
         statement, parameters = compile(expr)
         self.assertEquals(statement,
-                          "SELECT DISTINCT column1, column2 FROM table")
+                          "SELECT DISTINCT column1, column2 FROM table1")
         self.assertEquals(parameters, [])
 
     def test_select_where(self):
-        expr = Select(["column1", Func1()],
+        expr = Select([column1, Func1()],
                       Func1(),
-                      ["table1", Func1()],
-                      order_by=["column2", Func1()],
-                      group_by=["column3", Func1()],
+                      [table1, Func1()],
+                      order_by=[column2, Func1()],
+                      group_by=[column3, Func1()],
                       limit=3, offset=4)
         statement, parameters = compile(expr)
         self.assertEquals(statement, "SELECT column1, func1() "
@@ -369,19 +429,19 @@ class CompileTest(TestHelper):
         self.assertEquals(parameters, [])
 
     def test_select_join_where(self):
-        expr = Select("column",
+        expr = Select(column1,
                       Func1() == "value1",
-                      Join("table", Func2() == "value2"))
+                      Join(table1, Func2() == "value2"))
         statement, parameters = compile(expr)
-        self.assertEquals(statement, "SELECT column FROM "
-                                     "JOIN table ON func2() = ? "
+        self.assertEquals(statement, "SELECT column1 FROM "
+                                     "JOIN table1 ON func2() = ? "
                                      "WHERE func1() = ?")
         self.assertEquals([variable.get() for variable in parameters],
                           ["value2", "value1"])
 
     def test_select_auto_table(self):
-        expr = Select(Column("column1", "table1"),
-                      Column("column2", "table2") == 1),
+        expr = Select(Column(column1, table1),
+                      Column(column2, table2) == 1),
         statement, parameters = compile(expr)
         self.assertEquals(statement, "SELECT table1.column1 "
                                      "FROM table1, table2 "
@@ -389,33 +449,32 @@ class CompileTest(TestHelper):
         self.assertEquals(parameters, [Variable(1)])
 
     def test_select_auto_table_default(self):
-        expr = Select(Column("column1"),
-                      Column("column2") == 1,
-                      default_tables="table"),
+        expr = Select(Column(column1),
+                      Column(column2) == 1,
+                      default_tables=table1),
         statement, parameters = compile(expr)
         self.assertEquals(statement, "SELECT column1 "
-                                     "FROM table "
+                                     "FROM table1 "
                                      "WHERE column2 = ?")
         self.assertEquals(parameters, [Variable(1)])
 
     def test_select_auto_table_unknown(self):
-        statement, parameters = compile(Select("1"))
-        self.assertEquals(statement, "SELECT 1")
+        statement, parameters = compile(Select(elem1))
+        self.assertEquals(statement, "SELECT elem1")
 
     def test_select_auto_table_sub(self):
-        column1 = Column("column1", "table1")
-        column2 = Column("column2", "table2")
-        expr = Select(column1, In("1", Select(column2, column1 == column2,
-                                              column2.table)))
+        col1 = Column(column1, table1)
+        col2 = Column(column2, table2)
+        expr = Select(col1, In(elem1, Select(col2, col1 == col2, col2.table)))
         statement, parameters = compile(expr)
         self.assertEquals(statement,
                           "SELECT table1.column1 FROM table1 WHERE "
-                          "1 IN (SELECT table2.column2 FROM table2 WHERE "
+                          "elem1 IN (SELECT table2.column2 FROM table2 WHERE "
                           "table1.column1 = table2.column2)")
 
     def test_select_join(self):
-        expr = Select(["column1", Func1()], Func1(),
-                      ["table1", Join("table2"), Join("table3")])
+        expr = Select([column1, Func1()], Func1(),
+                      [table1, Join(table2), Join(table3)])
         statement, parameters = compile(expr)
         self.assertEquals(statement, "SELECT column1, func1() "
                                      "FROM table1 JOIN table2 JOIN table3 "
@@ -423,8 +482,8 @@ class CompileTest(TestHelper):
         self.assertEquals(parameters, [])
 
     def test_select_join_right_left(self):
-        expr = Select(["column1", Func1()], Func1(),
-                      ["table1", Join("table2", "table3")])
+        expr = Select([column1, Func1()], Func1(),
+                      [table1, Join(table2, table3)])
         statement, parameters = compile(expr)
         self.assertEquals(statement, "SELECT column1, func1() "
                                      "FROM table1, table2 JOIN table3 "
@@ -432,72 +491,73 @@ class CompileTest(TestHelper):
         self.assertEquals(parameters, [])
 
     def test_insert(self):
-        expr = Insert(["column1", Func1()], ["value1", Func1()], Func1())
+        expr = Insert([column1, Func1()], [elem1, Func1()], Func1())
         statement, parameters = compile(expr)
         self.assertEquals(statement, "INSERT INTO func1() (column1, func1()) "
-                                     "VALUES (value1, func1())")
+                                     "VALUES (elem1, func1())")
         self.assertEquals(parameters, [])
 
     def test_insert_with_columns(self):
-        expr = Insert([Column("a", "table"), Column("b", "table")],
-                      ["1", "2"], "table")
+        expr = Insert([Column(column1, table1), Column(column2, table1)],
+                      [elem1, elem2], table2)
         statement, parameters = compile(expr)
-        self.assertEquals(statement, "INSERT INTO table (a, b) VALUES (1, 2)")
+        self.assertEquals(statement, "INSERT INTO table2 (column1, column2) "
+                                     "VALUES (elem1, elem2)")
         self.assertEquals(parameters, [])
 
     def test_insert_auto_table(self):
-        expr = Insert(Column("column", "table"), "value")
+        expr = Insert(Column(column1, table1), elem1)
         statement, parameters = compile(expr)
-        self.assertEquals(statement, "INSERT INTO table (column) "
-                                     "VALUES (value)")
+        self.assertEquals(statement, "INSERT INTO table1 (column1) "
+                                     "VALUES (elem1)")
         self.assertEquals(parameters, [])
 
     def test_insert_auto_table_default(self):
-        expr = Insert(Column("column"), "value", default_table="table")
+        expr = Insert(Column(column1), elem1, default_table=table1)
         statement, parameters = compile(expr)
-        self.assertEquals(statement, "INSERT INTO table (column) "
-                                     "VALUES (value)")
+        self.assertEquals(statement, "INSERT INTO table1 (column1) "
+                                     "VALUES (elem1)")
         self.assertEquals(parameters, [])
 
     def test_insert_auto_table_unknown(self):
-        expr = Insert(Column("column"), "value")
+        expr = Insert(Column(column1), elem1)
         self.assertRaises(NoTableError, compile, expr)
 
     def test_update(self):
-        expr = Update({"column1": "value1", Func1(): Func2()}, table=Func1())
+        expr = Update({column1: elem1, Func1(): Func2()}, table=Func1())
         statement, parameters = compile(expr)
         self.assertTrue(statement in
-                        ["UPDATE func1() SET column1=value1, func1()=func2()",
-                         "UPDATE func1() SET func1()=func2(), column1=value1"])
+                        ["UPDATE func1() SET column1=elem1, func1()=func2()",
+                         "UPDATE func1() SET func1()=func2(), column1=elem1"])
         self.assertEquals(parameters, [])
 
     def test_update_with_columns(self):
-        expr = Update({Column("column", "table"): "value"}, table="table")
+        expr = Update({Column(column1, table1): elem1}, table=table1)
         statement, parameters = compile(expr)
-        self.assertEquals(statement, "UPDATE table SET column=value")
+        self.assertEquals(statement, "UPDATE table1 SET column1=elem1")
         self.assertEquals(parameters, [])
 
     def test_update_where(self):
-        expr = Update({"column": "value"}, Func1(), Func2())
+        expr = Update({column1: elem1}, Func1(), Func2())
         statement, parameters = compile(expr)
         self.assertEquals(statement,
-                          "UPDATE func2() SET column=value WHERE func1()")
+                          "UPDATE func2() SET column1=elem1 WHERE func1()")
         self.assertEquals(parameters, [])
 
     def test_update_auto_table(self):
-        expr = Update({Column("column", "table"): "value"})
+        expr = Update({Column(column1, table1): elem1})
         statement, parameters = compile(expr)
-        self.assertEquals(statement, "UPDATE table SET column=value")
+        self.assertEquals(statement, "UPDATE table1 SET column1=elem1")
         self.assertEquals(parameters, [])
 
     def test_update_auto_table_default(self):
-        expr = Update({Column("column"): "value"}, default_table="table")
+        expr = Update({Column(column1): elem1}, default_table=table1)
         statement, parameters = compile(expr)
-        self.assertEquals(statement, "UPDATE table SET column=value")
+        self.assertEquals(statement, "UPDATE table1 SET column1=elem1")
         self.assertEquals(parameters, [])
 
     def test_update_auto_table_unknown(self):
-        expr = Update({Column("column"): "value"})
+        expr = Update({Column(column1): elem1})
         self.assertRaises(CompileError, compile, expr)
 
     def test_delete(self):
@@ -513,33 +573,33 @@ class CompileTest(TestHelper):
         self.assertEquals(parameters, [])
 
     def test_delete_auto_table(self):
-        expr = Delete(Column("column", "table") == 1)
+        expr = Delete(Column(column1, table1) == 1)
         statement, parameters = compile(expr)
         self.assertEquals(statement,
-                          "DELETE FROM table WHERE table.column = ?")
+                          "DELETE FROM table1 WHERE table1.column1 = ?")
         self.assertEquals(parameters, [Variable(1)])
 
     def test_delete_auto_table_default(self):
-        expr = Delete(Column("column") == 1, default_table="table")
+        expr = Delete(Column(column1) == 1, default_table=table1)
         statement, parameters = compile(expr)
         self.assertEquals(statement,
-                          "DELETE FROM table WHERE column = ?")
+                          "DELETE FROM table1 WHERE column1 = ?")
         self.assertEquals(parameters, [Variable(1)])
 
     def test_delete_auto_table_unknown(self):
-        expr = Delete(Column("column") == 1)
+        expr = Delete(Column(column1) == 1)
         self.assertRaises(NoTableError, compile, expr)
 
     def test_column(self):
-        expr = Column("name")
+        expr = Column(column1)
         statement, parameters = compile(expr)
-        self.assertEquals(statement, "name")
+        self.assertEquals(statement, "column1")
         self.assertEquals(parameters, [])
 
     def test_column_table(self):
-        expr = Select(Column("name", Func1()))
+        expr = Select(Column(column1, Func1()))
         statement, parameters = compile(expr)
-        self.assertEquals(statement, "SELECT func1().name FROM func1()")
+        self.assertEquals(statement, "SELECT func1().column1 FROM func1()")
         self.assertEquals(parameters, [])
 
     def test_variable(self):
@@ -572,9 +632,9 @@ class CompileTest(TestHelper):
         self.assertEquals(parameters, [])
 
     def test_is_in_expr(self):
-        expr = Func1().is_in(Select("column"))
+        expr = Func1().is_in(Select(column1))
         statement, parameters = compile(expr)
-        self.assertEquals(statement, "func1() IN (SELECT column)")
+        self.assertEquals(statement, "func1() IN (SELECT column1)")
         self.assertEquals(parameters, [])
 
     def test_eq_none(self):
@@ -673,10 +733,10 @@ class CompileTest(TestHelper):
         self.assertEquals(parameters, [Variable("value")])
 
     def test_like(self):
-        expr = Like(Func1(), Func2())
+        expr = Like(Func1(), "value")
         statement, parameters = compile(expr)
-        self.assertEquals(statement, "func1() LIKE func2()")
-        self.assertEquals(parameters, [])
+        self.assertEquals(statement, "func1() LIKE ?")
+        self.assertEquals(parameters, [StrVariable("value")])
 
         expr = Func1().like("Hello")
         statement, parameters = compile(expr)
@@ -684,18 +744,18 @@ class CompileTest(TestHelper):
         self.assertEquals(parameters, [Variable("Hello")])
 
     def test_in(self):
-        expr = In(Func1(), Func2())
+        expr = In(Func1(), "value")
         statement, parameters = compile(expr)
-        self.assertEquals(statement, "func1() IN (func2())")
-        self.assertEquals(parameters, [])
+        self.assertEquals(statement, "func1() IN (?)")
+        self.assertEquals(parameters, [StrVariable("value")])
 
-        expr = In(Func1(), "1")
+        expr = In(Func1(), elem1)
         statement, parameters = compile(expr)
-        self.assertEquals(statement, "func1() IN (1)")
+        self.assertEquals(statement, "func1() IN (elem1)")
         self.assertEquals(parameters, [])
 
     def test_and(self):
-        expr = And("elem1", "elem2", And("elem3", "elem4"))
+        expr = And(elem1, elem2, And(elem3, elem4))
         statement, parameters = compile(expr)
         self.assertEquals(statement, "elem1 AND elem2 AND elem3 AND elem4")
         self.assertEquals(parameters, [])
@@ -706,7 +766,7 @@ class CompileTest(TestHelper):
         self.assertEquals(parameters, [Variable("value")])
 
     def test_or(self):
-        expr = Or("elem1", "elem2", Or("elem3", "elem4"))
+        expr = Or(elem1, elem2, Or(elem3, elem4))
         statement, parameters = compile(expr)
         self.assertEquals(statement, "elem1 OR elem2 OR elem3 OR elem4")
         self.assertEquals(parameters, [])
@@ -717,7 +777,7 @@ class CompileTest(TestHelper):
         self.assertEquals(parameters, [Variable("value")])
 
     def test_add(self):
-        expr = Add("elem1", "elem2", Add("elem3", "elem4"))
+        expr = Add(elem1, elem2, Add(elem3, elem4))
         statement, parameters = compile(expr)
         self.assertEquals(statement, "elem1+elem2+elem3+elem4")
         self.assertEquals(parameters, [])
@@ -728,12 +788,12 @@ class CompileTest(TestHelper):
         self.assertEquals(parameters, [Variable("value")])
 
     def test_sub(self):
-        expr = Sub("elem1", Sub("elem2", "elem3"))
+        expr = Sub(elem1, Sub(elem2, elem3))
         statement, parameters = compile(expr)
         self.assertEquals(statement, "elem1-(elem2-elem3)")
         self.assertEquals(parameters, [])
 
-        expr = Sub(Sub("elem1", "elem2"), "elem3")
+        expr = Sub(Sub(elem1, elem2), elem3)
         statement, parameters = compile(expr)
         self.assertEquals(statement, "elem1-elem2-elem3")
         self.assertEquals(parameters, [])
@@ -744,7 +804,7 @@ class CompileTest(TestHelper):
         self.assertEquals(parameters, [Variable("value")])
 
     def test_mul(self):
-        expr = Mul("elem1", "elem2", Mul("elem3", "elem4"))
+        expr = Mul(elem1, elem2, Mul(elem3, elem4))
         statement, parameters = compile(expr)
         self.assertEquals(statement, "elem1*elem2*elem3*elem4")
         self.assertEquals(parameters, [])
@@ -755,12 +815,12 @@ class CompileTest(TestHelper):
         self.assertEquals(parameters, [Variable("value")])
 
     def test_div(self):
-        expr = Div("elem1", Div("elem2", "elem3"))
+        expr = Div(elem1, Div(elem2, elem3))
         statement, parameters = compile(expr)
         self.assertEquals(statement, "elem1/(elem2/elem3)")
         self.assertEquals(parameters, [])
 
-        expr = Div(Div("elem1", "elem2"), "elem3")
+        expr = Div(Div(elem1, elem2), elem3)
         statement, parameters = compile(expr)
         self.assertEquals(statement, "elem1/elem2/elem3")
         self.assertEquals(parameters, [])
@@ -771,12 +831,12 @@ class CompileTest(TestHelper):
         self.assertEquals(parameters, [Variable("value")])
 
     def test_mod(self):
-        expr = Mod("elem1", Mod("elem2", "elem3"))
+        expr = Mod(elem1, Mod(elem2, elem3))
         statement, parameters = compile(expr)
         self.assertEquals(statement, "elem1%(elem2%elem3)")
         self.assertEquals(parameters, [])
 
-        expr = Mod(Mod("elem1", "elem2"), "elem3")
+        expr = Mod(Mod(elem1, elem2), elem3)
         statement, parameters = compile(expr)
         self.assertEquals(statement, "elem1%elem2%elem3")
         self.assertEquals(parameters, [])
@@ -787,15 +847,15 @@ class CompileTest(TestHelper):
         self.assertEquals(parameters, [Variable("value")])
 
     def test_func(self):
-        expr = Func("myfunc", "arg1", Func1("arg2"))
+        expr = Func("myfunc", elem1, Func1(elem2))
         statement, parameters = compile(expr)
-        self.assertEquals(statement, "myfunc(arg1, func1(arg2))")
+        self.assertEquals(statement, "myfunc(elem1, func1(elem2))")
         self.assertEquals(parameters, [])
 
     def test_named_func(self):
-        expr = Func1("arg1", Func2("arg2"))
+        expr = Func1(elem1, Func2(elem2))
         statement, parameters = compile(expr)
-        self.assertEquals(statement, "func1(arg1, func2(arg2))")
+        self.assertEquals(statement, "func1(elem1, func2(elem2))")
         self.assertEquals(parameters, [])
 
     def test_count(self):
@@ -906,27 +966,27 @@ class CompileTest(TestHelper):
         self.assertRaises(CompileError, compile, expr)
 
     def test_sql_tables(self):
-        expr = Select(["column", Func1()], SQL("expression", [], Func2()))
+        expr = Select([column1, Func1()], SQL("expression", [], Func2()))
         statement, parameters = compile(expr)
         self.assertEquals(statement,
-                          "SELECT column, func1() FROM func2() "
+                          "SELECT column1, func1() FROM func2() "
                           "WHERE expression")
         self.assertEquals(parameters, [])
 
     def test_sql_tables_with_list_or_tuple(self):
         sql = SQL("expression", [], [Func1(), Func2()])
-        expr = Select("column", sql)
+        expr = Select(column1, sql)
         statement, parameters = compile(expr)
         self.assertEquals(statement,
-                          "SELECT column FROM func1(), func2() "
+                          "SELECT column1 FROM func1(), func2() "
                           "WHERE expression")
         self.assertEquals(parameters, [])
 
         sql = SQL("expression", [], (Func1(), Func2()))
-        expr = Select("column", sql)
+        expr = Select(column1, sql)
         statement, parameters = compile(expr)
         self.assertEquals(statement,
-                          "SELECT column FROM func1(), func2() "
+                          "SELECT column1 FROM func1(), func2() "
                           "WHERE expression")
         self.assertEquals(parameters, [])
 
@@ -937,27 +997,28 @@ class CompileTest(TestHelper):
         self.assertEquals(parameters, [])
 
     def test_table(self):
-        expr = Table("table")
+        expr = Table(table1)
         statement, parameters = compile(expr)
-        self.assertEquals(statement, "table")
+        self.assertEquals(statement, table1)
         self.assertEquals(parameters, [])
 
     def test_alias(self):
-        expr = Alias(Table("table"), "name")
+        expr = Alias(Table(table1), "name")
         statement, parameters = compile(expr)
-        self.assertEquals(statement, "table AS name")
+        self.assertEquals(statement, "table1 AS name")
         self.assertEquals(parameters, [])
 
     def test_alias_auto_name(self):
-        expr = Alias(Table("table"))
+        expr = Alias(Table(table1))
         statement, parameters = compile(expr)
-        self.assertTrue(statement[:10], "table AS _")
+        self.assertTrue(statement[:10], "table1 AS _")
         self.assertEquals(parameters, [])
 
     def test_alias_in_column(self):
-        expr = Select(Column("column", Alias(Table("table"), "alias")))
+        expr = Select(Column(column1, Alias(Table(table1), "alias")))
         statement, parameters = compile(expr)
-        self.assertEquals(statement, "SELECT alias.column FROM table AS alias")
+        self.assertEquals(statement,
+                          "SELECT alias.column1 FROM table1 AS alias")
         self.assertEquals(parameters, [])
 
     def test_join(self):
@@ -973,26 +1034,26 @@ class CompileTest(TestHelper):
         self.assertEquals(parameters, [Variable("value")])
 
     def test_join_left_right(self):
-        expr = Join("table1", "table2")
+        expr = Join(table1, table2)
         statement, parameters = compile(expr)
         self.assertEquals(statement, "table1 JOIN table2")
         self.assertEquals(parameters, [])
 
     def test_join_nested(self):
-        expr = Join("table1", Join("table2", "table3"))
+        expr = Join(table1, Join(table2, table3))
         statement, parameters = compile(expr)
         self.assertEquals(statement, "table1 JOIN (table2 JOIN table3)")
         self.assertEquals(parameters, [])
 
     def test_join_double_nested(self):
-        expr = Join(Join("table1", "table2"), Join("table3", "table4"))
+        expr = Join(Join(table1, table2), Join(table3, table4))
         statement, parameters = compile(expr)
         self.assertEquals(statement,
                           "(table1 JOIN table2) JOIN (table3 JOIN table4)")
         self.assertEquals(parameters, [])
 
     def test_join_table(self):
-        expr = Join(Table("table1"), Table("table2"))
+        expr = Join(Table(table1), Table(table2))
         statement, parameters = compile(expr)
         self.assertEquals(statement, "table1 JOIN table2")
         self.assertEquals(parameters, [])
@@ -1063,8 +1124,10 @@ class CompileTest(TestHelper):
 class CompilePythonTest(TestHelper):
 
     def test_precedence(self):
-        expr = And("1", Or("2", "3"),
-                   Add("4", Mul("5", Sub("6", Div("7", Div("8", "9"))))))
+        for i in range(10):
+            exec "e%d = SQLRaw('%d')" % (i, i)
+        expr = And(e1, Or(e2, e3),
+                   Add(e4, Mul(e5, Sub(e6, Div(e7, Div(e8, e9))))))
         py_expr = compile_python.get_expr(expr)
         self.assertEquals(py_expr, "1 and (2 or 3) and 4+5*(6-7/(8/9))")
 
@@ -1077,9 +1140,9 @@ class CompilePythonTest(TestHelper):
                         compile_python.get_precedence(Div))
 
     def test_compile_sequence(self):
-        expr = ["str", Variable(1), (Variable(2), None)]
+        expr = [elem1, Variable(1), (Variable(2), None)]
         py_expr = compile_python.get_expr(expr)
-        self.assertEquals(py_expr, "str, 1, 2, None")
+        self.assertEquals(py_expr, "elem1, 1, 2, None")
 
     def test_compile_invalid(self):
         self.assertRaises(CompileError, compile_python, object())
@@ -1091,21 +1154,56 @@ class CompilePythonTest(TestHelper):
 
     def test_str(self):
         py_expr = compile_python.get_expr("str")
-        self.assertEquals(py_expr, "str")
+        self.assertEquals(py_expr, "'str'")
+
+    def test_unicode(self):
+        py_expr = compile_python.get_expr(u"str")
+        self.assertEquals(py_expr, "u'str'")
+
+    def test_int(self):
+        py_expr = compile_python.get_expr(1)
+        self.assertEquals(py_expr, "1")
+
+    def test_long(self):
+        py_expr = compile_python.get_expr(1L)
+        self.assertEquals(py_expr, "1L")
+
+    def test_bool(self):
+        py_expr = compile_python.get_expr(True)
+        self.assertEquals(py_expr, "True")
+
+    def test_float(self):
+        py_expr = compile_python.get_expr(1.1)
+        self.assertEquals(py_expr, repr(1.1))
+
+    def test_datetime(self):
+        dt = datetime(1977, 5, 4, 12, 34)
+        py_expr = compile_python.get_expr(dt)
+        self.assertEquals(py_expr, repr(dt))
+
+    def test_date(self):
+        d = date(1977, 5, 4)
+        py_expr = compile_python.get_expr(d)
+        self.assertEquals(py_expr, repr(d))
+
+    def test_time(self):
+        t = time(12, 34)
+        py_expr = compile_python.get_expr(t)
+        self.assertEquals(py_expr, repr(t))
 
     def test_none(self):
         py_expr = compile_python.get_expr(None)
         self.assertEquals(py_expr, "None")
 
     def test_column(self):
-        expr = Column("name")
+        expr = Column(column1)
         py_expr = compile_python.get_expr(expr)
-        self.assertEquals(py_expr, "get_column('name')")
+        self.assertEquals(py_expr, "get_column('column1')")
 
     def test_column_table(self):
-        expr = Column("name", "table")
+        expr = Column(column1, table1)
         py_expr = compile_python.get_expr(expr)
-        self.assertEquals(py_expr, "get_column('name')")
+        self.assertEquals(py_expr, "get_column('column1')")
 
     def test_variable(self):
         expr = Variable("value")
@@ -1158,60 +1256,60 @@ class CompilePythonTest(TestHelper):
         self.assertEquals(py_expr, "1 in (2,)")
 
     def test_and(self):
-        expr = And("elem1", "elem2", And("elem3", "elem4"))
+        expr = And(elem1, elem2, And(elem3, elem4))
         py_expr = compile_python.get_expr(expr)
         self.assertEquals(py_expr, "elem1 and elem2 and elem3 and elem4")
 
     def test_or(self):
-        expr = Or("elem1", "elem2", Or("elem3", "elem4"))
+        expr = Or(elem1, elem2, Or(elem3, elem4))
         py_expr = compile_python.get_expr(expr)
         self.assertEquals(py_expr, "elem1 or elem2 or elem3 or elem4")
 
     def test_add(self):
-        expr = Add("elem1", "elem2", Add("elem3", "elem4"))
+        expr = Add(elem1, elem2, Add(elem3, elem4))
         py_expr = compile_python.get_expr(expr)
         self.assertEquals(py_expr, "elem1+elem2+elem3+elem4")
 
     def test_sub(self):
-        expr = Sub("elem1", Sub("elem2", "elem3"))
+        expr = Sub(elem1, Sub(elem2, elem3))
         py_expr = compile_python.get_expr(expr)
         self.assertEquals(py_expr, "elem1-(elem2-elem3)")
 
-        expr = Sub(Sub("elem1", "elem2"), "elem3")
+        expr = Sub(Sub(elem1, elem2), elem3)
         py_expr = compile_python.get_expr(expr)
         self.assertEquals(py_expr, "elem1-elem2-elem3")
 
     def test_mul(self):
-        expr = Mul("elem1", "elem2", Mul("elem3", "elem4"))
+        expr = Mul(elem1, elem2, Mul(elem3, elem4))
         py_expr = compile_python.get_expr(expr)
         self.assertEquals(py_expr, "elem1*elem2*elem3*elem4")
 
     def test_div(self):
-        expr = Div("elem1", Div("elem2", "elem3"))
+        expr = Div(elem1, Div(elem2, elem3))
         py_expr = compile_python.get_expr(expr)
         self.assertEquals(py_expr, "elem1/(elem2/elem3)")
 
-        expr = Div(Div("elem1", "elem2"), "elem3")
+        expr = Div(Div(elem1, elem2), elem3)
         py_expr = compile_python.get_expr(expr)
         self.assertEquals(py_expr, "elem1/elem2/elem3")
 
     def test_mod(self):
-        expr = Mod("elem1", Mod("elem2", "elem3"))
+        expr = Mod(elem1, Mod(elem2, elem3))
         py_expr = compile_python.get_expr(expr)
         self.assertEquals(py_expr, "elem1%(elem2%elem3)")
 
-        expr = Mod(Mod("elem1", "elem2"), "elem3")
+        expr = Mod(Mod(elem1, elem2), elem3)
         py_expr = compile_python.get_expr(expr)
         self.assertEquals(py_expr, "elem1%elem2%elem3")
 
     def test_match(self):
-        col1 = Column("name1")
-        col2 = Column("name2")
+        col1 = Column(column1)
+        col2 = Column(column2)
 
         match = compile_python((col1 > 10) & (col2 < 10))
 
-        self.assertTrue(match({"name1": 15, "name2": 5}.get))
-        self.assertFalse(match({"name1": 5, "name2": 15}.get))
+        self.assertTrue(match({"column1": 15, "column2": 5}.get))
+        self.assertFalse(match({"column1": 5, "column2": 15}.get))
 
 
 class LazyValueExprTest(TestHelper):

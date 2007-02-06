@@ -13,7 +13,7 @@ from storm.info import get_cls_info, get_obj_info, set_obj_info, get_info
 from storm.variables import Variable, LazyValue
 from storm.expr import (
     Expr, Select, Insert, Update, Delete, Column, JoinExpr, Count, Max, Min,
-    Avg, Sum, Eq, And, Asc, Desc, compile_python, compare_columns)
+    Avg, Sum, Eq, And, Asc, Desc, compile_python, compare_columns, SQLRaw)
 from storm.exceptions import (
     WrongStoreError, NotFlushedError, OrderLoopError, UnorderedError,
     NotOneError, FeatureError, CompileError, LostObjectError)
@@ -419,7 +419,7 @@ class Store(object):
             # It might happen that the primary key was autoreloaded and
             # restored from the cache.
             where = compare_columns(cls_info.primary_key, primary_vars)
-            result = self._connection.execute(Select("1", where))
+            result = self._connection.execute(Select(SQLRaw("1"), where))
             if not result.get_one():
                 raise LostObjectError("Object is not in the database anymore")
 

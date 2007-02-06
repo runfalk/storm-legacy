@@ -9,7 +9,8 @@
 #
 import weakref
 
-from storm.expr import Column, FromExpr, CompileError, Desc, compile
+from storm.expr import Expr, FromExpr, Column, Desc
+from storm.expr import SQLToken, CompileError, compile
 from storm.event import EventSystem
 from storm import Undef
 
@@ -64,6 +65,9 @@ class ClassInfo(dict):
 
         self.table = __table__[0]
         self.cls = cls
+
+        if not isinstance(self.table, Expr):
+            self.table = SQLToken(self.table)
 
         pairs = []
         for attr in dir(cls):
@@ -217,4 +221,6 @@ def compile_type(compile, state, expr):
     if not state.column_prefix and issubclass(expr, ClassAlias):
         cls_info = get_cls_info(expr)
         return "%s AS %s" % (compile(state, cls_info.cls), table[0])
+    if isinstance(table[0], basestring):
+        return table[0]
     return compile(state, table[0])

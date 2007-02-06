@@ -19,7 +19,7 @@ try:
 except ImportError:
     MySQLdb = dummy
 
-from storm.expr import compile, Select, compile_select, Undef, And, Eq
+from storm.expr import compile, Select, compile_select, Undef, And, Eq, SQLRaw
 from storm.database import *
 from storm.exceptions import install_exceptions, DatabaseModuleError
 
@@ -42,7 +42,7 @@ class MySQLResult(Result):
         equals = []
         for column, variable in zip(primary_key, primary_variables):
             if not variable.is_defined():
-                variable = str(self._raw_cursor.lastrowid)
+                variable = SQLRaw(self._raw_cursor.lastrowid)
             equals.append(Eq(column, variable))
         return And(*equals)
 

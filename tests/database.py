@@ -121,7 +121,8 @@ class ConnectionTest(TestHelper):
         #                   ("$$?$$ %s $asd'?$asd$ %s '?'", marker)])
 
     def test_execute_select(self):
-        select = Select(["column1", "column2"], tables=["table1", "table2"])
+        select = Select([SQLToken("column1"), SQLToken("column2")],
+                        tables=[SQLToken("table1"), SQLToken("table2")])
         result = self.connection.execute(select)
         self.assertTrue(isinstance(result, Result))
         self.assertEquals(self.executed,

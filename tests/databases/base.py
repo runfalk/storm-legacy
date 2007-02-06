@@ -5,7 +5,7 @@ import sys
 import os
 
 from storm.uri import URI
-from storm.expr import Select, Column, Undef
+from storm.expr import Select, Column, Undef, SQLToken
 from storm.variables import Variable, PickleVariable
 from storm.variables import DateTimeVariable, DateVariable, TimeVariable
 from storm.database import *
@@ -116,19 +116,22 @@ class DatabaseTest(object):
     def test_get_insert_identity(self):
         result = self.connection.execute("INSERT INTO test (title) "
                                          "VALUES ('Title 30')")
-        primary_key = (Column("id", "test"),)
+        primary_key = (Column("id", SQLToken("test")),)
         primary_variables = (Variable(),)
         expr = result.get_insert_identity(primary_key, primary_variables)
-        result = self.connection.execute(Select(Column("title", "test"), expr))
+        select = Select(Column("title", SQLToken("test")), expr)
+        result = self.connection.execute(select)
         self.assertEquals(result.get_one(), ("Title 30",))
 
     def test_get_insert_identity_composed(self):
         result = self.connection.execute("INSERT INTO test (title) "
                                          "VALUES ('Title 30')")
-        primary_key = (Column("id", "test"), Column("title", "test"))
+        primary_key = (Column("id", SQLToken("test")),
+                       Column("title", SQLToken("test")))
         primary_variables = (Variable(), Variable("Title 30"))
         expr = result.get_insert_identity(primary_key, primary_variables)
-        result = self.connection.execute(Select(Column("title", "test"), expr))
+        select = Select(Column("title", SQLToken("test")), expr)
+        result = self.connection.execute(select)
         self.assertEquals(result.get_one(), ("Title 30",))
 
     def test_datetime(self):

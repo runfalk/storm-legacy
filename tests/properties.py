@@ -6,7 +6,7 @@ from storm.properties import PropertyPublisherMeta
 from storm.properties import *
 from storm.variables import *
 from storm.info import get_obj_info
-from storm.expr import Undef, Column, Select, compile
+from storm.expr import Undef, Column, Select, compile, SQLRaw
 
 from tests.helper import TestHelper
 
@@ -190,9 +190,9 @@ class PropertyTest(TestHelper):
         prop1 = self.Class.prop1
         prop2 = self.Class.prop2
         prop3 = self.Class.prop3
-        expr = Select("*", (prop1 == "value1") &
-                           (prop2 == "value2") &
-                           (prop3 == "value3"))
+        expr = Select(SQLRaw("*"), (prop1 == "value1") &
+                                   (prop2 == "value2") &
+                                   (prop3 == "value3"))
         statement, parameters = compile(expr)
         self.assertEquals(statement, "SELECT * FROM table WHERE "
                                      "table.column1 = ? AND "
@@ -206,9 +206,9 @@ class PropertyTest(TestHelper):
         prop1 = self.SubClass.prop1
         prop2 = self.SubClass.prop2
         prop3 = self.SubClass.prop3
-        expr = Select("*", (prop1 == "value1") &
-                           (prop2 == "value2") &
-                           (prop3 == "value3"))
+        expr = Select(SQLRaw("*"), (prop1 == "value1") &
+                                   (prop2 == "value2") &
+                                   (prop3 == "value3"))
         statement, parameters = compile(expr)
         self.assertEquals(statement, "SELECT * FROM subtable WHERE "
                                      "subtable.column1 = ? AND "
