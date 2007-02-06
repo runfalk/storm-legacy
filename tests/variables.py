@@ -462,6 +462,13 @@ class DateVariableTest(TestHelper):
         self.assertRaises(TypeError, variable.set, marker, from_db=True)
         self.assertRaises(ValueError, variable.set, "foobar", from_db=True)
 
+    def test_set_with_datetime(self):
+        datetime_str = "1977-05-04 12:34:56.78"
+        date_obj = date(1977, 5, 4)
+        variable = DateVariable()
+        variable.set(datetime_str, from_db=True)
+        self.assertEquals(variable.get(), date_obj)
+
 
 class TimeVariableTest(TestHelper):
 
@@ -506,6 +513,13 @@ class TimeVariableTest(TestHelper):
         self.assertRaises(TypeError, variable.set, 0, from_db=True)
         self.assertRaises(TypeError, variable.set, marker, from_db=True)
         self.assertRaises(ValueError, variable.set, "foobar", from_db=True)
+
+    def test_set_with_datetime(self):
+        datetime_str = "1977-05-04 12:34:56.78"
+        time_obj = time(12, 34, 56, 780000)
+        variable = TimeVariable()
+        variable.set(datetime_str, from_db=True)
+        self.assertEquals(variable.get(), time_obj)
 
 
 class PickleVariableTest(TestHelper):
