@@ -11,7 +11,6 @@ from bisect import insort_left, bisect_left
 from datetime import datetime
 from types import ClassType
 import weakref
-import thread
 import sys
 
 from storm.exceptions import PropertyPathError
@@ -152,58 +151,53 @@ class PropertyRegistry(object):
 
     def __init__(self):
         self._properties = []
-        self._properties_lock = thread.allocate_lock()
 
     def get(self, name, namespace=None):
-        self._properties_lock.acquire()
-        try:
-            key = ".".join(reversed(name.split(".")))+"."
-            i = bisect_left(self._properties, (key,))
-            l = len(self._properties)
-            best_props = []
-            if namespace is None:
-                while i < l and self._properties[i][0].startswith(key):
-                    path, prop_ref = self._properties[i]
-                    prop = prop_ref()
-                    if prop is not None:
-                        best_props.append((path, prop))
+        key = ".".join(reversed(name.split(".")))+"."
+        i = bisect_left(self._properties, (key,))
+        l = len(self._properties)
+        best_props = []
+        if namespace is None:
+            while i < l and self._properties[i][0].startswith(key):
+                path, prop_ref = self._properties[i]
+                prop = prop_ref()
+                if prop is not None:
+                    best_props.append((path, prop))
+                i += 1
+        else:
+            namespace_parts = ("." + namespace).split(".")
+            best_path_info = (0, sys.maxint)
+            while i < l and self._properties[i][0].startswith(key):
+                path, prop_ref = self._properties[i]
+                prop = prop_ref()
+                if prop is None:
                     i += 1
-            else:
-                namespace_parts = ("." + namespace).split(".")
-                best_path_info = (0, sys.maxint)
-                while i < l and self._properties[i][0].startswith(key):
-                    path, prop_ref = self._properties[i]
-                    prop = prop_ref()
-                    if prop is None:
-                        i += 1
-                        continue
-                    path_parts = path.split(".")
-                    path_parts.reverse()
-                    common_prefix = 0
-                    for part, ns_part in zip(path_parts, namespace_parts):
-                        if part == ns_part:
-                            common_prefix += 1
-                        else:
-                            break
-                    path_info = (-common_prefix, len(path_parts)-common_prefix)
-                    if path_info < best_path_info:
-                        best_path_info = path_info
-                        best_props = [(path, prop)]
-                    elif path_info == best_path_info:
-                        best_props.append((path, prop))
-                    i += 1
-            if not best_props:
-                raise PropertyPathError("Path '%s' matches no known property."
-                                        % name)
-            elif len(best_props) > 1:
-                paths = [".".join(reversed(path.split(".")[:-1]))
-                         for path, prop in best_props]
-                raise PropertyPathError("Path '%s' matches multiple "
-                                        "properties: %s" %
-                                        (name, ", ".join(paths)))
-            return best_props[0][1]
-        finally:
-            self._properties_lock.release()
+                    continue
+                path_parts = path.split(".")
+                path_parts.reverse()
+                common_prefix = 0
+                for part, ns_part in zip(path_parts, namespace_parts):
+                    if part == ns_part:
+                        common_prefix += 1
+                    else:
+                        break
+                path_info = (-common_prefix, len(path_parts)-common_prefix)
+                if path_info < best_path_info:
+                    best_path_info = path_info
+                    best_props = [(path, prop)]
+                elif path_info == best_path_info:
+                    best_props.append((path, prop))
+                i += 1
+        if not best_props:
+            raise PropertyPathError("Path '%s' matches no known property."
+                                    % name)
+        elif len(best_props) > 1:
+            paths = [".".join(reversed(path.split(".")[:-1]))
+                     for path, prop in best_props]
+            raise PropertyPathError("Path '%s' matches multiple "
+                                    "properties: %s" %
+                                    (name, ", ".join(paths)))
+        return best_props[0][1]
 
     def add_class(self, cls):
         suffix = cls.__module__.split(".")
@@ -211,37 +205,28 @@ class PropertyRegistry(object):
         suffix.reverse()
         suffix = ".%s." % ".".join(suffix)
         cls_info = get_cls_info(cls)
-        self._properties_lock.acquire()
-        try:
-            for attr in cls_info.attributes:
-                prop = cls_info.attributes[attr]
-                prop_ref = weakref.KeyedRef(prop, self._remove, None)
-                pair = (attr+suffix, prop_ref)
-                prop_ref.key = pair
-                insort_left(self._properties, pair)
-        finally:
-            self._properties_lock.release()
+        for attr in cls_info.attributes:
+            prop = cls_info.attributes[attr]
+            prop_ref = weakref.KeyedRef(prop, self._remove, None)
+            pair = (attr+suffix, prop_ref)
+            prop_ref.key = pair
+            insort_left(self._properties, pair)
 
     def add_property(self, cls, prop, attr_name):
         suffix = cls.__module__.split(".")
         suffix.append(cls.__name__)
         suffix.reverse()
         suffix = ".%s." % ".".join(suffix)
-        self._properties_lock.acquire()
-        try:
-            prop_ref = weakref.KeyedRef(prop, self._remove, None)
-            pair = (attr_name+suffix, prop_ref)
-            prop_ref.key = pair
-            insort_left(self._properties, pair)
-        finally:
-            self._properties_lock.release()
+        prop_ref = weakref.KeyedRef(prop, self._remove, None)
+        pair = (attr_name+suffix, prop_ref)
+        prop_ref.key = pair
+        insort_left(self._properties, pair)
+
+    def clear(self):
+        del self._properties[:]
 
     def _remove(self, ref):
-        self._properties_lock.acquire()
-        try:
-            self._properties.remove(ref.key)
-        finally:
-            self._properties_lock.release()
+        self._properties.remove(ref.key)
 
 
 global_property_registry = PropertyRegistry()
