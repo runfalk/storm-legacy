@@ -500,3 +500,101 @@ class PickleVariableTest(TestHelper):
         variable.get()["b"] = 2
         self.assertEquals(variable.get(), {"a": 1, "b": 2})
 
+    def test_pickle_events(self):
+        event = EventSystem(marker)
+
+        variable = PickleVariable(event=event, value_factory=list)
+
+        changes = []
+        def changed(owner, variable, old_value, new_value, fromdb):
+            changes.append((variable, old_value, new_value, fromdb))
+
+        event.hook("changed", changed)
+
+        variable.checkpoint()
+
+        event.emit("flush")
+
+        self.assertEquals(changes, [])
+
+        lst = variable.get()
+
+        self.assertEquals(lst, [])
+        self.assertEquals(changes, [])
+
+        lst.append("a")
+
+        self.assertEquals(changes, [])
+
+        event.emit("flush")
+
+        self.assertEquals(changes, [(variable, None, ["a"], False)])
+
+        del changes[:]
+
+        event.emit("object-deleted")
+        self.assertEquals(changes, [(variable, None, ["a"], False)])
+
+
+class ListVariableTest(TestHelper):
+
+    def test_get_set(self):
+        l = [1, 2]
+        l_dump = pickle.dumps(l, -1)
+
+        variable = ListVariable(IntVariable)
+
+        variable.set(l)
+        self.assertEquals(variable.get(), l)
+        self.assertEquals(variable.get(to_db=True),
+                          [IntVariable(1), IntVariable(2)])
+
+        variable.set([1.1, 2.2], from_db=True)
+        self.assertEquals(variable.get(), l)
+        self.assertEquals(variable.get(to_db=True),
+                          [IntVariable(1), IntVariable(2)])
+
+        self.assertEquals(variable.get_state(), (Undef, l_dump))
+
+        variable.set([])
+        variable.set_state((Undef, l_dump))
+        self.assertEquals(variable.get(), l)
+
+        variable.get().append(3)
+        self.assertEquals(variable.get(), [1, 2, 3])
+
+    def test_list_events(self):
+        event = EventSystem(marker)
+
+        variable = ListVariable(StrVariable, event=event, value_factory=list)
+
+        changes = []
+        def changed(owner, variable, old_value, new_value, fromdb):
+            changes.append((variable, old_value, new_value, fromdb))
+
+        event.hook("changed", changed)
+
+        variable.checkpoint()
+
+        event.emit("flush")
+
+        self.assertEquals(changes, [])
+
+        lst = variable.get()
+
+        self.assertEquals(lst, [])
+        self.assertEquals(changes, [])
+
+        lst.append("a")
+
+        self.assertEquals(changes, [])
+
+        event.emit("flush")
+
+        self.assertEquals(changes, [(variable, None, ["a"], False)])
+
+        del changes[:]
+
+        event.emit("object-deleted")
+        self.assertEquals(changes, [(variable, None, ["a"], False)])
+

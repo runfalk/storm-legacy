@@ -319,11 +319,8 @@ class PickleVariable(Variable):
 class ListVariable(Variable):
 
     def __init__(self, item_factory, *args, **kwargs):
-        self._item_factory = item_factory
-        value_factory = kwargs.get("value_factory", Undef)
-        if value_factory is Undef:
-            kwargs["value_factory"] = list
         Variable.__init__(self, *args, **kwargs)
+        self._item_factory = item_factory
         if self.event:
             self.event.hook("flush", self._detect_changes)
             self.event.hook("object-deleted", self._detect_changes)
