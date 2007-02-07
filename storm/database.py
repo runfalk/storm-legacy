@@ -15,7 +15,7 @@ import storm
 
 
 __all__ = ["Database", "Connection", "Result",
-           "convert_param_marks", "create_database"]
+           "convert_param_marks", "create_database", "register_scheme"]
 
 
 DEBUG = False
@@ -163,6 +163,17 @@ def convert_param_marks(statement, from_param_mark, to_param_mark):
     return "'".join(tokens)
 
 
+_database_schemes = {}
+
+def register_scheme(scheme, factory):
+    """Register a handler for a new database URI scheme.
+
+    @param scheme: the database URI scheme
+    @param factory: a function taking a URI instance and returning a database.
+    """
+    _database_schemes[scheme] = factory
+
+
 def create_database(uri):
     """Create a database instance.
 
@@ -175,6 +186,10 @@ def create_database(uri):
     """
     if isinstance(uri, basestring):
         uri = URI.parse(uri)
-    module = __import__("%s.databases.%s" % (storm.__name__, uri.scheme),
-                        None, None, [""])
-    return module.create_from_uri(uri)
+    if uri.scheme in _database_schemes:
+        factory = _database_schemes[uri.scheme]
+    else:
+        module = __import__("%s.databases.%s" % (storm.__name__, uri.scheme),
+                            None, None, [""])
+        factory = module.create_from_uri
+    return factory(uri)
