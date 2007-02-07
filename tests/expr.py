@@ -4,6 +4,18 @@ from storm.variables import *
 from storm.expr import *
 
 
+class Func1(NamedFunc):
+    name = "func1"
+
+class Func2(NamedFunc):
+    name = "func2"
+
+# Create columnN, tableN, and elemN variables.
+for i in range(10):
+    for name in ["column", "table", "elem"]:
+        exec "%s%d = SQLRaw('%s%d')" % (name, i, name, i)
+
+
 class ExprTest(TestHelper):
 
     def test_select_default(self):
@@ -74,12 +86,12 @@ class ExprTest(TestHelper):
         self.assertEquals(expr.default_table, objects[2])
 
     def test_and(self):
-        expr = And("elem1", "elem2", "elem3")
-        self.assertEquals(expr.exprs, ("elem1", "elem2", "elem3"))
+        expr = And(elem1, elem2, elem3)
+        self.assertEquals(expr.exprs, (elem1, elem2, elem3))
 
     def test_or(self):
-        expr = Or("elem1", "elem2", "elem3")
-        self.assertEquals(expr.exprs, ("elem1", "elem2", "elem3"))
+        expr = Or(elem1, elem2, elem3)
+        self.assertEquals(expr.exprs, (elem1, elem2, elem3))
 
     def test_column_default(self):
         expr = Column()
@@ -95,26 +107,26 @@ class ExprTest(TestHelper):
         self.assertEquals(expr.variable_factory, objects[2])
 
     def test_func(self):
-        expr = Func("myfunc", "arg1", "arg2")
+        expr = Func("myfunc", elem1, elem2)
         self.assertEquals(expr.name, "myfunc")
-        self.assertEquals(expr.args, ("arg1", "arg2"))
+        self.assertEquals(expr.args, (elem1, elem2))
 
     def test_named_func(self):
         class MyFunc(NamedFunc):
             name = "myfunc"
-        expr = MyFunc("arg1", "arg2")
+        expr = MyFunc(elem1, elem2)
         self.assertEquals(expr.name, "myfunc")
-        self.assertEquals(expr.args, ("arg1", "arg2"))
+        self.assertEquals(expr.args, (elem1, elem2))
 
     def test_like(self):
-        expr = Like("arg1", "arg2")
-        self.assertEquals(expr.expr1, "arg1")
-        self.assertEquals(expr.expr2, "arg2")
+        expr = Like(elem1, elem2)
+        self.assertEquals(expr.expr1, elem1)
+        self.assertEquals(expr.expr2, elem2)
 
     def test_eq(self):
-        expr = Eq("arg1", "arg2")
-        self.assertEquals(expr.expr1, "arg1")
-        self.assertEquals(expr.expr2, "arg2")
+        expr = Eq(elem1, elem2)
+        self.assertEquals(expr.expr1, elem1)
+        self.assertEquals(expr.expr2, elem2)
 
     def test_sql_default(self):
         expr = SQL(None)
@@ -190,6 +202,10 @@ class ExprTest(TestHelper):
         self.assertEquals(expr.expr, objects[0])
         self.assertEquals(expr.name, objects[1])
 
+    def test_union(self):
+        expr = Union(elem1, elem2, elem3)
+        self.assertEquals(expr.exprs, (elem1, elem2, elem3))
+
 
 class StateTest(TestHelper):
 
@@ -221,28 +237,6 @@ class StateTest(TestHelper):
         self.state.nonexistent = "something"
         self.state.pop()
         self.assertEquals(self.state.nonexistent, None)
-
-
-class Func1(NamedFunc):
-    name = "func1"
-
-class Func2(NamedFunc):
-    name = "func2"
-
-
-column1 = SQLRaw("column1")
-column2 = SQLRaw("column2")
-column3 = SQLRaw("column3")
-table1 = SQLRaw("table1")
-table2 = SQLRaw("table2")
-table3 = SQLRaw("table3")
-table4 = SQLRaw("table4")
-elem1 = SQLRaw("elem1")
-elem2 = SQLRaw("elem2")
-elem3 = SQLRaw("elem3")
-elem4 = SQLRaw("elem4")
-elem5 = SQLRaw("elem5")
-elem6 = SQLRaw("elem6")
 
 
 class CompileTest(TestHelper):
@@ -1119,6 +1113,24 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, "NATURAL RIGHT JOIN func1() "
                                      "ON func2() = ?")
         self.assertEquals(parameters, [Variable("value")])
+
+    def test_union(self):
+        expr = Union(Func1(), elem2, elem3)
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "func1() UNION elem2 UNION elem3")
+        self.assertEquals(parameters, [])
+
+    def test_union_all(self):
+        expr = Union(Func1(), elem2, elem3, all=True)
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "func1() UNION ALL elem2 UNION ALL elem3")
+        self.assertEquals(parameters, [])
+
+    def test_union_select(self):
+        expr = Union(Select(elem1), Select(elem2))
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "(SELECT elem1) UNION (SELECT elem2)")
+        self.assertEquals(parameters, [])
 
 
 class CompilePythonTest(TestHelper):

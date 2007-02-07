@@ -3358,6 +3358,71 @@ class StoreTest(object):
         self.store.execute("DELETE FROM foo WHERE id=40")
         self.assertEquals(self.store.get(Foo, 40), foo)
 
+    @run_this
+    def test_result_union(self):
+        result1 = self.store.find(Foo, id=30)
+        result2 = self.store.find(Foo, id=10)
+
+        result3 = result1.union(result2)
+        #result3.order_by(Foo.title) # XXX order_by doesn't work on Union yet.
+
+        self.assertEquals([(foo.id, foo.title) for foo in result3], [
+                          (10, "Title 30"),
+                          (30, "Title 10"),
+                         ])
+
+    @run_this
+    def test_result_union_duplicated(self):
+        result1 = self.store.find(Foo, id=30)
+        result2 = self.store.find(Foo, id=30)
+
+        result3 = result1.union(result2)
+        result3.order_by(Foo.id)
+
+        self.assertEquals([(foo.id, foo.title) for foo in result3], [
+                          (30, "Title 10"),
+                         ])
+
+    @run_this
+    def test_result_union_duplicated_with_all(self):
+        result1 = self.store.find(Foo, id=30)
+        result2 = self.store.find(Foo, id=30)
+
+        result3 = result1.union(result2, all=True)
+        result3.order_by(Foo.id)
+
+        self.assertEquals([(foo.id, foo.title) for foo in result3], [
+                          (30, "Title 10"),
+                          (30, "Title 10"),
+                         ])
+
+    @run_this
+    def test_result_union_with_empty(self):
+        result1 = self.store.find(Foo, id=30)
+        result2 = EmptyResultSet()
+
+        result3 = result1.union(result2)
+        result3.order_by(Foo.id)
+
+        self.assertEquals([(foo.id, foo.title) for foo in result3], [
+                          (30, "Title 10"),
+                         ])
+
+    @run_this
+    def test_result_union_incompatible(self):
+        result1 = self.store.find(Foo, id=10)
+        result2 = self.store.find(Bar, id=100)
+        self.assertRaises(FeatureError, result1.union, result2)
+
+    @run_this
+    def test_result_union_unsupported_methods(self):
+        result1 = self.store.find(Foo, id=30)
+        result2 = self.store.find(Foo, id=10)
+        result3 = result1.union(result2)
+
+        self.assertRaises(FeatureError, result3.set, title="Title 40")
+        self.assertRaises(FeatureError, result3.remove)
+
 
 class EmptyResultSetTest(object):
 
@@ -3491,3 +3556,10 @@ class EmptyResultSetTest(object):
     def test_cached(self):
         self.assertEquals(self.result.cached(), [])
         self.assertEquals(self.empty.cached(), [])
+
+    def test_union(self):
+        self.assertEquals(self.empty.union(self.empty), self.empty)
+        self.assertEquals(type(self.empty.union(self.result)),
+                          type(self.result))
+        self.assertEquals(type(self.result.union(self.empty)),
+                          type(self.result))

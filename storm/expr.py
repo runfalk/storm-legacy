@@ -660,11 +660,11 @@ class CompoundOper(CompoundExpr):
 
 @compile.when(CompoundOper)
 def compile_compound_oper(compile, state, oper):
-    return "%s" % compile(state, oper.exprs, oper.oper)
+    return compile(state, oper.exprs, oper.oper)
 
 @compile_python.when(CompoundOper)
 def compile_compound_oper(compile, state, oper):
-    return "%s" % compile(state, oper.exprs, oper.oper.lower())
+    return compile(state, oper.exprs, oper.oper.lower())
 
 
 class Eq(BinaryOper):
@@ -754,6 +754,29 @@ class Div(NonAssocBinaryOper):
 
 class Mod(NonAssocBinaryOper):
     oper = "%"
+
+
+# --------------------------------------------------------------------
+# Set expressions.
+
+class SetExpr(Expr):
+    oper = " (unknown) "
+    all = False
+
+    def __init__(self, *exprs, **kwargs):
+        self.exprs = exprs
+        if kwargs.get("all"):
+            self.all = True
+
+@compile.when(SetExpr)
+def compile_set_expr(compile, state, expr):
+    if expr.all:
+        return compile(state, expr.exprs, expr.oper+"ALL ")
+    return compile(state, expr.exprs, expr.oper)
+
+
+class Union(SetExpr):
+    oper = " UNION "
 
 
 # --------------------------------------------------------------------
