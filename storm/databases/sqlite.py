@@ -21,7 +21,7 @@ except ImportError:
 from storm.variables import Variable
 from storm.database import *
 from storm.exceptions import install_exceptions, DatabaseModuleError
-from storm.expr import compile, Select, compile_select, Undef
+from storm.expr import compile, Select, compile_select, Undef, SQLRaw
 
 
 install_exceptions(sqlite)
@@ -39,7 +39,7 @@ def compile_select_sqlite(compile, state, select):
 class SQLiteResult(Result):
 
     def get_insert_identity(self, primary_key, primary_variables):
-        return "(OID=%d)" % self._raw_cursor.lastrowid
+        return SQLRaw("(OID=%d)" % self._raw_cursor.lastrowid)
 
     @staticmethod
     def _from_database(row):

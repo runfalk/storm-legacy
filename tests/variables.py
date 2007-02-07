@@ -4,7 +4,7 @@ import cPickle as pickle
 from storm.exceptions import NoneError
 from storm.variables import *
 from storm.event import EventSystem
-from storm.expr import Column
+from storm.expr import Column, SQLToken
 from storm.tz import tzutc, tzoffset
 from storm import Undef
 
@@ -112,7 +112,7 @@ class VariableTest(TestHelper):
         self.assertTrue("column_name" in str(e))
 
     def test_set_none_with_allow_none_and_column_with_table(self):
-        column = Column("column_name", "table_name")
+        column = Column("column_name", SQLToken("table_name"))
         variable = CustomVariable(allow_none=False, column=column)
         try:
             variable.set(None)
@@ -462,6 +462,13 @@ class DateVariableTest(TestHelper):
         self.assertRaises(TypeError, variable.set, marker, from_db=True)
         self.assertRaises(ValueError, variable.set, "foobar", from_db=True)
 
+    def test_set_with_datetime(self):
+        datetime_str = "1977-05-04 12:34:56.78"
+        date_obj = date(1977, 5, 4)
+        variable = DateVariable()
+        variable.set(datetime_str, from_db=True)
+        self.assertEquals(variable.get(), date_obj)
+
 
 class TimeVariableTest(TestHelper):
 
@@ -507,6 +514,13 @@ class TimeVariableTest(TestHelper):
         self.assertRaises(TypeError, variable.set, marker, from_db=True)
         self.assertRaises(ValueError, variable.set, "foobar", from_db=True)
 
+    def test_set_with_datetime(self):
+        datetime_str = "1977-05-04 12:34:56.78"
+        time_obj = time(12, 34, 56, 780000)
+        variable = TimeVariable()
+        variable.set(datetime_str, from_db=True)
+        self.assertEquals(variable.get(), time_obj)
+
 
 class PickleVariableTest(TestHelper):
 
@@ -533,3 +547,15 @@ class PickleVariableTest(TestHelper):
         variable.get()["b"] = 2
         self.assertEquals(variable.get(), {"a": 1, "b": 2})
 
+
+class EnumVariableTest(TestHelper):
+
+    def test_set_get(self):
+        variable = EnumVariable({"foo": 1, "bar": 2})
+        variable.set("foo")
+        self.assertEquals(variable.get(), "foo")
+        self.assertEquals(variable.get(to_db=True), 1)
+        variable.set(2, from_db=True)
+        self.assertEquals(variable.get(), "bar")
+        self.assertEquals(variable.get(to_db=True), 2)
+        self.assertRaises(ValueError, variable.set, "foobar")

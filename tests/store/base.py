@@ -324,7 +324,7 @@ class StoreTest(object):
                          ])
 
     def test_find_str(self):
-        foo = self.store.find(Foo, "foo.id = 20").one()
+        foo = self.store.find(Foo, SQL("foo.id = 20")).one()
         self.assertEquals(foo.title, "Title 20")
 
     def test_find_keywords(self):
@@ -1387,7 +1387,7 @@ class StoreTest(object):
                          ])
 
     def test_sub_select(self):
-        foo = self.store.find(Foo, Foo.id == Select("20")).one()
+        foo = self.store.find(Foo, Foo.id == Select(SQL("20"))).one()
         self.assertTrue(foo)
         self.assertEquals(foo.id, 20)
         self.assertEquals(foo.title, "Title 20")
@@ -1624,7 +1624,7 @@ class StoreTest(object):
     def test_find_set_on_cached_unsupported_python_expr(self):
         foo1 = self.store.get(Foo, 20)
         foo2 = self.store.get(Foo, 30)
-        self.store.find(Foo, Foo.id == Select("20")).set(title="Title 40")
+        self.store.find(Foo, Foo.id == Select(SQL("20"))).set(title="Title 40")
         self.assertEquals(foo1.title, "Title 40")
         self.assertEquals(foo2.title, "Title 10")
 

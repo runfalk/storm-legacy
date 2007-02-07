@@ -96,6 +96,20 @@ class SQLObjectTest(TestHelper):
         self.assertEquals(type(person.id), int)
         self.assertEquals(person.name, "John Joe")
 
+    def test_alternateID(self):
+        class Person(self.SQLObject):
+            name = StringCol(alternateID=True)
+        person = Person.byName("John Doe")
+        self.assertTrue(person)
+        self.assertEquals(person.name, "John Doe")
+
+    def test_alternateMethodName(self):
+        class Person(self.SQLObject):
+            name = StringCol(alternateMethodName="byFoo")
+        person = Person.byFoo("John Doe")
+        self.assertTrue(person)
+        self.assertEquals(person.name, "John Doe")
+
     def test_select(self):
         result = self.Person.select("name = 'John Joe'")
         self.assertEquals(result[0].name, "John Joe")
@@ -163,9 +177,7 @@ class SQLObjectTest(TestHelper):
         self.assertEquals(nobody, None)
 
         # SQLBuilder style expression:
-        # XXX: 20070206 jamesh
-        # This should use an sqlbuilder-style LIKE() function instead.
-        person = self.Person.selectFirst(self.Person.q.name.like('John%'),
+        person = self.Person.selectFirst(LIKE(self.Person.q.name, 'John%'),
                                          orderBy="name")
         self.assertNotEqual(person, None)
         self.assertEqual(person.name, 'John Doe')
@@ -359,11 +371,22 @@ class SQLObjectTest(TestHelper):
         # sqlbuilder expressions.  Storm can use the main properties
         # for this, so the Table.q syntax just returns those
         # properties:
-        class Person(self.Person):
+        class Person(self.SQLObject):
+            _idName = "name"
+            _idType = unicode
             address = ForeignKey(foreignKey="Phone", dbName='address_id',
                                  notNull=True)
 
-        self.assertEqual(id(Person.q.id), id(Person.id))
-        self.assertEqual(id(Person.q.name), id(Person.name))
-        self.assertEqual(id(Person.q.address), id(Person.address))
-        self.assertEqual(id(Person.q.addressID), id(Person.addressID))
+        # *.q.id points to the primary key, no matter its name.
+        self.assertEquals(id(Person.q.id), id(Person.name))
+
+        self.assertEquals(id(Person.q.name), id(Person.name))
+        self.assertEquals(id(Person.q.address), id(Person.address))
+        self.assertEquals(id(Person.q.addressID), id(Person.addressID))
+
+        person = Person.get("John Joe")
+
+        self.assertEquals(id(person.q.id), id(Person.name))
+        self.assertEquals(id(person.q.name), id(Person.name))
+        self.assertEquals(id(person.q.address), id(Person.address))
+        self.assertEquals(id(person.q.addressID), id(Person.addressID))

@@ -4,14 +4,18 @@ from storm.properties import Unicode, Str, Int, Bool, DateTime, Date
 from storm.references import Reference, ReferenceSet
 from storm.store import Store
 from storm.base import Storm
-from storm.expr import SQL, Desc
+from storm.expr import SQL, Desc, And, Or, Not, In, Like
 from storm.tz import tzutc
 from storm import Undef
 
 
 __all__ = ["SQLObjectBase", "StringCol", "IntCol", "BoolCol", "DateCol",
            "UtcDateTimeCol", "ForeignKey", "SQLMultipleJoin",
-           "SQLRelatedJoin"]
+           "SQLRelatedJoin", "DESC", "AND", "OR", "NOT", "IN", "LIKE",
+           "SQLConstant"]
+
+
+DESC, AND, OR, NOT, IN, LIKE, SQLConstant = Desc, And, Or, Not, In, Like, SQL
 
 
 class SQLObjectStyle(object):
@@ -80,13 +84,6 @@ class SQLObjectStyle(object):
         return s[0].lower() + s[1:]
 
 
-class ForeignKey(object):
-
-    def __init__(self, foreignKey, **kwargs):
-        self.foreignKey = foreignKey
-        self.kwargs = kwargs
-
-
 class SQLObjectMeta(type(Storm)):
 
     @staticmethod
@@ -100,6 +97,10 @@ class SQLObjectMeta(type(Storm)):
         return value
 
     def __new__(cls, name, bases, dict):
+        if dict.get("__metaclass__") is SQLObjectMeta:
+            # Do not parse SQLObjectBase itself.
+            return type.__new__(cls, name, bases, dict)
+
         style = cls._get_attr("_style", bases, dict)
         if style is None:
             dict["_style"] = style = SQLObjectStyle()
@@ -120,11 +121,23 @@ class SQLObjectMeta(type(Storm)):
 
         for attr, prop in dict.items():
             if isinstance(prop, ForeignKey):
-                dbName = prop.kwargs.get("dbName", attr)
+                db_name = prop.kwargs.get("dbName", attr)
                 local_prop_name = style.instanceAttrToIDAttr(attr)
-                dict[local_prop_name] = local_prop = Int(dbName)
+                dict[local_prop_name] = local_prop = Int(db_name)
                 dict[attr] = Reference(local_prop,
                                        "%s.<primary key>" % prop.foreignKey)
+            elif isinstance(prop, PropertyAdapter):
+                db_name = prop.dbName or attr
+                method_name = prop.alternateMethodName
+                if method_name is None and prop.alternateID:
+                    method_name = "by" + db_name[0].upper() + db_name[1:]
+                if method_name is not None:
+                    def func(cls, key):
+                        store = cls._get_store()
+                        return store.find(cls, getattr(cls, attr) == key).one()
+                    func.func_name = method_name
+                    dict[method_name] = classmethod(func)
+
 
         dict[id_name] = {int: Int(),
                          str: Str(),
@@ -137,30 +150,31 @@ class SQLObjectMeta(type(Storm)):
         return obj
 
 
-class TableDotQ(object):
+class DotQ(object):
     """A descriptor that mimics the SQLObject 'Table.q' syntax"""
-    def __init__(self, cls):
-        self.cls = cls
 
-    def __get__(self, instance, cls=None):
-        assert self.cls is None
-        if cls is None:
-            cls = instance
-        return self.__class__(cls)
+    def __get__(self, obj, cls=None):
+        return BoundDotQ(cls)
+
+
+class BoundDotQ(object):
+
+    def __init__(self, cls):
+        self._cls = cls
 
     def __getattr__(self, attr):
         if attr.startswith('__'):
             raise AttributeError(attr)
         elif attr == 'id':
-            return getattr(self.cls, self.cls.__table__[1])
+            return getattr(self._cls, self._cls.__table__[1])
         else:
-            return getattr(self.cls, attr)
+            return getattr(self._cls, attr)
 
 
 class SQLObjectBase(Storm):
     __metaclass__ = SQLObjectMeta
 
-    q = TableDotQ(None)
+    q = DotQ()
 
     def __init__(self, **kwargs):
         for attr, value in kwargs.iteritems():
@@ -280,15 +294,16 @@ class PropertyAdapter(object):
                  alternateID=None, unique=None, name=None,
                  alternateMethodName=None, length=None, immutable=None):
 
-        # XXX TEST THIS FOR GOD's SAKE!
+        self.dbName = dbName
+        self.alternateID = alternateID
+        self.alternateMethodName = alternateMethodName
 
-        # XXX: handle:
-        #   - alternateID
-        #   - alternateMethodName
-        #        (define a method "by + alternateID.capitalized()")
+        # XXX Implement handler for:
+        #
         #   - immutable (causes setting the attribute to fail)
-
-        # XXX: ignore
+        #
+        # XXX Implement tests for ignored parameters:
+        #
         #   - unique (for tablebuilder)
         #   - length (for tablebuilder for StringCol)
         #   - name (for _columns stuff)
@@ -317,6 +332,13 @@ class UtcDateTimeCol(PropertyAdapter, DateTime):
 
 class DateCol(PropertyAdapter, Date):
     pass
+
+
+class ForeignKey(object):
+
+    def __init__(self, foreignKey, **kwargs):
+        self.foreignKey = foreignKey
+        self.kwargs = kwargs
 
 
 class SQLMultipleJoin(ReferenceSet):

@@ -7,11 +7,14 @@
 #
 # <license text goes here>
 #
+from datetime import datetime, date, time
 from copy import copy
 import sys
 
 from storm.exceptions import CompileError, NoTableError, ExprError
-from storm.variables import Variable, LazyValue
+from storm.variables import Variable, StrVariable, UnicodeVariable, LazyValue
+from storm.variables import DateTimeVariable, DateVariable, TimeVariable
+from storm.variables import BoolVariable, IntVariable, FloatVariable
 from storm import Undef
 
 
@@ -86,14 +89,16 @@ class Compile(object):
 
     def _compile(self, state, expr, join=", "):
         outer_precedence = state.precedence
-        if type(expr) is str:
+        expr_type = type(expr)
+        if expr_type is SQLRaw or expr_type is SQLToken:
             return expr
-        if type(expr) in (tuple, list):
+        if expr_type in (tuple, list):
             compiled = []
             for subexpr in expr:
-                if type(subexpr) is str:
+                subexpr_type = type(subexpr)
+                if subexpr_type is SQLRaw or subexpr_type is SQLToken:
                     statement = subexpr
-                elif type(subexpr) in (tuple, list):
+                elif subexpr_type in (tuple, list):
                     state.precedence = outer_precedence
                     statement = self._compile(state, subexpr, join)
                 else:
@@ -150,18 +155,55 @@ compile_python = CompilePython()
 # --------------------------------------------------------------------
 # Builtin type support
 
-# Most common case. Optimized in Compile._compile.
-#@compile.when(str)
-#def compile_str(compile, state, expr):
-#    return expr
+@compile.when(str)
+def compile_str(compile, state, expr):
+    state.parameters.append(StrVariable(expr))
+    return "?"
+
+@compile.when(unicode)
+def compile_unicode(compile, state, expr):
+    state.parameters.append(UnicodeVariable(expr))
+    return "?"
+
+@compile.when(int, long)
+def compile_int(compile, state, expr):
+    state.parameters.append(IntVariable(expr))
+    return "?"
+
+@compile.when(float)
+def compile_float(compile, state, expr):
+    state.parameters.append(FloatVariable(expr))
+    return "?"
+
+@compile.when(bool)
+def compile_bool(compile, state, expr):
+    state.parameters.append(BoolVariable(expr))
+    return "?"
+
+@compile.when(datetime)
+def compile_datetime(compile, state, expr):
+    state.parameters.append(DateTimeVariable(expr))
+    return "?"
+
+@compile.when(date)
+def compile_date(compile, state, expr):
+    state.parameters.append(DateVariable(expr))
+    return "?"
+
+@compile.when(time)
+def compile_time(compile, state, expr):
+    state.parameters.append(TimeVariable(expr))
+    return "?"
 
 @compile.when(type(None))
 def compile_none(compile, state, expr):
     return "NULL"
 
-@compile_python.when(type(None))
-def compile_python_none(compile, state, expr):
-    return "None"
+
+@compile_python.when(str, unicode, bool, int, long, float,
+                     datetime, date, time, type(None))
+def compile_python_builtin(compile, state, expr):
+    return repr(expr)
 
 
 @compile.when(Variable)
@@ -172,6 +214,18 @@ def compile_variable(compile, state, variable):
 @compile_python.when(Variable)
 def compile_python_variable(compile, state, variable):
     return repr(variable.get())
+
+
+class SQLToken(str):
+    """Marker for strings the should be considered as a single SQL token.
+
+    In the future, these strings will be quoted, when needed.
+    """
+
+@compile.when(SQLToken)
+def compile_str(compile, state, expr):
+    return expr
+
 
 # --------------------------------------------------------------------
 # Base classes for expressions
@@ -803,6 +857,20 @@ class Desc(SuffixExpr):
 
 # --------------------------------------------------------------------
 # Plain SQL expressions.
+
+class SQLRaw(str):
+    """Subtype to mark a string as something that shouldn't be compiled.
+
+    This is handled internally by the compiler.
+    """
+
+class SQLToken(str):
+    """Marker for strings the should be considered as a single SQL token.
+
+    In the future, these strings will be quoted, when needed.
+
+    This is handled internally by the compiler.
+    """
 
 class SQL(ComparableExpr):
 

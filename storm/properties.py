@@ -22,7 +22,7 @@ from storm import Undef
 
 __all__ = ["Property", "SimpleProperty",
            "Bool", "Int", "Float", "Str", "Unicode",
-           "DateTime", "Date", "Time", "Pickle", "List",
+           "DateTime", "Date", "Time", "Enum", "Pickle", "List",
            "PropertyRegistry"]
 
 
@@ -126,6 +126,9 @@ class Date(SimpleProperty):
 
 class Time(SimpleProperty):
     variable_class = TimeVariable
+
+class Enum(SimpleProperty):
+    variable_class = EnumVariable
 
 class Pickle(SimpleProperty):
     variable_class = PickleVariable
@@ -237,5 +240,5 @@ class PropertyPublisherMeta(type):
     def __init__(self, name, bases, dict):
         if not hasattr(self, "_storm_property_registry"):
             self._storm_property_registry = PropertyRegistry()
-        else:
+        elif hasattr(self, "__table__"):
             self._storm_property_registry.add_class(self)

@@ -38,7 +38,7 @@ class currval(FuncExpr):
 @compile.when(currval)
 def compile_currval(compile, state, expr):
     return "currval('%s_%s_seq')" % (compile(state, expr.column.table),
-                                     compile(state, expr.column.name))
+                                     expr.column.name)
 
 @compile.when(ListVariable)
 def compile_list_variable(compile, state, list_variable):

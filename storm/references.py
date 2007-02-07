@@ -9,7 +9,7 @@
 #
 from storm.exceptions import WrongStoreError, NoStoreError
 from storm.store import Store, get_where_for_args
-from storm.expr import Select, Exists, Undef, compare_columns
+from storm.expr import Select, Exists, Undef, SQLRaw, compare_columns
 from storm.info import *
 
 
@@ -255,7 +255,7 @@ class BoundIndirectReferenceSet(object):
             filter = get_where_for_args(args, kwargs, self._target_cls)
             join = self._relation2.get_where_for_join()
             table = get_cls_info(self._target_cls).table
-            where &= Exists(Select("*", join & filter, tables=table))
+            where &= Exists(Select(SQLRaw("*"), join & filter, tables=table))
         store.find(self._link_cls, where).remove()
 
     def add(self, remote):
