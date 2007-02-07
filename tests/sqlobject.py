@@ -96,6 +96,20 @@ class SQLObjectTest(TestHelper):
         self.assertEquals(type(person.id), int)
         self.assertEquals(person.name, "John Joe")
 
+    def test_alternateID(self):
+        class Person(self.SQLObject):
+            name = StringCol(alternateID=True)
+        person = Person.byName("John Doe")
+        self.assertTrue(person)
+        self.assertEquals(person.name, "John Doe")
+
+    def test_alternateMethodName(self):
+        class Person(self.SQLObject):
+            name = StringCol(alternateMethodName="byFoo")
+        person = Person.byFoo("John Doe")
+        self.assertTrue(person)
+        self.assertEquals(person.name, "John Doe")
+
     def test_select(self):
         result = self.Person.select("name = 'John Joe'")
         self.assertEquals(result[0].name, "John Joe")
@@ -163,9 +177,7 @@ class SQLObjectTest(TestHelper):
         self.assertEquals(nobody, None)
 
         # SQLBuilder style expression:
-        # XXX: 20070206 jamesh
-        # This should use an sqlbuilder-style LIKE() function instead.
-        person = self.Person.selectFirst(self.Person.q.name.like('John%'),
+        person = self.Person.selectFirst(LIKE(self.Person.q.name, 'John%'),
                                          orderBy="name")
         self.assertNotEqual(person, None)
         self.assertEqual(person.name, 'John Doe')

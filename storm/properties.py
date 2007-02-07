@@ -240,5 +240,5 @@ class PropertyPublisherMeta(type):
     def __init__(self, name, bases, dict):
         if not hasattr(self, "_storm_property_registry"):
             self._storm_property_registry = PropertyRegistry()
-        else:
+        elif hasattr(self, "__table__"):
             self._storm_property_registry.add_class(self)
