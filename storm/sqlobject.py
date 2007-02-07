@@ -137,30 +137,31 @@ class SQLObjectMeta(type(Storm)):
         return obj
 
 
-class TableDotQ(object):
+class DotQ(object):
     """A descriptor that mimics the SQLObject 'Table.q' syntax"""
-    def __init__(self, cls):
-        self.cls = cls
 
-    def __get__(self, instance, cls=None):
-        assert self.cls is None
-        if cls is None:
-            cls = instance
-        return self.__class__(cls)
+    def __get__(self, obj, cls=None):
+        return BoundDotQ(cls)
+
+
+class BoundDotQ(object):
+
+    def __init__(self, cls):
+        self._cls = cls
 
     def __getattr__(self, attr):
         if attr.startswith('__'):
             raise AttributeError(attr)
         elif attr == 'id':
-            return getattr(self.cls, self.cls.__table__[1])
+            return getattr(self._cls, self._cls.__table__[1])
         else:
-            return getattr(self.cls, attr)
+            return getattr(self._cls, attr)
 
 
 class SQLObjectBase(Storm):
     __metaclass__ = SQLObjectMeta
 
-    q = TableDotQ(None)
+    q = DotQ()
 
     def __init__(self, **kwargs):
         for attr, value in kwargs.iteritems():

@@ -359,11 +359,22 @@ class SQLObjectTest(TestHelper):
         # sqlbuilder expressions.  Storm can use the main properties
         # for this, so the Table.q syntax just returns those
         # properties:
-        class Person(self.Person):
+        class Person(self.SQLObject):
+            _idName = "name"
+            _idType = unicode
             address = ForeignKey(foreignKey="Phone", dbName='address_id',
                                  notNull=True)
 
-        self.assertEqual(id(Person.q.id), id(Person.id))
-        self.assertEqual(id(Person.q.name), id(Person.name))
-        self.assertEqual(id(Person.q.address), id(Person.address))
-        self.assertEqual(id(Person.q.addressID), id(Person.addressID))
+        # *.q.id points to the primary key, no matter its name.
+        self.assertEquals(id(Person.q.id), id(Person.name))
+
+        self.assertEquals(id(Person.q.name), id(Person.name))
+        self.assertEquals(id(Person.q.address), id(Person.address))
+        self.assertEquals(id(Person.q.addressID), id(Person.addressID))
+
+        person = Person.get("John Joe")
+
+        self.assertEquals(id(person.q.id), id(Person.name))
+        self.assertEquals(id(person.q.name), id(Person.name))
+        self.assertEquals(id(person.q.address), id(Person.address))
+        self.assertEquals(id(person.q.addressID), id(Person.addressID))
