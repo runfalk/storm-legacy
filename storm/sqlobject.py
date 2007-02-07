@@ -4,14 +4,18 @@ from storm.properties import Unicode, Str, Int, Bool, DateTime, Date
 from storm.references import Reference, ReferenceSet
 from storm.store import Store
 from storm.base import Storm
-from storm.expr import SQL, Desc
+from storm.expr import SQL, Desc, And, Or, Not, In, Like
 from storm.tz import tzutc
 from storm import Undef
 
 
 __all__ = ["SQLObjectBase", "StringCol", "IntCol", "BoolCol", "DateCol",
            "UtcDateTimeCol", "ForeignKey", "SQLMultipleJoin",
-           "SQLRelatedJoin"]
+           "SQLRelatedJoin", "DESC", "AND", "OR", "NOT", "IN", "LIKE",
+           "SQLConstant"]
+
+
+DESC, AND, OR, NOT, IN, LIKE, SQLConstant = Desc, And, Or, Not, In, Like, SQL
 
 
 class SQLObjectStyle(object):
