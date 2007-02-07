@@ -4,7 +4,7 @@ from storm.database import create_database
 from storm.exceptions import NoneError
 from storm.sqlobject import *
 from storm.store import Store
-from storm.expr import Asc
+from storm.expr import Asc, Like
 from storm.tz import tzutc
 
 from tests.helper import TestHelper
@@ -61,6 +61,7 @@ class SQLObjectTest(TestHelper):
 
         self.Person = Person
 
+
     def test_get(self):
         person = self.Person.get(2)
         self.assertTrue(person)
@@ -99,6 +100,10 @@ class SQLObjectTest(TestHelper):
         result = self.Person.select("name = 'John Joe'")
         self.assertEquals(result[0].name, "John Joe")
 
+    def test_select_sqlbuilder(self):
+        result = self.Person.select(self.Person.q.name == 'John Joe')
+        self.assertEqual(result[0].name, "John Joe")
+
     def test_select_orderBy(self):
         result = self.Person.select("name LIKE 'John%'", orderBy=("name","id"))
         self.assertEquals(result[0].name, "John Doe")
@@ -126,6 +131,12 @@ class SQLObjectTest(TestHelper):
 
         self.assertEquals(nobody, None)
 
+        # SQLBuilder style expression:
+        person = self.Person.selectOne(self.Person.q.name == 'John Joe')
+
+        self.assertNotEqual(person, None)
+        self.assertEqual(person.name, 'John Joe')
+
     def test_selectOneBy(self):
         person = self.Person.selectOneBy(name="John Joe")
 
@@ -150,6 +161,14 @@ class SQLObjectTest(TestHelper):
         nobody = self.Person.selectFirst("name = 'John None'", orderBy="name")
 
         self.assertEquals(nobody, None)
+
+        # SQLBuilder style expression:
+        # XXX: 20070206 jamesh
+        # This should use an sqlbuilder-style LIKE() function instead.
+        person = self.Person.selectFirst(self.Person.q.name.like('John%'),
+                                         orderBy="name")
+        self.assertNotEqual(person, None)
+        self.assertEqual(person.name, 'John Doe')
 
     def test_selectFirst_default_order(self):
         person = self.Person.selectFirst("name LIKE 'John%'")
@@ -253,13 +272,13 @@ class SQLObjectTest(TestHelper):
 
         person = Person.get(2)
 
-        self.assertEquals(person.address_id, 2)
+        self.assertEquals(person.addressID, 2)
         self.assertEquals(person.address.city, "Sao Carlos")
 
     def test_foreign_key_no_dbname(self):
         self.store.execute("CREATE TABLE another_person "
                            "(id INTEGER PRIMARY KEY, name TEXT, age INTEGER,"
-                           " ts TIMESTAMP, addressID INTEGER)")
+                           " ts TIMESTAMP, address INTEGER)")
         self.store.execute("INSERT INTO another_person VALUES "
                            "(2, 'John Doe', 20, '2007-02-05 20:53:15', 2)")
 
@@ -334,3 +353,17 @@ class SQLObjectTest(TestHelper):
     def test_result_set__getitem__(self):
         result = self.Person.select()
         self.assertEquals(result[0].name, "John Joe")
+
+    def test_table_dot_q(self):
+        # Table.q.fieldname is a syntax used in SQLObject for
+        # sqlbuilder expressions.  Storm can use the main properties
+        # for this, so the Table.q syntax just returns those
+        # properties:
+        class Person(self.Person):
+            address = ForeignKey(foreignKey="Phone", dbName='address_id',
+                                 notNull=True)
+
+        self.assertEqual(id(Person.q.id), id(Person.id))
+        self.assertEqual(id(Person.q.name), id(Person.name))
+        self.assertEqual(id(Person.q.address), id(Person.address))
+        self.assertEqual(id(Person.q.addressID), id(Person.addressID))

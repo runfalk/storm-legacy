@@ -120,11 +120,9 @@ class SQLObjectMeta(type(Storm)):
 
         for attr, prop in dict.items():
             if isinstance(prop, ForeignKey):
-                local_prop_name = prop.kwargs.get("dbName")
-                if local_prop_name is None:
-                    # XXX UNTESTED!
-                    local_prop_name = style.instanceAttrToIDAttr(attr)
-                dict[local_prop_name] = local_prop = Int()
+                dbName = prop.kwargs.get("dbName", attr)
+                local_prop_name = style.instanceAttrToIDAttr(attr)
+                dict[local_prop_name] = local_prop = Int(dbName)
                 dict[attr] = Reference(local_prop,
                                        "%s.<primary key>" % prop.foreignKey)
 
@@ -139,8 +137,30 @@ class SQLObjectMeta(type(Storm)):
         return obj
 
 
+class TableDotQ(object):
+    """A descriptor that mimics the SQLObject 'Table.q' syntax"""
+    def __init__(self, cls):
+        self.cls = cls
+
+    def __get__(self, instance, cls=None):
+        assert self.cls is None
+        if cls is None:
+            cls = instance
+        return self.__class__(cls)
+
+    def __getattr__(self, attr):
+        if attr.startswith('__'):
+            raise AttributeError(attr)
+        elif attr == 'id':
+            return getattr(self.cls, self.cls.__table__[1])
+        else:
+            return getattr(self.cls, attr)
+
+
 class SQLObjectBase(Storm):
     __metaclass__ = SQLObjectMeta
+
+    q = TableDotQ(None)
 
     def __init__(self, **kwargs):
         for attr, value in kwargs.iteritems():
@@ -163,7 +183,9 @@ class SQLObjectBase(Storm):
         if expr is None:
             args = ()
         else:
-            args = (SQL(expr),)
+            if isinstance(expr, basestring):
+                expr = SQL(expr)
+            args = (expr,)
         result = store.find(cls, *args)
         if orderBy is not None:
             result.order_by(tuple(cls._parse_orderBy(orderBy)))
@@ -177,7 +199,13 @@ class SQLObjectBase(Storm):
     @classmethod
     def selectOne(cls, expr):
         store = cls._get_store()
-        return store.find(cls, SQL(expr)).one()
+        if expr is None:
+            args = ()
+        else:
+            if isinstance(expr, basestring):
+                expr = SQL(expr)
+            args = (expr,)
+        return store.find(cls, *args).one()
 
     @classmethod
     def selectOneBy(cls, **kwargs):
@@ -187,7 +215,13 @@ class SQLObjectBase(Storm):
     @classmethod
     def selectFirst(cls, expr, orderBy=None):
         store = cls._get_store()
-        result = store.find(cls, SQL(expr))
+        if expr is None:
+            args = ()
+        else:
+            if isinstance(expr, basestring):
+                expr = SQL(expr)
+            args = (expr,)
+        result = store.find(cls, *args)
         if orderBy is not None:
             result.order_by(*cls._parse_orderBy(orderBy))
         return result.first()
