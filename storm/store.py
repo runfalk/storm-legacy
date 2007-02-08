@@ -1061,8 +1061,7 @@ def get_where_for_args(args, kwargs, cls=None):
             raise FeatureError("Can't determine class that keyword "
                                "arguments are associated with")
         for key, value in kwargs.items():
-            column = getattr(cls, key)
-            equals.append(Eq(column, column.variable_factory(value=value)))
+            equals.append(getattr(cls, key) == value)
     if equals:
         return And(*equals)
     return Undef
