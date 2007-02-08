@@ -31,7 +31,9 @@ class Reference(object):
             return self
 
         if self._relation is None:
-            self._build_relation(local.__class__)
+            # Don't use local.__class__ here, as it might be security
+            # proxied or something. # XXX UNTESTED!
+            self._build_relation(get_obj_info(local).cls_info.cls)
 
         remote = self._relation.get_remote(local)
         if remote is not None:
@@ -55,7 +57,9 @@ class Reference(object):
 
     def __set__(self, local, remote):
         if self._relation is None:
-            self._build_relation(local.__class__)
+            # Don't use local.__class__ here, as it might be security
+            # proxied or something. # XXX UNTESTED!
+            self._build_relation(get_obj_info(local).cls_info.cls)
 
         if remote is None:
             remote = self._relation.get_remote(local)
@@ -98,7 +102,9 @@ class ReferenceSet(object):
             return self
 
         if self._relation1 is None:
-            self._build_relations(local.__class__)
+            # Don't use local.__class__ here, as it might be security
+            # proxied or something. # XXX UNTESTED!
+            self._build_relations(get_obj_info(local).cls_info.cls)
 
         #store = Store.of(local)
         #if store is None:

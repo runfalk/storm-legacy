@@ -122,10 +122,12 @@ class SQLObjectMeta(type(Storm)):
 
         dict["__table__"] = table_name, id_name
 
+        reference_to_prop = {}
         for attr, prop in dict.items():
             if isinstance(prop, ForeignKey):
                 db_name = prop.kwargs.get("dbName", attr)
                 local_prop_name = style.instanceAttrToIDAttr(attr)
+                reference_to_prop[attr] = local_prop_name
                 dict[local_prop_name] = local_prop = Int(db_name)
                 dict[attr] = Reference(local_prop,
                                        "%s.<primary key>" % prop.foreignKey)
@@ -148,8 +150,17 @@ class SQLObjectMeta(type(Storm)):
 
         obj = super(SQLObjectMeta, cls).__new__(cls, name, bases, dict)
 
-        obj._storm_property_registry.add_property(obj, getattr(obj, id_name),
-                                                  "<primary key>")
+        property_registry = obj._storm_property_registry
+
+        property_registry.add_property(obj, getattr(obj, id_name),
+                                       "<primary key>")
+
+        # Register things declared as ForeignKeys as pointing to the real
+        # property as well.
+        for ref_attr, prop_attr in reference_to_prop.iteritems():
+            property_registry.add_property(obj, getattr(obj, prop_attr),
+                                           ref_attr)
+
         return obj
 
 
