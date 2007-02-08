@@ -283,6 +283,12 @@ class SQLObjectTest(TestHelper):
         person = Person.get(2)
         self.assertEquals(person.age, True)
 
+    def test_float_col(self):
+        class Person(self.SQLObject):
+            age = FloatCol()
+        person = Person.get(2)
+        self.assertTrue(abs(person.age - 20.0) < 1e-6)
+
     def test_utcdatetime_col(self):
         class Person(self.SQLObject):
             ts = UtcDateTimeCol()
