@@ -4,6 +4,7 @@ import gc
 
 from storm.exceptions import ClosedError
 from storm.variables import Variable
+import storm.database
 from storm.database import *
 from storm.uri import URI
 from storm.expr import *
@@ -268,3 +269,26 @@ class CreateDatabaseTest(TestHelper):
         uri = URI.parse("db_module:db")
         create_database(uri)
         self.assertTrue(self.uri is uri)
+
+
+class RegisterSchemeTest(TestHelper):
+
+    uri = None
+
+    def tearDown(self):
+        if 'factory' in storm.database._database_schemes:
+            del storm.database._database_schemes['factory']
+        TestHelper.tearDown(self)
+    
+    def test_register_scheme(self):
+        def factory(uri):
+            self.uri = uri
+            return "FACTORY RESULT"
+        register_scheme('factory', factory)
+        self.assertEqual(storm.database._database_schemes['factory'], factory)
+        # Check that we can create databases that use this scheme ...
+        result = create_database('factory:foobar')
+        self.assertEqual(result, "FACTORY RESULT")
+        self.assertTrue(self.uri)
+        self.assertEqual(self.uri.scheme, 'factory')
+        self.assertEqual(self.uri.database, 'foobar')
