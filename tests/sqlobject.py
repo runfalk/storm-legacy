@@ -327,10 +327,10 @@ class SQLObjectTest(TestHelper):
     def test_multiple_join(self):
         class AnotherPerson(self.Person):
             _table = "person"
-            phones = SQLMultipleJoin("Phone", joinColumn="person_id")
+            phones = SQLMultipleJoin("Phone", joinColumn="person")
 
         class Phone(self.SQLObject):
-            person_id = IntCol()
+            person = ForeignKey("AnotherPerson", dbName="person_id")
             number = StringCol()
 
         person = AnotherPerson.get(2)
