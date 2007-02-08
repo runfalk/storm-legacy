@@ -9,6 +9,7 @@
 #
 import weakref
 
+from storm.exceptions import ClassInfoError
 from storm.expr import Expr, FromExpr, Column, Desc
 from storm.expr import SQLToken, CompileError, compile
 from storm.event import EventSystem
@@ -23,7 +24,8 @@ def get_obj_info(obj):
     try:
         return obj.__object_info
     except AttributeError:
-        return obj.__dict__.setdefault("__object_info", ObjectInfo(obj))
+        obj_info = ObjectInfo(obj)
+        return obj.__dict__.setdefault("__object_info", obj_info)
 
 def set_obj_info(obj, obj_info):
     obj.__dict__["__object_info"] = obj_info
@@ -60,8 +62,8 @@ class ClassInfo(dict):
     def __init__(self, cls):
         __table__ = getattr(cls, "__table__", ())
         if len(__table__) != 2:
-            raise RuntimeError("%s.__table__ must be (<table name>, "
-                               "<primary key(s)>) tuple." % repr(cls))
+            raise ClassInfoError("%s.__table__ must be (<table name>, "
+                                 "<primary key(s)>) tuple." % repr(cls))
 
         self.table = __table__[0]
         self.cls = cls
@@ -123,6 +125,10 @@ class ObjectInfo(dict):
     __hash__ = object.__hash__
 
     def __init__(self, obj):
+        # First thing, try to create a ClassInfo for the object's class.
+        # This ensures that obj is the kind of object we expect.
+        self.cls_info = get_cls_info(obj.__class__)
+
         self.set_obj(obj)
 
         self.event = EventSystem(self)
@@ -130,8 +136,6 @@ class ObjectInfo(dict):
 
         self._saved_self = None
         self._saved_attrs = None
-
-        self.cls_info = get_cls_info(obj.__class__)
 
         variables = self.variables
         for column in self.cls_info.columns:

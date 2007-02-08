@@ -7,7 +7,7 @@
 #
 # <license text goes here>
 #
-from storm.exceptions import WrongStoreError, NoStoreError
+from storm.exceptions import WrongStoreError, NoStoreError, ClassInfoError
 from storm.store import Store, get_where_for_args
 from storm.expr import Select, Column, Exists, Undef, SQLRaw, compare_columns
 from storm.info import *
@@ -68,7 +68,7 @@ class Reference(object):
     def _build_relation(self, used_cls):
         if self._cls is None:
             assert used_cls is not None
-            self._cls = _find_descriptor_class(used_cls, self) # XXX UNTESTED!
+            self._cls = _find_descriptor_class(used_cls, self)
         resolver = PropertyResolver(self, self._cls)
         self._local_key = resolver.resolve(self._local_key)
         self._remote_key = resolver.resolve(self._remote_key)
@@ -334,12 +334,15 @@ class Relation(object):
             Class.reference == obj.id
             Class.reference == (obj.id1, obj.id2)
         """
-        if hasattr(other, "__table__"):
-            remote_variables = self.get_remote_variables(other)
-        elif type(other) is not tuple:
-            remote_variables = (other,)
+        try:
+            get_obj_info(other)
+        except ClassInfoError:
+            if type(other) is not tuple:
+                remote_variables = (other,)
+            else:
+                remote_variables = other
         else:
-            remote_variables = other
+            remote_variables = self.get_remote_variables(other)
         return compare_columns(self.local_key, remote_variables)
 
     def get_where_for_join(self):

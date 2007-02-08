@@ -198,9 +198,9 @@ class SQLObjectTest(TestHelper):
         self.assertTrue(person)
         self.assertEquals(person.name, "John Doe")
 
-    def test_selectFirst_default_order_list(self):
+    def test_selectFirst_default_order_expr(self):
         class Person(self.Person):
-            _defaultOrder = SQLConstant("name")
+            _defaultOrder = [SQLConstant("name")]
 
         person = Person.selectFirst("name LIKE 'John%'")
 

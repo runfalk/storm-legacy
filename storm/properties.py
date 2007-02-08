@@ -36,16 +36,27 @@ class Property(object):
     def __get__(self, obj, cls=None):
         if obj is None:
             return self._get_column(cls)
-        column = self._get_column(obj.__class__)
-        return get_obj_info(obj).variables[column].get()
+        obj_info = get_obj_info(obj)
+        if cls is None:
+            # Don't get obj.__class__ because we don't trust it
+            # (might be proxied or whatever). # XXX UNTESTED!
+            cls = obj_info.cls_info.cls
+        column = self._get_column(cls)
+        return obj_info.variables[column].get()
 
     def __set__(self, obj, value):
-        column = self._get_column(obj.__class__)
-        get_obj_info(obj).variables[column].set(value)
+        obj_info = get_obj_info(obj)
+        # Don't get obj.__class__ because we don't trust it
+        # (might be proxied or whatever). # XXX UNTESTED!
+        column = self._get_column(obj_info.cls_info.cls)
+        obj_info.variables[column].set(value)
 
     def __delete__(self, obj):
-        column = self._get_column(obj.__class__)
-        get_obj_info(obj).variables[column].delete()
+        obj_info = get_obj_info(obj)
+        # Don't get obj.__class__ because we don't trust it
+        # (might be proxied or whatever). # XXX UNTESTED!
+        column = self._get_column(obj_info.cls_info.cls)
+        obj_info.variables[column].delete()
 
     def _detect_name(self, used_cls):
         self_id = id(self)
@@ -64,9 +75,9 @@ class Property(object):
         try:
             # Use class dictionary explicitly to get sensible
             # results on subclasses.
-            column = cls.__dict__["_storm_columns"].get(self)
+            column = cls.__dict__["_storm_columns_"].get(self)
         except KeyError:
-            cls._storm_columns = {}
+            cls._storm_columns_ = {}
             column = None
         if column is None:
             if self._name is None:
@@ -74,7 +85,7 @@ class Property(object):
             column = PropertyColumn(self, cls, self._name,
                                     self._variable_class,
                                     self._variable_kwargs)
-            cls._storm_columns[self] = column
+            cls._storm_columns_[self] = column
         return column
 
 

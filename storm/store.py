@@ -17,7 +17,7 @@ from storm.expr import (
     Union)
 from storm.exceptions import (
     WrongStoreError, NotFlushedError, OrderLoopError, UnorderedError,
-    NotOneError, FeatureError, CompileError, LostObjectError)
+    NotOneError, FeatureError, CompileError, LostObjectError, ClassInfoError)
 from storm import Undef
 
 
@@ -42,7 +42,7 @@ class Store(object):
     def of(obj):
         try:
             return get_obj_info(obj).get("store")
-        except AttributeError:
+        except (AttributeError, ClassInfoError):
             return None
 
     def execute(self, statement, params=None, noresult=False):

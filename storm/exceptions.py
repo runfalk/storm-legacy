@@ -28,6 +28,9 @@ class NoneError(StormError):
 class PropertyPathError(StormError):
     pass
 
+class ClassInfoError(StormError):
+    pass
+
 
 class URIError(StormError):
     pass
