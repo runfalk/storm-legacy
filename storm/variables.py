@@ -318,14 +318,6 @@ class TimeDeltaVariable(Variable):
                 raise TypeError("Expected timedelta, found %s" % repr(value))
             return value
 
-    @staticmethod
-    def _parse_get(value, db):
-        if db:
-            return "INTERVAL '%d DAYS %d SECONDS %d MICROSECONDS'" % (
-                value.days, value.seconds, value.microseconds)
-        else:
-            return value
-
 
 class EnumVariable(Variable):
 
@@ -486,6 +478,8 @@ def _parse_interval(interval_str):
     # OS or PostgreSQL release.
     for i in range(0, len(elements) - 1, 2):
         count, unit = elements[i:i+2]
+        if unit.endswith(','):
+            unit = unit[:-1]
         if unit == 'day' and count == '1':
             days += 1
         elif unit == 'days':

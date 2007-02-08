@@ -549,10 +549,7 @@ class TimeDeltaVariableTest(TestHelper):
         variable.set(delta_obj, from_db=True)
         self.assertEquals(variable.get(), delta_obj)
 
-        self.assertEquals(variable.get(to_db=True),
-            "INTERVAL '42 DAYS 45296 SECONDS 780000 MICROSECONDS'")
-
-        delta_str = "1 day 12:34:56"
+        delta_str = "1 day, 12:34:56"
         delta_uni = unicode(delta_str)
         delta_obj = timedelta(days=1, hours=12, minutes=34, seconds=56)
 
@@ -562,9 +559,6 @@ class TimeDeltaVariableTest(TestHelper):
         self.assertEquals(variable.get(), delta_obj)
         variable.set(delta_obj, from_db=True)
         self.assertEquals(variable.get(), delta_obj)
-
-        self.assertEquals(variable.get(to_db=True),
-                          "INTERVAL '1 DAYS 45296 SECONDS 0 MICROSECONDS'")
 
         self.assertRaises(TypeError, variable.set, 0, from_db=True)
         self.assertRaises(TypeError, variable.set, marker, from_db=True)
