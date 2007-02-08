@@ -291,6 +291,9 @@ class SQLObjectResultSet(object):
     def count(self):
         return self._result_set.count()
 
+    def __iter__(self):
+        return self._result_set.__iter__()
+
     def __getitem__(self, index):
         return self._result_set[index]
 

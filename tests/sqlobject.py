@@ -385,6 +385,10 @@ class SQLObjectTest(TestHelper):
         result = self.Person.select()
         self.assertEquals(result[0].name, "John Joe")
 
+    def test_result_set__iter__(self):
+        result = self.Person.select()
+        self.assertEquals(list(result.__iter__())[0].name, "John Joe")
+
     def test_table_dot_q(self):
         # Table.q.fieldname is a syntax used in SQLObject for
         # sqlbuilder expressions.  Storm can use the main properties
