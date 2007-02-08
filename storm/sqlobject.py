@@ -1,6 +1,6 @@
 import re
 
-from storm.properties import Unicode, Str, Int, Bool, DateTime, Date
+from storm.properties import Unicode, Str, Int, Bool, DateTime, Date, TimeDelta
 from storm.references import Reference, ReferenceSet
 from storm.store import Store
 from storm.base import Storm
@@ -10,7 +10,7 @@ from storm import Undef
 
 
 __all__ = ["SQLObjectBase", "StringCol", "IntCol", "BoolCol", "DateCol",
-           "UtcDateTimeCol", "ForeignKey", "SQLMultipleJoin",
+           "UtcDateTimeCol", "IntervalCol", "ForeignKey", "SQLMultipleJoin",
            "SQLRelatedJoin", "DESC", "AND", "OR", "NOT", "IN", "LIKE",
            "SQLConstant"]
 
@@ -350,6 +350,9 @@ class UtcDateTimeCol(PropertyAdapter, DateTime):
     _kwargs = {"tzinfo": tzutc()}
 
 class DateCol(PropertyAdapter, Date):
+    pass
+
+class IntervalCol(PropertyAdapter, TimeDelta):
     pass
 
 
