@@ -198,9 +198,9 @@ class SQLObjectTest(TestHelper):
         self.assertTrue(person)
         self.assertEquals(person.name, "John Doe")
 
-    def test_selectFirst_default_order_list(self):
+    def test_selectFirst_default_order_expr(self):
         class Person(self.Person):
-            _defaultOrder = SQLConstant("name")
+            _defaultOrder = [SQLConstant("name")]
 
         person = Person.selectFirst("name LIKE 'John%'")
 
@@ -327,10 +327,10 @@ class SQLObjectTest(TestHelper):
     def test_multiple_join(self):
         class AnotherPerson(self.Person):
             _table = "person"
-            phones = SQLMultipleJoin("Phone", joinColumn="person_id")
+            phones = SQLMultipleJoin("Phone", joinColumn="person")
 
         class Phone(self.SQLObject):
-            person_id = IntCol()
+            person = ForeignKey("AnotherPerson", dbName="person_id")
             number = StringCol()
 
         person = AnotherPerson.get(2)
@@ -384,6 +384,10 @@ class SQLObjectTest(TestHelper):
     def test_result_set__getitem__(self):
         result = self.Person.select()
         self.assertEquals(result[0].name, "John Joe")
+
+    def test_result_set__iter__(self):
+        result = self.Person.select()
+        self.assertEquals(list(result.__iter__())[0].name, "John Joe")
 
     def test_table_dot_q(self):
         # Table.q.fieldname is a syntax used in SQLObject for

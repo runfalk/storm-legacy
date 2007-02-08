@@ -7,7 +7,7 @@
 #
 # <license text goes here>
 #
-from storm.exceptions import WrongStoreError, NoStoreError
+from storm.exceptions import WrongStoreError, NoStoreError, ClassInfoError
 from storm.store import Store, get_where_for_args
 from storm.expr import Select, Column, Exists, Undef, SQLRaw, compare_columns
 from storm.info import *
@@ -31,7 +31,9 @@ class Reference(object):
             return self
 
         if self._relation is None:
-            self._build_relation(local.__class__)
+            # Don't use local.__class__ here, as it might be security
+            # proxied or something. # XXX UNTESTED!
+            self._build_relation(get_obj_info(local).cls_info.cls)
 
         remote = self._relation.get_remote(local)
         if remote is not None:
@@ -55,7 +57,9 @@ class Reference(object):
 
     def __set__(self, local, remote):
         if self._relation is None:
-            self._build_relation(local.__class__)
+            # Don't use local.__class__ here, as it might be security
+            # proxied or something. # XXX UNTESTED!
+            self._build_relation(get_obj_info(local).cls_info.cls)
 
         if remote is None:
             remote = self._relation.get_remote(local)
@@ -68,7 +72,7 @@ class Reference(object):
     def _build_relation(self, used_cls):
         if self._cls is None:
             assert used_cls is not None
-            self._cls = _find_descriptor_class(used_cls, self) # XXX UNTESTED!
+            self._cls = _find_descriptor_class(used_cls, self)
         resolver = PropertyResolver(self, self._cls)
         self._local_key = resolver.resolve(self._local_key)
         self._remote_key = resolver.resolve(self._remote_key)
@@ -78,6 +82,8 @@ class Reference(object):
     def __eq__(self, other):
         if self._relation is None:
             self._build_relation(self._cls)
+        # Object may be security proxied or something. # XXX UNTESTED!
+        other = get_obj_info(other).get_obj()
         return self._relation.get_where_for_local(other)
 
 
@@ -98,7 +104,9 @@ class ReferenceSet(object):
             return self
 
         if self._relation1 is None:
-            self._build_relations(local.__class__)
+            # Don't use local.__class__ here, as it might be security
+            # proxied or something. # XXX UNTESTED!
+            self._build_relations(get_obj_info(local).cls_info.cls)
 
         #store = Store.of(local)
         #if store is None:
@@ -334,12 +342,15 @@ class Relation(object):
             Class.reference == obj.id
             Class.reference == (obj.id1, obj.id2)
         """
-        if hasattr(other, "__table__"):
-            remote_variables = self.get_remote_variables(other)
-        elif type(other) is not tuple:
-            remote_variables = (other,)
+        try:
+            get_obj_info(other)
+        except ClassInfoError:
+            if type(other) is not tuple:
+                remote_variables = (other,)
+            else:
+                remote_variables = other
         else:
-            remote_variables = other
+            remote_variables = self.get_remote_variables(other)
         return compare_columns(self.local_key, remote_variables)
 
     def get_where_for_join(self):
