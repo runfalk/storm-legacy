@@ -115,6 +115,8 @@ class SQLObjectMeta(type(Storm)):
 
         default_order = cls._get_attr("_defaultOrder", bases, dict)
         if default_order is not None:
+            if not isinstance(default_order, basestring):
+                default_order = tuple(default_order)
             dict["__order__"] = default_order
 
         dict["__table__"] = table_name, id_name
@@ -202,7 +204,7 @@ class SQLObjectBase(Storm):
             args = (expr,)
         result = store.find(cls, *args)
         if orderBy is not None:
-            result.order_by(tuple(cls._parse_orderBy(orderBy)))
+            result.order_by(*tuple(cls._parse_orderBy(orderBy)))
         return SQLObjectResultSet(result, cls)
 
     @classmethod
