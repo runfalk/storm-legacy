@@ -206,7 +206,7 @@ class SQLObjectBase(Storm):
         return store.get(cls, id)
 
     @classmethod
-    def select(cls, expr=None, orderBy=None):
+    def select(cls, expr=None, orderBy=None, prejoins=None):
         store = cls._get_store()
         if expr is None:
             args = ()
@@ -225,7 +225,7 @@ class SQLObjectBase(Storm):
         return SQLObjectResultSet(store.find(cls, **kwargs), cls)
 
     @classmethod
-    def selectOne(cls, expr):
+    def selectOne(cls, expr, prejoins=None):
         store = cls._get_store()
         if expr is None:
             args = ()
@@ -241,7 +241,7 @@ class SQLObjectBase(Storm):
         return store.find(cls, **kwargs).one()
 
     @classmethod
-    def selectFirst(cls, expr, orderBy=None):
+    def selectFirst(cls, expr, orderBy=None, prejoins=None):
         store = cls._get_store()
         if expr is None:
             args = ()
