@@ -7,14 +7,15 @@
 #
 # <license text goes here>
 #
-from datetime import datetime, date, time
+from datetime import datetime, date, time, timedelta
 from copy import copy
 import sys
 
 from storm.exceptions import CompileError, NoTableError, ExprError
-from storm.variables import Variable, StrVariable, UnicodeVariable, LazyValue
-from storm.variables import DateTimeVariable, DateVariable, TimeVariable
-from storm.variables import BoolVariable, IntVariable, FloatVariable
+from storm.variables import (
+    Variable, StrVariable, UnicodeVariable, LazyValue,
+    DateTimeVariable, DateVariable, TimeVariable, TimeDeltaVariable,
+    BoolVariable, IntVariable, FloatVariable)
 from storm import Undef
 
 
@@ -193,6 +194,11 @@ def compile_date(compile, state, expr):
 @compile.when(time)
 def compile_time(compile, state, expr):
     state.parameters.append(TimeVariable(expr))
+    return "?"
+
+@compile.when(timedelta)
+def compile_time(compile, state, expr):
+    state.parameters.append(TimeDeltaVariable(expr))
     return "?"
 
 @compile.when(type(None))
