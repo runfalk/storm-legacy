@@ -82,8 +82,6 @@ class Reference(object):
     def __eq__(self, other):
         if self._relation is None:
             self._build_relation(self._cls)
-        # Object may be security proxied or something. # XXX UNTESTED!
-        other = get_obj_info(other).get_obj()
         return self._relation.get_where_for_local(other)
 
 
@@ -343,13 +341,16 @@ class Relation(object):
             Class.reference == (obj.id1, obj.id2)
         """
         try:
-            get_obj_info(other)
+            obj_info = get_obj_info(other)
         except ClassInfoError:
             if type(other) is not tuple:
                 remote_variables = (other,)
             else:
                 remote_variables = other
         else:
+            # Object may be security proxied or something, so
+            # we get the real object here. # XXX UNTESTED!
+            other = obj_info.get_obj()
             remote_variables = self.get_remote_variables(other)
         return compare_columns(self.local_key, remote_variables)
 

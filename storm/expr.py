@@ -143,6 +143,7 @@ class State(object):
         if new_value is Undef:
             new_value = copy(old_value)
         setattr(self, attr, new_value)
+        return old_value
 
     def pop(self):
         setattr(self, *self._stack.pop(-1))
@@ -761,18 +762,28 @@ class Mod(NonAssocBinaryOper):
 
 class SetExpr(Expr):
     oper = " (unknown) "
-    all = False
 
     def __init__(self, *exprs, **kwargs):
         self.exprs = exprs
-        if kwargs.get("all"):
-            self.all = True
+        self.all = kwargs.get("all", False)
+        self.order_by = kwargs.get("order_by", Undef)
+        self.limit = kwargs.get("limit", Undef)
+        self.offset = kwargs.get("offset", Undef)
 
 @compile.when(SetExpr)
 def compile_set_expr(compile, state, expr):
+    suffix = ""
+    if expr.order_by is not Undef:
+        suffix += " ORDER BY " + compile(state, expr.order_by)
+    if expr.limit is not Undef:
+        suffix += " LIMIT %d" % expr.limit
+    if expr.offset is not Undef:
+        suffix += " OFFSET %d" % expr.offset
+    oper = expr.oper
     if expr.all:
-        return compile(state, expr.exprs, expr.oper+"ALL ")
-    return compile(state, expr.exprs, expr.oper)
+        oper += "ALL "
+    state.precedence += 0.5
+    return compile(state, expr.exprs, oper) + suffix
 
 
 class Union(SetExpr):
@@ -941,6 +952,7 @@ def compare_columns(columns, values):
 compile.set_precedence(10, Select, Insert, Update, Delete)
 compile.set_precedence(10, Join, LeftJoin, RightJoin)
 compile.set_precedence(10, NaturalJoin, NaturalLeftJoin, NaturalRightJoin)
+compile.set_precedence(10, Union)
 compile.set_precedence(20, SQL)
 compile.set_precedence(30, Or)
 compile.set_precedence(40, And)

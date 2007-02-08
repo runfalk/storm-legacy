@@ -48,6 +48,7 @@ def compile_select_sqlite(compile, state, select):
 
 @compile.when(SetExpr)
 def compile_set_expr_sqlite(compile, state, expr):
+    state.precedence -= 0.5
     state.push("inside_set_expr", True)
     statement = compile_set_expr(compile, state, expr)
     state.pop()

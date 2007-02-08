@@ -652,6 +652,12 @@ class ResultSet(object):
 
     def _get_select(self):
         if self._select is not Undef:
+            if self._order_by is not Undef:
+                self._select.order_by = self._order_by
+            if self._limit is not Undef: # XXX UNTESTED!
+                self._select.limit = self._limit
+            if self._offset is not Undef: # XXX UNTESTED!
+                self._select.offset = self._offset
             return self._select
         if type(self._cls_spec_info) is tuple:
             columns = []

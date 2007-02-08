@@ -206,6 +206,14 @@ class ExprTest(TestHelper):
         expr = Union(elem1, elem2, elem3)
         self.assertEquals(expr.exprs, (elem1, elem2, elem3))
 
+    def test_union_with_kwargs(self):
+        expr = Union(elem1, elem2, all=True, order_by=(), limit=1, offset=2)
+        self.assertEquals(expr.exprs, (elem1, elem2))
+        self.assertEquals(expr.all, True)
+        self.assertEquals(expr.order_by, ())
+        self.assertEquals(expr.limit, 1)
+        self.assertEquals(expr.offset, 2)
+
 
 class StateTest(TestHelper):
 
@@ -1126,10 +1134,24 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, "func1() UNION ALL elem2 UNION ALL elem3")
         self.assertEquals(parameters, [])
 
+    def test_union_order_by_limit_offset(self):
+        expr = Union(elem1, elem2, order_by=Func1(), limit=1, offset=2)
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "elem1 UNION elem2 ORDER BY func1() "
+                                     "LIMIT 1 OFFSET 2")
+        self.assertEquals(parameters, [])
+
     def test_union_select(self):
         expr = Union(Select(elem1), Select(elem2))
         statement, parameters = compile(expr)
         self.assertEquals(statement, "(SELECT elem1) UNION (SELECT elem2)")
+        self.assertEquals(parameters, [])
+
+    def test_union_select_nested(self):
+        expr = Union(Select(elem1), Union(Select(elem2), Select(elem3)))
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "(SELECT elem1) UNION"
+                                     " ((SELECT elem2) UNION (SELECT elem3))")
         self.assertEquals(parameters, [])
 
 

@@ -3384,18 +3384,23 @@ class StoreTest(object):
         self.store.execute("DELETE FROM foo WHERE id=40")
         self.assertEquals(self.store.get(Foo, 40), foo)
 
-    
     def test_result_union(self):
         result1 = self.store.find(Foo, id=30)
         result2 = self.store.find(Foo, id=10)
 
         result3 = result1.union(result2)
-        #result3.order_by(Foo.title) # XXX order_by doesn't work on Union yet.
-                                     #     Remove sorted() below when it does. 
 
-        self.assertEquals(sorted([(foo.id, foo.title) for foo in result3]), [
-                          (10, "Title 30"),
+        # XXX SQLite sorting of unions doesn't work correctly yet.
+        if not self.__class__.__name__.startswith("SQLite"):
+            result3.order_by(Foo.title)
+            result = [(foo.id, foo.title) for foo in result3]
+        else:
+            result = [(foo.id, foo.title) for foo in result3]
+            result = list(reversed(sorted(result)))
+
+        self.assertEquals(result, [
                           (30, "Title 10"),
+                          (10, "Title 30"),
                          ])
 
     def test_result_union_duplicated(self):
@@ -3403,7 +3408,6 @@ class StoreTest(object):
         result2 = self.store.find(Foo, id=30)
 
         result3 = result1.union(result2)
-        result3.order_by(Foo.id)
 
         self.assertEquals([(foo.id, foo.title) for foo in result3], [
                           (30, "Title 10"),
@@ -3414,7 +3418,6 @@ class StoreTest(object):
         result2 = self.store.find(Foo, id=30)
 
         result3 = result1.union(result2, all=True)
-        result3.order_by(Foo.id)
 
         self.assertEquals([(foo.id, foo.title) for foo in result3], [
                           (30, "Title 10"),
@@ -3426,7 +3429,6 @@ class StoreTest(object):
         result2 = EmptyResultSet()
 
         result3 = result1.union(result2)
-        result3.order_by(Foo.id)
 
         self.assertEquals([(foo.id, foo.title) for foo in result3], [
                           (30, "Title 10"),
