@@ -327,7 +327,8 @@ class SQLObjectTest(TestHelper):
     def test_multiple_join(self):
         class AnotherPerson(self.Person):
             _table = "person"
-            phones = SQLMultipleJoin("Phone", joinColumn="person")
+            phones = SQLMultipleJoin("Phone", joinColumn="person",
+                                     prejoins=['person'])
 
         class Phone(self.SQLObject):
             person = ForeignKey("AnotherPerson", dbName="person_id")

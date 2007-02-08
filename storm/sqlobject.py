@@ -363,7 +363,8 @@ class ForeignKey(object):
 class SQLMultipleJoin(ReferenceSet):
 
     def __init__(self, otherClass=None, joinColumn=None,
-                 intermediateTable=None, otherColumn=None, orderBy=None):
+                 intermediateTable=None, otherColumn=None, orderBy=None,
+                 prejoins=None):
         if intermediateTable:
             args = ("<primary key>",
                     "%s.%s" % (intermediateTable, joinColumn),
