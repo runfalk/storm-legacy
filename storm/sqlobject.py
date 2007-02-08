@@ -306,7 +306,8 @@ class PropertyAdapter(object):
 
     def __init__(self, dbName=None, notNull=False, default=Undef,
                  alternateID=None, unique=None, name=None,
-                 alternateMethodName=None, length=None, immutable=None):
+                 alternateMethodName=None, length=None, immutable=None,
+                 prejoins=None):
 
         self.dbName = dbName
         self.alternateID = alternateID
@@ -321,6 +322,7 @@ class PropertyAdapter(object):
         #   - unique (for tablebuilder)
         #   - length (for tablebuilder for StringCol)
         #   - name (for _columns stuff)
+        #   - prejoins
 
         if callable(default):
             default_factory = default
