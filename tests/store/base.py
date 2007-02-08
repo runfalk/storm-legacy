@@ -688,6 +688,27 @@ class StoreTest(object):
                           (300, u"Title 100"),
                          ])
 
+    def test_using_find_with_strings(self):
+        foo = self.store.using("foo").find(Foo, id=10).one()
+        self.assertEquals(foo.title, "Title 30")
+
+        foo = self.store.using("foo", "bar").find(Foo, id=10).any()
+        self.assertEquals(foo.title, "Title 30")
+
+    def test_using_find_join_with_strings(self):
+        bar = self.store.get(Bar, 100)
+        bar.foo_id = None
+
+        tables = self.store.using(LeftJoin("foo", "bar",
+                                           "bar.foo_id = foo.id"))
+        result = tables.find(Bar).order_by(Foo.id, Bar.id)
+        lst = [bar and (bar.id, bar.title) for bar in result]
+        self.assertEquals(lst, [
+                          None,
+                          (200, u"Title 200"),
+                          (300, u"Title 100"),
+                         ])
+
     def test_find_tuple(self):
         bar = self.store.get(Bar, 200)
         bar.foo_id = None

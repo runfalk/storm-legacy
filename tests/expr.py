@@ -12,8 +12,10 @@ class Func2(NamedFunc):
 
 # Create columnN, tableN, and elemN variables.
 for i in range(10):
-    for name in ["column", "table", "elem"]:
+    for name in ["column", "elem"]:
         exec "%s%d = SQLRaw('%s%d')" % (name, i, name, i)
+    for name in ["table"]:
+        exec "%s%d = '%s%d'" % (name, i, name, i)
 
 
 class ExprTest(TestHelper):
@@ -492,6 +494,15 @@ class CompileTest(TestHelper):
                                      "WHERE func1()")
         self.assertEquals(parameters, [])
 
+    def test_select_with_strings(self):
+        expr = Select(column1, "1 = 2", table1, order_by="column1",
+                      group_by="column2")
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "SELECT column1 FROM table1 "
+                                     "WHERE 1 = 2 ORDER BY column1 "
+                                     "GROUP BY column2")
+        self.assertEquals(parameters, [])
+
     def test_insert(self):
         expr = Insert([column1, Func1()], [elem1, Func1()], Func1())
         statement, parameters = compile(expr)
@@ -562,6 +573,13 @@ class CompileTest(TestHelper):
         expr = Update({Column(column1): elem1})
         self.assertRaises(CompileError, compile, expr)
 
+    def test_update_with_strings(self):
+        expr = Update({column1: elem1}, "1 = 2", table1)
+        statement, parameters = compile(expr)
+        self.assertEquals(statement,
+                          "UPDATE table1 SET column1=elem1 WHERE 1 = 2")
+        self.assertEquals(parameters, [])
+
     def test_delete(self):
         expr = Delete(table=Func1())
         statement, parameters = compile(expr)
@@ -572,6 +590,12 @@ class CompileTest(TestHelper):
         expr = Delete(Func1(), Func2())
         statement, parameters = compile(expr)
         self.assertEquals(statement, "DELETE FROM func2() WHERE func1()")
+        self.assertEquals(parameters, [])
+
+    def test_delete_with_strings(self):
+        expr = Delete("1 = 2", table1)
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "DELETE FROM table1 WHERE 1 = 2")
         self.assertEquals(parameters, [])
 
     def test_delete_auto_table(self):
@@ -1034,6 +1058,12 @@ class CompileTest(TestHelper):
         statement, parameters = compile(expr)
         self.assertEquals(statement, "JOIN func1() ON func2() = ?")
         self.assertEquals(parameters, [Variable("value")])
+
+    def test_join_on_with_string(self):
+        expr = Join(Func1(), on="a = b")
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "JOIN func1() ON a = b")
+        self.assertEquals(parameters, [])
 
     def test_join_left_right(self):
         expr = Join(table1, table2)
