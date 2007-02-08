@@ -318,6 +318,14 @@ class TimeDeltaVariable(Variable):
                 raise TypeError("Expected timedelta, found %s" % repr(value))
             return value
 
+    @staticmethod
+    def _parse_get(value, db):
+        if db:
+            return "INTERVAL '%d DAYS %d SECONDS %d MICROSECONDS'" % (
+                value.days, value.seconds, value.microseconds)
+        else:
+            return value
+
 
 class EnumVariable(Variable):
 
