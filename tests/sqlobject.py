@@ -106,6 +106,7 @@ class SQLObjectTest(TestHelper):
     def test_alternateMethodName(self):
         class Person(self.SQLObject):
             name = StringCol(alternateMethodName="byFoo")
+
         person = Person.byFoo("John Doe")
         self.assertTrue(person)
         self.assertEquals(person.name, "John Doe")
@@ -187,6 +188,24 @@ class SQLObjectTest(TestHelper):
 
         self.assertTrue(person)
         self.assertEquals(person.name, "John Joe")
+
+    def test_selectFirst_default_order_list(self):
+        class Person(self.Person):
+            _defaultOrder = ["name"]
+
+        person = Person.selectFirst("name LIKE 'John%'")
+
+        self.assertTrue(person)
+        self.assertEquals(person.name, "John Doe")
+
+    def test_selectFirst_default_order_list(self):
+        class Person(self.Person):
+            _defaultOrder = SQLConstant("name")
+
+        person = Person.selectFirst("name LIKE 'John%'")
+
+        self.assertTrue(person)
+        self.assertEquals(person.name, "John Doe")
 
     def test_selectFirstBy(self):
         person = self.Person.selectFirstBy(age=20, orderBy="name")

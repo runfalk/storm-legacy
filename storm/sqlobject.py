@@ -115,6 +115,9 @@ class SQLObjectMeta(type(Storm)):
 
         default_order = cls._get_attr("_defaultOrder", bases, dict)
         if default_order is not None:
+            if isinstance(default_order, list):
+                # Storm requires __order__ to be a tuple for sequences.
+                default_order = tuple(default_order)
             dict["__order__"] = default_order
 
         dict["__table__"] = table_name, id_name
@@ -132,7 +135,7 @@ class SQLObjectMeta(type(Storm)):
                 if method_name is None and prop.alternateID:
                     method_name = "by" + db_name[0].upper() + db_name[1:]
                 if method_name is not None:
-                    def func(cls, key):
+                    def func(cls, key, attr=attr):
                         store = cls._get_store()
                         return store.find(cls, getattr(cls, attr) == key).one()
                     func.func_name = method_name
@@ -202,7 +205,7 @@ class SQLObjectBase(Storm):
             args = (expr,)
         result = store.find(cls, *args)
         if orderBy is not None:
-            result.order_by(tuple(cls._parse_orderBy(orderBy)))
+            result.order_by(*tuple(cls._parse_orderBy(orderBy)))
         return SQLObjectResultSet(result, cls)
 
     @classmethod

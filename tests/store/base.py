@@ -1974,6 +1974,32 @@ class StoreTest(object):
         self.assertEquals(Store.of(bar), self.store)
         self.assertEquals(Store.of(foo1), store)
 
+    def test_reference_equals(self):
+        foo = self.store.get(Foo, 10)
+
+        bar = self.store.find(Bar, foo=foo).one()
+        self.assertTrue(bar)
+        self.assertEquals(bar.foo, foo)
+
+        bar = self.store.find(Bar, foo=foo.id).one()
+        self.assertTrue(bar)
+        self.assertEquals(bar.foo, foo)
+
+    def test_reference_equals_with_composed_key(self):
+        # Interesting case of self-reference.
+        class LinkWithRef(Link):
+            myself = Reference((Link.foo_id, Link.bar_id),
+                               (Link.foo_id, Link.bar_id))
+
+        link = self.store.find(LinkWithRef, foo_id=10, bar_id=100).one()
+        myself = self.store.find(LinkWithRef, myself=link).one()
+        self.assertEquals(link, myself)
+
+        myself = self.store.find(LinkWithRef,
+                                 myself=(link.foo_id, link.bar_id)).one()
+        self.assertEquals(link, myself)
+
+
     def test_back_reference(self):
         class MyFoo(Foo):
             bar = Reference(Foo.id, Bar.foo_id, on_remote=True)
@@ -3358,6 +3384,67 @@ class StoreTest(object):
         self.store.execute("DELETE FROM foo WHERE id=40")
         self.assertEquals(self.store.get(Foo, 40), foo)
 
+    
+    def test_result_union(self):
+        result1 = self.store.find(Foo, id=30)
+        result2 = self.store.find(Foo, id=10)
+
+        result3 = result1.union(result2)
+        #result3.order_by(Foo.title) # XXX order_by doesn't work on Union yet.
+                                     #     Remove sorted() below when it does. 
+
+        self.assertEquals(sorted([(foo.id, foo.title) for foo in result3]), [
+                          (10, "Title 30"),
+                          (30, "Title 10"),
+                         ])
+
+    def test_result_union_duplicated(self):
+        result1 = self.store.find(Foo, id=30)
+        result2 = self.store.find(Foo, id=30)
+
+        result3 = result1.union(result2)
+        result3.order_by(Foo.id)
+
+        self.assertEquals([(foo.id, foo.title) for foo in result3], [
+                          (30, "Title 10"),
+                         ])
+
+    def test_result_union_duplicated_with_all(self):
+        result1 = self.store.find(Foo, id=30)
+        result2 = self.store.find(Foo, id=30)
+
+        result3 = result1.union(result2, all=True)
+        result3.order_by(Foo.id)
+
+        self.assertEquals([(foo.id, foo.title) for foo in result3], [
+                          (30, "Title 10"),
+                          (30, "Title 10"),
+                         ])
+
+    def test_result_union_with_empty(self):
+        result1 = self.store.find(Foo, id=30)
+        result2 = EmptyResultSet()
+
+        result3 = result1.union(result2)
+        result3.order_by(Foo.id)
+
+        self.assertEquals([(foo.id, foo.title) for foo in result3], [
+                          (30, "Title 10"),
+                         ])
+
+    def test_result_union_incompatible(self):
+        result1 = self.store.find(Foo, id=10)
+        result2 = self.store.find(Bar, id=100)
+        self.assertRaises(FeatureError, result1.union, result2)
+
+    def test_result_union_unsupported_methods(self):
+        result1 = self.store.find(Foo, id=30)
+        result2 = self.store.find(Foo, id=10)
+        result3 = result1.union(result2)
+
+        self.assertRaises(FeatureError, result3.set, title="Title 40")
+        self.assertRaises(FeatureError, result3.remove)
+
 
 class EmptyResultSetTest(object):
 
@@ -3491,3 +3578,10 @@ class EmptyResultSetTest(object):
     def test_cached(self):
         self.assertEquals(self.result.cached(), [])
         self.assertEquals(self.empty.cached(), [])
+
+    def test_union(self):
+        self.assertEquals(self.empty.union(self.empty), self.empty)
+        self.assertEquals(type(self.empty.union(self.result)),
+                          type(self.result))
+        self.assertEquals(type(self.result.union(self.empty)),
+                          type(self.result))

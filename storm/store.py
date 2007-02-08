@@ -13,7 +13,8 @@ from storm.info import get_cls_info, get_obj_info, set_obj_info, get_info
 from storm.variables import Variable, LazyValue
 from storm.expr import (
     Expr, Select, Insert, Update, Delete, Column, JoinExpr, Count, Max, Min,
-    Avg, Sum, Eq, And, Asc, Desc, compile_python, compare_columns, SQLRaw)
+    Avg, Sum, Eq, And, Asc, Desc, compile_python, compare_columns, SQLRaw,
+    Union)
 from storm.exceptions import (
     WrongStoreError, NotFlushedError, OrderLoopError, UnorderedError,
     NotOneError, FeatureError, CompileError, LostObjectError)
@@ -623,11 +624,13 @@ class Store(object):
 
 class ResultSet(object):
 
-    def __init__(self, store, cls_spec_info, where, tables=Undef):
+    def __init__(self, store, cls_spec_info,
+                 where=Undef, tables=Undef, select=Undef):
         self._store = store
         self._cls_spec_info = cls_spec_info
         self._where = where
         self._tables = tables
+        self._select = select
         self._order_by = getattr(cls_spec_info, "default_order", Undef)
         self._offset = Undef
         self._limit = Undef
@@ -647,7 +650,9 @@ class ResultSet(object):
             self._limit = limit
         return self
 
-    def _get_select(self, **kwargs):
+    def _get_select(self):
+        if self._select is not Undef:
+            return self._select
         if type(self._cls_spec_info) is tuple:
             columns = []
             default_tables = []
@@ -794,6 +799,9 @@ class ResultSet(object):
             raise FeatureError("Can't remove a sliced result set")
         if type(self._cls_spec_info) is tuple:
             raise FeatureError("Removing not yet supported with tuple finds")
+        if self._select is not Undef:
+            raise FeatureError("Removing isn't supportted with "
+                               "set expressions (unions, etc)")
         self._store._connection.execute(Delete(self._where,
                                                self._cls_spec_info.table),
                                         noresult=True)
@@ -854,6 +862,9 @@ class ResultSet(object):
     def set(self, *args, **kwargs):
         if type(self._cls_spec_info) is tuple:
             raise FeatureError("Setting isn't supportted with tuple finds")
+        if self._select is not Undef:
+            raise FeatureError("Setting isn't supportted with "
+                               "set expressions (unions, etc)")
 
         if not (args or kwargs):
             return
@@ -928,11 +939,27 @@ class ResultSet(object):
                     objects.append(obj)
         return objects
 
+    def union(self, other, all=False):
+        if isinstance(other, EmptyResultSet):
+            return self
+
+        if (not isinstance(other, EmptyResultSet) and
+            self._cls_spec_info != other._cls_spec_info):
+            raise FeatureError("Incompatible results for set operation")
+
+        union = Union(self._get_select(), other._get_select(), all=all)
+        union_result = ResultSet(self._store, self._cls_spec_info,
+                                 select=union)
+        return union_result
+
 
 class EmptyResultSet(object):
 
     def __init__(self, ordered=False):
         self._order_by = ordered
+
+    def _get_select(self):
+        return Select(SQLRaw("1"), SQLRaw("1 = 2"))
 
     def copy(self):
         result = EmptyResultSet(self._order_by)
@@ -999,6 +1026,11 @@ class EmptyResultSet(object):
     def cached(self):
         return []
 
+    def union(self, other):
+        if isinstance(other, EmptyResultSet):
+            return self
+        return other.union(self)
+
 
 class TableSet(object):
     
@@ -1029,8 +1061,7 @@ def get_where_for_args(args, kwargs, cls=None):
             raise FeatureError("Can't determine class that keyword "
                                "arguments are associated with")
         for key, value in kwargs.items():
-            column = getattr(cls, key)
-            equals.append(Eq(column, column.variable_factory(value=value)))
+            equals.append(getattr(cls, key) == value)
     if equals:
         return And(*equals)
     return Undef

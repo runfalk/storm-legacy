@@ -29,7 +29,7 @@
 
   lazy_group=None means not lazy.
 
-- Reference.__contains__
+- ReferenceSet.__contains__
 
 - Implement ResultSet.reverse[d]() to invert order_by()?
 
@@ -59,8 +59,6 @@
 - Handle $foo$bar$foo$ literals
 
 - Could Reference(Set)s include a "where" clause? Readonly perhaps?
-
-- Implement reference comparisons (Foo.ref == obj)
 
 - Make the primary key in __table__ be optional. If it's not provided
   the object isn't cached and updates aren't tracked.
