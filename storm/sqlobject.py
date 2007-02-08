@@ -135,7 +135,7 @@ class SQLObjectMeta(type(Storm)):
                 if method_name is None and prop.alternateID:
                     method_name = "by" + db_name[0].upper() + db_name[1:]
                 if method_name is not None:
-                    def func(cls, key):
+                    def func(cls, key, attr=attr):
                         store = cls._get_store()
                         return store.find(cls, getattr(cls, attr) == key).one()
                     func.func_name = method_name

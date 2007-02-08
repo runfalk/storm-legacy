@@ -106,6 +106,7 @@ class SQLObjectTest(TestHelper):
     def test_alternateMethodName(self):
         class Person(self.SQLObject):
             name = StringCol(alternateMethodName="byFoo")
+
         person = Person.byFoo("John Doe")
         self.assertTrue(person)
         self.assertEquals(person.name, "John Doe")
