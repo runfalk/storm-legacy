@@ -82,6 +82,8 @@ class Reference(object):
     def __eq__(self, other):
         if self._relation is None:
             self._build_relation(self._cls)
+        # Object may be security proxied or something. # XXX UNTESTED!
+        other = get_obj_info(other).get_obj()
         return self._relation.get_where_for_local(other)
 
 
