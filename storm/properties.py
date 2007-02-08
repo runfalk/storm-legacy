@@ -22,7 +22,7 @@ from storm import Undef
 
 __all__ = ["Property", "SimpleProperty",
            "Bool", "Int", "Float", "Str", "Unicode",
-           "DateTime", "Date", "Time", "Enum", "Pickle", "List",
+           "DateTime", "Date", "Time", "TimeDelta", "Enum", "Pickle", "List",
            "PropertyRegistry"]
 
 
@@ -137,6 +137,9 @@ class Date(SimpleProperty):
 
 class Time(SimpleProperty):
     variable_class = TimeVariable
+
+class TimeDelta(SimpleProperty):
+    variable_class = TimeDeltaVariable
 
 class Enum(SimpleProperty):
     variable_class = EnumVariable

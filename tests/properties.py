@@ -1,4 +1,4 @@
-from datetime import datetime, date, time
+from datetime import datetime, date, time, timedelta
 import gc
 
 from storm.exceptions import NoneError, PropertyPathError
@@ -411,6 +411,32 @@ class PropertyKindsTest(TestHelper):
         self.assertEquals(self.obj.prop1, time(12, 34, 56))
         self.obj.prop1 = time(12, 34, 56)
         self.assertEquals(self.obj.prop1, time(12, 34, 56))
+
+        self.assertRaises(TypeError, setattr, self.obj, "prop1", object())
+
+    def test_timedelta(self):
+        self.setup(TimeDelta,
+                   default=timedelta(days=1, seconds=2, microseconds=3),
+                   allow_none=False)
+
+        self.assertTrue(isinstance(self.column1, Column))
+        self.assertTrue(isinstance(self.column2, Column))
+        self.assertEquals(self.column1.name, "column1")
+        self.assertEquals(self.column1.table, self.SubClass)
+        self.assertEquals(self.column2.name, "prop2")
+        self.assertEquals(self.column2.table, self.SubClass)
+        self.assertTrue(isinstance(self.variable1, TimeDeltaVariable))
+        self.assertTrue(isinstance(self.variable2, TimeDeltaVariable))
+
+        self.assertEquals(self.obj.prop1,
+                          timedelta(days=1, seconds=2, microseconds=3))
+        self.assertRaises(NoneError, setattr, self.obj, "prop1", None)
+        self.obj.prop2 = None
+        self.assertEquals(self.obj.prop2, None)
+
+        self.obj.prop1 = timedelta(days=42, seconds=42, microseconds=42)
+        self.assertEquals(self.obj.prop1,
+                          timedelta(days=42, seconds=42, microseconds=42))
 
         self.assertRaises(TypeError, setattr, self.obj, "prop1", object())
 
