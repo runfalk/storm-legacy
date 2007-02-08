@@ -115,7 +115,8 @@ class SQLObjectMeta(type(Storm)):
 
         default_order = cls._get_attr("_defaultOrder", bases, dict)
         if default_order is not None:
-            if not isinstance(default_order, basestring):
+            if isinstance(default_order, list):
+                # Storm requires __order__ to be a tuple for sequences.
                 default_order = tuple(default_order)
             dict["__order__"] = default_order
 
