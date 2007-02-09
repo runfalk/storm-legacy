@@ -308,6 +308,9 @@ class SQLObjectResultSet(object):
     def __getitem__(self, index):
         return self._result_set[index]
 
+    def __nonzero__(self):
+        return self._result_set.any() is not None
+
     def orderBy(self, orderBy):
         result_set = self._result_set.copy()
         result_set.order_by(*self._cls._parse_orderBy(orderBy))
