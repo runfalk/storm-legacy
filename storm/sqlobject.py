@@ -3,6 +3,7 @@ import re
 from storm.properties import (
     Unicode, Str, Int, Bool, Float, DateTime, Date, TimeDelta)
 from storm.references import Reference, ReferenceSet
+from storm.exceptions import StormError
 from storm.info import get_cls_info
 from storm.base import Storm
 from storm.expr import SQL, Desc, And, Or, Not, In, Like
@@ -13,12 +14,16 @@ from storm import Undef
 __all__ = ["SQLObjectBase", "StringCol", "IntCol", "BoolCol", "FloatCol",
            "DateCol", "UtcDateTimeCol", "IntervalCol", "ForeignKey",
            "SQLMultipleJoin", "SQLRelatedJoin", "DESC", "AND", "OR",
-           "NOT", "IN", "LIKE", "SQLConstant"]
+           "NOT", "IN", "LIKE", "SQLConstant", "NotFoundError"]
 
 
 DESC, AND, OR, NOT, IN, LIKE, SQLConstant = Desc, And, Or, Not, In, Like, SQL
 
 _IGNORED = object()
+
+
+class NotFoundError(StormError):
+    pass
 
 
 class SQLObjectStyle(object):
@@ -214,7 +219,10 @@ class SQLObjectBase(Storm):
     @classmethod
     def get(cls, id):
         store = cls._get_store()
-        return store.get(cls, id)
+        obj = store.get(cls, id)
+        if obj is None:
+            raise NotFoundError("Object not found")
+        return obj
 
     @classmethod
     def select(cls, expr=None, orderBy=None,
