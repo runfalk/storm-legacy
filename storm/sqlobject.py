@@ -308,13 +308,23 @@ class SQLObjectResultSet(object):
     def orderBy(self, orderBy):
         result_set = self._result_set.copy()
         result_set.order_by(*self._cls._parse_orderBy(orderBy))
-        return SQLObjectResultSet(result_set, self._cls)
+        return self.__class__(result_set, self._cls)
 
     def limit(self, limit):
-        return self._result_set.copy().config(limit=limit)
+        result_set = self._result_set.copy().config(limit=limit)
+        return self.__class__(result_set, self._cls)
 
     def distinct(self):
-        return self._result_set.copy().config(distinct=True)
+        result_set = self._result_set.copy().config(distinct=True)
+        return self.__class__(result_set, self._cls)
+
+    def union(self, otherSelect, unionAll=False, orderBy=None):
+        result_set = self._result_set.union(otherSelect._result_set,
+                                            all=unionAll)
+        new = self.__class__(result_set, self._cls)
+        if orderBy is not None:
+            return new.orderBy(orderBy)
+        return new
 
     def prejoin(self, prejoins):
         return self

@@ -485,10 +485,20 @@ class SQLObjectTest(TestHelper):
                                     clauseTables=["phone"])
         self.assertEquals(len(list(result.distinct())), 1)
 
-
     def test_result_set_limit(self):
         result = self.Person.select()
         self.assertEquals(len(list(result.limit(1))), 1)
+
+    def test_result_set_union(self):
+        # XXX We can't test ordering because Storm can't handle
+        #     some of SQLite's peculiarities yet.
+        class Person(self.SQLObject):
+            name = StringCol()
+
+        result1 = Person.selectBy(id=1)
+        result2 = result1.union(result1, unionAll=True)
+        self.assertEquals([result.name for result in result2],
+                          ["John Joe", "John Joe"])
 
     def test_result_set_prejoin(self):
         result = self.Person.select()
