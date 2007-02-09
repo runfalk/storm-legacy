@@ -152,8 +152,31 @@ class SQLObjectTest(TestHelper):
         result = self.Person.select()
         self.assertEquals(result[0].name, "John Joe")
 
+    def test_select_clauseTables_simple(self):
+        result = self.Person.select("name = 'John Joe'", ["person"])
+        self.assertEquals(result[0].name, "John Joe")
+
+    def test_select_clauseTables_implicit_join(self):
+        result = self.Person.select("person.name = 'John Joe' and "
+                                    "phone.person_id = person.id",
+                                    ["Person", "phone"])
+        self.assertEquals(result[0].name, "John Joe")
+
+    def test_select_clauseTables_no_cls_table(self):
+        result = self.Person.select("person.name = 'John Joe' and "
+                                    "phone.person_id = person.id",
+                                    ["phone"])
+        self.assertEquals(result[0].name, "John Joe")
+
     def test_selectBy(self):
         result = self.Person.selectBy(name="John Joe")
+        self.assertEquals(result[0].name, "John Joe")
+
+    def test_selectBy_orderBy(self):
+        result = self.Person.selectBy(age=20, orderBy="name")
+        self.assertEquals(result[0].name, "John Doe")
+
+        result = self.Person.selectBy(age=20, orderBy="-name")
         self.assertEquals(result[0].name, "John Joe")
 
     def test_selectOne(self):
@@ -171,6 +194,12 @@ class SQLObjectTest(TestHelper):
 
         self.assertNotEqual(person, None)
         self.assertEqual(person.name, 'John Joe')
+
+    def test_selectOne_clauseTables(self):
+        person = self.Person.selectOne("person.name = 'John Joe' and "
+                                       "phone.person_id = person.id",
+                                       ["phone"])
+        self.assertEquals(person.name, "John Joe")
 
     def test_selectOneBy(self):
         person = self.Person.selectOneBy(name="John Joe")

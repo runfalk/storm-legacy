@@ -225,65 +225,6 @@ class SQLObjectBase(Storm):
         return obj
 
     @classmethod
-    def select(cls, expr=None, orderBy=None,
-               prejoins=_IGNORED, prejoinClauseTables=_IGNORED):
-        store = cls._get_store()
-        if expr is None:
-            args = ()
-        else:
-            if isinstance(expr, basestring):
-                expr = SQL(expr)
-            args = (expr,)
-        result = store.find(cls, *args)
-        if orderBy is not None:
-            result.order_by(*tuple(cls._parse_orderBy(orderBy)))
-        return SQLObjectResultSet(result, cls)
-
-    @classmethod
-    def selectBy(cls, **kwargs):
-        store = cls._get_store()
-        return SQLObjectResultSet(store.find(cls, **kwargs), cls)
-
-    @classmethod
-    def selectOne(cls, expr, prejoins=_IGNORED, prejoinClauseTables=_IGNORED):
-        store = cls._get_store()
-        if expr is None:
-            args = ()
-        else:
-            if isinstance(expr, basestring):
-                expr = SQL(expr)
-            args = (expr,)
-        return store.find(cls, *args).one()
-
-    @classmethod
-    def selectOneBy(cls, **kwargs):
-        store = cls._get_store()
-        return store.find(cls, **kwargs).one()
-
-    @classmethod
-    def selectFirst(cls, expr, orderBy=None,
-                    prejoins=_IGNORED, prejoinClauseTables=_IGNORED):
-        store = cls._get_store()
-        if expr is None:
-            args = ()
-        else:
-            if isinstance(expr, basestring):
-                expr = SQL(expr)
-            args = (expr,)
-        result = store.find(cls, *args)
-        if orderBy is not None:
-            result.order_by(*cls._parse_orderBy(orderBy))
-        return result.first()
-
-    @classmethod
-    def selectFirstBy(cls, orderBy=None, **kwargs):
-        store = cls._get_store()
-        result = store.find(cls, **kwargs)
-        if orderBy is not None:
-            result.order_by(*cls._parse_orderBy(orderBy))
-        return result.first()
-
-    @classmethod
     def _parse_orderBy(cls, orderBy):
         result = []
         if not isinstance(orderBy, (tuple, list)):
@@ -298,6 +239,50 @@ class SQLObjectBase(Storm):
                     item = Desc(item)
             result.append(item)
         return tuple(result)
+
+    @classmethod
+    def _find(cls, clause=None, clauseTables=None,
+              orderBy=None, prejoins=_IGNORED, prejoinClauseTables=_IGNORED,
+              _by={}):
+        store = cls._get_store()
+        if clause is None:
+            args = ()
+        else:
+            args = (clause,)
+        if clauseTables is not None:
+            clauseTables = set(table.lower() for table in clauseTables)
+            clauseTables.add(cls.__table__[0].lower())
+            store = store.using(*clauseTables)
+        result = store.find(cls, *args, **_by)
+        if orderBy is not None:
+            result.order_by(*cls._parse_orderBy(orderBy))
+        return result
+
+    @classmethod
+    def select(cls, *args, **kwargs):
+        result = cls._find(*args, **kwargs)
+        return SQLObjectResultSet(result, cls)
+
+    @classmethod
+    def selectBy(cls, orderBy=None, **kwargs):
+        result = cls._find(orderBy=orderBy, _by=kwargs)
+        return SQLObjectResultSet(result, cls)
+
+    @classmethod
+    def selectOne(cls, *args, **kwargs):
+        return cls._find(*args, **kwargs).one()
+
+    @classmethod
+    def selectOneBy(cls, **kwargs):
+        return cls._find(_by=kwargs).one()
+
+    @classmethod
+    def selectFirst(cls, *args, **kwargs):
+        return cls._find(*args, **kwargs).first()
+
+    @classmethod
+    def selectFirstBy(cls, orderBy=None, **kwargs):
+        return cls._find(orderBy=orderBy, _by=kwargs).first()
 
     # Dummy methods.
     def sync(self): pass
