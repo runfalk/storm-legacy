@@ -877,7 +877,7 @@ class SuffixExpr(Expr):
 
 @compile.when(SuffixExpr)
 def compile_suffix_expr(compile, state, expr):
-    return "%s %s" % (compile(state, expr.expr), expr.suffix)
+    return "%s %s" % (compile(state, expr.expr, raw=True), expr.suffix)
 
 
 class Not(PrefixExpr):

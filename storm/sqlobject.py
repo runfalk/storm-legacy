@@ -2,6 +2,7 @@ import re
 
 from storm.properties import Unicode, Str, Int, Bool, DateTime, Date
 from storm.references import Reference, ReferenceSet
+from storm.info import get_cls_info
 from storm.store import Store
 from storm.base import Storm
 from storm.expr import SQL, Desc, And, Or, Not, In, Like
@@ -113,12 +114,8 @@ class SQLObjectMeta(type(Storm)):
         if id_name is None:
             id_name = style.idForTable(table_name)
 
+        # Handle this later to call _parse_orderBy() on the created class.
         default_order = cls._get_attr("_defaultOrder", bases, dict)
-        if default_order is not None:
-            if isinstance(default_order, list):
-                # Storm requires __order__ to be a tuple for sequences.
-                default_order = tuple(default_order)
-            dict["__order__"] = default_order
 
         dict["__table__"] = table_name, id_name
 
@@ -148,6 +145,7 @@ class SQLObjectMeta(type(Storm)):
                          str: Str(),
                          unicode: Unicode()}[dict.get("_idType", int)]
 
+        # Notice that obj is the class since this is the metaclass.
         obj = super(SQLObjectMeta, cls).__new__(cls, name, bases, dict)
 
         property_registry = obj._storm_property_registry
@@ -160,6 +158,10 @@ class SQLObjectMeta(type(Storm)):
         for ref_attr, prop_attr in reference_to_prop.iteritems():
             property_registry.add_property(obj, getattr(obj, prop_attr),
                                            ref_attr)
+
+        if default_order is not None:
+            cls_info = get_cls_info(obj)
+            cls_info.default_order = obj._parse_orderBy(default_order)
 
         return obj
 
@@ -269,12 +271,13 @@ class SQLObjectBase(Storm):
             orderBy = (orderBy,)
         for item in orderBy:
             if isinstance(item, basestring):
-                if item.startswith("-"):
-                    result.append(Desc(getattr(cls, item[1:])))
-                else:
-                    result.append(getattr(cls, item))
-            else:
-                result.append(item)
+                desc = item.startswith("-")
+                if desc:
+                    item = item[1:]
+                item = getattr(cls, item, item)
+                if desc:
+                    item = Desc(item)
+            result.append(item)
         return tuple(result)
 
     # Dummy methods.

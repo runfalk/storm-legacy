@@ -207,6 +207,15 @@ class SQLObjectTest(TestHelper):
         self.assertTrue(person)
         self.assertEquals(person.name, "John Doe")
 
+    def test_selectFirst_default_order_fully_qualified(self):
+        class Person(self.Person):
+            _defaultOrder = ["person.name"]
+
+        person = Person.selectFirst("name LIKE 'John%'")
+
+        self.assertTrue(person)
+        self.assertEquals(person.name, "John Doe")
+
     def test_selectFirstBy(self):
         person = self.Person.selectFirstBy(age=20, orderBy="name")
 
@@ -374,6 +383,17 @@ class SQLObjectTest(TestHelper):
                           ["John Joe", "John Doe"])
 
         result = result.orderBy("name")
+        self.assertEquals([person.name for person in result],
+                          ["John Doe", "John Joe"])
+
+    def test_result_set_orderBy_fully_qualified(self):
+        result = self.Person.select()
+
+        result = result.orderBy("-person.name")
+        self.assertEquals([person.name for person in result],
+                          ["John Joe", "John Doe"])
+
+        result = result.orderBy("person.name")
         self.assertEquals([person.name for person in result],
                           ["John Doe", "John Joe"])
 

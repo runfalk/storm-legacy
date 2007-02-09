@@ -975,6 +975,18 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, "func1() DESC")
         self.assertEquals(parameters, [])
 
+    def test_asc_with_string(self):
+        expr = Asc("column")
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "column ASC")
+        self.assertEquals(parameters, [])
+
+    def test_desc_with_string(self):
+        expr = Desc("column")
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "column DESC")
+        self.assertEquals(parameters, [])
+
     def test_sql(self):
         expr = SQL("expression")
         statement, parameters = compile(expr)
