@@ -323,8 +323,12 @@ class StoreTest(object):
         self.assertEquals([(foo.id, foo.title) for foo in result], [
                          ])
 
-    def test_find_str(self):
+    def test_find_sql(self):
         foo = self.store.find(Foo, SQL("foo.id = 20")).one()
+        self.assertEquals(foo.title, "Title 20")
+
+    def test_find_str(self):
+        foo = self.store.find(Foo, "foo.id = 20").one()
         self.assertEquals(foo.title, "Title 20")
 
     def test_find_keywords(self):
