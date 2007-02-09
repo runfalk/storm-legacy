@@ -93,7 +93,7 @@ class Compile(object):
         expr_type = type(expr)
         if (expr_type is SQLRaw or
             expr_type is SQLToken or
-            expr_type is str and raw):
+            raw and (expr_type is str or expr_type is unicode)):
             return expr
         if expr_type in (tuple, list):
             compiled = []
@@ -101,7 +101,7 @@ class Compile(object):
                 subexpr_type = type(subexpr)
                 if (subexpr_type is SQLRaw or
                     subexpr_type is SQLToken or
-                    subexpr_type is str and raw):
+                    raw and (subexpr_type is str or subexpr_type is unicode)):
                     statement = subexpr
                 elif subexpr_type in (tuple, list):
                     state.precedence = outer_precedence

@@ -306,7 +306,7 @@ class SQLObjectResultSet(object):
         return self._result_set.__iter__()
 
     def __getitem__(self, index):
-        return self._result_set[index]
+        return self.__class__(self._result_set[index], self._cls)
 
     def __nonzero__(self):
         return self._result_set.any() is not None

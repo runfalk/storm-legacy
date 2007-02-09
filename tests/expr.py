@@ -509,6 +509,15 @@ class CompileTest(TestHelper):
                                      "GROUP BY column2")
         self.assertEquals(parameters, [])
 
+    def test_select_with_unicode(self):
+        expr = Select(column1, u"1 = 2", table1, order_by=u"column1",
+                      group_by=[u"column2"])
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "SELECT column1 FROM table1 "
+                                     "WHERE 1 = 2 ORDER BY column1 "
+                                     "GROUP BY column2")
+        self.assertEquals(parameters, [])
+
     def test_insert(self):
         expr = Insert([column1, Func1()], [elem1, Func1()], Func1())
         statement, parameters = compile(expr)
