@@ -29,11 +29,14 @@ class SQLObjectTest(TestHelper):
 
         self.store.execute("CREATE TABLE person "
                            "(id INTEGER PRIMARY KEY, name TEXT, age INTEGER,"
-                           " ts TIMESTAMP, address_id INTEGER)")
+                           " ts TIMESTAMP, delta INTERVAL,"
+                           " address_id INTEGER)")
         self.store.execute("INSERT INTO person VALUES "
-                           "(1, 'John Joe', 20, '2007-02-05 19:53:15', 1)")
+                           "(1, 'John Joe', 20, '2007-02-05 19:53:15',"
+                           " '1 day, 12:34:56', 1)")
         self.store.execute("INSERT INTO person VALUES "
-                           "(2, 'John Doe', 20, '2007-02-05 20:53:15', 2)")
+                           "(2, 'John Doe', 20, '2007-02-05 20:53:15',"
+                           " '42 days 12:34:56.78', 2)")
 
         self.store.execute("CREATE TABLE address "
                            "(id INTEGER PRIMARY KEY, city TEXT)")
@@ -289,6 +292,12 @@ class SQLObjectTest(TestHelper):
         person = Person.get(2)
         self.assertEquals(person.age, True)
 
+    def test_float_col(self):
+        class Person(self.SQLObject):
+            age = FloatCol()
+        person = Person.get(2)
+        self.assertTrue(abs(person.age - 20.0) < 1e-6)
+
     def test_utcdatetime_col(self):
         class Person(self.SQLObject):
             ts = UtcDateTimeCol()
@@ -301,6 +310,12 @@ class SQLObjectTest(TestHelper):
             ts = DateCol()
         person = Person.get(2)
         self.assertEquals(person.ts, datetime.date(2007, 2, 5))
+
+    def test_interval_col(self):
+        class Person(self.SQLObject):
+            delta = IntervalCol()
+        person = Person.get(2)
+        self.assertEquals(person.delta, datetime.timedelta(42, 45296, 780000))
 
     def test_foreign_key(self):
         class Person(self.Person):
@@ -336,7 +351,8 @@ class SQLObjectTest(TestHelper):
     def test_multiple_join(self):
         class AnotherPerson(self.Person):
             _table = "person"
-            phones = SQLMultipleJoin("Phone", joinColumn="person")
+            phones = SQLMultipleJoin("Phone", joinColumn="person",
+                                     prejoins=['person'])
 
         class Phone(self.SQLObject):
             person = ForeignKey("AnotherPerson", dbName="person_id")

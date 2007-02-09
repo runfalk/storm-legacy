@@ -1,4 +1,4 @@
-from datetime import datetime, date, time
+from datetime import datetime, date, time, timedelta
 import cPickle as pickle
 
 from storm.exceptions import NoneError
@@ -520,6 +520,54 @@ class TimeVariableTest(TestHelper):
         variable = TimeVariable()
         variable.set(datetime_str, from_db=True)
         self.assertEquals(variable.get(), time_obj)
+
+
+class TimeDeltaVariableTest(TestHelper):
+
+    def test_get_set(self):
+        delta = timedelta(days=42)
+
+        variable = TimeDeltaVariable()
+
+        variable.set(delta)
+        self.assertEquals(variable.get(), delta)
+
+        self.assertRaises(TypeError, variable.set, marker)
+    
+    def test_get_set_from_database(self):
+        delta_str = "42 days 12:34:56.78"
+        delta_uni = unicode(delta_str)
+        delta_obj = timedelta(days=42, hours=12, minutes=34,
+                              seconds=56, microseconds=780000)
+
+        variable = TimeDeltaVariable()
+
+        variable.set(delta_str, from_db=True)
+        self.assertEquals(variable.get(), delta_obj)
+        variable.set(delta_uni, from_db=True)
+        self.assertEquals(variable.get(), delta_obj)
+        variable.set(delta_obj, from_db=True)
+        self.assertEquals(variable.get(), delta_obj)
+
+        delta_str = "1 day, 12:34:56"
+        delta_uni = unicode(delta_str)
+        delta_obj = timedelta(days=1, hours=12, minutes=34, seconds=56)
+
+        variable.set(delta_str, from_db=True)
+        self.assertEquals(variable.get(), delta_obj)
+        variable.set(delta_uni, from_db=True)
+        self.assertEquals(variable.get(), delta_obj)
+        variable.set(delta_obj, from_db=True)
+        self.assertEquals(variable.get(), delta_obj)
+
+        self.assertRaises(TypeError, variable.set, 0, from_db=True)
+        self.assertRaises(TypeError, variable.set, marker, from_db=True)
+        self.assertRaises(ValueError, variable.set, "foobar", from_db=True)
+
+        # Intervals of months or years can not be converted to a
+        # Python timedelta, so a ValueError exception is raised:
+        self.assertRaises(ValueError, variable.set, "42 months", from_db=True)
+        self.assertRaises(ValueError, variable.set, "42 years", from_db=True)
 
 
 class PickleVariableTest(TestHelper):

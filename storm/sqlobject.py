@@ -1,6 +1,7 @@
 import re
 
-from storm.properties import Unicode, Str, Int, Bool, DateTime, Date
+from storm.properties import (
+    Unicode, Str, Int, Bool, Float, DateTime, Date, TimeDelta)
 from storm.references import Reference, ReferenceSet
 from storm.info import get_cls_info
 from storm.base import Storm
@@ -9,13 +10,15 @@ from storm.tz import tzutc
 from storm import Undef
 
 
-__all__ = ["SQLObjectBase", "StringCol", "IntCol", "BoolCol", "DateCol",
-           "UtcDateTimeCol", "ForeignKey", "SQLMultipleJoin",
-           "SQLRelatedJoin", "DESC", "AND", "OR", "NOT", "IN", "LIKE",
-           "SQLConstant"]
+__all__ = ["SQLObjectBase", "StringCol", "IntCol", "BoolCol", "FloatCol",
+           "DateCol", "UtcDateTimeCol", "IntervalCol", "ForeignKey",
+           "SQLMultipleJoin", "SQLRelatedJoin", "DESC", "AND", "OR",
+           "NOT", "IN", "LIKE", "SQLConstant"]
 
 
 DESC, AND, OR, NOT, IN, LIKE, SQLConstant = Desc, And, Or, Not, In, Like, SQL
+
+_IGNORED = object()
 
 
 class SQLObjectStyle(object):
@@ -207,7 +210,8 @@ class SQLObjectBase(Storm):
         return store.get(cls, id)
 
     @classmethod
-    def select(cls, expr=None, orderBy=None):
+    def select(cls, expr=None, orderBy=None,
+               prejoins=_IGNORED, prejoinClauseTables=_IGNORED):
         store = cls._get_store()
         if expr is None:
             args = ()
@@ -226,7 +230,7 @@ class SQLObjectBase(Storm):
         return SQLObjectResultSet(store.find(cls, **kwargs), cls)
 
     @classmethod
-    def selectOne(cls, expr):
+    def selectOne(cls, expr, prejoins=_IGNORED, prejoinClauseTables=_IGNORED):
         store = cls._get_store()
         if expr is None:
             args = ()
@@ -242,7 +246,8 @@ class SQLObjectBase(Storm):
         return store.find(cls, **kwargs).one()
 
     @classmethod
-    def selectFirst(cls, expr, orderBy=None):
+    def selectFirst(cls, expr, orderBy=None,
+                    prejoins=_IGNORED, prejoinClauseTables=_IGNORED):
         store = cls._get_store()
         if expr is None:
             args = ()
@@ -310,9 +315,9 @@ class PropertyAdapter(object):
     _kwargs = {}
 
     def __init__(self, dbName=None, notNull=False, default=Undef,
-                 alternateID=None, unique=None, name=None,
-                 alternateMethodName=None, length=None, immutable=None,
-                 prejoins=None):
+                 alternateID=None, unique=_IGNORED, name=_IGNORED,
+                 alternateMethodName=None, length=_IGNORED, immutable=None,
+                 prejoins=_IGNORED):
 
         self.dbName = dbName
         self.alternateID = alternateID
@@ -348,10 +353,16 @@ class IntCol(PropertyAdapter, Int):
 class BoolCol(PropertyAdapter, Bool):
     pass
 
+class FloatCol(PropertyAdapter, Float):
+    pass
+
 class UtcDateTimeCol(PropertyAdapter, DateTime):
     _kwargs = {"tzinfo": tzutc()}
 
 class DateCol(PropertyAdapter, Date):
+    pass
+
+class IntervalCol(PropertyAdapter, TimeDelta):
     pass
 
 
@@ -365,7 +376,8 @@ class ForeignKey(object):
 class SQLMultipleJoin(ReferenceSet):
 
     def __init__(self, otherClass=None, joinColumn=None,
-                 intermediateTable=None, otherColumn=None, orderBy=None):
+                 intermediateTable=None, otherColumn=None, orderBy=None,
+                 prejoins=_IGNORED):
         if intermediateTable:
             args = ("<primary key>",
                     "%s.%s" % (intermediateTable, joinColumn),

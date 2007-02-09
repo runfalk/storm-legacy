@@ -398,6 +398,12 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, "?")
         self.assertEquals(parameters, [TimeVariable(t)])
 
+    def test_timedelta(self):
+        td = timedelta(days=1, seconds=2, microseconds=3)
+        statement, parameters = compile(td)
+        self.assertEquals(statement, "?")
+        self.assertEquals(parameters, [TimeDeltaVariable(td)])
+
     def test_none(self):
         statement, parameters = compile(None)
         self.assertEquals(statement, "NULL")
@@ -1266,6 +1272,11 @@ class CompilePythonTest(TestHelper):
         t = time(12, 34)
         py_expr = compile_python.get_expr(t)
         self.assertEquals(py_expr, repr(t))
+
+    def test_timedelta(self):
+        td = timedelta(days=1, seconds=2, microseconds=3)
+        py_expr = compile_python.get_expr(td)
+        self.assertEquals(py_expr, repr(td))
 
     def test_none(self):
         py_expr = compile_python.get_expr(None)
