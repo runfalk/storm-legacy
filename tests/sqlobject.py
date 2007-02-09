@@ -158,8 +158,7 @@ class SQLObjectTest(TestHelper):
 
     def test_select_distinct(self):
         result = self.Person.select("person.name = 'John Joe'",
-                                    clauseTables=["phone"],
-                                    distinct=True)
+                                    clauseTables=["phone"], distinct=True)
         self.assertEquals(len(list(result)), 1)
 
     def test_select_clauseTables_simple(self):
@@ -480,6 +479,18 @@ class SQLObjectTest(TestHelper):
     def test_result_set__iter__(self):
         result = self.Person.select()
         self.assertEquals(list(result.__iter__())[0].name, "John Joe")
+
+    def test_result_set_limit(self):
+        result = self.Person.select()
+        self.assertEquals(len(list(result.limit(1))), 1)
+
+    def test_result_set_prejoin(self):
+        result = self.Person.select()
+        self.assertEquals(result.prejoin(None), result) # Dummy.
+
+    def test_result_set_prejoinClauseTables(self):
+        result = self.Person.select()
+        self.assertEquals(result.prejoinClauseTables(None), result) # Dummy.
 
     def test_table_dot_q(self):
         # Table.q.fieldname is a syntax used in SQLObject for

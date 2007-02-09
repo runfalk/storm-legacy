@@ -310,6 +310,15 @@ class SQLObjectResultSet(object):
         result_set.order_by(*self._cls._parse_orderBy(orderBy))
         return SQLObjectResultSet(result_set, self._cls)
 
+    def limit(self, limit):
+        return self._result_set.copy().config(limit=limit)
+
+    def prejoin(self, prejoins):
+        return self
+
+    def prejoinClauseTables(self, prejoinClauseTables):
+        return self
+
 
 class PropertyAdapter(object):
 
