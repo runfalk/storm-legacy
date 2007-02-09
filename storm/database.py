@@ -9,7 +9,7 @@
 #
 from storm.expr import Expr, compile
 from storm.variables import Variable
-from storm.exceptions import Error, ClosedError
+from storm.exceptions import ClosedError
 from storm.uri import URI
 import storm
 

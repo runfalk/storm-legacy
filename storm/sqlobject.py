@@ -3,7 +3,6 @@ import re
 from storm.properties import Unicode, Str, Int, Bool, DateTime, Date
 from storm.references import Reference, ReferenceSet
 from storm.info import get_cls_info
-from storm.store import Store
 from storm.base import Storm
 from storm.expr import SQL, Desc, And, Or, Not, In, Like
 from storm.tz import tzutc
