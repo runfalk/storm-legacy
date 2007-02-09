@@ -152,6 +152,16 @@ class SQLObjectTest(TestHelper):
         result = self.Person.select()
         self.assertEquals(result[0].name, "John Joe")
 
+    def test_select_limit(self):
+        result = self.Person.select(limit=1)
+        self.assertEquals(len(list(result)), 1)
+
+    def test_select_distinct(self):
+        result = self.Person.select("person.name = 'John Joe'",
+                                    clauseTables=["phone"],
+                                    distinct=True)
+        self.assertEquals(len(list(result)), 1)
+
     def test_select_clauseTables_simple(self):
         result = self.Person.select("name = 'John Joe'", ["person"])
         self.assertEquals(result[0].name, "John Joe")

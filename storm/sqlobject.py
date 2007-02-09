@@ -241,9 +241,9 @@ class SQLObjectBase(Storm):
         return tuple(result)
 
     @classmethod
-    def _find(cls, clause=None, clauseTables=None,
-              orderBy=None, prejoins=_IGNORED, prejoinClauseTables=_IGNORED,
-              _by={}):
+    def _find(cls, clause=None, clauseTables=None, orderBy=None,
+              limit=None, distinct=None, prejoins=_IGNORED,
+              prejoinClauseTables=_IGNORED, _by={}):
         store = cls._get_store()
         if clause is None:
             args = ()
@@ -256,6 +256,7 @@ class SQLObjectBase(Storm):
         result = store.find(cls, *args, **_by)
         if orderBy is not None:
             result.order_by(*cls._parse_orderBy(orderBy))
+        result.config(limit=limit, distinct=distinct)
         return result
 
     @classmethod
