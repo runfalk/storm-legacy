@@ -744,13 +744,6 @@ def compile_in(compile, state, expr):
     return "%s in (%s,)" % (expr1, compile(state, expr.expr2))
 
 
-class And(CompoundOper):
-    oper = " AND "
-
-class Or(CompoundOper):
-    oper = " OR "
-
-
 class Add(CompoundOper):
     oper = "+"
 
@@ -765,6 +758,17 @@ class Div(NonAssocBinaryOper):
 
 class Mod(NonAssocBinaryOper):
     oper = "%"
+
+
+class And(CompoundOper):
+    oper = " AND "
+
+class Or(CompoundOper):
+    oper = " OR "
+
+@compile.when(And, Or)
+def compile_compound_oper(compile, state, oper):
+    return compile(state, oper.exprs, oper.oper, raw=True)
 
 
 # --------------------------------------------------------------------

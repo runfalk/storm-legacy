@@ -808,6 +808,18 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, "func1() OR ?")
         self.assertEquals(parameters, [Variable("value")])
 
+    def test_and_with_strings(self):
+        expr = And("elem1", "elem2")
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "elem1 AND elem2")
+        self.assertEquals(parameters, [])
+
+    def test_or_with_strings(self):
+        expr = Or("elem1", "elem2")
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "elem1 OR elem2")
+        self.assertEquals(parameters, [])
+
     def test_add(self):
         expr = Add(elem1, elem2, Add(elem3, elem4))
         statement, parameters = compile(expr)
