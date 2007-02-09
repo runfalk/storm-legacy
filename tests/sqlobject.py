@@ -403,6 +403,19 @@ class SQLObjectTest(TestHelper):
         self.assertEquals(person.addressID, 2)
         self.assertEquals(person.address.city, "Sao Carlos")
 
+    def test_foreign_key_orderBy(self):
+        class Person(self.Person):
+            _defaultOrder = "address"
+            address = ForeignKey(foreignKey="Address", dbName="address_id",
+                                 notNull=True)
+
+        class Address(self.SQLObject):
+            city = StringCol()
+
+        person = Person.selectFirst()
+        self.assertEquals(person.addressID, 1)
+
+
     def test_multiple_join(self):
         class AnotherPerson(self.Person):
             _table = "person"

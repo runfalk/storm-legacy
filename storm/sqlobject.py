@@ -126,15 +126,16 @@ class SQLObjectMeta(type(Storm)):
 
         dict["__table__"] = table_name, id_name
 
-        reference_to_prop = {}
+        attr_to_prop = {}
         for attr, prop in dict.items():
+            attr_to_prop[attr] = attr
             if isinstance(prop, ForeignKey):
                 db_name = prop.kwargs.get("dbName", attr)
                 local_prop_name = style.instanceAttrToIDAttr(attr)
-                reference_to_prop[attr] = local_prop_name
                 dict[local_prop_name] = local_prop = Int(db_name)
                 dict[attr] = Reference(local_prop,
                                        "%s.<primary key>" % prop.foreignKey)
+                attr_to_prop[attr] = local_prop_name
             elif isinstance(prop, PropertyAdapter):
                 db_name = prop.dbName or attr
                 method_name = prop.alternateMethodName
@@ -160,11 +161,13 @@ class SQLObjectMeta(type(Storm)):
         property_registry.add_property(obj, getattr(obj, id_name),
                                        "<primary key>")
 
-        # Register things declared as ForeignKeys as pointing to the real
-        # property as well.
-        for ref_attr, prop_attr in reference_to_prop.iteritems():
-            property_registry.add_property(obj, getattr(obj, prop_attr),
-                                           ref_attr)
+        for fake_name, real_name in attr_to_prop.items():
+            prop = getattr(obj, real_name)
+            if fake_name != real_name:
+                property_registry.add_property(obj, prop, fake_name)
+            attr_to_prop[fake_name] = prop
+
+        obj._attr_to_prop = attr_to_prop
 
         if default_order is not None:
             cls_info = get_cls_info(obj)
@@ -234,7 +237,7 @@ class SQLObjectBase(Storm):
                 desc = item.startswith("-")
                 if desc:
                     item = item[1:]
-                item = getattr(cls, item, item)
+                item = cls._attr_to_prop.get(item, item)
                 if desc:
                     item = Desc(item)
             result.append(item)
