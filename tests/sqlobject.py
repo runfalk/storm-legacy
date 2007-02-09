@@ -70,6 +70,9 @@ class SQLObjectTest(TestHelper):
         self.assertTrue(person)
         self.assertEquals(person.name, "John Doe")
 
+    def test_get_not_found(self):
+        self.assertRaises(NotFoundError, self.Person.get, 1000)
+
     def test_custom_table_name(self):
         class MyPerson(self.Person):
             _table = "person"
@@ -98,6 +101,20 @@ class SQLObjectTest(TestHelper):
         self.assertTrue(Store.of(person) is self.store)
         self.assertEquals(type(person.id), int)
         self.assertEquals(person.name, "John Joe")
+
+    def test_init_hook(self):
+        called = []
+        class Person(self.Person):
+            def _init(self, *args, **kwargs):
+                called.append((args, kwargs))
+
+        person = Person(1, 2, name="John Joe")
+        self.assertEquals(called, [((1, 2), {"name": "John Joe"})])
+
+        del called[:]
+
+        Person.get(2)
+        self.assertEquals(called, [((), {})])
 
     def test_alternateID(self):
         class Person(self.SQLObject):
@@ -135,8 +152,40 @@ class SQLObjectTest(TestHelper):
         result = self.Person.select()
         self.assertEquals(result[0].name, "John Joe")
 
+    def test_select_limit(self):
+        result = self.Person.select(limit=1)
+        self.assertEquals(len(list(result)), 1)
+
+    def test_select_distinct(self):
+        result = self.Person.select("person.name = 'John Joe'",
+                                    clauseTables=["phone"], distinct=True)
+        self.assertEquals(len(list(result)), 1)
+
+    def test_select_clauseTables_simple(self):
+        result = self.Person.select("name = 'John Joe'", ["person"])
+        self.assertEquals(result[0].name, "John Joe")
+
+    def test_select_clauseTables_implicit_join(self):
+        result = self.Person.select("person.name = 'John Joe' and "
+                                    "phone.person_id = person.id",
+                                    ["Person", "phone"])
+        self.assertEquals(result[0].name, "John Joe")
+
+    def test_select_clauseTables_no_cls_table(self):
+        result = self.Person.select("person.name = 'John Joe' and "
+                                    "phone.person_id = person.id",
+                                    ["phone"])
+        self.assertEquals(result[0].name, "John Joe")
+
     def test_selectBy(self):
         result = self.Person.selectBy(name="John Joe")
+        self.assertEquals(result[0].name, "John Joe")
+
+    def test_selectBy_orderBy(self):
+        result = self.Person.selectBy(age=20, orderBy="name")
+        self.assertEquals(result[0].name, "John Doe")
+
+        result = self.Person.selectBy(age=20, orderBy="-name")
         self.assertEquals(result[0].name, "John Joe")
 
     def test_selectOne(self):
@@ -154,6 +203,12 @@ class SQLObjectTest(TestHelper):
 
         self.assertNotEqual(person, None)
         self.assertEqual(person.name, 'John Joe')
+
+    def test_selectOne_clauseTables(self):
+        person = self.Person.selectOne("person.name = 'John Joe' and "
+                                       "phone.person_id = person.id",
+                                       ["phone"])
+        self.assertEquals(person.name, "John Joe")
 
     def test_selectOneBy(self):
         person = self.Person.selectOneBy(name="John Joe")
@@ -204,6 +259,15 @@ class SQLObjectTest(TestHelper):
     def test_selectFirst_default_order_expr(self):
         class Person(self.Person):
             _defaultOrder = [SQLConstant("name")]
+
+        person = Person.selectFirst("name LIKE 'John%'")
+
+        self.assertTrue(person)
+        self.assertEquals(person.name, "John Doe")
+
+    def test_selectFirst_default_order_fully_qualified(self):
+        class Person(self.Person):
+            _defaultOrder = ["person.name"]
 
         person = Person.selectFirst("name LIKE 'John%'")
 
@@ -339,6 +403,19 @@ class SQLObjectTest(TestHelper):
         self.assertEquals(person.addressID, 2)
         self.assertEquals(person.address.city, "Sao Carlos")
 
+    def test_foreign_key_orderBy(self):
+        class Person(self.Person):
+            _defaultOrder = "address"
+            address = ForeignKey(foreignKey="Address", dbName="address_id",
+                                 notNull=True)
+
+        class Address(self.SQLObject):
+            city = StringCol()
+
+        person = Person.selectFirst()
+        self.assertEquals(person.addressID, 1)
+
+
     def test_multiple_join(self):
         class AnotherPerson(self.Person):
             _table = "person"
@@ -393,6 +470,17 @@ class SQLObjectTest(TestHelper):
         self.assertEquals([person.name for person in result],
                           ["John Doe", "John Joe"])
 
+    def test_result_set_orderBy_fully_qualified(self):
+        result = self.Person.select()
+
+        result = result.orderBy("-person.name")
+        self.assertEquals([person.name for person in result],
+                          ["John Joe", "John Doe"])
+
+        result = result.orderBy("person.name")
+        self.assertEquals([person.name for person in result],
+                          ["John Doe", "John Joe"])
+
     def test_result_set_count(self):
         result = self.Person.select()
         self.assertEquals(result.count(), 2)
@@ -404,6 +492,34 @@ class SQLObjectTest(TestHelper):
     def test_result_set__iter__(self):
         result = self.Person.select()
         self.assertEquals(list(result.__iter__())[0].name, "John Joe")
+
+    def test_result_set_distinct(self):
+        result = self.Person.select("person.name = 'John Joe'",
+                                    clauseTables=["phone"])
+        self.assertEquals(len(list(result.distinct())), 1)
+
+    def test_result_set_limit(self):
+        result = self.Person.select()
+        self.assertEquals(len(list(result.limit(1))), 1)
+
+    def test_result_set_union(self):
+        # XXX We can't test ordering because Storm can't handle
+        #     some of SQLite's peculiarities yet.
+        class Person(self.SQLObject):
+            name = StringCol()
+
+        result1 = Person.selectBy(id=1)
+        result2 = result1.union(result1, unionAll=True)
+        self.assertEquals([result.name for result in result2],
+                          ["John Joe", "John Joe"])
+
+    def test_result_set_prejoin(self):
+        result = self.Person.select()
+        self.assertEquals(result.prejoin(None), result) # Dummy.
+
+    def test_result_set_prejoinClauseTables(self):
+        result = self.Person.select()
+        self.assertEquals(result.prejoinClauseTables(None), result) # Dummy.
 
     def test_table_dot_q(self):
         # Table.q.fieldname is a syntax used in SQLObject for

@@ -76,6 +76,12 @@ class PostgresConnection(Connection):
     _param_mark = "%s"
     _compile = compile
 
+    def _raw_execute(self, statement, params):
+        if type(statement) is unicode:
+            # psycopg breaks with unicode statements.
+            statement = str(statement)
+        return Connection._raw_execute(self, statement, params)
+
     def _to_database(self, params):
         for param in params:
             if isinstance(param, Variable):

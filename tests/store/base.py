@@ -323,8 +323,12 @@ class StoreTest(object):
         self.assertEquals([(foo.id, foo.title) for foo in result], [
                          ])
 
-    def test_find_str(self):
+    def test_find_sql(self):
         foo = self.store.find(Foo, SQL("foo.id = 20")).one()
+        self.assertEquals(foo.title, "Title 20")
+
+    def test_find_str(self):
+        foo = self.store.find(Foo, "foo.id = 20").one()
         self.assertEquals(foo.title, "Title 20")
 
     def test_find_keywords(self):
@@ -680,6 +684,27 @@ class StoreTest(object):
         bar.foo_id = None
 
         tables = self.store.using(Foo, LeftJoin(Bar, Bar.foo_id == Foo.id))
+        result = tables.find(Bar).order_by(Foo.id, Bar.id)
+        lst = [bar and (bar.id, bar.title) for bar in result]
+        self.assertEquals(lst, [
+                          None,
+                          (200, u"Title 200"),
+                          (300, u"Title 100"),
+                         ])
+
+    def test_using_find_with_strings(self):
+        foo = self.store.using("foo").find(Foo, id=10).one()
+        self.assertEquals(foo.title, "Title 30")
+
+        foo = self.store.using("foo", "bar").find(Foo, id=10).any()
+        self.assertEquals(foo.title, "Title 30")
+
+    def test_using_find_join_with_strings(self):
+        bar = self.store.get(Bar, 100)
+        bar.foo_id = None
+
+        tables = self.store.using(LeftJoin("foo", "bar",
+                                           "bar.foo_id = foo.id"))
         result = tables.find(Bar).order_by(Foo.id, Bar.id)
         lst = [bar and (bar.id, bar.title) for bar in result]
         self.assertEquals(lst, [
@@ -3384,18 +3409,23 @@ class StoreTest(object):
         self.store.execute("DELETE FROM foo WHERE id=40")
         self.assertEquals(self.store.get(Foo, 40), foo)
 
-    
     def test_result_union(self):
         result1 = self.store.find(Foo, id=30)
         result2 = self.store.find(Foo, id=10)
 
         result3 = result1.union(result2)
-        #result3.order_by(Foo.title) # XXX order_by doesn't work on Union yet.
-                                     #     Remove sorted() below when it does. 
 
-        self.assertEquals(sorted([(foo.id, foo.title) for foo in result3]), [
-                          (10, "Title 30"),
+        # XXX SQLite sorting of unions doesn't work correctly yet.
+        if not self.__class__.__name__.startswith("SQLite"):
+            result3.order_by(Foo.title)
+            result = [(foo.id, foo.title) for foo in result3]
+        else:
+            result = [(foo.id, foo.title) for foo in result3]
+            result = list(reversed(sorted(result)))
+
+        self.assertEquals(result, [
                           (30, "Title 10"),
+                          (10, "Title 30"),
                          ])
 
     def test_result_union_duplicated(self):
@@ -3403,7 +3433,6 @@ class StoreTest(object):
         result2 = self.store.find(Foo, id=30)
 
         result3 = result1.union(result2)
-        result3.order_by(Foo.id)
 
         self.assertEquals([(foo.id, foo.title) for foo in result3], [
                           (30, "Title 10"),
@@ -3414,7 +3443,6 @@ class StoreTest(object):
         result2 = self.store.find(Foo, id=30)
 
         result3 = result1.union(result2, all=True)
-        result3.order_by(Foo.id)
 
         self.assertEquals([(foo.id, foo.title) for foo in result3], [
                           (30, "Title 10"),
@@ -3426,7 +3454,6 @@ class StoreTest(object):
         result2 = EmptyResultSet()
 
         result3 = result1.union(result2)
-        result3.order_by(Foo.id)
 
         self.assertEquals([(foo.id, foo.title) for foo in result3], [
                           (30, "Title 10"),

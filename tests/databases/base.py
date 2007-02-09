@@ -77,6 +77,10 @@ class DatabaseTest(object):
         result = self.connection.execute("SELECT 1")
         self.assertTrue(isinstance(result, Result))
 
+    def test_execute_unicode_result(self):
+        result = self.connection.execute(u"SELECT 1")
+        self.assertTrue(isinstance(result, Result))
+
     def test_execute_params(self):
         result = self.connection.execute("SELECT 1 FROM (SELECT 1) AS ALIAS "
                                          "WHERE 1=?", (1,))

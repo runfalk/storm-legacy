@@ -3,7 +3,8 @@ import re
 from storm.properties import (
     Unicode, Str, Int, Bool, Float, DateTime, Date, TimeDelta)
 from storm.references import Reference, ReferenceSet
-from storm.store import Store
+from storm.exceptions import StormError
+from storm.info import get_cls_info
 from storm.base import Storm
 from storm.expr import SQL, Desc, And, Or, Not, In, Like
 from storm.tz import tzutc
@@ -13,12 +14,16 @@ from storm import Undef
 __all__ = ["SQLObjectBase", "StringCol", "IntCol", "BoolCol", "FloatCol",
            "DateCol", "UtcDateTimeCol", "IntervalCol", "ForeignKey",
            "SQLMultipleJoin", "SQLRelatedJoin", "DESC", "AND", "OR",
-           "NOT", "IN", "LIKE", "SQLConstant"]
+           "NOT", "IN", "LIKE", "SQLConstant", "NotFoundError"]
 
 
 DESC, AND, OR, NOT, IN, LIKE, SQLConstant = Desc, And, Or, Not, In, Like, SQL
 
 _IGNORED = object()
+
+
+class NotFoundError(StormError):
+    pass
 
 
 class SQLObjectStyle(object):
@@ -47,7 +52,7 @@ class SQLObjectStyle(object):
         return class_name[0].lower()+self._mixed_to_under(class_name[1:])
 
     def dbTableToPythonClass(self, table_name):
-        return table[0].upper()+self._under_to_mixed(table_name[1:])
+        return table_name[0].upper()+self._under_to_mixed(table_name[1:])
 
     def pythonClassToDBTableReference(self, class_name):
         return self.tableReference(self.pythonClassToDBTable(class_name))
@@ -116,24 +121,21 @@ class SQLObjectMeta(type(Storm)):
         if id_name is None:
             id_name = style.idForTable(table_name)
 
+        # Handle this later to call _parse_orderBy() on the created class.
         default_order = cls._get_attr("_defaultOrder", bases, dict)
-        if default_order is not None:
-            if isinstance(default_order, list):
-                # Storm requires __order__ to be a tuple for sequences.
-                default_order = tuple(default_order)
-            dict["__order__"] = default_order
 
         dict["__table__"] = table_name, id_name
 
-        reference_to_prop = {}
+        attr_to_prop = {}
         for attr, prop in dict.items():
+            attr_to_prop[attr] = attr
             if isinstance(prop, ForeignKey):
                 db_name = prop.kwargs.get("dbName", attr)
                 local_prop_name = style.instanceAttrToIDAttr(attr)
-                reference_to_prop[attr] = local_prop_name
                 dict[local_prop_name] = local_prop = Int(db_name)
                 dict[attr] = Reference(local_prop,
                                        "%s.<primary key>" % prop.foreignKey)
+                attr_to_prop[attr] = local_prop_name
             elif isinstance(prop, PropertyAdapter):
                 db_name = prop.dbName or attr
                 method_name = prop.alternateMethodName
@@ -151,6 +153,7 @@ class SQLObjectMeta(type(Storm)):
                          str: Str(),
                          unicode: Unicode()}[dict.get("_idType", int)]
 
+        # Notice that obj is the class since this is the metaclass.
         obj = super(SQLObjectMeta, cls).__new__(cls, name, bases, dict)
 
         property_registry = obj._storm_property_registry
@@ -158,11 +161,17 @@ class SQLObjectMeta(type(Storm)):
         property_registry.add_property(obj, getattr(obj, id_name),
                                        "<primary key>")
 
-        # Register things declared as ForeignKeys as pointing to the real
-        # property as well.
-        for ref_attr, prop_attr in reference_to_prop.iteritems():
-            property_registry.add_property(obj, getattr(obj, prop_attr),
-                                           ref_attr)
+        for fake_name, real_name in attr_to_prop.items():
+            prop = getattr(obj, real_name)
+            if fake_name != real_name:
+                property_registry.add_property(obj, prop, fake_name)
+            attr_to_prop[fake_name] = prop
+
+        obj._attr_to_prop = attr_to_prop
+
+        if default_order is not None:
+            cls_info = get_cls_info(obj)
+            cls_info.default_order = obj._parse_orderBy(default_order)
 
         return obj
 
@@ -193,10 +202,17 @@ class SQLObjectBase(Storm):
 
     q = DotQ()
 
-    def __init__(self, **kwargs):
+    def __init__(self, *args, **kwargs):
         for attr, value in kwargs.iteritems():
             setattr(self, attr, value)
         self._get_store().add(self)
+        self._init(*args, **kwargs)
+
+    def __load__(self):
+        self._init()
+
+    def _init(self, *args, **kwargs):
+        pass
 
     @staticmethod
     def _get_store():
@@ -206,66 +222,10 @@ class SQLObjectBase(Storm):
     @classmethod
     def get(cls, id):
         store = cls._get_store()
-        return store.get(cls, id)
-
-    @classmethod
-    def select(cls, expr=None, orderBy=None,
-               prejoins=_IGNORED, prejoinClauseTables=_IGNORED):
-        store = cls._get_store()
-        if expr is None:
-            args = ()
-        else:
-            if isinstance(expr, basestring):
-                expr = SQL(expr)
-            args = (expr,)
-        result = store.find(cls, *args)
-        if orderBy is not None:
-            result.order_by(*tuple(cls._parse_orderBy(orderBy)))
-        return SQLObjectResultSet(result, cls)
-
-    @classmethod
-    def selectBy(cls, **kwargs):
-        store = cls._get_store()
-        return SQLObjectResultSet(store.find(cls, **kwargs), cls)
-
-    @classmethod
-    def selectOne(cls, expr, prejoins=_IGNORED, prejoinClauseTables=_IGNORED):
-        store = cls._get_store()
-        if expr is None:
-            args = ()
-        else:
-            if isinstance(expr, basestring):
-                expr = SQL(expr)
-            args = (expr,)
-        return store.find(cls, *args).one()
-
-    @classmethod
-    def selectOneBy(cls, **kwargs):
-        store = cls._get_store()
-        return store.find(cls, **kwargs).one()
-
-    @classmethod
-    def selectFirst(cls, expr, orderBy=None,
-                    prejoins=_IGNORED, prejoinClauseTables=_IGNORED):
-        store = cls._get_store()
-        if expr is None:
-            args = ()
-        else:
-            if isinstance(expr, basestring):
-                expr = SQL(expr)
-            args = (expr,)
-        result = store.find(cls, *args)
-        if orderBy is not None:
-            result.order_by(*cls._parse_orderBy(orderBy))
-        return result.first()
-
-    @classmethod
-    def selectFirstBy(cls, orderBy=None, **kwargs):
-        store = cls._get_store()
-        result = store.find(cls, **kwargs)
-        if orderBy is not None:
-            result.order_by(*cls._parse_orderBy(orderBy))
-        return result.first()
+        obj = store.get(cls, id)
+        if obj is None:
+            raise NotFoundError("Object not found")
+        return obj
 
     @classmethod
     def _parse_orderBy(cls, orderBy):
@@ -274,13 +234,59 @@ class SQLObjectBase(Storm):
             orderBy = (orderBy,)
         for item in orderBy:
             if isinstance(item, basestring):
-                if item.startswith("-"):
-                    result.append(Desc(getattr(cls, item[1:])))
-                else:
-                    result.append(getattr(cls, item))
-            else:
-                result.append(item)
+                desc = item.startswith("-")
+                if desc:
+                    item = item[1:]
+                item = cls._attr_to_prop.get(item, item)
+                if desc:
+                    item = Desc(item)
+            result.append(item)
         return tuple(result)
+
+    @classmethod
+    def _find(cls, clause=None, clauseTables=None, orderBy=None,
+              limit=None, distinct=None, prejoins=_IGNORED,
+              prejoinClauseTables=_IGNORED, _by={}):
+        store = cls._get_store()
+        if clause is None:
+            args = ()
+        else:
+            args = (clause,)
+        if clauseTables is not None:
+            clauseTables = set(table.lower() for table in clauseTables)
+            clauseTables.add(cls.__table__[0].lower())
+            store = store.using(*clauseTables)
+        result = store.find(cls, *args, **_by)
+        if orderBy is not None:
+            result.order_by(*cls._parse_orderBy(orderBy))
+        result.config(limit=limit, distinct=distinct)
+        return result
+
+    @classmethod
+    def select(cls, *args, **kwargs):
+        result = cls._find(*args, **kwargs)
+        return SQLObjectResultSet(result, cls)
+
+    @classmethod
+    def selectBy(cls, orderBy=None, **kwargs):
+        result = cls._find(orderBy=orderBy, _by=kwargs)
+        return SQLObjectResultSet(result, cls)
+
+    @classmethod
+    def selectOne(cls, *args, **kwargs):
+        return cls._find(*args, **kwargs).one()
+
+    @classmethod
+    def selectOneBy(cls, **kwargs):
+        return cls._find(_by=kwargs).one()
+
+    @classmethod
+    def selectFirst(cls, *args, **kwargs):
+        return cls._find(*args, **kwargs).first()
+
+    @classmethod
+    def selectFirstBy(cls, orderBy=None, **kwargs):
+        return cls._find(orderBy=orderBy, _by=kwargs).first()
 
     # Dummy methods.
     def sync(self): pass
@@ -305,7 +311,29 @@ class SQLObjectResultSet(object):
     def orderBy(self, orderBy):
         result_set = self._result_set.copy()
         result_set.order_by(*self._cls._parse_orderBy(orderBy))
-        return SQLObjectResultSet(result_set, self._cls)
+        return self.__class__(result_set, self._cls)
+
+    def limit(self, limit):
+        result_set = self._result_set.copy().config(limit=limit)
+        return self.__class__(result_set, self._cls)
+
+    def distinct(self):
+        result_set = self._result_set.copy().config(distinct=True)
+        return self.__class__(result_set, self._cls)
+
+    def union(self, otherSelect, unionAll=False, orderBy=None):
+        result_set = self._result_set.union(otherSelect._result_set,
+                                            all=unionAll)
+        new = self.__class__(result_set, self._cls)
+        if orderBy is not None:
+            return new.orderBy(orderBy)
+        return new
+
+    def prejoin(self, prejoins):
+        return self
+
+    def prejoinClauseTables(self, prejoinClauseTables):
+        return self
 
 
 class PropertyAdapter(object):

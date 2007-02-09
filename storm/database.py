@@ -9,7 +9,7 @@
 #
 from storm.expr import Expr, compile
 from storm.variables import Variable
-from storm.exceptions import Error, ClosedError
+from storm.exceptions import ClosedError
 from storm.uri import URI
 import storm
 
@@ -101,15 +101,8 @@ class Connection(object):
     def _build_raw_cursor(self):
         return self._raw_connection.cursor()
 
-    def execute(self, statement, params=None, noresult=False):
-        if self._closed:
-            raise ClosedError("Connection is closed")
-        if isinstance(statement, Expr):
-            if params is not None:
-                raise ValueError("Can't pass parameters with expressions")
-            statement, params = self._compile(statement)
+    def _raw_execute(self, statement, params=None):
         raw_cursor = self._build_raw_cursor()
-        statement = convert_param_marks(statement, "?", self._param_mark)
         if params is None:
             if DEBUG:
                 print statement, () 
@@ -119,6 +112,17 @@ class Connection(object):
             if DEBUG:
                 print statement, params
             raw_cursor.execute(statement, params)
+        return raw_cursor
+
+    def execute(self, statement, params=None, noresult=False):
+        if self._closed:
+            raise ClosedError("Connection is closed")
+        if isinstance(statement, Expr):
+            if params is not None:
+                raise ValueError("Can't pass parameters with expressions")
+            statement, params = self._compile(statement)
+        statement = convert_param_marks(statement, "?", self._param_mark)
+        raw_cursor = self._raw_execute(statement, params)
         if noresult:
             raw_cursor.close()
             return None

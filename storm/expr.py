@@ -88,20 +88,24 @@ class Compile(object):
             raise CompileError("Don't know how to compile type %r of %r"
                                % (expr.__class__, expr))
 
-    def _compile(self, state, expr, join=", "):
+    def _compile(self, state, expr, join=", ", raw=False):
         outer_precedence = state.precedence
         expr_type = type(expr)
-        if expr_type is SQLRaw or expr_type is SQLToken:
+        if (expr_type is SQLRaw or
+            expr_type is SQLToken or
+            expr_type is str and raw):
             return expr
         if expr_type in (tuple, list):
             compiled = []
             for subexpr in expr:
                 subexpr_type = type(subexpr)
-                if subexpr_type is SQLRaw or subexpr_type is SQLToken:
+                if (subexpr_type is SQLRaw or
+                    subexpr_type is SQLToken or
+                    subexpr_type is str and raw):
                     statement = subexpr
                 elif subexpr_type in (tuple, list):
                     state.precedence = outer_precedence
-                    statement = self._compile(state, subexpr, join)
+                    statement = self._compile(state, subexpr, join, raw)
                 else:
                     statement = self._compile_single(state, subexpr,
                                                      outer_precedence)
@@ -144,6 +148,7 @@ class State(object):
         if new_value is Undef:
             new_value = copy(old_value)
         setattr(self, attr, new_value)
+        return old_value
 
     def pop(self):
         setattr(self, *self._stack.pop(-1))
@@ -197,7 +202,7 @@ def compile_time(compile, state, expr):
     return "?"
 
 @compile.when(timedelta)
-def compile_time(compile, state, expr):
+def compile_timedelta(compile, state, expr):
     state.parameters.append(TimeDeltaVariable(expr))
     return "?"
 
@@ -207,7 +212,7 @@ def compile_none(compile, state, expr):
 
 
 @compile_python.when(str, unicode, bool, int, long, float,
-                     datetime, date, time, type(None))
+                     datetime, date, time, timedelta, type(None))
 def compile_python_builtin(compile, state, expr):
     return repr(expr)
 
@@ -373,7 +378,7 @@ def build_tables(compile, state, expr):
     if expr.tables is not Undef:
         result = []
         if type(expr.tables) not in (list, tuple):
-            return compile(state, expr.tables)
+            return compile(state, expr.tables, raw=True)
         else:
             for elem in expr.tables:
                 if result:
@@ -381,31 +386,31 @@ def build_tables(compile, state, expr):
                         result.append(", ")
                     else:
                         result.append(" ")
-                result.append(compile(state, elem))
+                result.append(compile(state, elem, raw=True))
             return "".join(result)
     elif state.auto_tables:
         tables = []
         for expr in state.auto_tables:
-            table = compile(state, expr)
+            table = compile(state, expr, raw=True)
             if table not in tables:
                 tables.append(table)
         return ", ".join(tables)
     elif expr.default_tables is not Undef:
-        return compile(state, expr.default_tables)
+        return compile(state, expr.default_tables, raw=True)
     raise NoTableError("Couldn't find any tables")
 
 def build_table(compile, state, expr):
     if expr.table is not Undef:
-        return compile(state, expr.table)
+        return compile(state, expr.table, raw=True)
     elif state.auto_tables:
         tables = []
         for expr in state.auto_tables:
-            table = compile(state, expr)
+            table = compile(state, expr, raw=True)
             if table not in tables:
                 tables.append(table)
         return ", ".join(tables)
     elif expr.default_table is not Undef:
-        return compile(state, expr.default_table)
+        return compile(state, expr.default_table, raw=True)
     raise NoTableError("Couldn't find any table")
 
 
@@ -437,13 +442,13 @@ def compile_select(compile, state, select):
     parameters_pos = len(state.parameters)
     if select.where is not Undef:
         tokens.append(" WHERE ")
-        tokens.append(compile(state, select.where))
+        tokens.append(compile(state, select.where, raw=True))
     if select.order_by is not Undef:
         tokens.append(" ORDER BY ")
-        tokens.append(compile(state, select.order_by))
+        tokens.append(compile(state, select.order_by, raw=True))
     if select.group_by is not Undef:
         tokens.append(" GROUP BY ")
-        tokens.append(compile(state, select.group_by))
+        tokens.append(compile(state, select.group_by, raw=True))
     if select.limit is not Undef:
         tokens.append(" LIMIT %d" % select.limit)
     if select.offset is not Undef:
@@ -494,7 +499,7 @@ def compile_update(compile, state, update):
     if update.where is not Undef:
         state.push("column_prefix", True)
         tokens.append(" WHERE ")
-        tokens.append(compile(state, update.where))
+        tokens.append(compile(state, update.where, raw=True))
         state.pop()
     return "".join(tokens)
 
@@ -512,7 +517,7 @@ def compile_delete(compile, state, delete):
     if delete.where is not Undef:
         state.push("column_prefix", True)
         tokens.append(" WHERE ")
-        tokens.append(compile(state, delete.where))
+        tokens.append(compile(state, delete.where, raw=True))
         state.pop()
     # Compile later for auto_tables support.
     tokens[1] = build_table(compile, state, delete)
@@ -535,7 +540,7 @@ def compile_column(compile, state, column):
         state.auto_tables.append(column.table)
     if column.table is Undef or not state.column_prefix:
         return column.name
-    return "%s.%s" % (compile(state, column.table), column.name)
+    return "%s.%s" % (compile(state, column.table, raw=True), column.name)
 
 @compile_python.when(Column)
 def compile_python_column(compile, state, column):
@@ -606,13 +611,13 @@ def compile_join(compile, state, expr):
     result = []
     state.precedence += 0.5
     if expr.left is not Undef:
-        result.append(compile(state, expr.left))
+        result.append(compile(state, expr.left, raw=True))
     result.append(expr.oper)
-    result.append(compile(state, expr.right))
+    result.append(compile(state, expr.right, raw=True))
     if expr.on is not Undef:
         state.push("column_prefix", True)
         result.append("ON")
-        result.append(compile(state, expr.on))
+        result.append(compile(state, expr.on, raw=True))
         state.pop()
     return " ".join(result)
 
@@ -739,13 +744,6 @@ def compile_in(compile, state, expr):
     return "%s in (%s,)" % (expr1, compile(state, expr.expr2))
 
 
-class And(CompoundOper):
-    oper = " AND "
-
-class Or(CompoundOper):
-    oper = " OR "
-
-
 class Add(CompoundOper):
     oper = "+"
 
@@ -762,23 +760,44 @@ class Mod(NonAssocBinaryOper):
     oper = "%"
 
 
+class And(CompoundOper):
+    oper = " AND "
+
+class Or(CompoundOper):
+    oper = " OR "
+
+@compile.when(And, Or)
+def compile_compound_oper(compile, state, oper):
+    return compile(state, oper.exprs, oper.oper, raw=True)
+
+
 # --------------------------------------------------------------------
 # Set expressions.
 
 class SetExpr(Expr):
     oper = " (unknown) "
-    all = False
 
     def __init__(self, *exprs, **kwargs):
         self.exprs = exprs
-        if kwargs.get("all"):
-            self.all = True
+        self.all = kwargs.get("all", False)
+        self.order_by = kwargs.get("order_by", Undef)
+        self.limit = kwargs.get("limit", Undef)
+        self.offset = kwargs.get("offset", Undef)
 
 @compile.when(SetExpr)
 def compile_set_expr(compile, state, expr):
+    suffix = ""
+    if expr.order_by is not Undef:
+        suffix += " ORDER BY " + compile(state, expr.order_by)
+    if expr.limit is not Undef:
+        suffix += " LIMIT %d" % expr.limit
+    if expr.offset is not Undef:
+        suffix += " OFFSET %d" % expr.offset
+    oper = expr.oper
     if expr.all:
-        return compile(state, expr.exprs, expr.oper+"ALL ")
-    return compile(state, expr.exprs, expr.oper)
+        oper += "ALL "
+    state.precedence += 0.5
+    return compile(state, expr.exprs, oper) + suffix
 
 
 class Union(SetExpr):
@@ -868,7 +887,7 @@ class SuffixExpr(Expr):
 
 @compile.when(SuffixExpr)
 def compile_suffix_expr(compile, state, expr):
-    return "%s %s" % (compile(state, expr.expr), expr.suffix)
+    return "%s %s" % (compile(state, expr.expr, raw=True), expr.suffix)
 
 
 class Not(PrefixExpr):
@@ -947,6 +966,7 @@ def compare_columns(columns, values):
 compile.set_precedence(10, Select, Insert, Update, Delete)
 compile.set_precedence(10, Join, LeftJoin, RightJoin)
 compile.set_precedence(10, NaturalJoin, NaturalLeftJoin, NaturalRightJoin)
+compile.set_precedence(10, Union)
 compile.set_precedence(20, SQL)
 compile.set_precedence(30, Or)
 compile.set_precedence(40, And)
