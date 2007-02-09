@@ -99,6 +99,20 @@ class SQLObjectTest(TestHelper):
         self.assertEquals(type(person.id), int)
         self.assertEquals(person.name, "John Joe")
 
+    def test_init_hook(self):
+        called = []
+        class Person(self.Person):
+            def _init(self, *args, **kwargs):
+                called.append((args, kwargs))
+
+        person = Person(1, 2, name="John Joe")
+        self.assertEquals(called, [((1, 2), {"name": "John Joe"})])
+
+        del called[:]
+
+        Person.get(2)
+        self.assertEquals(called, [((), {})])
+
     def test_alternateID(self):
         class Person(self.SQLObject):
             name = StringCol(alternateID=True)

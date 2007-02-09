@@ -194,10 +194,17 @@ class SQLObjectBase(Storm):
 
     q = DotQ()
 
-    def __init__(self, **kwargs):
+    def __init__(self, *args, **kwargs):
         for attr, value in kwargs.iteritems():
             setattr(self, attr, value)
         self._get_store().add(self)
+        self._init(*args, **kwargs)
+
+    def __load__(self):
+        self._init()
+
+    def _init(self, *args, **kwargs):
+        pass
 
     @staticmethod
     def _get_store():
