@@ -71,7 +71,7 @@ class SQLObjectTest(TestHelper):
         self.assertEquals(person.name, "John Doe")
 
     def test_get_not_found(self):
-        self.assertRaises(NotFoundError, self.Person.get, 1000)
+        self.assertRaises(SQLObjectNotFound, self.Person.get, 1000)
 
     def test_custom_table_name(self):
         class MyPerson(self.Person):

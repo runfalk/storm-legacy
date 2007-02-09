@@ -14,7 +14,7 @@ from storm import Undef
 __all__ = ["SQLObjectBase", "StringCol", "IntCol", "BoolCol", "FloatCol",
            "DateCol", "UtcDateTimeCol", "IntervalCol", "ForeignKey",
            "SQLMultipleJoin", "SQLRelatedJoin", "DESC", "AND", "OR",
-           "NOT", "IN", "LIKE", "SQLConstant", "NotFoundError"]
+           "NOT", "IN", "LIKE", "SQLConstant", "SQLObjectNotFound"]
 
 
 DESC, AND, OR, NOT, IN, LIKE, SQLConstant = Desc, And, Or, Not, In, Like, SQL
@@ -22,7 +22,7 @@ DESC, AND, OR, NOT, IN, LIKE, SQLConstant = Desc, And, Or, Not, In, Like, SQL
 _IGNORED = object()
 
 
-class NotFoundError(StormError):
+class SQLObjectNotFound(StormError):
     pass
 
 
@@ -224,7 +224,7 @@ class SQLObjectBase(Storm):
         store = cls._get_store()
         obj = store.get(cls, id)
         if obj is None:
-            raise NotFoundError("Object not found")
+            raise SQLObjectNotFound("Object not found")
         return obj
 
     @classmethod
