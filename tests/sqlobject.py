@@ -493,6 +493,12 @@ class SQLObjectTest(TestHelper):
         result = self.Person.select()
         self.assertEquals(list(result.__iter__())[0].name, "John Joe")
 
+    def test_result_set__nonzero__(self):
+        result = self.Person.select()
+        self.assertEquals(result.__nonzero__(), True)
+        result = self.Person.select(self.Person.q.name == 'No Person')
+        self.assertEquals(result.__nonzero__(), False)
+
     def test_result_set_distinct(self):
         result = self.Person.select("person.name = 'John Joe'",
                                     clauseTables=["phone"])
