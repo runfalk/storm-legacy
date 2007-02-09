@@ -313,6 +313,9 @@ class SQLObjectResultSet(object):
     def limit(self, limit):
         return self._result_set.copy().config(limit=limit)
 
+    def distinct(self):
+        return self._result_set.copy().config(distinct=True)
+
     def prejoin(self, prejoins):
         return self
 
