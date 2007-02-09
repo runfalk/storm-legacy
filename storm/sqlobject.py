@@ -45,7 +45,7 @@ class SQLObjectStyle(object):
         return class_name[0].lower()+self._mixed_to_under(class_name[1:])
 
     def dbTableToPythonClass(self, table_name):
-        return table[0].upper()+self._under_to_mixed(table_name[1:])
+        return table_name[0].upper()+self._under_to_mixed(table_name[1:])
 
     def pythonClassToDBTableReference(self, class_name):
         return self.tableReference(self.pythonClassToDBTable(class_name))
