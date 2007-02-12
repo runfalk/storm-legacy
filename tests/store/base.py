@@ -3412,20 +3412,18 @@ class StoreTest(object):
     def test_result_union(self):
         result1 = self.store.find(Foo, id=30)
         result2 = self.store.find(Foo, id=10)
-
         result3 = result1.union(result2)
 
-        # XXX SQLite sorting of unions doesn't work correctly yet.
-        if not self.__class__.__name__.startswith("SQLite"):
-            result3.order_by(Foo.title)
-            result = [(foo.id, foo.title) for foo in result3]
-        else:
-            result = [(foo.id, foo.title) for foo in result3]
-            result = list(reversed(sorted(result)))
-
-        self.assertEquals(result, [
+        result3.order_by(Foo.title)
+        self.assertEquals([(foo.id, foo.title) for foo in result3], [
                           (30, "Title 10"),
                           (10, "Title 30"),
+                         ])
+
+        result3.order_by(Desc(Foo.title))
+        self.assertEquals([(foo.id, foo.title) for foo in result3], [
+                          (10, "Title 30"),
+                          (30, "Title 10"),
                          ])
 
     def test_result_union_duplicated(self):

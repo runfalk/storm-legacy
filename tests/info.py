@@ -499,7 +499,7 @@ class ClassAliasTest(TestHelper):
 
     def test_compile(self):
         statement, parameters = compile(self.ClassAlias)
-        self.assertEquals(statement, "table AS alias")
+        self.assertEquals(statement, "alias")
 
     def test_compile_in_select(self):
         expr = Select(self.ClassAlias.prop1, self.ClassAlias.prop1 == 1,
@@ -522,5 +522,6 @@ class TypeCompilerTest(TestHelper):
             id = Property()
         statement, parameters = compile(Class2)
         self.assertEquals(statement, "class1")
-        statement, parameters = compile(ClassAlias(Class2, "alias"))
-        self.assertEquals(statement, "class1 AS alias")
+        alias = ClassAlias(Class2, "alias")
+        statement, parameters = compile(Select(alias.id))
+        self.assertEquals(statement, "SELECT alias.id FROM class1 AS alias")

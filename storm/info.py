@@ -10,7 +10,7 @@
 import weakref
 
 from storm.exceptions import ClassInfoError
-from storm.expr import Expr, FromExpr, Column, Desc
+from storm.expr import Expr, FromExpr, Column, Desc, TABLE
 from storm.expr import SQLToken, CompileError, compile
 from storm.event import EventSystem
 from storm import Undef
@@ -228,7 +228,7 @@ def compile_type(compile, state, expr):
     table = getattr(expr, "__table__", None)
     if table is None:
         raise CompileError("Don't know how to compile %r" % expr)
-    if not state.column_prefix and issubclass(expr, ClassAlias):
+    if state.context is TABLE and issubclass(expr, ClassAlias):
         cls_info = get_cls_info(expr)
         return "%s AS %s" % (compile(state, cls_info.cls), table[0])
     if isinstance(table[0], basestring):

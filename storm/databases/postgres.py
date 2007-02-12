@@ -17,11 +17,12 @@ try:
 except:
     psycopg = dummy
 
-from storm.expr import And, Eq
+from storm.expr import (
+    Undef, SetExpr, Select, Alias, And, Eq, FuncExpr, SQLRaw, COLUMN_NAME,
+    compile, compile_select, compile_set_expr)
 from storm.variables import Variable, UnicodeVariable, ListVariable
 from storm.database import *
 from storm.exceptions import install_exceptions, DatabaseModuleError
-from storm.expr import FuncExpr, compile
 
 
 install_exceptions(psycopg)
@@ -46,6 +47,48 @@ def compile_list_variable(compile, state, list_variable):
     for variable in list_variable.get(to_db=True):
         elements.append(compile(state, variable))
     return "ARRAY[%s]" % ",".join(elements)
+
+
+@compile.when(SetExpr)
+def compile_set_expr_postgres(compile, state, expr):
+    if expr.order_by is not Undef:
+        # The following statement breaks in postgres:
+        #     SELECT 1 AS id UNION SELECT 1 ORDER BY id+1
+        # With the error:
+        #     ORDER BY on a UNION/INTERSECT/EXCEPT result must
+        #     be on one of the result columns
+        # So we transform it into something close to:
+        #     SELECT * FROM (SELECT 1 AS id UNION SELECT 1) AS a ORDER BY id+1
+
+        # Build new set expression without arguments (order_by, etc).
+        new_expr = expr.__class__()
+        new_expr.exprs = expr.exprs
+        new_expr.all = expr.all
+
+        # Make sure that state.aliases isn't None, since we want them to
+        # compile our order_by statement below.
+        if state.aliases is None:
+            state.push("aliases", {})
+            pushed = True
+
+        # Build set expression, collecting aliases.
+        set_stmt = SQLRaw("(%s)" % compile_set_expr(compile, state, new_expr))
+
+        # Build order_by statement, using aliases.
+        state.push("context", COLUMN_NAME)
+        order_by_stmt = SQLRaw(compile(state, expr.order_by))
+        state.pop()
+
+        # Discard aliases, if they were not being collected previously.
+        if pushed:
+            state.pop()
+
+        # Build wrapping select statement.
+        select = Select(SQLRaw("*"), tables=Alias(set_stmt), limit=expr.limit,
+                        offset=expr.offset, order_by=order_by_stmt)
+        return compile_select(compile, state, select)
+    else:
+        return compile_set_expr(compile, state, expr)
 
 
 class PostgresResult(Result):

@@ -22,8 +22,8 @@ from storm.variables import Variable
 from storm.database import *
 from storm.exceptions import install_exceptions, DatabaseModuleError
 from storm.expr import (
-    compile, Select, Undef, SQLRaw, SetExpr, Union, compile_select,
-    compile_set_expr)
+    Select, SELECT, Undef, SQLRaw, SetExpr,
+    compile, compile_select, compile_set_expr)
 
 
 install_exceptions(sqlite)
@@ -35,26 +35,19 @@ compile = compile.fork()
 def compile_select_sqlite(compile, state, select):
     if select.offset is not Undef and select.limit is Undef:
         select.limit = sys.maxint
+    statement = compile_select(compile, state, select)
+    if state.context is SELECT:
         # SQLite breaks with (SELECT ...) UNION (SELECT ...), so we
         # do SELECT * FROM (SELECT ...) instead.  This is important
         # because SELECT ... UNION SELECT ... ORDER BY binds the ORDER BY
         # to the UNION instead of SELECT.
-    state.push("inside_set_expr", False) # XXX UNTESTED!
-    statement = compile_select(compile, state, select)
-    state.pop()
-    if getattr(state, "inside_set_expr", False):
         return "SELECT * FROM (%s)" % statement
     return statement
 
 @compile.when(SetExpr)
 def compile_set_expr_sqlite(compile, state, expr):
     state.precedence -= 0.5
-    state.push("inside_set_expr", True)
-    statement = compile_set_expr(compile, state, expr)
-    state.pop()
-    return statement
-
-compile.set_precedence(10, Union)
+    return compile_set_expr(compile, state, expr)
 
 
 class SQLiteResult(Result):

@@ -18,6 +18,18 @@ for i in range(10):
         exec "%s%d = '%s%d'" % (name, i, name, i)
 
 
+class TrackContext(FromExpr):
+    context = None
+
+@compile.when(TrackContext)
+def compile_track_context(compile, state, expr):
+    expr.context = state.context
+    return ""
+
+def track_contexts(n):
+    return [TrackContext() for i in range(n)]
+
+
 class ExprTest(TestHelper):
 
     def test_select_default(self):
@@ -226,7 +238,7 @@ class StateTest(TestHelper):
     def test_attrs(self):
         self.assertEquals(self.state.parameters, [])
         self.assertEquals(self.state.auto_tables, [])
-        self.assertEquals(self.state.column_prefix, False)
+        self.assertEquals(self.state.context, None)
 
     def test_push_pop(self):
         self.state.parameters.extend([1, 2])
@@ -518,6 +530,17 @@ class CompileTest(TestHelper):
                                      "GROUP BY column2")
         self.assertEquals(parameters, [])
 
+    def test_select_contexts(self):
+        column, where, table, order_by, group_by = track_contexts(5)
+        expr = Select(column, where, table,
+                      order_by=order_by, group_by=group_by)
+        compile(expr)
+        self.assertEquals(column.context, COLUMN)
+        self.assertEquals(where.context, EXPR)
+        self.assertEquals(table.context, TABLE)
+        self.assertEquals(order_by.context, EXPR)
+        self.assertEquals(group_by.context, EXPR)
+
     def test_insert(self):
         expr = Insert([column1, Func1()], [elem1, Func1()], Func1())
         statement, parameters = compile(expr)
@@ -550,6 +573,14 @@ class CompileTest(TestHelper):
     def test_insert_auto_table_unknown(self):
         expr = Insert(Column(column1), elem1)
         self.assertRaises(NoTableError, compile, expr)
+
+    def test_insert_contexts(self):
+        column, value, table = track_contexts(3)
+        expr = Insert(column, value, table)
+        compile(expr)
+        self.assertEquals(column.context, COLUMN_NAME)
+        self.assertEquals(value.context, EXPR)
+        self.assertEquals(table.context, TABLE)
 
     def test_update(self):
         expr = Update({column1: elem1, Func1(): Func2()}, table=Func1())
@@ -595,6 +626,15 @@ class CompileTest(TestHelper):
                           "UPDATE table1 SET column1=elem1 WHERE 1 = 2")
         self.assertEquals(parameters, [])
 
+    def test_update_contexts(self):
+        set_left, set_right, where, table = track_contexts(4)
+        expr = Update({set_left: set_right}, where, table)
+        compile(expr)
+        self.assertEquals(set_left.context, COLUMN_NAME)
+        self.assertEquals(set_right.context, COLUMN_NAME)
+        self.assertEquals(where.context, EXPR)
+        self.assertEquals(table.context, TABLE)
+
     def test_delete(self):
         expr = Delete(table=Func1())
         statement, parameters = compile(expr)
@@ -631,6 +671,13 @@ class CompileTest(TestHelper):
         expr = Delete(Column(column1) == 1)
         self.assertRaises(NoTableError, compile, expr)
 
+    def test_delete_contexts(self):
+        where, table = track_contexts(2)
+        expr = Delete(where, table)
+        compile(expr)
+        self.assertEquals(where.context, EXPR)
+        self.assertEquals(table.context, TABLE)
+
     def test_column(self):
         expr = Column(column1)
         statement, parameters = compile(expr)
@@ -642,6 +689,12 @@ class CompileTest(TestHelper):
         statement, parameters = compile(expr)
         self.assertEquals(statement, "SELECT func1().column1 FROM func1()")
         self.assertEquals(parameters, [])
+
+    def test_column_contexts(self):
+        table, = track_contexts(1)
+        expr = Column(column1, table)
+        compile(expr)
+        self.assertEquals(table.context, COLUMN_PREFIX)
 
     def test_variable(self):
         expr = Variable("value")
@@ -1070,20 +1123,42 @@ class CompileTest(TestHelper):
     def test_alias(self):
         expr = Alias(Table(table1), "name")
         statement, parameters = compile(expr)
-        self.assertEquals(statement, "table1 AS name")
+        self.assertEquals(statement, "name")
         self.assertEquals(parameters, [])
 
-    def test_alias_auto_name(self):
-        expr = Alias(Table(table1))
+    def test_alias_in_tables(self):
+        expr = Select(column1, tables=Alias(Table(table1), "name"))
         statement, parameters = compile(expr)
-        self.assertTrue(statement[:10], "table1 AS _")
+        self.assertEquals(statement, "SELECT column1 FROM table1 AS name")
         self.assertEquals(parameters, [])
 
-    def test_alias_in_column(self):
+    def test_alias_in_tables_auto_name(self):
+        expr = Select(column1, tables=Alias(Table(table1)))
+        statement, parameters = compile(expr)
+        self.assertEquals(statement[:-1], "SELECT column1 FROM table1 AS _")
+        self.assertEquals(parameters, [])
+
+    def test_alias_in_column_prefix(self):
         expr = Select(Column(column1, Alias(Table(table1), "alias")))
         statement, parameters = compile(expr)
         self.assertEquals(statement,
                           "SELECT alias.column1 FROM table1 AS alias")
+        self.assertEquals(parameters, [])
+
+    def test_alias_for_column(self):
+        expr = Select(Alias(Column(column1, table1), "name"))
+        statement, parameters = compile(expr)
+        self.assertEquals(statement,
+                          "SELECT table1.column1 AS name FROM table1")
+        self.assertEquals(parameters, [])
+
+    def test_alias_union(self):
+        union = Union(Select(elem1), Select(elem2))
+        expr = Select(elem3, tables=Alias(union, "alias"))
+        statement, parameters = compile(expr)
+        self.assertEquals(statement,
+                          "SELECT elem3 FROM "
+                          "((SELECT elem1) UNION (SELECT elem2)) AS alias")
         self.assertEquals(parameters, [])
 
     def test_join(self):
@@ -1128,6 +1203,14 @@ class CompileTest(TestHelper):
         statement, parameters = compile(expr)
         self.assertEquals(statement, "table1 JOIN table2")
         self.assertEquals(parameters, [])
+
+    def test_join_contexts(self):
+        table1, table2, on = track_contexts(3)
+        expr = Join(table1, table2, on)
+        compile(expr)
+        self.assertEquals(table1.context, None)
+        self.assertEquals(table2.context, None)
+        self.assertEquals(on.context, EXPR)
 
     def test_left_join(self):
         expr = LeftJoin(Func1())
@@ -1222,6 +1305,14 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, "(SELECT elem1) UNION"
                                      " ((SELECT elem2) UNION (SELECT elem3))")
         self.assertEquals(parameters, [])
+
+    def test_union_contexts(self):
+        select1, select2, order_by = track_contexts(3)
+        expr = Union(select1, select2, order_by=order_by)
+        compile(expr)
+        self.assertEquals(select1.context, SELECT)
+        self.assertEquals(select2.context, SELECT)
+        self.assertEquals(order_by.context, COLUMN_NAME)
 
 
 class CompilePythonTest(TestHelper):
