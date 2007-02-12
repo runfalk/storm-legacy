@@ -1725,6 +1725,15 @@ class StoreTest(object):
         result = self.store.execute("SELECT foo_id FROM bar WHERE id=100")
         self.assertEquals(result.get_one(), (30,))
 
+    def test_reference_assign_remote_key(self):
+        bar = self.store.get(Bar, 100)
+        self.assertEquals(bar.foo.id, 10)
+        bar.foo = 30
+        self.assertEquals(bar.foo_id, 30)
+        self.assertEquals(bar.foo.id, 30)
+        result = self.store.execute("SELECT foo_id FROM bar WHERE id=100")
+        self.assertEquals(result.get_one(), (30,))
+
     def test_reference_on_added(self):
         foo = Foo()
         foo.title = "Title 40"
@@ -1750,7 +1759,7 @@ class StoreTest(object):
                                     "foo.id = bar.foo_id")
         self.assertEquals(result.get_one(), ("Title 40",))
 
-    def test_reference_set_none(self):
+    def test_reference_assign_none(self):
         foo = Foo()
         foo.title = "Title 40"
 
@@ -1797,6 +1806,24 @@ class StoreTest(object):
                                     "WHERE bar.id=400 AND "
                                     "foo.id = bar.foo_id")
         self.assertEquals(result.get_one(), ("Title 40",))
+
+    def test_reference_assign_composed_remote_key(self):
+        class Bar(object):
+            __table__ = "bar", "id"
+            id = Int()
+            foo_id = Int()
+            title = Unicode()
+            foo = Reference((foo_id, title), (Foo.id, Foo.title))
+
+        bar = Bar()
+        bar.id = 400
+        bar.foo = (20, "Title 20")
+        self.store.add(bar)
+
+        self.assertEquals(bar.foo_id, 20)
+        self.assertEquals(bar.foo.id, 20)
+        self.assertEquals(bar.title, "Title 20")
+        self.assertEquals(bar.foo.title, "Title 20")
 
     def test_reference_on_added_unlink_on_flush(self):
         foo = Foo()

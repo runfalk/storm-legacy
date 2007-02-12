@@ -369,7 +369,18 @@ class Relation(object):
 
     def link(self, local, remote, setting=False):
         local_info = get_obj_info(local)
-        remote_info = get_obj_info(remote)
+
+        try:
+            remote_info = get_obj_info(remote)
+        except ClassInfoError:
+            # Must be a plain key. Just set it.
+            local_variables = self.get_local_variables(local)
+            if type(remote) is not tuple:
+                remote = (remote,)
+            assert len(remote) == len(local_variables)
+            for variable, value in zip(local_variables, remote):
+                variable.set(value)
+            return
 
         local_store = Store.of(local)
         remote_store = Store.of(remote)

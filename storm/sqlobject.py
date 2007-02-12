@@ -353,6 +353,8 @@ class PropertyAdapter(object):
                  alternateID=None, unique=_IGNORED, name=_IGNORED,
                  alternateMethodName=None, length=_IGNORED, immutable=None,
                  prejoins=_IGNORED):
+        if default is None and notNull:
+            raise RuntimeError("Can't use default=None and notNull=True")
 
         self.dbName = dbName
         self.alternateID = alternateID

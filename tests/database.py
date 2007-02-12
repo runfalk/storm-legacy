@@ -128,7 +128,7 @@ class ConnectionTest(TestHelper):
         self.assertTrue(isinstance(result, Result))
         self.assertEquals(self.executed,
                           [("SELECT column1, column2 FROM table1, table2",
-                            ())])
+                            marker)])
 
     def test_execute_select_and_params(self):
         select = Select(["column1", "column2"], tables=["table1", "table2"])
