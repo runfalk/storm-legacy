@@ -131,6 +131,8 @@ class SQLObjectTest(TestHelper):
         self.assertTrue(person)
         self.assertEquals(person.name, "John Doe")
 
+        self.assertRaises(SQLObjectNotFound, Person.byFoo, "John None")
+
     def test_select(self):
         result = self.Person.select("name = 'John Joe'")
         self.assertEquals(result[0].name, "John Joe")

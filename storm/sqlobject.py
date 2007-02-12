@@ -144,7 +144,10 @@ class SQLObjectMeta(type(Storm)):
                 if method_name is not None:
                     def func(cls, key, attr=attr):
                         store = cls._get_store()
-                        return store.find(cls, getattr(cls, attr) == key).one()
+                        obj = store.find(cls, getattr(cls, attr) == key).one()
+                        if obj is None:
+                            raise SQLObjectNotFound
+                        return obj
                     func.func_name = method_name
                     dict[method_name] = classmethod(func)
 
