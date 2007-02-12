@@ -103,7 +103,7 @@ class Connection(object):
 
     def _raw_execute(self, statement, params=None):
         raw_cursor = self._build_raw_cursor()
-        if params is None:
+        if not params:
             if DEBUG:
                 print statement, () 
             raw_cursor.execute(statement)

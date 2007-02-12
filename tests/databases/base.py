@@ -5,7 +5,7 @@ import sys
 import os
 
 from storm.uri import URI
-from storm.expr import Select, Column, Undef, SQLToken
+from storm.expr import Select, Column, Undef, SQLToken, SQLRaw
 from storm.variables import Variable, PickleVariable
 from storm.variables import DateTimeVariable, DateVariable, TimeVariable
 from storm.database import *
@@ -76,10 +76,12 @@ class DatabaseTest(object):
     def test_execute_result(self):
         result = self.connection.execute("SELECT 1")
         self.assertTrue(isinstance(result, Result))
+        self.assertTrue(result.get_one())
 
     def test_execute_unicode_result(self):
         result = self.connection.execute(u"SELECT 'áéíóú'")
         self.assertTrue(isinstance(result, Result))
+        self.assertTrue(result.get_one())
 
     def test_execute_params(self):
         result = self.connection.execute("SELECT 1 FROM (SELECT 1) AS ALIAS "
@@ -88,6 +90,22 @@ class DatabaseTest(object):
         result = self.connection.execute("SELECT 1 FROM (SELECT 1) AS ALIAS "
                                          "WHERE 1=?", (2,))
         self.assertFalse(result.get_one())
+
+    def test_execute_empty_params(self):
+        result = self.connection.execute("SELECT 1", ())
+        self.assertTrue(result.get_one())
+
+    def test_execute_expression(self):
+        result = self.connection.execute(Select(1))
+        self.assertTrue(result.get_one(), (1,))
+
+    def test_execute_expression_empty_params(self):
+        result = self.connection.execute(Select(SQLRaw("1")))
+        self.assertTrue(result.get_one(), (1,))
+
+    def test_execute_empty_params(self):
+        result = self.connection.execute("SELECT 1", ())
+        self.assertTrue(result.get_one())
 
     def test_get_one(self):
         result = self.connection.execute("SELECT * FROM test ORDER BY id")
