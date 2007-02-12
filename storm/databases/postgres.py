@@ -122,7 +122,7 @@ class PostgresConnection(Connection):
     def _raw_execute(self, statement, params):
         if type(statement) is unicode:
             # psycopg breaks with unicode statements.
-            statement = str(statement)
+            statement = statement.encode(self._database._encoding)
         return Connection._raw_execute(self, statement, params)
 
     def _to_database(self, params):

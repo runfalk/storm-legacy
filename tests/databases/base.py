@@ -78,7 +78,7 @@ class DatabaseTest(object):
         self.assertTrue(isinstance(result, Result))
 
     def test_execute_unicode_result(self):
-        result = self.connection.execute(u"SELECT 1")
+        result = self.connection.execute(u"SELECT 'áéíóú'")
         self.assertTrue(isinstance(result, Result))
 
     def test_execute_params(self):
