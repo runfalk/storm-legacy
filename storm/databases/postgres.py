@@ -43,7 +43,10 @@ def compile_currval(compile, state, expr):
 @compile.when(ListVariable)
 def compile_list_variable(compile, state, list_variable):
     elements = []
-    for variable in list_variable.get(to_db=True):
+    variables = list_variable.get(to_db=True)
+    if variables is None:
+        return "NULL"
+    for variable in variables:
         elements.append(compile(state, variable))
     return "ARRAY[%s]" % ",".join(elements)
 
