@@ -3497,6 +3497,14 @@ class StoreTest(object):
         self.assertRaises(FeatureError, result3.set, title="Title 40")
         self.assertRaises(FeatureError, result3.remove)
 
+    def test_result_union_count(self):
+        result1 = self.store.find(Foo, id=30)
+        result2 = self.store.find(Foo, id=30)
+
+        result3 = result1.union(result2, all=True)
+
+        self.assertEquals(result3.count(), 2)
+
 
 class EmptyResultSetTest(object):
 

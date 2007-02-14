@@ -22,7 +22,7 @@ from storm.variables import Variable
 from storm.database import *
 from storm.exceptions import install_exceptions, DatabaseModuleError
 from storm.expr import (
-    Select, SELECT, Undef, SQLRaw, SetExpr,
+    Select, SELECT, Undef, SQLRaw, SetExpr, Union,
     compile, compile_select, compile_set_expr)
 
 
@@ -44,10 +44,9 @@ def compile_select_sqlite(compile, state, select):
         return "SELECT * FROM (%s)" % statement
     return statement
 
-@compile.when(SetExpr)
-def compile_set_expr_sqlite(compile, state, expr):
-    state.precedence -= 0.5
-    return compile_set_expr(compile, state, expr)
+# Considering the above, selects have a greater precedence.
+compile.set_precedence(5, Union)
+
 
 
 class SQLiteResult(Result):

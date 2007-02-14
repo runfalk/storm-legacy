@@ -14,7 +14,7 @@ from storm.variables import Variable, LazyValue
 from storm.expr import (
     Expr, Select, Insert, Update, Delete, Column, JoinExpr, Count, Max, Min,
     Avg, Sum, Eq, And, Asc, Desc, compile_python, compare_columns, SQLRaw,
-    Union)
+    Union, Alias)
 from storm.exceptions import (
     WrongStoreError, NotFlushedError, OrderLoopError, UnorderedError,
     NotOneError, FeatureError, CompileError, LostObjectError, ClassInfoError)
@@ -818,7 +818,10 @@ class ResultSet(object):
                               for cls_info in self._cls_spec_info]
         else:
             default_tables = self._cls_spec_info.table
-        select = Select(expr, self._where, self._tables, default_tables)
+        if self._select is Undef:
+            select = Select(expr, self._where, self._tables, default_tables)
+        else:
+            select = Select(expr, tables=Alias(self._select))
         result = self._store._connection.execute(select)
         value = result.get_one()[0]
         if column is None:
