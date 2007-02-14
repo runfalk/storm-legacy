@@ -14,7 +14,7 @@ from storm.variables import Variable, LazyValue
 from storm.expr import (
     Expr, Select, Insert, Update, Delete, Column, JoinExpr, Count, Max, Min,
     Avg, Sum, Eq, And, Asc, Desc, compile_python, compare_columns, SQLRaw,
-    Union, Alias)
+    Union, Except, Intersect, Alias)
 from storm.exceptions import (
     WrongStoreError, NotFlushedError, OrderLoopError, UnorderedError,
     NotOneError, FeatureError, CompileError, LostObjectError, ClassInfoError)
@@ -948,18 +948,27 @@ class ResultSet(object):
                     objects.append(obj)
         return objects
 
+    def _set_expr(self, expr_cls, other, all=False):
+        if self._cls_spec_info != other._cls_spec_info:
+            raise FeatureError("Incompatible results for set operation")
+
+        expr = expr_cls(self._get_select(), other._get_select(), all=all)
+        return ResultSet(self._store, self._cls_spec_info, select=expr)
+
     def union(self, other, all=False):
         if isinstance(other, EmptyResultSet):
             return self
+        return self._set_expr(Union, other, all)
 
-        if (not isinstance(other, EmptyResultSet) and
-            self._cls_spec_info != other._cls_spec_info):
-            raise FeatureError("Incompatible results for set operation")
+    def difference(self, other, all=False):
+        if isinstance(other, EmptyResultSet):
+            return self
+        return self._set_expr(Except, other, all)
 
-        union = Union(self._get_select(), other._get_select(), all=all)
-        union_result = ResultSet(self._store, self._cls_spec_info,
-                                 select=union)
-        return union_result
+    def intersection(self, other, all=False):
+        if isinstance(other, EmptyResultSet):
+            return other
+        return self._set_expr(Intersect, other, all)
 
 
 class EmptyResultSet(object):
@@ -1039,6 +1048,12 @@ class EmptyResultSet(object):
         if isinstance(other, EmptyResultSet):
             return self
         return other.union(self)
+
+    def difference(self, other):
+        return self
+
+    def intersection(self, other):
+        return self
 
 
 class TableSet(object):

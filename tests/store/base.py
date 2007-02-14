@@ -3505,6 +3505,114 @@ class StoreTest(object):
 
         self.assertEquals(result3.count(), 2)
 
+    @run_this
+    def test_result_difference(self):
+        if self.__class__.__name__.startswith("MySQL"):
+            return
+
+        result1 = self.store.find(Foo)
+        result2 = self.store.find(Foo, id=20)
+        result3 = result1.difference(result2)
+
+        result3.order_by(Foo.title)
+        self.assertEquals([(foo.id, foo.title) for foo in result3], [
+                          (30, "Title 10"),
+                          (10, "Title 30"),
+                         ])
+
+        result3.order_by(Desc(Foo.title))
+        self.assertEquals([(foo.id, foo.title) for foo in result3], [
+                          (10, "Title 30"),
+                          (30, "Title 10"),
+                         ])
+
+    @run_this
+    def test_result_difference_with_empty(self):
+        if self.__class__.__name__.startswith("MySQL"):
+            return
+
+        result1 = self.store.find(Foo, id=30)
+        result2 = EmptyResultSet()
+
+        result3 = result1.difference(result2)
+
+        self.assertEquals([(foo.id, foo.title) for foo in result3], [
+                          (30, "Title 10"),
+                         ])
+
+    @run_this
+    def test_result_difference_incompatible(self):
+        if self.__class__.__name__.startswith("MySQL"):
+            return
+
+        result1 = self.store.find(Foo, id=10)
+        result2 = self.store.find(Bar, id=100)
+        self.assertRaises(FeatureError, result1.difference, result2)
+
+    @run_this
+    def test_result_difference_count(self):
+        if self.__class__.__name__.startswith("MySQL"):
+            return
+
+        result1 = self.store.find(Foo)
+        result2 = self.store.find(Foo, id=20)
+
+        result3 = result1.difference(result2)
+
+        self.assertEquals(result3.count(), 2)
+
+    @run_this
+    def test_result_intersection(self):
+        if self.__class__.__name__.startswith("MySQL"):
+            return
+
+        result1 = self.store.find(Foo)
+        result2 = self.store.find(Foo, Foo.id.is_in((10, 30)))
+        result3 = result1.intersection(result2)
+
+        result3.order_by(Foo.title)
+        self.assertEquals([(foo.id, foo.title) for foo in result3], [
+                          (30, "Title 10"),
+                          (10, "Title 30"),
+                         ])
+
+        result3.order_by(Desc(Foo.title))
+        self.assertEquals([(foo.id, foo.title) for foo in result3], [
+                          (10, "Title 30"),
+                          (30, "Title 10"),
+                         ])
+
+    @run_this
+    def test_result_intersection_with_empty(self):
+        if self.__class__.__name__.startswith("MySQL"):
+            return
+
+        result1 = self.store.find(Foo, id=30)
+        result2 = EmptyResultSet()
+        result3 = result1.intersection(result2)
+
+        self.assertEquals(len(list(result3)), 0)
+
+    @run_this
+    def test_result_intersection_incompatible(self):
+        if self.__class__.__name__.startswith("MySQL"):
+            return
+
+        result1 = self.store.find(Foo, id=10)
+        result2 = self.store.find(Bar, id=100)
+        self.assertRaises(FeatureError, result1.intersection, result2)
+
+    @run_this
+    def test_result_intersection_count(self):
+        if self.__class__.__name__.startswith("MySQL"):
+            return
+
+        result1 = self.store.find(Foo, Foo.id.is_in((10, 20)))
+        result2 = self.store.find(Foo, Foo.id.is_in((10, 30)))
+        result3 = result1.intersection(result2)
+
+        self.assertEquals(result3.count(), 1)
+
 
 class EmptyResultSetTest(object):
 
@@ -3645,3 +3753,14 @@ class EmptyResultSetTest(object):
                           type(self.result))
         self.assertEquals(type(self.result.union(self.empty)),
                           type(self.result))
+
+    def test_difference(self):
+        self.assertEquals(self.empty.difference(self.empty), self.empty)
+        self.assertEquals(self.empty.difference(self.result), self.empty)
+        self.assertEquals(self.result.difference(self.empty), self.result)
+
+    def test_intersection(self):
+        self.assertEquals(self.empty.intersection(self.empty), self.empty)
+        self.assertEquals(self.empty.intersection(self.result), self.empty)
+        self.assertEquals(self.result.intersection(self.empty), self.empty)
+

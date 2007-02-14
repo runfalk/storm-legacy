@@ -877,6 +877,12 @@ def compile_set_expr(compile, state, expr):
 class Union(SetExpr):
     oper = " UNION "
 
+class Except(SetExpr):
+    oper = " EXCEPT "
+
+class Intersect(SetExpr):
+    oper = " INTERSECT "
+
 
 # --------------------------------------------------------------------
 # Functions
@@ -1040,7 +1046,7 @@ def compare_columns(columns, values):
 compile.set_precedence(10, Select, Insert, Update, Delete)
 compile.set_precedence(10, Join, LeftJoin, RightJoin)
 compile.set_precedence(10, NaturalJoin, NaturalLeftJoin, NaturalRightJoin)
-compile.set_precedence(10, Union)
+compile.set_precedence(10, Union, Except, Intersect)
 compile.set_precedence(20, SQL)
 compile.set_precedence(30, Or)
 compile.set_precedence(40, And)

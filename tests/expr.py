@@ -228,6 +228,30 @@ class ExprTest(TestHelper):
         self.assertEquals(expr.limit, 1)
         self.assertEquals(expr.offset, 2)
 
+    def test_except(self):
+        expr = Except(elem1, elem2, elem3)
+        self.assertEquals(expr.exprs, (elem1, elem2, elem3))
+
+    def test_except_with_kwargs(self):
+        expr = Except(elem1, elem2, all=True, order_by=(), limit=1, offset=2)
+        self.assertEquals(expr.exprs, (elem1, elem2))
+        self.assertEquals(expr.all, True)
+        self.assertEquals(expr.order_by, ())
+        self.assertEquals(expr.limit, 1)
+        self.assertEquals(expr.offset, 2)
+
+    def test_intersect(self):
+        expr = Intersect(elem1, elem2, elem3)
+        self.assertEquals(expr.exprs, (elem1, elem2, elem3))
+
+    def test_intersect_with_kwargs(self):
+        expr = Intersect(elem1, elem2, all=True, order_by=(), limit=1, offset=2)
+        self.assertEquals(expr.exprs, (elem1, elem2))
+        self.assertEquals(expr.all, True)
+        self.assertEquals(expr.order_by, ())
+        self.assertEquals(expr.limit, 1)
+        self.assertEquals(expr.offset, 2)
+
 
 class StateTest(TestHelper):
 
@@ -1309,6 +1333,86 @@ class CompileTest(TestHelper):
     def test_union_contexts(self):
         select1, select2, order_by = track_contexts(3)
         expr = Union(select1, select2, order_by=order_by)
+        compile(expr)
+        self.assertEquals(select1.context, SELECT)
+        self.assertEquals(select2.context, SELECT)
+        self.assertEquals(order_by.context, COLUMN_NAME)
+
+    def test_except(self):
+        expr = Except(Func1(), elem2, elem3)
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "func1() EXCEPT elem2 EXCEPT elem3")
+        self.assertEquals(parameters, [])
+
+    def test_except_all(self):
+        expr = Except(Func1(), elem2, elem3, all=True)
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "func1() EXCEPT ALL elem2 EXCEPT ALL elem3")
+        self.assertEquals(parameters, [])
+
+    def test_except_order_by_limit_offset(self):
+        expr = Except(elem1, elem2, order_by=Func1(), limit=1, offset=2)
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "elem1 EXCEPT elem2 ORDER BY func1() "
+                                     "LIMIT 1 OFFSET 2")
+        self.assertEquals(parameters, [])
+
+    def test_except_select(self):
+        expr = Except(Select(elem1), Select(elem2))
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "(SELECT elem1) EXCEPT (SELECT elem2)")
+        self.assertEquals(parameters, [])
+
+    def test_except_select_nested(self):
+        expr = Except(Select(elem1), Except(Select(elem2), Select(elem3)))
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "(SELECT elem1) EXCEPT"
+                                     " ((SELECT elem2) EXCEPT (SELECT elem3))")
+        self.assertEquals(parameters, [])
+
+    def test_except_contexts(self):
+        select1, select2, order_by = track_contexts(3)
+        expr = Except(select1, select2, order_by=order_by)
+        compile(expr)
+        self.assertEquals(select1.context, SELECT)
+        self.assertEquals(select2.context, SELECT)
+        self.assertEquals(order_by.context, COLUMN_NAME)
+
+    def test_intersect(self):
+        expr = Intersect(Func1(), elem2, elem3)
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "func1() INTERSECT elem2 INTERSECT elem3")
+        self.assertEquals(parameters, [])
+
+    def test_intersect_all(self):
+        expr = Intersect(Func1(), elem2, elem3, all=True)
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "func1() INTERSECT ALL elem2 INTERSECT ALL elem3")
+        self.assertEquals(parameters, [])
+
+    def test_intersect_order_by_limit_offset(self):
+        expr = Intersect(elem1, elem2, order_by=Func1(), limit=1, offset=2)
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "elem1 INTERSECT elem2 ORDER BY func1() "
+                                     "LIMIT 1 OFFSET 2")
+        self.assertEquals(parameters, [])
+
+    def test_intersect_select(self):
+        expr = Intersect(Select(elem1), Select(elem2))
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "(SELECT elem1) INTERSECT (SELECT elem2)")
+        self.assertEquals(parameters, [])
+
+    def test_intersect_select_nested(self):
+        expr = Intersect(Select(elem1), Intersect(Select(elem2), Select(elem3)))
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "(SELECT elem1) INTERSECT"
+                                     " ((SELECT elem2) INTERSECT (SELECT elem3))")
+        self.assertEquals(parameters, [])
+
+    def test_intersect_contexts(self):
+        select1, select2, order_by = track_contexts(3)
+        expr = Intersect(select1, select2, order_by=order_by)
         compile(expr)
         self.assertEquals(select1.context, SELECT)
         self.assertEquals(select2.context, SELECT)
