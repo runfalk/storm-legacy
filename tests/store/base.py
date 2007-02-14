@@ -2262,6 +2262,9 @@ class StoreTest(object):
         foo.bars.clear()
         self.assertEquals(list(foo.bars), [])
 
+        # Object wasn't removed.
+        self.assertTrue(self.store.get(Bar, 200))
+
     def test_reference_set_clear_cached(self):
         foo = self.store.get(FooRefSet, 20)
         bar = self.store.get(Bar, 200)
