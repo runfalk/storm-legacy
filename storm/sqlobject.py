@@ -218,11 +218,11 @@ class SQLObjectBase(Storm):
 
     def _create(self, _id_, **kwargs):
         self.set(**kwargs)
+        self._init(None)
 
     def set(self, **kwargs):
         for attr, value in kwargs.iteritems():
             setattr(self, attr, value)
-        self._init(None)
 
     def destroySelf(self):
         Store.of(self).remove(self)

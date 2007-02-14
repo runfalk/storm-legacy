@@ -3505,7 +3505,6 @@ class StoreTest(object):
 
         self.assertEquals(result3.count(), 2)
 
-    @run_this
     def test_result_difference(self):
         if self.__class__.__name__.startswith("MySQL"):
             return
@@ -3526,7 +3525,6 @@ class StoreTest(object):
                           (30, "Title 10"),
                          ])
 
-    @run_this
     def test_result_difference_with_empty(self):
         if self.__class__.__name__.startswith("MySQL"):
             return
@@ -3540,7 +3538,6 @@ class StoreTest(object):
                           (30, "Title 10"),
                          ])
 
-    @run_this
     def test_result_difference_incompatible(self):
         if self.__class__.__name__.startswith("MySQL"):
             return
@@ -3549,7 +3546,6 @@ class StoreTest(object):
         result2 = self.store.find(Bar, id=100)
         self.assertRaises(FeatureError, result1.difference, result2)
 
-    @run_this
     def test_result_difference_count(self):
         if self.__class__.__name__.startswith("MySQL"):
             return
@@ -3561,7 +3557,6 @@ class StoreTest(object):
 
         self.assertEquals(result3.count(), 2)
 
-    @run_this
     def test_result_intersection(self):
         if self.__class__.__name__.startswith("MySQL"):
             return
@@ -3582,7 +3577,6 @@ class StoreTest(object):
                           (30, "Title 10"),
                          ])
 
-    @run_this
     def test_result_intersection_with_empty(self):
         if self.__class__.__name__.startswith("MySQL"):
             return
@@ -3593,7 +3587,6 @@ class StoreTest(object):
 
         self.assertEquals(len(list(result3)), 0)
 
-    @run_this
     def test_result_intersection_incompatible(self):
         if self.__class__.__name__.startswith("MySQL"):
             return
@@ -3602,7 +3595,6 @@ class StoreTest(object):
         result2 = self.store.find(Bar, id=100)
         self.assertRaises(FeatureError, result1.intersection, result2)
 
-    @run_this
     def test_result_intersection_count(self):
         if self.__class__.__name__.startswith("MySQL"):
             return
