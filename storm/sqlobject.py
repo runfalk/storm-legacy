@@ -227,6 +227,13 @@ class SQLObjectBase(Storm):
                                   "must be implemented")
 
     @classmethod
+    def delete(cls, id):
+        # destroySelf() should be extended to support cascading, so
+        # we'll mimic what SQLObject does here, even if more expensive.
+        obj = cls.get(id)
+        obj.destroySelf()
+
+    @classmethod
     def get(cls, id):
         store = cls._get_store()
         obj = store.get(cls, id)

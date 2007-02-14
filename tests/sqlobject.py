@@ -78,6 +78,10 @@ class SQLObjectTest(TestHelper):
         person.destroySelf()
         self.assertRaises(SQLObjectNotFound, self.Person.get, 2)
 
+    def test_delete(self):
+        self.Person.delete(2)
+        self.assertRaises(SQLObjectNotFound, self.Person.get, 2)
+
     def test_custom_table_name(self):
         class MyPerson(self.Person):
             _table = "person"
