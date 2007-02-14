@@ -342,6 +342,22 @@ class SQLObjectResultSet(object):
             return new.orderBy(orderBy)
         return new
 
+    def except_(self, otherSelect, exceptAll=False, orderBy=None):
+        result_set = self._result_set.difference(otherSelect._result_set,
+                                                 all=exceptAll)
+        new = self.__class__(result_set, self._cls)
+        if orderBy is not None:
+            return new.orderBy(orderBy)
+        return new
+
+    def intersect(self, otherSelect, intersectAll=False, orderBy=None):
+        result_set = self._result_set.intersection(otherSelect._result_set,
+                                                   all=intersectAll)
+        new = self.__class__(result_set, self._cls)
+        if orderBy is not None:
+            return new.orderBy(orderBy)
+        return new
+
     def prejoin(self, prejoins):
         return self
 
