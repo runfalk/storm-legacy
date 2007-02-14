@@ -5,6 +5,7 @@ from storm.properties import (
 from storm.references import Reference, ReferenceSet
 from storm.exceptions import StormError
 from storm.info import get_cls_info
+from storm.store import Store
 from storm.base import Storm
 from storm.expr import SQL, Desc, And, Or, Not, In, Like
 from storm.tz import tzutc
@@ -216,6 +217,9 @@ class SQLObjectBase(Storm):
 
     def _init(self, *args, **kwargs):
         pass
+
+    def destroySelf(self):
+        Store.of(self).remove(self)
 
     @staticmethod
     def _get_store():

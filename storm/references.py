@@ -374,6 +374,7 @@ class Relation(object):
             remote_info = get_obj_info(remote)
         except ClassInfoError:
             # Must be a plain key. Just set it.
+            # XXX I guess this is broken if self.on_remote is True.
             local_variables = self.get_local_variables(local)
             if type(remote) is not tuple:
                 remote = (remote,)
