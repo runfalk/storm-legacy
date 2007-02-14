@@ -115,15 +115,12 @@ class SQLObjectTest(TestHelper):
         called = []
         class Person(self.Person):
             def _init(self, *args, **kwargs):
-                called.append((args, kwargs))
+                called.append(True)
 
-        person = Person(1, 2, name="John Joe")
-        self.assertEquals(called, [((1, 2), {"name": "John Joe"})])
-
-        del called[:]
-
+        person = Person(name="John Joe")
+        self.assertEquals(called, [True])
         Person.get(2)
-        self.assertEquals(called, [((), {})])
+        self.assertEquals(called, [True, True])
 
     def test_alternateID(self):
         class Person(self.SQLObject):
@@ -580,3 +577,12 @@ class SQLObjectTest(TestHelper):
         self.assertEquals(id(person.q.name), id(Person.name))
         self.assertEquals(id(person.q.address), id(Person.address))
         self.assertEquals(id(person.q.addressID), id(Person.addressID))
+
+    def test_set(self):
+        class Person(self.Person):
+            def set(self, **kw):
+                kw["id"] += 1
+                super(Person, self).set(**kw)
+        person = Person(id=3, name="John Moe")
+        self.assertEquals(person.id, 4)
+        self.assertEquals(person.name, "John Moe")

@@ -207,16 +207,22 @@ class SQLObjectBase(Storm):
     q = DotQ()
 
     def __init__(self, *args, **kwargs):
-        for attr, value in kwargs.iteritems():
-            setattr(self, attr, value)
         self._get_store().add(self)
-        self._init(*args, **kwargs)
+        self._create(None, **kwargs)
 
     def __load__(self):
-        self._init()
+        self._init(None)
 
-    def _init(self, *args, **kwargs):
+    def _init(self, id, *args, **kwargs):
         pass
+
+    def _create(self, _id_, **kwargs):
+        self.set(**kwargs)
+
+    def set(self, **kwargs):
+        for attr, value in kwargs.iteritems():
+            setattr(self, attr, value)
+        self._init(None)
 
     def destroySelf(self):
         Store.of(self).remove(self)
