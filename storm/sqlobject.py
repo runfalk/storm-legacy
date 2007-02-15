@@ -7,7 +7,7 @@ from storm.exceptions import StormError
 from storm.info import get_cls_info
 from storm.store import Store
 from storm.base import Storm
-from storm.expr import SQL, Desc, And, Or, Not, In, Like
+from storm.expr import SQL, SQLRaw, Desc, And, Or, Not, In, Like
 from storm.tz import tzutc
 from storm import Undef
 
@@ -15,7 +15,8 @@ from storm import Undef
 __all__ = ["SQLObjectBase", "StringCol", "IntCol", "BoolCol", "FloatCol",
            "DateCol", "UtcDateTimeCol", "IntervalCol", "ForeignKey",
            "SQLMultipleJoin", "SQLRelatedJoin", "DESC", "AND", "OR",
-           "NOT", "IN", "LIKE", "SQLConstant", "SQLObjectNotFound"]
+           "NOT", "IN", "LIKE", "SQLConstant", "SQLObjectNotFound",
+           "CONTAINSSTRING"]
 
 
 DESC, AND, OR, NOT, IN, LIKE, SQLConstant = Desc, And, Or, Not, In, Like, SQL
@@ -469,3 +470,12 @@ class SQLMultipleJoin(ReferenceSet):
         return SQLObjectResultSet(result_set, target_cls)
 
 SQLRelatedJoin = SQLMultipleJoin
+
+
+class CONTAINSSTRING(Like):
+
+    def __init__(self, expr, string):
+        string = string.replace("!", "!!") \
+                       .replace("_", "!_") \
+                       .replace("%", "!%")
+        Like.__init__(self, expr, "%"+string+"%", SQLRaw("'!'"))

@@ -520,13 +520,13 @@ class SQLObjectTest(TestHelper):
         result1 = self.Person.selectBy(id=1)
         result2 = self.Person.selectBy(id=2)
         result3 = result1.union(result2, orderBy="name")
-        self.assertEquals([result.name for result in result3],
+        self.assertEquals([person.name for person in result3],
                           ["John Doe", "John Joe"])
 
     def test_result_set_union_all(self):
         result1 = self.Person.selectBy(id=1)
         result2 = result1.union(result1, unionAll=True)
-        self.assertEquals([result.name for result in result2],
+        self.assertEquals([person.name for person in result2],
                           ["John Joe", "John Joe"])
 
     def test_result_set_except_(self):
@@ -534,7 +534,7 @@ class SQLObjectTest(TestHelper):
         result1 = self.Person.select()
         result2 = self.Person.selectBy(id=2)
         result3 = result1.except_(result2, orderBy="name")
-        self.assertEquals([result.name for result in result3],
+        self.assertEquals([person.name for person in result3],
                           ["John Joe", "John Moe"])
 
     def test_result_set_intersect(self):
@@ -542,7 +542,7 @@ class SQLObjectTest(TestHelper):
         result1 = self.Person.select()
         result2 = self.Person.select(self.Person.id.is_in((2, 3)))
         result3 = result1.intersect(result2, orderBy="name")
-        self.assertEquals([result.name for result in result3],
+        self.assertEquals([person.name for person in result3],
                           ["John Doe", "John Moe"])
 
     def test_result_set_prejoin(self):
@@ -586,3 +586,16 @@ class SQLObjectTest(TestHelper):
         person = Person(id=3, name="John Moe")
         self.assertEquals(person.id, 4)
         self.assertEquals(person.name, "John Moe")
+
+    def test_CONTAINSSTRING(self):
+        expr = CONTAINSSTRING(self.Person.q.name, "Do")
+        result = self.Person.select(expr)
+        self.assertEquals([person.name for person in result],
+                          ["John Doe"])
+
+        person.name = "Funny !%_ Name"
+
+        expr = NOT(CONTAINSSTRING(self.Person.q.name, "!%_"))
+        result = self.Person.select(expr)
+        self.assertEquals([person.name for person in result],
+                          ["John Joe"])
