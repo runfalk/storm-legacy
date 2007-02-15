@@ -360,10 +360,10 @@ class Comparable(object):
                     others[i] = variable_factory(value=other)
         return In(self, others)
 
-    def like(self, other):
+    def like(self, other, escape=Undef):
         if not isinstance(other, (Expr, Variable)):
             other = getattr(self, "variable_factory", Variable)(value=other)
-        return Like(self, other)
+        return Like(self, other, escape)
 
     def lower(self):
         return Lower(self)
@@ -764,6 +764,19 @@ class LShift(BinaryOper):
 
 class Like(BinaryOper):
     oper = " LIKE "
+
+    def __init__(self, expr1, expr2, escape=Undef):
+        self.expr1 = expr1
+        self.expr2 = expr2
+        self.escape = escape
+
+@compile.when(Like)
+def compile_binary_oper(compile, state, like):
+    statement = "%s%s%s" % (compile(state, like.expr1), like.oper,
+                            compile(state, like.expr2))
+    if like.escape is not Undef:
+        statement = "%s ESCAPE %s" % (statement, compile(state, like.escape))
+    return statement
 
 # It's easy to support it. Later.
 compile_python.when(Like)(compile_python_unsupported)

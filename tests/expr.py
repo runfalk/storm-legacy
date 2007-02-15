@@ -137,6 +137,12 @@ class ExprTest(TestHelper):
         self.assertEquals(expr.expr1, elem1)
         self.assertEquals(expr.expr2, elem2)
 
+    def test_like(self):
+        expr = Like(elem1, elem2, elem3)
+        self.assertEquals(expr.expr1, elem1)
+        self.assertEquals(expr.expr2, elem2)
+        self.assertEquals(expr.escape, elem3)
+
     def test_eq(self):
         expr = Eq(elem1, elem2)
         self.assertEquals(expr.expr1, elem1)
@@ -860,6 +866,17 @@ class CompileTest(TestHelper):
         statement, parameters = compile(expr)
         self.assertEquals(statement, "func1() LIKE ?")
         self.assertEquals(parameters, [Variable("Hello")])
+
+    def test_like_escape(self):
+        expr = Like(Func1(), "value", "!")
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "func1() LIKE ? ESCAPE ?")
+        self.assertEquals(parameters, [StrVariable("value"), StrVariable("!")])
+
+        expr = Func1().like("Hello", "!")
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "func1() LIKE ? ESCAPE ?")
+        self.assertEquals(parameters, [Variable("Hello"), StrVariable("!")])
 
     def test_in(self):
         expr = In(Func1(), "value")
