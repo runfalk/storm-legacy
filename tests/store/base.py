@@ -2051,6 +2051,20 @@ class StoreTest(object):
                                  myself=(link.foo_id, link.bar_id)).one()
         self.assertEquals(link, myself)
 
+    def test_reference_self(self):
+        class Bar(object):
+            __table__ = "bar", "id"
+            id = Int()
+            title = Str()
+            bar_id = Int("foo_id")
+            bar = Reference(bar_id, id)
+
+        bar = self.store.new(Bar)
+        bar.id = 400
+        bar.title = "Title 400"
+        bar.bar_id = 100
+        self.assertEquals(bar.bar.id, 100)
+        self.assertEquals(bar.bar.title, "Title 300")
 
     def test_back_reference(self):
         class MyFoo(Foo):
