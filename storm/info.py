@@ -171,7 +171,8 @@ class ObjectInfo(dict):
         self.event.emit("object-deleted")
 
 
-# For get_obj_info(), an ObjectInfo is its own obj_info.
+# For get_obj_info(), an ObjectInfo is its own obj_info. Defined here
+# to prevent the name mangling on two underscores.
 ObjectInfo.__object_info = property(lambda self: self)
 
 
