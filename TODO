@@ -71,3 +71,6 @@
   http://www.djangoproject.com/documentation/django_admin/
 
 - Support allow_microseconds=False in DateTime properties/variables.
+
+- Support allow_self in Reference and ReferenceSet, and default
+  to false.
