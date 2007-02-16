@@ -66,6 +66,7 @@ class PostgresResult(Result):
             value = unicode(value, self._connection._database._encoding)
         elif isinstance(variable, ListVariable):
             if value == "{}":
+                # Optimize the empty array case (parse_array() can handle it).
                 value = []
             else:
                 value = parse_array(value)
