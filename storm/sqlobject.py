@@ -346,11 +346,13 @@ class SQLObjectResultSet(object):
 
     def distinct(self):
         result_set = self._result_set.copy().config(distinct=True)
+        result_set.order_by() # Remove default order.
         return self.__class__(result_set, self._cls)
 
     def union(self, otherSelect, unionAll=False, orderBy=None):
         result_set = self._result_set.union(otherSelect._result_set,
                                             all=unionAll)
+        result_set.order_by() # Remove default order.
         new = self.__class__(result_set, self._cls)
         if orderBy is not None:
             return new.orderBy(orderBy)
@@ -359,6 +361,7 @@ class SQLObjectResultSet(object):
     def except_(self, otherSelect, exceptAll=False, orderBy=None):
         result_set = self._result_set.difference(otherSelect._result_set,
                                                  all=exceptAll)
+        result_set.order_by() # Remove default order.
         new = self.__class__(result_set, self._cls)
         if orderBy is not None:
             return new.orderBy(orderBy)

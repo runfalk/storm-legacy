@@ -57,13 +57,12 @@ class SQLObjectTest(TestHelper):
         self.store.execute("INSERT INTO person_phone VALUES (1, 1)")
 
         class Person(self.SQLObject):
-            _defaultOrder = "-name"
+            _defaultOrder = "-Person.name"
             name = StringCol()
             age = IntCol()
             ts = UtcDateTimeCol()
 
         self.Person = Person
-
 
     def test_get(self):
         person = self.Person.get(2)

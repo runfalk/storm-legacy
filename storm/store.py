@@ -797,7 +797,7 @@ class ResultSet(object):
     def order_by(self, *args):
         if self._offset is not Undef or self._limit is not Undef:
             raise FeatureError("Can't reorder a sliced result set")
-        self._order_by = args
+        self._order_by = args or Undef
         return self
 
     def remove(self):

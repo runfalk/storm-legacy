@@ -67,9 +67,9 @@ def compile_set_expr_postgres(compile, state, expr):
 
         # Make sure that state.aliases isn't None, since we want them to
         # compile our order_by statement below.
-        if state.aliases is None:
+        no_aliases = state.aliases is None
+        if no_aliases:
             state.push("aliases", {})
-            pushed = True
 
         # Build set expression, collecting aliases.
         set_stmt = SQLRaw("(%s)" % compile_set_expr(compile, state, new_expr))
@@ -80,7 +80,7 @@ def compile_set_expr_postgres(compile, state, expr):
         state.pop()
 
         # Discard aliases, if they were not being collected previously.
-        if pushed:
+        if no_aliases:
             state.pop()
 
         # Build wrapping select statement.

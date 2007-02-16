@@ -151,6 +151,15 @@ class PostgresTest(TestHelper, DatabaseTest):
         result = self.connection.execute(expr)
         self.assertEquals(result.get_one(), (1,))
 
+    def test_expressions_in_union_in_union_order_by(self):
+        column = SQLRaw("1")
+        alias = Alias(column, "id")
+        expr = Union(Select(alias), Select(column), order_by=alias+1,
+                     limit=1, offset=1, all=True)
+        expr = Union(expr, expr, order_by=alias+1, all=True)
+        result = self.connection.execute(expr)
+        self.assertEquals(result.get_all(), [(1,), (1,)])
+
 
 class ParseArrayTest(TestHelper):
 
