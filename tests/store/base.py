@@ -1863,29 +1863,6 @@ class StoreTest(object):
         foo.id = 70
         self.assertEquals(bar.foo_id, 60)
 
-    def test_reference_on_added_unlink_on_flush(self):
-        foo = Foo()
-        foo.title = "Title 40"
-        self.store.add(foo)
-
-        bar = Bar()
-        bar.id = 400
-        bar.title = "Title 400"
-        bar.foo = foo
-        self.store.add(bar)
-
-        foo.id = 40
-        self.assertEquals(bar.foo_id, 40)
-        foo.id = 50
-        self.assertEquals(bar.foo_id, 50)
-        foo.id = 60
-        self.assertEquals(bar.foo_id, 60)
-
-        self.store.flush()
-
-        foo.id = 70
-        self.assertEquals(bar.foo_id, 60)
-
     def test_reference_on_two_added(self):
         foo1 = Foo()
         foo1.title = "Title 40"
@@ -2446,6 +2423,19 @@ class StoreTest(object):
 
         self.assertEquals(bar.foo_id, None)
         self.assertEquals(list(foo.bars), [])
+
+    def test_reference_set_after_object_removed(self):
+        class MyBar(Bar):
+            # Make sure that this works even with allow_none=False.
+            foo_id = Int(allow_none=False)
+
+        class MyFoo(Foo):
+            bars = ReferenceSet(Foo.id, MyBar.foo_id)
+
+        foo = self.store.get(MyFoo, 20)
+        bar = foo.bars.any()
+        self.store.remove(bar)
+        self.assertTrue(bar not in list(foo.bars))
 
     def test_reference_set_add(self):
         bar = Bar()
