@@ -210,6 +210,9 @@ class Store(object):
                 # (e.g. by a get()), the database should be queried to see
                 # if the object's still there.
                 obj_info["invalidated"] = True
+            hook = getattr(obj_info.get_obj(), "__invalidate__", None)
+            if hook is not None:
+                hook()
 
     def add_flush_order(self, before, after):
         pair = (get_obj_info(before), get_obj_info(after))

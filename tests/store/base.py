@@ -3468,6 +3468,16 @@ class StoreTest(object):
         self.store.execute("DELETE FROM foo WHERE id=40")
         self.assertEquals(self.store.get(Foo, 40), foo)
 
+    def test_invalidate_hook(self):
+        called = []
+        class MyFoo(Foo):
+            def __invalidate__(self):
+                called.append(True)
+        foo = self.store.get(MyFoo, 20)
+        self.assertEquals(called, [])
+        self.store.invalidate(foo)
+        self.assertEquals(called, [True])
+
     def test_result_union(self):
         result1 = self.store.find(Foo, id=30)
         result2 = self.store.find(Foo, id=10)
