@@ -3475,6 +3475,8 @@ class StoreTest(object):
                 called.append(True)
         foo = self.store.get(MyFoo, 20)
         self.assertEquals(called, [])
+        self.store.autoreload(foo)
+        self.assertEquals(called, [])
         self.store.invalidate(foo)
         self.assertEquals(called, [True])
 
