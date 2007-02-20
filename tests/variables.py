@@ -170,7 +170,7 @@ class VariableTest(TestHelper):
         self.assertTrue(variable.has_changed())
         variable.set(marker)
         self.assertTrue(variable.has_changed())
-        variable.save()
+        variable.checkpoint()
         self.assertFalse(variable.has_changed())
         variable.set(marker)
         self.assertFalse(variable.has_changed())
@@ -180,22 +180,10 @@ class VariableTest(TestHelper):
         self.assertFalse(variable.has_changed())
         variable.set((marker, marker))
         self.assertFalse(variable.has_changed())
-        variable.restore()
-        self.assertFalse(variable.has_changed())
-        variable.set((marker, marker))
+        variable.set(marker)
         self.assertTrue(variable.has_changed())
-        variable.set(marker)
-        self.assertFalse(variable.has_changed())
-
-    def test_save_restore(self):
-        variable = CustomVariable()
-        variable.set(marker)
-        variable.save()
-        self.assertTrue(variable.get(), ("g", ("s", marker)))
         variable.set((marker, marker))
-        self.assertTrue(variable.get(), ("g", ("s", (marker, marker))))
-        variable.restore()
-        self.assertTrue(variable.get(), ("g", ("s", marker)))
+        self.assertFalse(variable.has_changed())
 
     def test_copy(self):
         variable = CustomVariable()

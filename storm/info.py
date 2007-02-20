@@ -150,44 +150,9 @@ class ObjectInfo(dict):
     def set_obj(self, obj):
         self.get_obj = weakref.ref(obj, self._emit_object_deleted)
 
-    def save(self):
-        for variable in self._variable_sequence:
-            variable.save()
-        self.event.save()
-        self._saved_self = self._copy_object(self.items())
-        obj = self.get_obj()
-        if obj is None:
-            self._saved_attrs = None
-        else:
-            self._saved_attrs = obj.__dict__.copy()
-            self._saved_attrs.pop("__object_info", None) # Circular reference.
-
-    def save_attributes(self):
-        obj = self.get_obj()
-        if obj is None:
-            self._saved_attrs = None
-        else:
-            self._saved_attrs = obj.__dict__.copy()
-            self._saved_attrs.pop("__object_info", None) # Circular reference.
-
     def checkpoint(self):
         for variable in self._variable_sequence:
             variable.checkpoint()
-
-    def restore(self):
-        for variable in self._variable_sequence:
-            variable.restore()
-        self.event.restore()
-        self.clear()
-        self.update(self._saved_self)
-        obj = self.get_obj()
-        if obj is not None:
-            attrs = self._saved_attrs.copy()
-            try:
-                attrs["__object_info"] = obj.__dict__["__object_info"]
-            except KeyError:
-                pass
-            obj.__dict__ = attrs
 
     def _copy_object(self, obj):
         obj_type = type(obj)

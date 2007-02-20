@@ -137,13 +137,6 @@ class Variable(object):
     def set_state(self, state):
         self._lazy_value, self._value = state
 
-    def save(self):
-        self._saved_state = self._checkpoint_state = self.get_state()
-
-    def restore(self):
-        self.set_state(self._saved_state)
-        self._checkpoint_state = self._saved_state
-
     def checkpoint(self):
         self._checkpoint_state = self.get_state()
 

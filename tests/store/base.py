@@ -867,7 +867,7 @@ class StoreTest(object):
                           (20, "Title 20"),
                           (30, "Title 10"),
                          ])
-        
+
         self.store.commit()
 
         self.assertEquals(self.get_committed_items(), [
@@ -960,7 +960,7 @@ class StoreTest(object):
         self.store.remove(foo)
         self.assertEquals(Store.of(foo), self.store)
         self.store.flush()
-        self.assertEquals(Store.of(foo), self.store)
+        self.assertEquals(Store.of(foo), None)
 
         self.assertEquals(self.get_items(), [
                           (10, "Title 30"),
@@ -1009,7 +1009,7 @@ class StoreTest(object):
 
         self.assertEquals(self.get_items(), [
                           (10, "Title 30"),
-                          (20, "Title 200"),
+                          (20, "Title 20"),
                           (30, "Title 10"),
                          ])
 
@@ -1069,16 +1069,15 @@ class StoreTest(object):
 
         self.assertTrue(obj_info not in self.store._dirty)
 
-    def test_wb_remove_rollback_isnt_dirty_or_ghost(self):
+    def test_wb_remove_rollback_isnt_dirty(self):
         foo = self.store.get(Foo, 20)
         obj_info = get_obj_info(foo)
         self.store.remove(foo)
         self.store.rollback()
 
         self.assertTrue(obj_info not in self.store._dirty)
-        self.assertTrue(obj_info not in self.store._ghosts)
 
-    def test_wb_remove_flush_rollback_isnt_dirty_or_ghost(self):
+    def test_wb_remove_flush_rollback_isnt_dirty(self):
         foo = self.store.get(Foo, 20)
         obj_info = get_obj_info(foo)
         self.store.remove(foo)
@@ -1086,7 +1085,6 @@ class StoreTest(object):
         self.store.rollback()
 
         self.assertTrue(obj_info not in self.store._dirty)
-        self.assertTrue(obj_info not in self.store._ghosts)
 
     def test_add_rollback_not_in_store(self):
         foo = Foo()
@@ -1292,7 +1290,7 @@ class StoreTest(object):
         self.store.add(foo)
         self.store.remove(foo)
 
-        self.assertEquals(Store.of(foo), self.store)
+        self.assertEquals(Store.of(foo), None)
 
         foo.title = "Title 400"
 
@@ -1334,6 +1332,37 @@ class StoreTest(object):
         self.store.add(foo)
 
         self.assertTrue(obj_info in self.store._dirty)
+
+    def test_commit_autoreloads(self):
+        foo = self.store.get(Foo, 20)
+        self.assertEquals(foo.title, "Title 20")
+        self.store.execute("UPDATE foo SET title='New Title' WHERE id=20")
+        self.assertEquals(foo.title, "Title 20")
+        self.store.commit()
+        self.assertEquals(foo.title, "New Title")
+
+    def test_commit_invalidates(self):
+        foo = self.store.get(Foo, 20)
+        self.assertTrue(foo)
+        self.store.execute("DELETE FROM foo WHERE id=20")
+        self.assertEquals(self.store.get(Foo, 20), foo)
+        self.store.commit()
+        self.assertEquals(self.store.get(Foo, 20), None)
+
+    def test_rollback_autoreloads(self):
+        foo = self.store.get(Foo, 20)
+        self.assertEquals(foo.title, "Title 20")
+        self.store.rollback()
+        self.store.execute("UPDATE foo SET title='New Title' WHERE id=20")
+        self.assertEquals(foo.title, "New Title")
+
+    def test_rollback_invalidates(self):
+        foo = self.store.get(Foo, 20)
+        self.assertTrue(foo)
+        self.assertEquals(self.store.get(Foo, 20), foo)
+        self.store.rollback()
+        self.store.execute("DELETE FROM foo WHERE id=20")
+        self.assertEquals(self.store.get(Foo, 20), None)
 
     def test_sub_class(self):
         class SubFoo(Foo):
@@ -1417,20 +1446,6 @@ class StoreTest(object):
         self.assertEquals(foo.id, 20)
         self.assertEquals(foo.title, "Title 20")
 
-    def test_attribute_rollback(self):
-        foo = self.store.get(Foo, 20)
-        foo.some_attribute = 1
-        self.store.rollback()
-        self.assertEquals(getattr(foo, "some_attribute", None), None)
-
-    def test_attribute_rollback_after_commit(self):
-        foo = self.store.get(Foo, 20)
-        foo.some_attribute = 1
-        self.store.commit()
-        foo.some_attribute = 2
-        self.store.rollback()
-        self.assertEquals(getattr(foo, "some_attribute", None), 1)
-
     def test_cache_has_improper_object(self):
         foo = self.store.get(Foo, 20)
         self.store.remove(foo)
@@ -1488,7 +1503,7 @@ class StoreTest(object):
         self.store.rollback()
 
         self.assertEquals(foo.title, "Title 20")
-        self.assertEquals(getattr(foo, "some_attribute", None), 1)
+        self.assertEquals(foo.some_attribute, 2)
 
     def test_retrieve_default_primary_key(self):
         foo = Foo()
@@ -3101,7 +3116,7 @@ class StoreTest(object):
 
     def test_rollback_loaded_and_still_in_cached(self):
         # Explore problem found on interaction between caching, commits,
-        # and rollbacks.
+        # and rollbacks, when they still existed.
         foo1 = self.store.get(Foo, 20)
         self.store.commit()
         self.store.rollback()
