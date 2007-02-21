@@ -18,7 +18,7 @@ except:
     psycopg = dummy
 
 from storm.expr import And, Eq
-from storm.variables import Variable, UnicodeVariable
+from storm.variables import Variable, UnicodeVariable, StrVariable
 from storm.database import *
 from storm.exceptions import install_exceptions, DatabaseModuleError
 from storm.expr import FuncExpr, compile
@@ -39,6 +39,18 @@ class currval(FuncExpr):
 def compile_currval(compile, state, expr):
     return "currval('%s_%s_seq')" % (compile(state, expr.column.table),
                                      compile(state, expr.column.name))
+
+
+def compile_str_variable_with_E(compile, state, variable):
+    """Include an E just before the placeholder of string variables.
+
+    PostgreSQL 8.2 will issue a warning without it, and old versions
+    of psycopg will use plain '' rather than E''.
+    """
+    state.parameters.append(variable)
+    return "E?"
+
+psycopg_needs_E = None
 
 
 class PostgresResult(Result):
@@ -98,8 +110,27 @@ class Postgres(Database):
         self._encoding = encoding or "UTF-8"
 
     def connect(self):
+        global psycopg_needs_E
         raw_connection = psycopg.connect(self._dsn)
+        if psycopg_needs_E is None:
+            # This will conditionally change the compilation of binary
+            # variables (StrVariable) to preceed the placeholder with an
+            # 'E', if psycopg isn't doing it by itself.
+            #
+            # The "failing" code path isn't unittested because that
+            # would depend on a different psycopg version.  Both branches
+            # were manually tested for correctness at some point.
+            cursor = raw_connection.cursor()
+            try:
+                cursor.execute("SELECT E%s", (psycopg.Binary(""),))
+            except psycopg.ProgrammingError:
+                raw_connection.rollback()
+                psycopg_needs_E = False
+            else:
+                psycopg_needs_E = True
+                compile.when(StrVariable)(compile_str_variable_with_E)
         return self._connection_factory(self, raw_connection)
+
 
 def str_or_none(value):
     return value and str(value)
