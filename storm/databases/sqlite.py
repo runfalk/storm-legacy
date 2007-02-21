@@ -41,10 +41,13 @@ class SQLiteResult(Result):
     def get_insert_identity(self, primary_key, primary_variables):
         return "(OID=%d)" % self._raw_cursor.lastrowid
 
-    def _from_database(self, value):
-        if isinstance(value, buffer):
-            return str(value)
-        return value
+    @staticmethod
+    def _from_database(row):
+        for value in row:
+            if isinstance(value, buffer):
+                yield str(value)
+            else:
+                yield value
 
 
 class SQLiteConnection(Connection):
@@ -52,14 +55,17 @@ class SQLiteConnection(Connection):
     _result_factory = SQLiteResult
     _compile = compile
 
-    def _to_database(self, value):
-        if isinstance(value, Variable):
-            value = value.get(to_db=True)
-        if isinstance(value, (datetime, date, time)):
-            return str(value)
-        elif isinstance(value, str):
-            return buffer(value)
-        return value
+    @staticmethod
+    def _to_database(params):
+        for param in params:
+            if isinstance(param, Variable):
+                param = param.get(to_db=True)
+            if isinstance(param, (datetime, date, time)):
+                yield str(param)
+            elif isinstance(param, str):
+                yield buffer(param)
+            else:
+                yield param
 
 
 class SQLite(Database):

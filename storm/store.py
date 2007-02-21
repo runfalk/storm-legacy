@@ -9,7 +9,7 @@
 #
 from weakref import WeakValueDictionary, WeakKeyDictionary
 
-from storm.info import get_cls_info, get_obj_info, get_info
+from storm.info import get_cls_info, get_obj_info, set_obj_info, get_info
 from storm.variables import Variable, LazyValue
 from storm.expr import (
     Expr, Select, Insert, Update, Delete, Column, JoinExpr, Count, Max, Min,
@@ -34,7 +34,7 @@ class Store(object):
         self._connection = database.connect()
         self._cache = WeakValueDictionary()
         self._ghosts = WeakKeyDictionary()
-        self._dirty = set()
+        self._dirty = {}
         self._order = {} # (info, info) = count
 
     @staticmethod
@@ -106,7 +106,10 @@ class Store(object):
                     self._fill_missing_values(obj_info, primary_vars)
                 except LostObjectError:
                     return None
-            return obj_info.obj
+            obj = obj_info.get_obj()
+            if obj is None:
+                return self._rebuild_deleted_object(obj_info)
+            return obj
 
         where = compare_columns(cls_info.primary_key, primary_vars)
 
@@ -237,6 +240,9 @@ class Store(object):
             pass
 
     def flush(self):
+        for obj_info in self._iter_cached():
+            obj_info.event.emit("flush")
+
         predecessors = {}
         for (before_info, after_info), n in self._order.iteritems():
             if n > 0:
@@ -255,7 +261,7 @@ class Store(object):
                     break # Found an item without dirty predecessors.
             else:
                 raise OrderLoopError("Can't flush due to ordering loop")
-            self._dirty.discard(obj_info)
+            self._dirty.pop(obj_info, None)
             self._flush_one(obj_info)
 
         self._order.clear()
@@ -434,54 +440,81 @@ class Store(object):
                 values_start = values_end
             return tuple(objects)
 
-    def _load_object(self, cls_info, result, values, obj=None):
+    def _load_object(self, cls_info, result, values):
         # _set_values() need the cls_info columns for the class of the
         # actual object, not from a possible wrapper (e.g. an alias).
         cls = cls_info.cls
         cls_info = get_cls_info(cls)
-        if obj is None:
-            primary_vars = []
-            columns = cls_info.columns
-            is_null = True
-            for i in cls_info.primary_key_pos:
-                value = values[i]
-                if value is not None:
-                    is_null = False
-                variable = columns[i].variable_factory(value=value,
-                                                       from_db=True)
-                primary_vars.append(variable)
-            if is_null:
-                return None
-            obj_info = self._cache.get((cls, tuple(primary_vars)))
-            if obj_info is not None:
-                # Cache must be valid here. The primary key was extracted
-                # from result values.
-                obj_info.pop("validate-cache", None)
-                return obj_info.obj
+
+        # Prepare cache key.
+        primary_vars = []
+        columns = cls_info.columns
+        is_null = True
+        for i in cls_info.primary_key_pos:
+            value = values[i]
+            if value is not None:
+                is_null = False
+            variable = columns[i].variable_factory(value=value,
+                                                   from_db=True)
+            primary_vars.append(variable)
+
+        if is_null:
+            # We've got a row full of NULLs, so consider that the object
+            # wasn't found.  This is useful for joins, where unexistent
+            # rows are reprsented like that.
+            return None
+
+        # Lookup cache.
+        obj_info = self._cache.get((cls, tuple(primary_vars)))
+
+        if obj_info is not None:
+            # Found object in cache, and it must be valid since the
+            # primary key was extracted from result values.
+            obj_info.pop("validate-cache", None)
+
+            # We're not sure if the obj is still in memory at this point.
+            obj = obj_info.get_obj()
+            if obj is not None:
+                # Great, the object is still in memory. Nothing to do.
+                return obj
+            else:
+                # Object died while obj_info was still in memory.
+                # Rebuild the object and maintain the obj_info.
+                return self._rebuild_deleted_object(obj_info)
+        
+        else:
+            # Nothing found in the cache. Build everything from the ground.
             obj = cls.__new__(cls)
 
-        obj_info = get_obj_info(obj)
-        obj_info["store"] = self
+            obj_info = get_obj_info(obj)
+            obj_info["store"] = self
 
-        self._set_values(obj_info, cls_info.columns, result, values)
+            self._set_values(obj_info, cls_info.columns, result, values)
 
-        # Cache must be valid here. This specific entry is untested. It'll
-        # only be useful if the obj parameter is not None.
-        obj_info.pop("validate-cache", None)
+            obj_info.save()
 
-        obj_info.save()
+            self._add_to_cache(obj_info)
+            self._enable_change_notification(obj_info)
+            self._enable_lazy_resolving(obj_info)
 
-        self._add_to_cache(obj_info)
-        self._enable_change_notification(obj_info)
-        self._enable_lazy_resolving(obj_info)
+            self._run_load_hook(obj_info, obj)
+            return obj
 
+    def _rebuild_deleted_object(self, obj_info):
+        """Rebuild a deleted object and maintain the obj_info."""
+        cls = obj_info.cls_info.cls
+        obj = cls.__new__(cls)
+        obj_info.set_obj(obj)
+        set_obj_info(obj, obj_info)
+        self._run_load_hook(obj_info, obj)
+        return obj
+
+    @staticmethod
+    def _run_load_hook(obj_info, obj):
         load = getattr(obj, "__load__", None)
         if load is not None:
             load()
-
         obj_info.save_attributes()
-
-        return obj
 
     def _set_values(self, obj_info, columns, result, values):
         if values is None:
@@ -498,10 +531,10 @@ class Store(object):
         return obj_info in self._dirty
 
     def _set_dirty(self, obj_info):
-        self._dirty.add(obj_info)
+        self._dirty[obj_info] = obj_info.get_obj()
 
     def _set_clean(self, obj_info):
-        self._dirty.discard(obj_info)
+        self._dirty.pop(obj_info, None)
 
     def _iter_dirty(self):
         return self._dirty
@@ -557,7 +590,7 @@ class Store(object):
         # XXX The fromdb check is untested. How to test it?
         if not fromdb and (new_value is not Undef and
                            new_value is not AutoReload):
-            self._dirty.add(obj_info)
+            self._set_dirty(obj_info)
 
 
     def _enable_lazy_resolving(self, obj_info):
@@ -855,8 +888,9 @@ class ResultSet(object):
             cached = self.cached()
         except CompileError:
             for obj_info in self._store._iter_cached():
-                if isinstance(obj_info.obj, cls):
-                    self._store.reload(obj_info.obj)
+                obj = obj_info.get_obj()
+                if obj is not None and isinstance(obj, cls):
+                    self._store.reload(obj)
         else:
             changes = changes.items()
             for obj in cached:
@@ -889,7 +923,9 @@ class ResultSet(object):
         for obj_info in self._store._iter_cached():
             if (obj_info.cls_info is self._cls_spec_info and
                 (match is None or match(get_column))):
-                objects.append(obj_info.obj)
+                obj = obj_info.get_obj()
+                if obj is not None:
+                    objects.append(obj)
         return objects
 
 

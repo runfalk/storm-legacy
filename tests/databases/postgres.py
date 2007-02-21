@@ -1,10 +1,11 @@
 from datetime import datetime, date, time
 import os
 
-from storm.databases.postgres import Postgres
+from storm.databases.postgres import Postgres, compile, parse_array
 from storm.uri import URI
 from storm.database import create_database
 from storm.variables import UnicodeVariable, DateTimeVariable
+from storm.variables import ListVariable, IntVariable
 
 from tests.databases.base import DatabaseTest, UnsupportedDatabaseTest
 from tests.helper import TestHelper, MakePath
@@ -89,7 +90,46 @@ class PostgresTest(TestHelper, DatabaseTest):
         self.assertEquals(variable.get(), None)
 
 
-class MySQLUnsupportedTest(UnsupportedDatabaseTest, TestHelper):
+    def test_array_support(self):
+        try:
+            self.connection.execute("DROP TABLE array_test")
+            self.connection.commit()
+        except:
+            self.connection.rollback()
+
+        self.connection.execute("CREATE TABLE array_test "
+                                "(id SERIAL PRIMARY KEY, a INT[])")
+
+        variable = ListVariable(IntVariable)
+        variable.set([1,2,3,4])
+
+        statement, params = compile(variable)
+
+        self.connection.execute("INSERT INTO array_test VALUES (1, %s)"
+                                % statement, params)
+
+        result = self.connection.execute("SELECT a FROM array_test WHERE id=1")
+
+        array = result.get_one()[0]
+
+        self.assertTrue(isinstance(array, str))
+
+        variable = ListVariable(IntVariable)
+        result.set_variable(variable, array)
+        self.assertEquals(variable.get(), [1,2,3,4])
+
+
+class ParseArrayTest(TestHelper):
+
+    def test_parse_array(self):
+        data = r'{{meeting,lunch},{ training , "presentation"},"{}","\"",NULL}'
+        obj = parse_array(data)
+        self.assertEquals(obj,
+                          [["meeting", "lunch"],
+                           ["training", "presentation"], "{}", '"', None])
+
+
+class PostgresUnsupportedTest(UnsupportedDatabaseTest, TestHelper):
     
     dbapi_module_name = "psycopg"
     db_module_name = "postgres"

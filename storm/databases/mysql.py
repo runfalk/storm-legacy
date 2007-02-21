@@ -47,10 +47,12 @@ class MySQLResult(Result):
         return And(*equals)
 
     @staticmethod
-    def _from_database(value):
-        if isinstance(value, array):
-            return value.tostring()
-        return value
+    def _from_database(row):
+        for value in row:
+            if isinstance(value, array):
+                yield value.tostring()
+            else:
+                yield value
 
 
 class MySQLConnection(Connection):

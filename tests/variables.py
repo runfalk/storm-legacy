@@ -1,14 +1,19 @@
 from datetime import datetime, date, time
 import cPickle as pickle
 
+from storm.exceptions import NoneError
 from storm.variables import *
 from storm.event import EventSystem
+from storm.expr import Column
 from storm import Undef
 
 from tests.helper import TestHelper
 
 
-marker = object()
+class Marker(object):
+    pass
+
+marker = Marker()
 
 
 class CustomVariable(Variable):
@@ -92,9 +97,27 @@ class VariableTest(TestHelper):
         self.assertEquals(variable.sets, [])
         self.assertEquals(variable.gets, [])
 
-    def test_set_none_with_not_none(self):
-        variable = CustomVariable(not_none=True)
-        self.assertRaises(NotNoneError, variable.set, None)
+    def test_set_none_with_allow_none(self):
+        variable = CustomVariable(allow_none=False)
+        self.assertRaises(NoneError, variable.set, None)
+
+    def test_set_none_with_allow_none_and_column(self):
+        column = Column("column_name")
+        variable = CustomVariable(allow_none=False, column=column)
+        try:
+            variable.set(None)
+        except NoneError, e:
+            pass
+        self.assertTrue("column_name" in str(e))
+
+    def test_set_none_with_allow_none_and_column_with_table(self):
+        column = Column("column_name", "table_name")
+        variable = CustomVariable(allow_none=False, column=column)
+        try:
+            variable.set(None)
+        except NoneError, e:
+            pass
+        self.assertTrue("table_name.column_name" in str(e))
 
     def test_event_changed(self):
         event = EventSystem(marker)
@@ -181,6 +204,7 @@ class VariableTest(TestHelper):
         self.assertTrue(variable == variable_copy)
 
     def test_hash(self):
+        # They must hash the same to be used as cache keys.
         obj1 = CustomVariable(marker)
         obj2 = CustomVariable(marker)
         self.assertEquals(hash(obj1), hash(obj2))
@@ -475,4 +499,102 @@ class PickleVariableTest(TestHelper):
 
         variable.get()["b"] = 2
         self.assertEquals(variable.get(), {"a": 1, "b": 2})
+
+    def test_pickle_events(self):
+        event = EventSystem(marker)
+
+        variable = PickleVariable(event=event, value_factory=list)
+
+        changes = []
+        def changed(owner, variable, old_value, new_value, fromdb):
+            changes.append((variable, old_value, new_value, fromdb))
+
+        event.hook("changed", changed)
+
+        variable.checkpoint()
+
+        event.emit("flush")
+
+        self.assertEquals(changes, [])
+
+        lst = variable.get()
+
+        self.assertEquals(lst, [])
+        self.assertEquals(changes, [])
+
+        lst.append("a")
+
+        self.assertEquals(changes, [])
+
+        event.emit("flush")
+
+        self.assertEquals(changes, [(variable, None, ["a"], False)])
+
+        del changes[:]
+
+        event.emit("object-deleted")
+        self.assertEquals(changes, [(variable, None, ["a"], False)])
+
+
+class ListVariableTest(TestHelper):
+
+    def test_get_set(self):
+        l = [1, 2]
+        l_dump = pickle.dumps(l, -1)
+
+        variable = ListVariable(IntVariable)
+
+        variable.set(l)
+        self.assertEquals(variable.get(), l)
+        self.assertEquals(variable.get(to_db=True),
+                          [IntVariable(1), IntVariable(2)])
+
+        variable.set([1.1, 2.2], from_db=True)
+        self.assertEquals(variable.get(), l)
+        self.assertEquals(variable.get(to_db=True),
+                          [IntVariable(1), IntVariable(2)])
+
+        self.assertEquals(variable.get_state(), (Undef, l_dump))
+
+        variable.set([])
+        variable.set_state((Undef, l_dump))
+        self.assertEquals(variable.get(), l)
+
+        variable.get().append(3)
+        self.assertEquals(variable.get(), [1, 2, 3])
+
+    def test_list_events(self):
+        event = EventSystem(marker)
+
+        variable = ListVariable(StrVariable, event=event, value_factory=list)
+
+        changes = []
+        def changed(owner, variable, old_value, new_value, fromdb):
+            changes.append((variable, old_value, new_value, fromdb))
+
+        event.hook("changed", changed)
+
+        variable.checkpoint()
+
+        event.emit("flush")
+
+        self.assertEquals(changes, [])
+
+        lst = variable.get()
+
+        self.assertEquals(lst, [])
+        self.assertEquals(changes, [])
+
+        lst.append("a")
+
+        self.assertEquals(changes, [])
+
+        event.emit("flush")
+
+        self.assertEquals(changes, [(variable, None, ["a"], False)])
+
+        del changes[:]
+
+        event.emit("object-deleted")
+        self.assertEquals(changes, [(variable, None, ["a"], False)])
 

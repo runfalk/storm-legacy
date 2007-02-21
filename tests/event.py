@@ -3,14 +3,17 @@ from storm.event import EventSystem
 from tests.helper import TestHelper
 
 
-marker = object()
+class Marker(object):
+    pass
+
+marker = Marker()
 
 
 class EventTest(TestHelper):
 
     def setUp(self):
         TestHelper.setUp(self)
-        self.event = EventSystem(42)
+        self.event = EventSystem(marker)
 
     def test_hook_unhook_emit(self):
         called1 = []
@@ -35,14 +38,14 @@ class EventTest(TestHelper):
         self.event.emit("three", 5, 6)
 
         self.assertEquals(sorted(called1), [
-                          (42, 1, 2),
-                          (42, 5, 6),
+                          (marker, 1, 2),
+                          (marker, 5, 6),
                          ])
         self.assertEquals(sorted(called2), [
-                          (42, 1, 2, 10, 20),
-                          (42, 3, 4, 10, 20),
-                          (42, 3, 4, 30, 40),
-                          (42, 3, 4, 30, 40),
+                          (marker, 1, 2, 10, 20),
+                          (marker, 3, 4, 10, 20),
+                          (marker, 3, 4, 30, 40),
+                          (marker, 3, 4, 30, 40),
                          ])
 
     def test_unhook_by_returning_false(self):
@@ -58,7 +61,7 @@ class EventTest(TestHelper):
         self.event.emit("event")
         self.event.emit("event")
 
-        self.assertEquals(called, [42, 42])
+        self.assertEquals(called, [marker, marker])
 
     def test_save_restore(self):
         called1 = []
@@ -87,3 +90,22 @@ class EventTest(TestHelper):
 
         self.assertEquals(called1, [3, 4, 7, 8])
         self.assertEquals(called2, [1, 2, 5, 6])
+
+    def test_weak_reference(self):
+        marker = Marker()
+
+        called = []
+        def callback(owner):
+            called.append(owner)
+
+        self.event = EventSystem(marker)
+
+        self.event.hook("event", callback)
+        self.event.emit("event")
+
+        self.assertEquals(called, [marker])
+        del called[:]
+
+        del marker
+        self.event.emit("event")
+        self.assertEquals(called, [])

@@ -1,3 +1,5 @@
+import gc
+
 from storm.properties import Property
 from storm.variables import Variable
 from storm.expr import Undef, Select, compile
@@ -6,17 +8,13 @@ from storm.info import *
 from tests.helper import TestHelper
 
 
-def Any(name=None, **kwargs):
-    return Property(name, cls=Variable, **kwargs)
-
-
 class GetTest(TestHelper):
 
     def setUp(self):
         TestHelper.setUp(self)
         class Class(object):
             __table__ = "table", "column1"
-            prop1 = Any("column1")
+            prop1 = Property("column1")
         self.Class = Class
         self.obj = Class()
 
@@ -30,6 +28,17 @@ class GetTest(TestHelper):
         self.assertTrue(isinstance(obj_info, ObjectInfo))
         self.assertTrue(obj_info is get_obj_info(self.obj))
 
+    def test_get_obj_info_on_obj_info(self):
+        obj_info = get_obj_info(self.obj)
+        self.assertTrue(get_obj_info(obj_info) is obj_info)
+
+    def test_set_obj_info(self):
+        obj_info1 = get_obj_info(self.obj)
+        obj_info2 = ObjectInfo(self.obj)
+        self.assertEquals(get_obj_info(self.obj), obj_info1)
+        set_obj_info(self.obj, obj_info2)
+        self.assertEquals(get_obj_info(self.obj), obj_info2)
+
     def test_get_info(self):
         obj_info1, cls_info1 = get_info(self.obj)
         obj_info2, cls_info2 = get_info(self.obj)
@@ -38,6 +47,13 @@ class GetTest(TestHelper):
         self.assertTrue(obj_info1 is obj_info2)
         self.assertTrue(cls_info1 is cls_info2)
 
+    def test_get_info_on_obj_info(self):
+        obj_info1 = get_obj_info(self.obj)
+        cls_info1 = get_cls_info(self.Class)
+        obj_info2, cls_info2 = get_info(obj_info1)
+        self.assertTrue(obj_info2 is obj_info1)
+        self.assertTrue(cls_info2 is cls_info1)
+
 
 class ClassInfoTest(TestHelper):
 
@@ -45,8 +61,8 @@ class ClassInfoTest(TestHelper):
         TestHelper.setUp(self)
         class Class(object):
             __table__ = "table", "column1"
-            prop1 = Any("column1")
-            prop2 = Any("column2")
+            prop1 = Property("column1")
+            prop2 = Property("column2")
         self.Class = Class
         self.cls_info = get_cls_info(Class)
 
@@ -68,8 +84,8 @@ class ClassInfoTest(TestHelper):
     def test_primary_key_composed(self):
         class Class(object):
             __table__ = "table", ("column2", "column1")
-            prop1 = Any("column1")
-            prop2 = Any("column2")
+            prop1 = Property("column1")
+            prop2 = Property("column2")
         cls_info = ClassInfo(Class)
 
         # Can't use == for props, since they're columns.
@@ -80,9 +96,9 @@ class ClassInfoTest(TestHelper):
     def test_primary_key_pos(self):
         class Class(object):
             __table__ = "table", ("column3", "column1")
-            prop1 = Any("column1")
-            prop2 = Any("column2")
-            prop3 = Any("column3")
+            prop1 = Property("column1")
+            prop2 = Property("column2")
+            prop3 = Property("column3")
         cls_info = ClassInfo(Class)
         self.assertEquals(cls_info.primary_key_pos, (2, 0))
 
@@ -93,8 +109,8 @@ class ObjectInfoTest(TestHelper):
         TestHelper.setUp(self)
         class Class(object):
             __table__ = "table", "column1"
-            prop1 = Any("column1")
-            prop2 = Any("column2")
+            prop1 = Property("column1")
+            prop2 = Property("column2")
         self.Class = Class
         self.obj = Class()
         self.obj_info = get_obj_info(self.obj)
@@ -146,6 +162,17 @@ class ObjectInfoTest(TestHelper):
         self.assertEquals(self.obj.attr1, 100)
         self.assertEquals(self.obj_info["key"]["subkey"], 1000)
 
+    def test_save_restore_without_object(self):
+        del self.obj
+        self.assertEquals(self.obj_info.get_obj(), None)
+        self.obj_info["key"] = {"subkey": 1000}
+        self.obj_info.save()
+        self.assertEquals(self.obj_info["key"]["subkey"], 1000)
+        self.obj_info["key"]["subkey"] = 2000
+        self.assertEquals(self.obj_info["key"]["subkey"], 2000)
+        self.obj_info.restore()
+        self.assertEquals(self.obj_info["key"]["subkey"], 1000)
+
     def test_save_attributes(self):
         self.obj.prop1 = 10
         self.obj.attr1 = 100
@@ -156,6 +183,13 @@ class ObjectInfoTest(TestHelper):
         self.obj_info.restore()
         self.assertEquals(self.obj.prop1, 10)
         self.assertEquals(self.obj.attr1, 200)
+
+    def test_save_attributes_without_object(self):
+        del self.obj
+        self.assertEquals(self.obj_info.get_obj(), None)
+        self.obj_info.save()
+        self.obj_info.save_attributes()
+        self.obj_info.restore()
 
     def test_checkpoint(self):
         self.obj.prop1 = 10
@@ -402,6 +436,48 @@ class ObjectInfoTest(TestHelper):
         self.assertEquals(changes,
                           [(self.obj_info, self.variable1, Undef, 20, False)])
 
+    def test_get_obj(self):
+        self.assertTrue(self.obj_info.get_obj() is self.obj)
+
+    def test_set_obj(self):
+        obj = self.Class()
+        self.obj_info.set_obj(obj)
+        self.assertTrue(self.obj_info.get_obj() is obj)
+
+    def test_weak_reference(self):
+        obj = self.Class()
+        obj_info = get_obj_info(obj)
+        del obj
+        self.assertEquals(obj_info.get_obj(), None)
+
+    def test_object_deleted_notification(self):
+        obj = self.Class()
+        obj_info = get_obj_info(obj)
+        obj_info.tainted = True
+        deleted = []
+        def object_deleted(obj_info):
+            deleted.append(obj_info)
+        obj_info.event.hook("object-deleted", object_deleted)
+        del obj_info
+        del obj
+        self.assertEquals(len(deleted), 1)
+        self.assertEquals(getattr(deleted[0], "tainted", False), True)
+
+    def test_object_deleted_notification_after_set_obj(self):
+        obj = self.Class()
+        obj_info = get_obj_info(obj)
+        obj_info.tainted = True
+        obj = self.Class()
+        obj_info.set_obj(obj)
+        deleted = []
+        def object_deleted(obj_info):
+            deleted.append(obj_info)
+        obj_info.event.hook("object-deleted", object_deleted)
+        del obj_info
+        del obj
+        self.assertEquals(len(deleted), 1)
+        self.assertEquals(getattr(deleted[0], "tainted", False), True)
+
 
 class ClassAliasTest(TestHelper):
 
@@ -409,7 +485,7 @@ class ClassAliasTest(TestHelper):
         TestHelper.setUp(self)
         class Class(object):
             __table__ = "table", "column1"
-            prop1 = Any("column1")
+            prop1 = Property("column1")
         self.Class = Class
         self.obj = Class()
         self.ClassAlias = ClassAlias(self.Class, "alias")
@@ -440,10 +516,10 @@ class TypeCompilerTest(TestHelper):
         """Convoluted case checking that the model is right."""
         class Class1(object):
             __table__ = "class1", "id"
-            id = Any()
+            id = Property()
         class Class2(object):
             __table__ = Class1, "id"
-            id = Any()
+            id = Property()
         statement, parameters = compile(Class2)
         self.assertEquals(statement, "class1")
         statement, parameters = compile(ClassAlias(Class2, "alias"))

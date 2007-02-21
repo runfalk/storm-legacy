@@ -46,7 +46,8 @@ class Reference(object):
         if remote is None:
             remote = self._relation.get_remote(local)
             if remote is not None:
-                self._relation.unlink(local, remote, True)
+                self._relation.unlink(get_obj_info(local),
+                                      get_obj_info(remote), True)
         else:
             self._relation.link(local, remote, True)
 
@@ -144,7 +145,8 @@ class BoundReferenceSet(object):
         self._relation.link(self._local, remote, True)
 
     def remove(self, remote):
-        self._relation.unlink(self._local, remote, True)
+        self._relation.unlink(get_obj_info(self._local),
+                              get_obj_info(remote), True)
 
 
 class BoundIndirectReferenceSet(object):
@@ -267,10 +269,7 @@ class Relation(object):
         self._r_to_l = {}
 
     def get_remote(self, local):
-        remote_info = get_obj_info(local).get(self)
-        if remote_info is not None:
-            return remote_info.obj
-        return None
+        return get_obj_info(local).get(self)
 
     def get_where_for_remote(self, local):
         local_variables = self.get_local_variables(local)
@@ -307,17 +306,19 @@ class Relation(object):
         elif local_store is not remote_store:
             raise WrongStoreError("Objects are living in different stores")
 
+        # In cases below, we maintain a reference to the remote object
+        # to make sure it won't get deallocated while the link is active.
         if self.many:
             relations = local_info.get(self)
             if relations is None:
-                local_info[self] = set((remote_info,))
+                local_info[self] = {remote_info: remote}
             else:
-                relations.add(remote_info)
+                relations[remote_info] = remote
         else:
-            old_remote_info = local_info.get(self)
-            if old_remote_info is not None:
-                self.unlink(local, old_remote_info.obj)
-            local_info[self] = remote_info
+            old_remote = local_info.get(self)
+            if old_remote is not None:
+                self.unlink(local_info, get_obj_info(old_remote))
+            local_info[self] = remote
 
         if setting:
             local_vars = local_info.variables
@@ -367,22 +368,19 @@ class Relation(object):
             remote_info.event.hook("changed", self._break_on_remote_diverged,
                                    local_info)
 
-    def unlink(self, local, remote, setting=False):
-
-        local_info = get_obj_info(local)
-        remote_info = get_obj_info(remote)
+    def unlink(self, local_info, remote_info, setting=False):
 
         unhook = False
         if self.many:
             relations = local_info.get(self)
             if relations is not None and remote_info in relations:
-                relations.discard(remote_info)
+                relations.pop(remote_info, None)
                 unhook = True
         elif local_info.pop(self, None) is not None:
             unhook = True
         
         if unhook:
-            local_store = Store.of(local)
+            local_store = Store.of(local_info)
 
             local_info.event.unhook("changed", self._track_local_changes,
                                     remote_info)
@@ -405,9 +403,9 @@ class Relation(object):
 
             if local_store is not None:
                 if self.on_remote:
-                    local_store.remove_flush_order(local, remote)
+                    local_store.remove_flush_order(local_info, remote_info)
                 else:
-                    local_store.remove_flush_order(remote, local)
+                    local_store.remove_flush_order(remote_info, local_info)
 
         if setting:
             if self.on_remote:
@@ -416,7 +414,8 @@ class Relation(object):
                     remote_vars[remote_column].set(None)
             else:
                 local_vars = local_info.variables
-                for local_column in self._get_local_columns(local.__class__):
+                local_cols = self._get_local_columns(local_info.cls_info.cls)
+                for local_column in local_cols:
                     local_vars[local_column].set(None)
 
     def _track_local_changes(self, local_info, local_variable,
@@ -427,7 +426,7 @@ class Relation(object):
         changes done in the local object, either manually or at
         flushing time.
         """
-        remote_column = self._get_remote_column(local_info.obj.__class__,
+        remote_column = self._get_remote_column(local_info.cls_info.cls,
                                                 local_variable.column)
         if remote_column is not None:
             remote_info.variables[remote_column].set(new_value)
@@ -440,8 +439,7 @@ class Relation(object):
         changes done in the remote object, either manually or at
         flushing time.
         """
-        local = local_info.obj
-        local_column = self._get_local_column(local.__class__,
+        local_column = self._get_local_column(local_info.cls_info.cls,
                                               remote_variable.column)
         if local_column is not None:
             local_info.variables[local_column].set(new_value)
@@ -454,13 +452,12 @@ class Relation(object):
         changed by hand in a way that diverges from the remote object,
         it stops tracking changes.
         """
-        local = local_info.obj
-        remote_column = self._get_remote_column(local.__class__,
+        remote_column = self._get_remote_column(local_info.cls_info.cls,
                                                 local_variable.column)
         if remote_column is not None:
             variable = remote_info.variables[remote_column]
             if variable.get_lazy() is not None or variable.get() != new_value:
-                self.unlink(local, remote_info.obj)
+                self.unlink(local_info, remote_info)
 
     def _break_on_remote_diverged(self, remote_info, remote_variable,
                                   old_value, new_value, fromdb, local_info):
@@ -470,43 +467,39 @@ class Relation(object):
         changed by hand in a way that diverges from the local object,
         the relationship is undone.
         """
-        local = local_info.obj
-        local_column = self._get_local_column(local.__class__,
+        local_column = self._get_local_column(local_info.cls_info.cls,
                                               remote_variable.column)
         if local_column is not None:
-            local_value = get_obj_info(local).variables[local_column].get()
+            local_value = local_info.variables[local_column].get()
             if local_value != new_value:
-                self.unlink(local, remote_info.obj)
+                self.unlink(local_info, remote_info)
 
     def _break_on_local_flushed(self, local_info, remote_info):
         """Break the remote/local relationship on flush."""
-        self.unlink(local_info.obj, remote_info.obj)
+        self.unlink(local_info, remote_info)
 
     def _break_on_remote_flushed(self, remote_info, local_info):
         """Break the remote/local relationship on flush."""
-        self.unlink(local_info.obj, remote_info.obj)
+        self.unlink(local_info, remote_info)
 
     def _add_all(self, obj_info, local_info):
-        local = local_info.obj
-        store = Store.of(obj_info.obj)
-        store.add(local)
+        store = Store.of(obj_info)
+        store.add(local_info)
         local_info.event.unhook("added", self._add_all, local_info)
 
         def add(remote_info):
-            remote_info.event.unhook("added", self._add_all,
-                                              local_info)
-            remote = remote_info.obj
-            store.add(remote)
+            remote_info.event.unhook("added", self._add_all, local_info)
+            store.add(remote_info)
             if self.on_remote:
-                store.add_flush_order(local, remote)
+                store.add_flush_order(local_info, remote_info)
             else:
-                store.add_flush_order(remote, local)
+                store.add_flush_order(remote_info, local_info)
 
         if self.many:
             for remote_info in local_info[self]:
                 add(remote_info)
         else:
-            add(local_info[self])
+            add(get_obj_info(local_info[self]))
 
     def _get_local_columns(self, local_cls):
         try:

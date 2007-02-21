@@ -18,7 +18,8 @@ except:
     psycopg = dummy
 
 from storm.expr import And, Eq
-from storm.variables import Variable, UnicodeVariable, StrVariable
+from storm.variables import (
+    Variable, UnicodeVariable, StrVariable, ListVariable)
 from storm.database import *
 from storm.exceptions import install_exceptions, DatabaseModuleError
 from storm.expr import FuncExpr, compile
@@ -40,6 +41,15 @@ def compile_currval(compile, state, expr):
     return "currval('%s_%s_seq')" % (compile(state, expr.column.table),
                                      compile(state, expr.column.name))
 
+@compile.when(ListVariable)
+def compile_list_variable(compile, state, list_variable):
+    elements = []
+    variables = list_variable.get(to_db=True)
+    if variables is None:
+        return "NULL"
+    for variable in variables:
+        elements.append(compile(state, variable))
+    return "ARRAY[%s]" % ",".join(elements)
 
 def compile_str_variable_with_E(compile, state, variable):
     """Include an E just before the placeholder of string variables.
@@ -65,10 +75,14 @@ class PostgresResult(Result):
 
     def set_variable(self, variable, value):
         if isinstance(variable, UnicodeVariable):
-            variable.set(unicode(value, self._connection._database._encoding),
-                         from_db=True)
-        else:
-            variable.set(value, from_db=True)
+            value = unicode(value, self._connection._database._encoding)
+        elif isinstance(variable, ListVariable):
+            if value == "{}":
+                # Optimize the empty array case (parse_array() can handle it).
+                value = []
+            else:
+                value = parse_array(value)
+        variable.set(value, from_db=True)
 
 
 class PostgresConnection(Connection):
@@ -77,16 +91,18 @@ class PostgresConnection(Connection):
     _param_mark = "%s"
     _compile = compile
 
-    def _to_database(self, value):
-        if isinstance(value, Variable):
-            value = value.get(to_db=True)
-        if isinstance(value, (datetime, date, time)):
-            return str(value)
-        if isinstance(value, unicode):
-            return value.encode(self._database._encoding)
-        if isinstance(value, str):
-            return psycopg.Binary(value)
-        return value
+    def _to_database(self, params):
+        for param in params:
+            if isinstance(param, Variable):
+                param = param.get(to_db=True)
+            if isinstance(param, (datetime, date, time)):
+                yield str(param)
+            elif isinstance(param, unicode):
+                yield param.encode(self._database._encoding)
+            elif isinstance(param, str):
+                yield psycopg.Binary(param)
+            else:
+                yield param
 
 
 class Postgres(Database):
@@ -131,7 +147,6 @@ class Postgres(Database):
                 compile.when(StrVariable)(compile_str_variable_with_E)
         return self._connection_factory(self, raw_connection)
 
-
 def str_or_none(value):
     return value and str(value)
 
@@ -157,3 +172,54 @@ def make_dsn(uri):
     if uri.password is not None:
         dsn += " password=%s" % uri.password
     return dsn
+
+
+def parse_array(array):
+    """Parse a PostgreSQL-formatted array literal.
+
+    E.g. r'{{meeting,lunch},{ training , "presentation" },"{}","\"", NULL}'
+    makes [["meeting", "lunch"], ["training", "presentation"], "{}", '"', None]
+    """
+
+    if array[0] != "{" or array[-1] != "}":
+        raise ValueError("Invalid array")
+    stack = []
+    current = []
+    token = ""
+    nesting = 0
+    quoting = False
+    quoted = False
+    chars = iter(array)
+    for c in chars:
+        if quoting:
+            if c == "\\":
+                token += chars.next()
+            elif c == '"':
+                quoting = False
+            else:
+                token += c
+        elif c == " ":
+            pass
+        elif c in ",}":
+            if token:
+                if quoted:
+                    quoted = False
+                elif token == "NULL":
+                    token = None
+                current.append(token)
+                token = ""
+            if c == "}":
+                current = stack.pop()
+        elif token:
+            token += c
+        elif c == '"':
+            quoting = True
+            quoted = True
+        elif c == "{":
+            lst = []
+            current.append(lst)
+            stack.append(current)
+            current = lst
+        else:
+            token = c
+    return current[0]
