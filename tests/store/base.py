@@ -1607,6 +1607,18 @@ class StoreTest(object):
         bar.foo.id = 40
         self.assertEquals(bar.foo, None)
 
+    def test_reference_break_on_local_diverged_by_lazy(self):
+        bar = self.store.get(Bar, 100)
+        self.assertEquals(bar.foo.id, 10)
+        bar.foo_id = SQL("20")
+        self.assertEquals(bar.foo.id, 20)
+
+    def test_reference_break_on_remote_diverged_by_lazy(self):
+        bar = self.store.get(Bar, 100)
+        self.assertEquals(bar.foo.id, 10)
+        bar.foo.id = SQL("40")
+        self.assertEquals(bar.foo, None)
+
     def test_reference_on_non_primary_key(self):
         self.store.execute("INSERT INTO bar VALUES (400, 40, 'Title 30')")
         class MyBar(Bar):
@@ -1658,6 +1670,38 @@ class StoreTest(object):
         self.assertEquals(bar.foo.id, None)
         self.assertEquals(bar.foo.title, "Title 40")
 
+
+        self.store.flush()
+
+        self.assertTrue(bar.foo.id)
+        self.assertEquals(bar.foo.title, "Title 40")
+
+        result = self.store.execute("SELECT foo.title FROM foo, bar "
+                                    "WHERE bar.id=400 AND "
+                                    "foo.id = bar.foo_id")
+        self.assertEquals(result.get_one(), ("Title 40",))
+
+    def test_reference_on_added_with_autoreload_key(self):
+        foo = Foo()
+        foo.title = "Title 40"
+        self.store.add(foo)
+
+        bar = Bar()
+        bar.id = 400
+        bar.title = "Title 400"
+        bar.foo = foo
+        self.store.add(bar)
+
+        self.assertEquals(bar.foo.id, None)
+        self.assertEquals(bar.foo.title, "Title 40")
+
+        foo.id = AutoReload
+
+        # Variable shouldn't be autoreloaded yet.
+        obj_info = get_obj_info(foo)
+        self.assertEquals(obj_info.variables[Foo.id].get_lazy(), AutoReload)
+
+        self.assertEquals(type(foo.id), int)
 
         self.store.flush()
 
