@@ -472,7 +472,7 @@ class Store(object):
             self._enable_change_notification(obj_info)
             self._enable_lazy_resolving(obj_info)
 
-            self._run_load_hook(obj_info, obj)
+            self._run_hook(obj, "__loaded__")
             return obj
 
     def _rebuild_deleted_object(self, obj_info):
@@ -481,14 +481,14 @@ class Store(object):
         obj = cls.__new__(cls)
         obj_info.set_obj(obj)
         set_obj_info(obj, obj_info)
-        self._run_load_hook(obj_info, obj)
+        self._run_hook(obj, "__loaded__")
         return obj
 
     @staticmethod
-    def _run_load_hook(obj_info, obj):
-        load = getattr(obj, "__load__", None)
-        if load is not None:
-            load()
+    def _run_hook(obj, hook_name):
+        func = getattr(obj, hook_name, None)
+        if func is not None:
+            func()
 
     def _set_values(self, obj_info, columns, result, values):
         if values is None:

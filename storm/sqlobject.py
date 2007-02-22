@@ -211,7 +211,7 @@ class SQLObjectBase(Storm):
         self._get_store().add(self)
         self._create(None, **kwargs)
 
-    def __load__(self):
+    def __loaded__(self):
         self._init(None)
 
     def _init(self, id, *args, **kwargs):

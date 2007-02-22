@@ -232,7 +232,7 @@ class StoreTest(object):
         # while still holding a reference to the obj_info.
         class MyFoo(Foo):
             loaded = False
-            def __load__(self):
+            def __loaded__(self):
                 self.loaded = True
 
         foo = self.store.get(MyFoo, 20)
@@ -1472,14 +1472,14 @@ class StoreTest(object):
 
         self.assertTrue(self.store.get(Foo, 20) is foo)
 
-    def test__load__(self):
+    def test__loaded__(self):
 
         loaded = []
 
         class MyFoo(Foo):
             def __init__(self):
                 loaded.append("NO!")
-            def __load__(self):
+            def __loaded__(self):
                 loaded.append((self.id, self.title))
                 self.title = "Title 200"
                 self.some_attribute = 1
