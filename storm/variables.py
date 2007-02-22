@@ -110,7 +110,7 @@ class Variable(object):
         old_value = self._value
         self._value = new_value
         if (self.event is not None and
-            (self._lazy_value is not Undef or new_value is not old_value)):
+            (self._lazy_value is not Undef or new_value != old_value)):
             if old_value is not None and old_value is not Undef:
                 old_value = self._parse_get(old_value, False)
             self.event.emit("changed", self, old_value, value, from_db)

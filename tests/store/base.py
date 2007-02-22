@@ -1505,6 +1505,38 @@ class StoreTest(object):
         self.assertEquals(foo.title, "Title 20")
         self.assertEquals(foo.some_attribute, 2)
 
+    def test__flushed__(self):
+
+        class MyFoo(Foo):
+            done = False
+            def __flushed__(self):
+                if not self.done:
+                    self.done = True
+                    self.title = "Flushed: %s" % self.title
+
+        foo = self.store.get(MyFoo, 20)
+
+        self.assertEquals(foo.title, "Title 20")
+        self.store.flush()
+        self.assertEquals(foo.title, "Title 20") # It wasn't dirty.
+        foo.title = "Something"
+        self.store.flush()
+        self.assertEquals(foo.title, "Flushed: Something")
+
+        # It got in the database, because it was flushed *twice* (the
+        # title was changed after flushed, and thus the object got dirty
+        # again).
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Flushed: Something"),
+                          (30, "Title 10"),
+                         ])
+
+        # This shouldn't do anything, because the object is clean again.
+        foo.done = False
+        self.store.flush()
+        self.assertEquals(foo.title, "Flushed: Something")
+
     def test_retrieve_default_primary_key(self):
         foo = Foo()
         foo.title = "Title 40"

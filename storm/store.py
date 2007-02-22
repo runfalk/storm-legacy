@@ -339,6 +339,8 @@ class Store(object):
 
             obj_info.checkpoint()
 
+        self._run_hook(obj_info, "__flushed__")
+
         obj_info.event.emit("flushed")
 
     def _fill_missing_values(self, obj_info, primary_vars, result=None,
@@ -472,7 +474,7 @@ class Store(object):
             self._enable_change_notification(obj_info)
             self._enable_lazy_resolving(obj_info)
 
-            self._run_hook(obj, "__loaded__")
+            self._run_hook(obj_info, "__loaded__")
             return obj
 
     def _rebuild_deleted_object(self, obj_info):
@@ -481,12 +483,12 @@ class Store(object):
         obj = cls.__new__(cls)
         obj_info.set_obj(obj)
         set_obj_info(obj, obj_info)
-        self._run_hook(obj, "__loaded__")
+        self._run_hook(obj_info, "__loaded__")
         return obj
 
     @staticmethod
-    def _run_hook(obj, hook_name):
-        func = getattr(obj, hook_name, None)
+    def _run_hook(obj_info, hook_name):
+        func = getattr(obj_info.get_obj(), hook_name, None)
         if func is not None:
             func()
 
