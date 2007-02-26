@@ -333,8 +333,9 @@ class Relation(object):
         return compare_columns(self.remote_key, local_variables)
 
     def get_where_for_local(self, other):
-        """
-        Handles the following cases:
+        """Fetch a column comparison for reference properties.
+
+        It handles the following cases:
 
             Class.reference == obj
             Class.reference == obj.id
@@ -368,6 +369,13 @@ class Relation(object):
                      for column in self._get_remote_columns(remote.__class__))
 
     def link(self, local, remote, setting=False):
+        """Link objects to represent their relation.
+
+        If C{remote} is not a Storm object, it will directly be set as
+        the value of the local variables. (??)
+
+        @param setting: Pass true when the relationship is being newly created.
+        """
         local_info = get_obj_info(local)
 
         try:
@@ -463,7 +471,6 @@ class Relation(object):
                                    local_info)
 
     def unlink(self, local_info, remote_info, setting=False):
-
         unhook = False
         if self.many:
             relations = local_info.get(self)
