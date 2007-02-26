@@ -1,5 +1,6 @@
-"""
-A SQLObject emulation layer for Storm.
+"""A SQLObject emulation layer for Storm.
+
+L{SQLObjectBase} is the central point of compatibility.
 """
 
 import re
@@ -207,6 +208,15 @@ class BoundDotQ(object):
 
 
 class SQLObjectBase(Storm):
+    """The root class of all SQLObject-emulating classes in your application.
+
+    The general strategy for using Storm's SQLObject emulation layer
+    is to create an application-specific subclass of SQLObjectBase
+    (probably named "SQLObject") that provides an implementation of
+    _get_store to return an instance of L{storm.store.Store}. It will
+    typically be implemented as returning a global L{Store}
+    instance. Then all database classes should subclass that class.
+    """
     __metaclass__ = SQLObjectMeta
 
     q = DotQ()
