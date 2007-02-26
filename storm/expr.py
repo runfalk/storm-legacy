@@ -164,6 +164,8 @@ class State(object):
         self.aliases = None
 
     def push(self, attr, new_value=Undef):
+        """Set an attribute in a way that can later be reverted with L{pop}.
+        """
         old_value = getattr(self, attr, None)
         self._stack.append((attr, old_value))
         if new_value is Undef:
@@ -172,6 +174,8 @@ class State(object):
         return old_value
 
     def pop(self):
+        """Revert the latest L{push}.
+        """
         setattr(self, *self._stack.pop(-1))
 
 
@@ -186,7 +190,6 @@ class Context(object):
     """
     An object used to specify the current context within an SQL expression
     that compilation is in.
-
     """
 
     def __init__(self, name):
