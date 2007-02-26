@@ -779,7 +779,7 @@ class ResultSet(object):
         if type(self._cls_spec_info) is tuple:
             raise FeatureError("Removing not yet supported with tuple finds")
         if self._select is not Undef:
-            raise FeatureError("Removing isn't supportted with "
+            raise FeatureError("Removing isn't supported with "
                                "set expressions (unions, etc)")
         self._store._connection.execute(Delete(self._where,
                                                self._cls_spec_info.table),
@@ -843,9 +843,9 @@ class ResultSet(object):
 
     def set(self, *args, **kwargs):
         if type(self._cls_spec_info) is tuple:
-            raise FeatureError("Setting isn't supportted with tuple finds")
+            raise FeatureError("Setting isn't supported with tuple finds")
         if self._select is not Undef:
-            raise FeatureError("Setting isn't supportted with "
+            raise FeatureError("Setting isn't supported with "
                                "set expressions (unions, etc)")
 
         if not (args or kwargs):
