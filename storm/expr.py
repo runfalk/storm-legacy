@@ -89,6 +89,16 @@ class Compile(object):
                                % (expr.__class__, expr))
 
     def _compile(self, state, expr, join=", ", raw=False):
+        # This docstring is in a pretty crappy place; where could it
+        # go that would be more discoverable?
+        """
+        @type state: L{State}.
+        @param expr: The expression to compile.
+        @param join: The string token to use to put between
+                     subexpressions. Defaults to ", ".
+        @param raw: If true, any string or unicode expression or
+                    subexpression will not be further compiled.
+        """
         outer_precedence = state.precedence
         expr_type = type(expr)
         if (expr_type is SQLRaw or
@@ -134,6 +144,16 @@ class CompilePython(Compile):
 
 
 class State(object):
+    """All the data necessary during compilation of an expression.
+
+    @ivar context: an instance of L{Context}, specifying the context
+        of the expression currently being compiled.
+
+    @ivar aliases: Dict of L{Column} instances to L{Alias} instances,
+        specifying how columns should be compiled as aliases in very
+        specific situations.  This is typically used to work around
+        strange deficiencies in various databases.
+    """
 
     def __init__(self):
         self._stack = []
@@ -163,6 +183,11 @@ compile_python = CompilePython()
 # Expression contexts
 
 class Context(object):
+    """
+    An object used to specify the current context within an SQL expression
+    that compilation is in.
+
+    """
 
     def __init__(self, name):
         self._name = name
@@ -590,10 +615,17 @@ def compile_python_column(compile, state, column):
 # Alias expressions
 
 class Alias(ComparableExpr):
-    
+    """A representation of "AS" alias clauses. e.g., SELECT foo AS bar.
+    """
+
     auto_counter = 0
 
     def __init__(self, expr, name=Undef):
+        """Initialize this alias as coming from C{expr} to C{name}.
+
+        If name is not given, then a name will automatically be
+        generated.
+        """
         self.expr = expr
         if name is Undef:
             Alias.auto_counter += 1
@@ -650,6 +682,7 @@ class JoinExpr(FromExpr):
 @compile.when(JoinExpr)
 def compile_join(compile, state, expr):
     result = []
+    # Ensure that nested JOINs get parentheses.
     state.precedence += 0.5
     if expr.left is not Undef:
         result.append(compile(state, expr.left, raw=True))
@@ -702,7 +735,7 @@ class NonAssocBinaryOper(BinaryOper):
 @compile_python.when(NonAssocBinaryOper)
 def compile_non_assoc_binary_oper(compile, state, oper):
     expr1 = compile(state, oper.expr1)
-    state.precedence += 0.5
+    state.precedence += 0.5 # enforce parentheses.
     expr2 = compile(state, oper.expr2)
     return "%s%s%s" % (expr1, oper.oper, expr2)
 
@@ -861,6 +894,11 @@ def compile_set_expr(compile, state, expr):
                 subexpr.columns = columns
 
     state.push("context", SELECT)
+    # In the statement:
+    # SELECT FOO UNION SELECT BAR LIMIT 1
+    # The LIMIT 1 applies to the union results, not the SELECT
+    # BAR. This ensures that parentheses will be placed around the
+    # sub-selects in the expression.
     state.precedence += 0.5
     oper = expr.oper
     if expr.all:

@@ -396,7 +396,9 @@ class Relation(object):
         elif remote_store is None:
             local_store.add(remote)
         elif local_store is not remote_store:
-            raise WrongStoreError("Objects are living in different stores")
+            raise WrongStoreError("%r and %r cannot be linked because they "
+                                  "are in different stores." %
+                                  (local, remote))
 
         # In cases below, we maintain a reference to the remote object
         # to make sure it won't get deallocated while the link is active.

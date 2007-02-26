@@ -1,3 +1,7 @@
+"""
+A SQLObject emulation layer for Storm.
+"""
+
 import re
 
 from storm.properties import (

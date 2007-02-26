@@ -24,6 +24,8 @@ def get_obj_info(obj):
     try:
         return obj.__object_info
     except AttributeError:
+        # Instantiate ObjectInfo first, so that it breaks gracefully,
+        # in case the object isn't a storm object.
         obj_info = ObjectInfo(obj)
         return obj.__dict__.setdefault("__object_info", obj_info)
 
