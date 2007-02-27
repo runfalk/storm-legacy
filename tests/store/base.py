@@ -678,6 +678,19 @@ class StoreTest(object):
         self.assertEquals(self.store.find(Foo, title="Title 20").cached(),
                           [foo2])
 
+    def test_find_cached_invalidated(self):
+        foo = self.store.get(Foo, 20)
+        self.store.invalidate(foo)
+        self.assertEquals(self.store.find(Foo).cached(), [foo])
+
+    def test_find_cached_invalidated_and_deleted(self):
+        foo = self.store.get(Foo, 20)
+        self.store.execute("DELETE FROM foo WHERE id=20")
+        self.store.invalidate(foo)
+        # Do not look for the primary key (id), since it's able to get
+        # it without touching the database. Use the title instead.
+        self.assertEquals(self.store.find(Foo, title="Title 20").cached(), [])
+
     def test_using_find_join(self):
         bar = self.store.get(Bar, 100)
         bar.foo_id = None
@@ -1674,6 +1687,19 @@ class StoreTest(object):
     def test_find_set_expr_unsupported_2(self):
         result = self.store.find(Foo, title="Title 20")
         self.assertRaises(FeatureError, result.set, Foo.title == Func("func"))
+
+    def test_find_set_expr_unsupported_autoreloads(self):
+        bar1 = self.store.get(Bar, 200)
+        bar2 = self.store.get(Bar, 300)
+        self.store.find(Bar, id=Select(SQL("200"))).set(title="Title 400")
+        bar1_vars = get_obj_info(bar1).variables
+        bar2_vars = get_obj_info(bar2).variables
+        self.assertEquals(bar1_vars[Bar.title].get_lazy(), AutoReload)
+        self.assertEquals(bar2_vars[Bar.title].get_lazy(), AutoReload)
+        self.assertEquals(bar1_vars[Bar.foo_id].get_lazy(), None)
+        self.assertEquals(bar2_vars[Bar.foo_id].get_lazy(), None)
+        self.assertEquals(bar1.title, "Title 400")
+        self.assertEquals(bar2.title, "Title 100")
 
     def test_wb_find_set_checkpoints(self):
         bar = self.store.get(Bar, 200)
