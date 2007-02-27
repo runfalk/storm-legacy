@@ -1,3 +1,5 @@
+- Unicode(autoreload=True) will mark the field as autoreload by default.
+
 - Generic finds:
 
   foo, count = store.find((Foo, Count(Foo.name))).group_by(Foo.name)
