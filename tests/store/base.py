@@ -215,6 +215,22 @@ class StoreTest(object):
         foo = self.store.get(Foo, 10)
         self.assertFalse(getattr(foo, "taint", False))
 
+    def test_add_returns_object(self):
+        """
+        Store.add() returns the object passed to it.  This allows this
+        kind of code:
+
+        thing = Thing()
+        store.add(thing)
+        return thing
+
+        to be simplified as:
+
+        return store.add(Thing())
+        """
+        foo = Foo()
+        self.assertEquals(self.store.add(foo), foo)
+
     def test_add_and_stop_referencing(self):
         # After adding an object, no references should be needed in
         # python for it still to be added to the database.

@@ -150,6 +150,8 @@ class Store(object):
             self._enable_lazy_resolving(obj_info)
             obj_info.event.emit("added")
 
+        return obj
+
     def remove(self, obj):
         obj_info = get_obj_info(obj)
 
