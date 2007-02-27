@@ -149,7 +149,6 @@ class Pickle(SimpleProperty):
 
 
 class List(SimpleProperty):
-
     variable_class = ListVariable
 
     def __init__(self, name=None, **kwargs):
@@ -165,11 +164,26 @@ class List(SimpleProperty):
 
 
 class PropertyRegistry(object):
+    """
+    An object which remembers the Storm properties specified on
+    classes.
 
+    (The "use cases", which are not necesarily all uses, are:
+
+    1. References want to be able to refer to things by name instead
+       of by property, so they look things up with this.
+    2. SQLObject emulation layer has an '.id' somewhere that always
+       refers to the primary key.)
+    """
     def __init__(self):
         self._properties = []
 
     def get(self, name, namespace=None):
+        """Fetch the Storm properties of a named class.
+
+        The class can be disambiguated by specifying the 'namespace'
+        argument.
+        """
         key = ".".join(reversed(name.split(".")))+"."
         i = bisect_left(self._properties, (key,))
         l = len(self._properties)
@@ -217,6 +231,9 @@ class PropertyRegistry(object):
         return best_props[0][1]
 
     def add_class(self, cls):
+        """
+        Register a class so that its properties can later be found with L{get}.
+        """
         suffix = cls.__module__.split(".")
         suffix.append(cls.__name__)
         suffix.reverse()
@@ -230,6 +247,10 @@ class PropertyRegistry(object):
             insort_left(self._properties, pair)
 
     def add_property(self, cls, prop, attr_name):
+        """
+        Register an individual property so that it can later be found
+        with L{get}.
+        """
         suffix = cls.__module__.split(".")
         suffix.append(cls.__name__)
         suffix.reverse()
@@ -250,6 +271,8 @@ global_property_registry = PropertyRegistry()
 
 
 class PropertyPublisherMeta(type):
+    """A metaclass that associates subclasses with Storm L{PropertyRegistry}s.
+    """
 
     def __init__(self, name, bases, dict):
         if not hasattr(self, "_storm_property_registry"):

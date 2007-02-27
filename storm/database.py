@@ -187,6 +187,8 @@ def create_database(uri):
         "postgres:test" The database 'test' from the local postgres server.
         "postgres://user:password@host/test" The database test on machine host
             with supplied user credentials, using postgres.
+        "anything:..." Where 'anything' has previously been registered
+            with L{register_scheme}.
     """
     if isinstance(uri, basestring):
         uri = URI.parse(uri)
