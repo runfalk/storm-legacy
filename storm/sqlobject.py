@@ -8,6 +8,7 @@ import re
 from storm.properties import (
     Unicode, Str, Int, Bool, Float, DateTime, Date, TimeDelta)
 from storm.references import Reference, ReferenceSet
+from storm.properties import PropertyPublisherMeta
 from storm.exceptions import StormError
 from storm.info import get_cls_info
 from storm.store import Store
