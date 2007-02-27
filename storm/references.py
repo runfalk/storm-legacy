@@ -325,6 +325,11 @@ class Relation(object):
         return get_obj_info(local).get(self)
 
     def get_where_for_remote(self, local):
+        """Generate a column comparison expression for reference properties.
+
+        The returned expression may be used to find objects of the I{remote}
+        type referring to C{local}.
+        """
         local_variables = self.get_local_variables(local)
         for variable in local_variables:
             if not variable.is_defined():
@@ -333,13 +338,18 @@ class Relation(object):
         return compare_columns(self.remote_key, local_variables)
 
     def get_where_for_local(self, other):
-        """Fetch a column comparison for reference properties.
+        """Generate a column comparison expression for reference properties.
+
+        The returned expression may be used to find objects of the I{local}
+        type referring to C{other}.
 
         It handles the following cases:
 
             Class.reference == obj
             Class.reference == obj.id
             Class.reference == (obj.id1, obj.id2)
+
+        Where the right-hand side is the C{other} object given.
         """
         try:
             obj_info = get_obj_info(other)
@@ -371,8 +381,10 @@ class Relation(object):
     def link(self, local, remote, setting=False):
         """Link objects to represent their relation.
 
-        If C{remote} is not a Storm object, it will directly be set as
-        the value of the local variables. (??)
+        @param local: Object representing the I{local} side of the reference.
+
+        @param remote: Object representing the I{remote} side of the reference,
+            or the actual value to be set as the local key.
 
         @param setting: Pass true when the relationship is being newly created.
         """
@@ -471,6 +483,10 @@ class Relation(object):
                                    local_info)
 
     def unlink(self, local_info, remote_info, setting=False):
+        """Break the relation between the local and remote objects.
+
+        @param setting: If true objects will be changed to persist breakage.
+        """
         unhook = False
         if self.many:
             relations = local_info.get(self)

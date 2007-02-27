@@ -75,9 +75,9 @@ class Property(object):
         try:
             # Use class dictionary explicitly to get sensible
             # results on subclasses.
-            column = cls.__dict__["_storm_columns_"].get(self)
+            column = cls.__dict__["_storm_columns"].get(self)
         except KeyError:
-            cls._storm_columns_ = {}
+            cls._storm_columns = {}
             column = None
         if column is None:
             if self._name is None:
@@ -85,7 +85,7 @@ class Property(object):
             column = PropertyColumn(self, cls, self._name,
                                     self._variable_class,
                                     self._variable_kwargs)
-            cls._storm_columns_[self] = column
+            cls._storm_columns[self] = column
         return column
 
 
@@ -166,23 +166,22 @@ class List(SimpleProperty):
 class PropertyRegistry(object):
     """
     An object which remembers the Storm properties specified on
-    classes.
-
-    (The "use cases", which are not necesarily all uses, are:
-
-    1. References want to be able to refer to things by name instead
-       of by property, so they look things up with this.
-    2. SQLObject emulation layer has an '.id' somewhere that always
-       refers to the primary key.)
+    classes, and is able to translate names to these properties.
     """
     def __init__(self):
         self._properties = []
 
     def get(self, name, namespace=None):
-        """Fetch the Storm properties of a named class.
+        """Translate a property name path to the actual property.
 
-        The class can be disambiguated by specifying the 'namespace'
-        argument.
+        This method accepts a property name like C{"id"} or C{"Class.id"}
+        or C{"module.path.Class.id"}, and tries to find a unique
+        class/property with the given name.
+
+        When the C{namespace} argument is given, the registry will be
+        able to disambiguate names by choosing the one that is closer
+        to the given namespace.  For instance C{get("Class.id", "a.b.c")}
+        will choose C{a.Class.id} rather than C{d.Class.id}.
         """
         key = ".".join(reversed(name.split(".")))+"."
         i = bisect_left(self._properties, (key,))
@@ -231,8 +230,7 @@ class PropertyRegistry(object):
         return best_props[0][1]
 
     def add_class(self, cls):
-        """
-        Register a class so that its properties can later be found with L{get}.
+        """Register properties of C{cls} so that they may be found by C{get()}.
         """
         suffix = cls.__module__.split(".")
         suffix.append(cls.__name__)
@@ -247,9 +245,7 @@ class PropertyRegistry(object):
             insort_left(self._properties, pair)
 
     def add_property(self, cls, prop, attr_name):
-        """
-        Register an individual property so that it can later be found
-        with L{get}.
+        """Register property of C{cls} so that it may be found by C{get()}.
         """
         suffix = cls.__module__.split(".")
         suffix.append(cls.__name__)
@@ -261,13 +257,14 @@ class PropertyRegistry(object):
         insort_left(self._properties, pair)
 
     def clear(self):
+        """Clean up all properties in the registry.
+
+        Used by tests.
+        """
         del self._properties[:]
 
     def _remove(self, ref):
         self._properties.remove(ref.key)
-
-
-global_property_registry = PropertyRegistry()
 
 
 class PropertyPublisherMeta(type):

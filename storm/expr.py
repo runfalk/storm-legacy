@@ -146,13 +146,23 @@ class CompilePython(Compile):
 class State(object):
     """All the data necessary during compilation of an expression.
 
-    @ivar context: an instance of L{Context}, specifying the context
-        of the expression currently being compiled.
-
     @ivar aliases: Dict of L{Column} instances to L{Alias} instances,
         specifying how columns should be compiled as aliases in very
         specific situations.  This is typically used to work around
         strange deficiencies in various databases.
+
+    @ivar auto_tables: Whenever an expression that would require a
+        table in a FROM expression is compiled, it should add the
+        respective table to this value, so that statements may
+        automatically include these tables.
+
+    @ivar context: an instance of L{Context}, specifying the context
+        of the expression currently being compiled.
+
+    @ivar precedence: Current precedence, automatically set and restored
+        by the compiler. If an inner precedence is lower than an outer
+        precedence, parenthesis around the inner expression are
+        automatically emitted.
     """
 
     def __init__(self):
@@ -174,7 +184,7 @@ class State(object):
         return old_value
 
     def pop(self):
-        """Revert the latest L{push}.
+        """Revert the topmost L{push}.
         """
         setattr(self, *self._stack.pop(-1))
 
@@ -188,8 +198,8 @@ compile_python = CompilePython()
 
 class Context(object):
     """
-    An object used to specify the current context within an SQL expression
-    that compilation is in.
+    An object used to specify the nature of expected SQL expressions
+    being compiled in a given context.
     """
 
     def __init__(self, name):
@@ -624,9 +634,9 @@ class Alias(ComparableExpr):
     auto_counter = 0
 
     def __init__(self, expr, name=Undef):
-        """Initialize this alias as coming from C{expr} to C{name}.
+        """Create alias of C{expr} AS C{name}.
 
-        If name is not given, then a name will automatically be
+        If C{name} is not given, then a name will automatically be
         generated.
         """
         self.expr = expr
@@ -738,7 +748,7 @@ class NonAssocBinaryOper(BinaryOper):
 @compile_python.when(NonAssocBinaryOper)
 def compile_non_assoc_binary_oper(compile, state, oper):
     expr1 = compile(state, oper.expr1)
-    state.precedence += 0.5 # enforce parentheses.
+    state.precedence += 0.5 # Enforce parentheses.
     expr2 = compile(state, oper.expr2)
     return "%s%s%s" % (expr1, oper.oper, expr2)
 
@@ -898,9 +908,9 @@ def compile_set_expr(compile, state, expr):
 
     state.push("context", SELECT)
     # In the statement:
-    # SELECT FOO UNION SELECT BAR LIMIT 1
-    # The LIMIT 1 applies to the union results, not the SELECT
-    # BAR. This ensures that parentheses will be placed around the
+    #   SELECT foo UNION SELECT bar LIMIT 1
+    # The LIMIT 1 applies to the union results, not the SELECT bar
+    # This ensures that parentheses will be placed around the
     # sub-selects in the expression.
     state.precedence += 0.5
     oper = expr.oper

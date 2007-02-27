@@ -99,7 +99,7 @@ class SQLObjectStyle(object):
         return s[0].lower() + s[1:]
 
 
-class SQLObjectMeta(type(Storm)):
+class SQLObjectMeta(PropertyPublisherMeta):
 
     @staticmethod
     def _get_attr(attr, bases, dict):
@@ -213,9 +213,9 @@ class SQLObjectBase(Storm):
     The general strategy for using Storm's SQLObject emulation layer
     is to create an application-specific subclass of SQLObjectBase
     (probably named "SQLObject") that provides an implementation of
-    _get_store to return an instance of L{storm.store.Store}. It will
-    typically be implemented as returning a global L{Store}
-    instance. Then all database classes should subclass that class.
+    _get_store to return an instance of L{storm.store.Store}. It may
+    even be implemented as returning a global L{Store} instance. Then
+    all database classes should subclass that class.
     """
     __metaclass__ = SQLObjectMeta
 
