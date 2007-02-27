@@ -9,7 +9,9 @@
 #
 import weakref
 
-from storm.expr import Column, FromExpr, CompileError, compile
+from storm.exceptions import ClassInfoError
+from storm.expr import Expr, FromExpr, Column, Desc, TABLE
+from storm.expr import SQLToken, CompileError, compile
 from storm.event import EventSystem
 from storm import Undef
 
@@ -22,7 +24,10 @@ def get_obj_info(obj):
     try:
         return obj.__object_info
     except AttributeError:
-        return obj.__dict__.setdefault("__object_info", ObjectInfo(obj))
+        # Instantiate ObjectInfo first, so that it breaks gracefully,
+        # in case the object isn't a storm object.
+        obj_info = ObjectInfo(obj)
+        return obj.__dict__.setdefault("__object_info", obj_info)
 
 def set_obj_info(obj, obj_info):
     obj.__dict__["__object_info"] = obj_info
@@ -59,11 +64,14 @@ class ClassInfo(dict):
     def __init__(self, cls):
         __table__ = getattr(cls, "__table__", ())
         if len(__table__) != 2:
-            raise RuntimeError("%s.__table__ must be (<table name>, "
-                               "<primary key(s)>) tuple." % repr(cls))
+            raise ClassInfoError("%s.__table__ must be (<table name>, "
+                                 "<primary key(s)>) tuple." % repr(cls))
 
         self.table = __table__[0]
         self.cls = cls
+
+        if not isinstance(self.table, Expr):
+            self.table = SQLToken(self.table)
 
         pairs = []
         for attr in dir(cls):
@@ -73,6 +81,7 @@ class ClassInfo(dict):
         pairs.sort()
 
         self.columns = tuple(pair[1] for pair in pairs)
+        self.attributes = dict(pairs)
 
         name_positions = dict((prop.name, i)
                               for i, prop in enumerate(self.columns))
@@ -89,12 +98,39 @@ class ClassInfo(dict):
                                     for i, column in
                                     enumerate(self.primary_key))
 
+        __order__ = getattr(cls, "__order__", None)
+        if __order__ is None:
+            self.default_order = Undef
+        else:
+            if type(__order__) is not tuple:
+                __order__ = (__order__,)
+            self.default_order = []
+            for item in __order__:
+                if isinstance(item, basestring):
+                    if item.startswith("-"):
+                        prop = Desc(getattr(cls, item[1:]))
+                    else:
+                        prop = getattr(cls, item)
+                else:
+                    prop = item
+                self.default_order.append(prop)
+
+    def __eq__(self, other):
+        return self is other
+
+    def __ne__(self, other):
+        return self is not other
+
 
 class ObjectInfo(dict):
 
     __hash__ = object.__hash__
 
     def __init__(self, obj):
+        # First thing, try to create a ClassInfo for the object's class.
+        # This ensures that obj is the kind of object we expect.
+        self.cls_info = get_cls_info(obj.__class__)
+
         self.set_obj(obj)
 
         self.event = EventSystem(self)
@@ -102,8 +138,6 @@ class ObjectInfo(dict):
 
         self._saved_self = None
         self._saved_attrs = None
-
-        self.cls_info = get_cls_info(obj.__class__)
 
         variables = self.variables
         for column in self.cls_info.columns:
@@ -118,44 +152,9 @@ class ObjectInfo(dict):
     def set_obj(self, obj):
         self.get_obj = weakref.ref(obj, self._emit_object_deleted)
 
-    def save(self):
-        for variable in self._variable_sequence:
-            variable.save()
-        self.event.save()
-        self._saved_self = self._copy_object(self.items())
-        obj = self.get_obj()
-        if obj is None:
-            self._saved_attrs = None
-        else:
-            self._saved_attrs = obj.__dict__.copy()
-            self._saved_attrs.pop("__object_info", None) # Circular reference.
-
-    def save_attributes(self):
-        obj = self.get_obj()
-        if obj is None:
-            self._saved_attrs = None
-        else:
-            self._saved_attrs = obj.__dict__.copy()
-            self._saved_attrs.pop("__object_info", None) # Circular reference.
-
     def checkpoint(self):
         for variable in self._variable_sequence:
             variable.checkpoint()
-
-    def restore(self):
-        for variable in self._variable_sequence:
-            variable.restore()
-        self.event.restore()
-        self.clear()
-        self.update(self._saved_self)
-        obj = self.get_obj()
-        if obj is not None:
-            attrs = self._saved_attrs.copy()
-            try:
-                attrs["__object_info"] = obj.__dict__["__object_info"]
-            except KeyError:
-                pass
-            obj.__dict__ = attrs
 
     def _copy_object(self, obj):
         obj_type = type(obj)
@@ -197,7 +196,9 @@ def compile_type(compile, state, expr):
     table = getattr(expr, "__table__", None)
     if table is None:
         raise CompileError("Don't know how to compile %r" % expr)
-    if not state.column_prefix and issubclass(expr, ClassAlias):
+    if state.context is TABLE and issubclass(expr, ClassAlias):
         cls_info = get_cls_info(expr)
         return "%s AS %s" % (compile(state, cls_info.cls), table[0])
+    if isinstance(table[0], basestring):
+        return table[0]
     return compile(state, table[0])

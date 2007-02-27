@@ -21,7 +21,9 @@ except ImportError:
 from storm.variables import Variable
 from storm.database import *
 from storm.exceptions import install_exceptions, DatabaseModuleError
-from storm.expr import compile, Select, compile_select, Undef
+from storm.expr import (
+    Select, SELECT, Undef, SQLRaw, SetExpr, Union, Except, Intersect,
+    compile, compile_select, compile_set_expr)
 
 
 install_exceptions(sqlite)
@@ -33,13 +35,24 @@ compile = compile.fork()
 def compile_select_sqlite(compile, state, select):
     if select.offset is not Undef and select.limit is Undef:
         select.limit = sys.maxint
-    return compile_select(compile, state, select)
+    statement = compile_select(compile, state, select)
+    if state.context is SELECT:
+        # SQLite breaks with (SELECT ...) UNION (SELECT ...), so we
+        # do SELECT * FROM (SELECT ...) instead.  This is important
+        # because SELECT ... UNION SELECT ... ORDER BY binds the ORDER BY
+        # to the UNION instead of SELECT.
+        return "SELECT * FROM (%s)" % statement
+    return statement
+
+# Considering the above, selects have a greater precedence.
+compile.set_precedence(5, Union, Except, Intersect)
+
 
 
 class SQLiteResult(Result):
 
     def get_insert_identity(self, primary_key, primary_variables):
-        return "(OID=%d)" % self._raw_cursor.lastrowid
+        return SQLRaw("(OID=%d)" % self._raw_cursor.lastrowid)
 
     @staticmethod
     def _from_database(row):

@@ -1,10 +1,12 @@
-from datetime import datetime, date, time
+from datetime import datetime, date, time, timedelta
+import gc
 
-from storm.exceptions import NoneError
+from storm.exceptions import NoneError, PropertyPathError
+from storm.properties import PropertyPublisherMeta
 from storm.properties import *
 from storm.variables import *
 from storm.info import get_obj_info
-from storm.expr import Undef, Column, Select, compile
+from storm.expr import Undef, Column, Select, compile, SQLRaw
 
 from tests.helper import TestHelper
 
@@ -188,9 +190,9 @@ class PropertyTest(TestHelper):
         prop1 = self.Class.prop1
         prop2 = self.Class.prop2
         prop3 = self.Class.prop3
-        expr = Select("*", (prop1 == "value1") &
-                           (prop2 == "value2") &
-                           (prop3 == "value3"))
+        expr = Select(SQLRaw("*"), (prop1 == "value1") &
+                                   (prop2 == "value2") &
+                                   (prop3 == "value3"))
         statement, parameters = compile(expr)
         self.assertEquals(statement, "SELECT * FROM table WHERE "
                                      "table.column1 = ? AND "
@@ -204,9 +206,9 @@ class PropertyTest(TestHelper):
         prop1 = self.SubClass.prop1
         prop2 = self.SubClass.prop2
         prop3 = self.SubClass.prop3
-        expr = Select("*", (prop1 == "value1") &
-                           (prop2 == "value2") &
-                           (prop3 == "value3"))
+        expr = Select(SQLRaw("*"), (prop1 == "value1") &
+                                   (prop2 == "value2") &
+                                   (prop3 == "value3"))
         statement, parameters = compile(expr)
         self.assertEquals(statement, "SELECT * FROM subtable WHERE "
                                      "subtable.column1 = ? AND "
@@ -220,10 +222,11 @@ class PropertyTest(TestHelper):
 class PropertyKindsTest(TestHelper):
 
     def setup(self, property, *args, **kwargs):
+        prop2_kwargs = kwargs.pop("prop2_kwargs", {})
         class Class(object):
             __table__ = "table", "column1"
             prop1 = property("column1", *args, **kwargs)
-            prop2 = property()
+            prop2 = property(**prop2_kwargs)
         class SubClass(Class):
             pass
         self.Class = Class
@@ -411,6 +414,58 @@ class PropertyKindsTest(TestHelper):
 
         self.assertRaises(TypeError, setattr, self.obj, "prop1", object())
 
+    def test_timedelta(self):
+        self.setup(TimeDelta,
+                   default=timedelta(days=1, seconds=2, microseconds=3),
+                   allow_none=False)
+
+        self.assertTrue(isinstance(self.column1, Column))
+        self.assertTrue(isinstance(self.column2, Column))
+        self.assertEquals(self.column1.name, "column1")
+        self.assertEquals(self.column1.table, self.SubClass)
+        self.assertEquals(self.column2.name, "prop2")
+        self.assertEquals(self.column2.table, self.SubClass)
+        self.assertTrue(isinstance(self.variable1, TimeDeltaVariable))
+        self.assertTrue(isinstance(self.variable2, TimeDeltaVariable))
+
+        self.assertEquals(self.obj.prop1,
+                          timedelta(days=1, seconds=2, microseconds=3))
+        self.assertRaises(NoneError, setattr, self.obj, "prop1", None)
+        self.obj.prop2 = None
+        self.assertEquals(self.obj.prop2, None)
+
+        self.obj.prop1 = timedelta(days=42, seconds=42, microseconds=42)
+        self.assertEquals(self.obj.prop1,
+                          timedelta(days=42, seconds=42, microseconds=42))
+
+        self.assertRaises(TypeError, setattr, self.obj, "prop1", object())
+
+    def test_enum(self):
+        self.setup(Enum, map={"foo": 1, "bar": 2},
+                   default="foo", allow_none=False,
+                   prop2_kwargs=dict(map={"foo": 1, "bar": 2}))
+
+        self.assertTrue(isinstance(self.column1, Column))
+        self.assertTrue(isinstance(self.column2, Column))
+        self.assertEquals(self.column1.name, "column1")
+        self.assertEquals(self.column1.table, self.SubClass)
+        self.assertEquals(self.column2.name, "prop2")
+        self.assertEquals(self.column2.table, self.SubClass)
+        self.assertTrue(isinstance(self.variable1, EnumVariable))
+        self.assertTrue(isinstance(self.variable2, EnumVariable))
+
+        self.assertEquals(self.obj.prop1, "foo")
+        self.assertRaises(NoneError, setattr, self.obj, "prop1", None)
+        self.obj.prop2 = None
+        self.assertEquals(self.obj.prop2, None)
+
+        self.obj.prop1 = "foo"
+        self.assertEquals(self.obj.prop1, "foo")
+        self.obj.prop1 = "bar"
+        self.assertEquals(self.obj.prop1, "bar")
+
+        self.assertRaises(ValueError, setattr, self.obj, "prop1", "baz")
+
     def test_pickle(self):
         self.setup(Pickle, default_factory=dict, allow_none=False)
 
@@ -560,3 +615,154 @@ class PropertyKindsTest(TestHelper):
             variable = column.variable_factory()
             self.assertTrue(isinstance(variable, cls))
             self.assertEquals(variable.get(), value)
+
+
+class PropertyRegistryTest(TestHelper):
+
+    def setUp(self):
+        TestHelper.setUp(self)
+
+        class Class(object):
+            __table__ = "table", "column1"
+            prop1 = Property("column1")
+            prop2 = Property()
+
+        class SubClass(Class):
+            __table__ = "subtable", "column1"
+
+        self.Class = Class
+        self.SubClass = SubClass
+        self.AnotherClass = type("Class", (Class,), {})
+
+        self.registry = PropertyRegistry()
+
+    def test_get_empty(self):
+        self.assertRaises(PropertyPathError, self.registry.get, "unexistent")
+
+    def test_get(self):
+        self.registry.add_class(self.Class)
+        prop1 = self.registry.get("prop1")
+        prop2 = self.registry.get("prop2")
+        self.assertTrue(prop1 is self.Class.prop1)
+        self.assertTrue(prop2 is self.Class.prop2)
+
+    def test_get_with_class_name(self):
+        self.registry.add_class(self.Class)
+        prop1 = self.registry.get("Class.prop1")
+        prop2 = self.registry.get("Class.prop2")
+        self.assertTrue(prop1 is self.Class.prop1)
+        self.assertTrue(prop2 is self.Class.prop2)
+
+    def test_get_with_two_classes(self):
+        self.registry.add_class(self.Class)
+        self.registry.add_class(self.SubClass)
+        prop1 = self.registry.get("Class.prop1")
+        prop2 = self.registry.get("Class.prop2")
+        self.assertTrue(prop1 is self.Class.prop1)
+        self.assertTrue(prop2 is self.Class.prop2)
+        prop1 = self.registry.get("SubClass.prop1")
+        prop2 = self.registry.get("SubClass.prop2")
+        self.assertTrue(prop1 is self.SubClass.prop1)
+        self.assertTrue(prop2 is self.SubClass.prop2)
+
+    def test_get_ambiguous(self):
+        self.AnotherClass.__module__ += ".foo"
+        self.registry.add_class(self.Class)
+        self.registry.add_class(self.SubClass)
+        self.registry.add_class(self.AnotherClass)
+        self.assertRaises(PropertyPathError, self.registry.get, "Class.prop1")
+        self.assertRaises(PropertyPathError, self.registry.get, "Class.prop2")
+        prop1 = self.registry.get("SubClass.prop1")
+        prop2 = self.registry.get("SubClass.prop2")
+        self.assertTrue(prop1 is self.SubClass.prop1)
+        self.assertTrue(prop2 is self.SubClass.prop2)
+
+    def test_get_ambiguous_but_different_path(self):
+        self.AnotherClass.__module__ += ".foo"
+        self.registry.add_class(self.Class)
+        self.registry.add_class(self.SubClass)
+        self.registry.add_class(self.AnotherClass)
+        prop1 = self.registry.get("properties.Class.prop1")
+        prop2 = self.registry.get("properties.Class.prop2")
+        self.assertTrue(prop1 is self.Class.prop1)
+        self.assertTrue(prop2 is self.Class.prop2)
+        prop1 = self.registry.get("SubClass.prop1")
+        prop2 = self.registry.get("SubClass.prop2")
+        self.assertTrue(prop1 is self.SubClass.prop1)
+        self.assertTrue(prop2 is self.SubClass.prop2)
+        prop1 = self.registry.get("foo.Class.prop1")
+        prop2 = self.registry.get("foo.Class.prop2")
+        self.assertTrue(prop1 is self.AnotherClass.prop1)
+        self.assertTrue(prop2 is self.AnotherClass.prop2)
+
+    def test_get_ambiguous_but_different_path_with_namespace(self):
+        self.AnotherClass.__module__ += ".foo"
+        self.registry.add_class(self.Class)
+        self.registry.add_class(self.SubClass)
+        self.registry.add_class(self.AnotherClass)
+        prop1 = self.registry.get("Class.prop1", "tests.properties")
+        prop2 = self.registry.get("Class.prop2", "tests.properties.bar")
+        self.assertTrue(prop1 is self.Class.prop1)
+        self.assertTrue(prop2 is self.Class.prop2)
+        prop1 = self.registry.get("Class.prop1", "tests.properties.foo")
+        prop2 = self.registry.get("Class.prop2", "tests.properties.foo.bar")
+        self.assertTrue(prop1 is self.AnotherClass.prop1)
+        self.assertTrue(prop2 is self.AnotherClass.prop2)
+
+    def test_class_is_collectable(self):
+        self.AnotherClass.__module__ += ".foo"
+        self.registry.add_class(self.Class)
+        self.registry.add_class(self.AnotherClass)
+        del self.AnotherClass
+        gc.collect()
+        prop1 = self.registry.get("prop1")
+        prop2 = self.registry.get("prop2")
+        self.assertTrue(prop1 is self.Class.prop1)
+        self.assertTrue(prop2 is self.Class.prop2)
+
+    def test_add_property(self):
+        self.registry.add_property(self.Class, self.Class.prop1, "custom_name")
+        prop1 = self.registry.get("Class.custom_name")
+        self.assertEquals(prop1, self.Class.prop1)
+        self.assertRaises(PropertyPathError, self.registry.get, "Class.prop1")
+
+
+class PropertyPublisherMetaTest(TestHelper):
+
+    def setUp(self):
+        TestHelper.setUp(self)
+
+        class Base(object):
+            __metaclass__ = PropertyPublisherMeta
+
+        class Class(Base):
+            __table__ = "table", "column1"
+            prop1 = Property("column1")
+            prop2 = Property()
+
+        class SubClass(Class):
+            __table__ = "subtable", "column1"
+
+        self.Class = Class
+        self.SubClass = SubClass
+
+        class Class(Class):
+            __module__ += ".foo"
+            prop3 = Property("column3")
+
+        self.AnotherClass = Class
+
+        self.registry = Base._storm_property_registry
+
+    def test_get_empty(self):
+        self.assertRaises(PropertyPathError, self.registry.get, "unexistent")
+
+    def test_get_subclass(self):
+        prop1 = self.registry.get("SubClass.prop1")
+        prop2 = self.registry.get("SubClass.prop2")
+        self.assertTrue(prop1 is self.SubClass.prop1)
+        self.assertTrue(prop2 is self.SubClass.prop2)
+
+    def test_get_ambiguous(self):
+        self.assertRaises(PropertyPathError, self.registry.get, "Class.prop1")
+        self.assertRaises(PropertyPathError, self.registry.get, "Class.prop2")

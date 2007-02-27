@@ -7,8 +7,13 @@
 #
 # <license text goes here>
 #
+from bisect import insort_left, bisect_left
 from datetime import datetime
+from types import ClassType
+import weakref
+import sys
 
+from storm.exceptions import PropertyPathError
 from storm.info import get_obj_info, get_cls_info
 from storm.expr import Column, Undef
 from storm.variables import *
@@ -17,7 +22,8 @@ from storm import Undef
 
 __all__ = ["Property", "SimpleProperty",
            "Bool", "Int", "Float", "Str", "Unicode",
-           "DateTime", "Date", "Time", "Pickle", "List"]
+           "DateTime", "Date", "Time", "TimeDelta", "Enum", "Pickle", "List",
+           "PropertyRegistry"]
 
 
 class Property(object):
@@ -26,21 +32,31 @@ class Property(object):
         self._name = name
         self._variable_class = variable_class
         self._variable_kwargs = variable_kwargs
-        self._columns = {}
 
     def __get__(self, obj, cls=None):
         if obj is None:
             return self._get_column(cls)
-        column = self._get_column(obj.__class__)
-        return get_obj_info(obj).variables[column].get()
+        obj_info = get_obj_info(obj)
+        if cls is None:
+            # Don't get obj.__class__ because we don't trust it
+            # (might be proxied or whatever). # XXX UNTESTED!
+            cls = obj_info.cls_info.cls
+        column = self._get_column(cls)
+        return obj_info.variables[column].get()
 
     def __set__(self, obj, value):
-        column = self._get_column(obj.__class__)
-        get_obj_info(obj).variables[column].set(value)
+        obj_info = get_obj_info(obj)
+        # Don't get obj.__class__ because we don't trust it
+        # (might be proxied or whatever). # XXX UNTESTED!
+        column = self._get_column(obj_info.cls_info.cls)
+        obj_info.variables[column].set(value)
 
     def __delete__(self, obj):
-        column = self._get_column(obj.__class__)
-        get_obj_info(obj).variables[column].delete()
+        obj_info = get_obj_info(obj)
+        # Don't get obj.__class__ because we don't trust it
+        # (might be proxied or whatever). # XXX UNTESTED!
+        column = self._get_column(obj_info.cls_info.cls)
+        obj_info.variables[column].delete()
 
     def _detect_name(self, used_cls):
         self_id = id(self)
@@ -52,14 +68,24 @@ class Property(object):
         raise RuntimeError("Property used in an unknown class")
 
     def _get_column(self, cls):
-        column = self._columns.get(cls)
+        # Cache per-class column values in the class itself, to avoid
+        # holding a strong reference to it here, and thus rendering
+        # classes uncollectable in certain situations (e.g. subclasses
+        # where the property is stored in the base).
+        try:
+            # Use class dictionary explicitly to get sensible
+            # results on subclasses.
+            column = cls.__dict__["_storm_columns"].get(self)
+        except KeyError:
+            cls._storm_columns = {}
+            column = None
         if column is None:
             if self._name is None:
                 self._detect_name(cls)
             column = PropertyColumn(self, cls, self._name,
                                     self._variable_class,
                                     self._variable_kwargs)
-            self._columns[cls] = column
+            cls._storm_columns[self] = column
         return column
 
 
@@ -82,12 +108,10 @@ class SimpleProperty(Property):
 
     variable_class = None
 
-    def __init__(self, name=None, default=Undef,
-                 default_factory=Undef, allow_none=True):
-        variable_kwargs = {"allow_none": allow_none,
-                           "value": default,
-                           "value_factory": default_factory}
-        Property.__init__(self, name, self.variable_class, variable_kwargs)
+    def __init__(self, name=None, **kwargs):
+        kwargs["value"] = kwargs.pop("default", Undef)
+        kwargs["value_factory"] = kwargs.pop("default_factory", Undef)
+        Property.__init__(self, name, self.variable_class, kwargs)
 
 
 class Bool(SimpleProperty):
@@ -114,17 +138,141 @@ class Date(SimpleProperty):
 class Time(SimpleProperty):
     variable_class = TimeVariable
 
+class TimeDelta(SimpleProperty):
+    variable_class = TimeDeltaVariable
+
+class Enum(SimpleProperty):
+    variable_class = EnumVariable
+
 class Pickle(SimpleProperty):
     variable_class = PickleVariable
 
 
-class List(Property):
+class List(SimpleProperty):
+    variable_class = ListVariable
 
-    def __init__(self, name=None, type=Property(),
-                 default_factory=Undef, allow_none=True):
-        item_factory = VariableFactory(type._variable_class,
-                                       **type._variable_kwargs)
-        variable_kwargs = {"item_factory": item_factory,
-                           "allow_none": allow_none,
-                           "value_factory": default_factory}
-        Property.__init__(self, name, ListVariable, variable_kwargs)
+    def __init__(self, name=None, **kwargs):
+        if "default" in kwargs:
+            raise ValueError("'default' not allowed for List. "
+                             "Use 'default_factory' instead.")
+        type = kwargs.pop("type", None)
+        if type is None:
+            type = Property()
+        kwargs["item_factory"] = VariableFactory(type._variable_class,
+                                                 **type._variable_kwargs)
+        SimpleProperty.__init__(self, name, **kwargs)
+
+
+class PropertyRegistry(object):
+    """
+    An object which remembers the Storm properties specified on
+    classes, and is able to translate names to these properties.
+    """
+    def __init__(self):
+        self._properties = []
+
+    def get(self, name, namespace=None):
+        """Translate a property name path to the actual property.
+
+        This method accepts a property name like C{"id"} or C{"Class.id"}
+        or C{"module.path.Class.id"}, and tries to find a unique
+        class/property with the given name.
+
+        When the C{namespace} argument is given, the registry will be
+        able to disambiguate names by choosing the one that is closer
+        to the given namespace.  For instance C{get("Class.id", "a.b.c")}
+        will choose C{a.Class.id} rather than C{d.Class.id}.
+        """
+        key = ".".join(reversed(name.split(".")))+"."
+        i = bisect_left(self._properties, (key,))
+        l = len(self._properties)
+        best_props = []
+        if namespace is None:
+            while i < l and self._properties[i][0].startswith(key):
+                path, prop_ref = self._properties[i]
+                prop = prop_ref()
+                if prop is not None:
+                    best_props.append((path, prop))
+                i += 1
+        else:
+            namespace_parts = ("." + namespace).split(".")
+            best_path_info = (0, sys.maxint)
+            while i < l and self._properties[i][0].startswith(key):
+                path, prop_ref = self._properties[i]
+                prop = prop_ref()
+                if prop is None:
+                    i += 1
+                    continue
+                path_parts = path.split(".")
+                path_parts.reverse()
+                common_prefix = 0
+                for part, ns_part in zip(path_parts, namespace_parts):
+                    if part == ns_part:
+                        common_prefix += 1
+                    else:
+                        break
+                path_info = (-common_prefix, len(path_parts)-common_prefix)
+                if path_info < best_path_info:
+                    best_path_info = path_info
+                    best_props = [(path, prop)]
+                elif path_info == best_path_info:
+                    best_props.append((path, prop))
+                i += 1
+        if not best_props:
+            raise PropertyPathError("Path '%s' matches no known property."
+                                    % name)
+        elif len(best_props) > 1:
+            paths = [".".join(reversed(path.split(".")[:-1]))
+                     for path, prop in best_props]
+            raise PropertyPathError("Path '%s' matches multiple "
+                                    "properties: %s" %
+                                    (name, ", ".join(paths)))
+        return best_props[0][1]
+
+    def add_class(self, cls):
+        """Register properties of C{cls} so that they may be found by C{get()}.
+        """
+        suffix = cls.__module__.split(".")
+        suffix.append(cls.__name__)
+        suffix.reverse()
+        suffix = ".%s." % ".".join(suffix)
+        cls_info = get_cls_info(cls)
+        for attr in cls_info.attributes:
+            prop = cls_info.attributes[attr]
+            prop_ref = weakref.KeyedRef(prop, self._remove, None)
+            pair = (attr+suffix, prop_ref)
+            prop_ref.key = pair
+            insort_left(self._properties, pair)
+
+    def add_property(self, cls, prop, attr_name):
+        """Register property of C{cls} so that it may be found by C{get()}.
+        """
+        suffix = cls.__module__.split(".")
+        suffix.append(cls.__name__)
+        suffix.reverse()
+        suffix = ".%s." % ".".join(suffix)
+        prop_ref = weakref.KeyedRef(prop, self._remove, None)
+        pair = (attr_name+suffix, prop_ref)
+        prop_ref.key = pair
+        insort_left(self._properties, pair)
+
+    def clear(self):
+        """Clean up all properties in the registry.
+
+        Used by tests.
+        """
+        del self._properties[:]
+
+    def _remove(self, ref):
+        self._properties.remove(ref.key)
+
+
+class PropertyPublisherMeta(type):
+    """A metaclass that associates subclasses with Storm L{PropertyRegistry}s.
+    """
+
+    def __init__(self, name, bases, dict):
+        if not hasattr(self, "_storm_property_registry"):
+            self._storm_property_registry = PropertyRegistry()
+        elif hasattr(self, "__table__"):
+            self._storm_property_registry.add_class(self)

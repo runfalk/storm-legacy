@@ -5,7 +5,8 @@ from storm.databases.postgres import Postgres, compile, parse_array
 from storm.uri import URI
 from storm.database import create_database
 from storm.variables import UnicodeVariable, DateTimeVariable
-from storm.variables import ListVariable, IntVariable
+from storm.variables import ListVariable, IntVariable, Variable
+from storm.expr import Union, Select, Alias, SQLRaw
 
 from tests.databases.base import DatabaseTest, UnsupportedDatabaseTest
 from tests.helper import TestHelper, MakePath
@@ -82,13 +83,24 @@ class PostgresTest(TestHelper, DatabaseTest):
         result.set_variable(variable, title)
         self.assertEquals(variable.get(), uni_str)
 
+    def test_unicode_with_unicode_data(self):
+        # Psycopg can be configured to return unicode objects for
+        # string columns (for example, psycopgda does this).
+        uni_str = u'\xe1\xe9\xed\xf3\xfa'
+
+        connection = self.database.connect()
+        result = connection.execute("SELECT TRUE")
+
+        variable = UnicodeVariable()
+        result.set_variable(variable, uni_str)
+        self.assertEquals(variable.get(), uni_str)
+
     def test_datetime_with_none(self):
         self.connection.execute("INSERT INTO datetime_test (dt) VALUES (NULL)")
         result = self.connection.execute("SELECT dt FROM datetime_test")
         variable = DateTimeVariable()
         result.set_variable(variable, result.get_one()[0])
         self.assertEquals(variable.get(), None)
-
 
     def test_array_support(self):
         try:
@@ -117,6 +129,36 @@ class PostgresTest(TestHelper, DatabaseTest):
         variable = ListVariable(IntVariable)
         result.set_variable(variable, array)
         self.assertEquals(variable.get(), [1,2,3,4])
+
+    def test_expressions_in_union_order_by(self):
+        # The following statement breaks in postgres:
+        #     SELECT 1 AS id UNION SELECT 1 ORDER BY id+1;
+        # With the error:
+        #     ORDER BY on a UNION/INTERSECT/EXCEPT result must
+        #     be on one of the result columns
+        column = SQLRaw("1")
+        alias = Alias(column, "id")
+        expr = Union(Select(alias), Select(column), order_by=alias+1,
+                     limit=1, offset=1, all=True)
+
+        statement, parameters = compile(expr)
+        self.assertEquals(statement,
+                          "SELECT * FROM "
+                          "((SELECT 1 AS id) UNION ALL (SELECT 1)) AS _1 "
+                          "ORDER BY id+? LIMIT 1 OFFSET 1")
+        self.assertEquals(parameters, [Variable(1)])
+
+        result = self.connection.execute(expr)
+        self.assertEquals(result.get_one(), (1,))
+
+    def test_expressions_in_union_in_union_order_by(self):
+        column = SQLRaw("1")
+        alias = Alias(column, "id")
+        expr = Union(Select(alias), Select(column), order_by=alias+1,
+                     limit=1, offset=1, all=True)
+        expr = Union(expr, expr, order_by=alias+1, all=True)
+        result = self.connection.execute(expr)
+        self.assertEquals(result.get_all(), [(1,), (1,)])
 
 
 class ParseArrayTest(TestHelper):

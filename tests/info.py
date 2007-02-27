@@ -143,57 +143,9 @@ class ObjectInfoTest(TestHelper):
         self.assertEquals(len(self.obj_info.primary_vars),
                           len(self.cls_info.primary_key))
 
-    def test_save_restore(self):
-        self.obj.prop1 = 10
-        self.obj.attr1 = 100
-        self.obj_info["key"] = {"subkey": 1000}
-        self.obj_info.save()
-        self.assertEquals(self.obj.prop1, 10)
-        self.assertEquals(self.obj.attr1, 100)
-        self.assertEquals(self.obj_info["key"]["subkey"], 1000)
-        self.obj.prop1 = 20
-        self.obj.attr1 = 200
-        self.obj_info["key"]["subkey"] = 2000
-        self.assertEquals(self.obj.prop1, 20)
-        self.assertEquals(self.obj.attr1, 200)
-        self.assertEquals(self.obj_info["key"]["subkey"], 2000)
-        self.obj_info.restore()
-        self.assertEquals(self.obj.prop1, 10)
-        self.assertEquals(self.obj.attr1, 100)
-        self.assertEquals(self.obj_info["key"]["subkey"], 1000)
-
-    def test_save_restore_without_object(self):
-        del self.obj
-        self.assertEquals(self.obj_info.get_obj(), None)
-        self.obj_info["key"] = {"subkey": 1000}
-        self.obj_info.save()
-        self.assertEquals(self.obj_info["key"]["subkey"], 1000)
-        self.obj_info["key"]["subkey"] = 2000
-        self.assertEquals(self.obj_info["key"]["subkey"], 2000)
-        self.obj_info.restore()
-        self.assertEquals(self.obj_info["key"]["subkey"], 1000)
-
-    def test_save_attributes(self):
-        self.obj.prop1 = 10
-        self.obj.attr1 = 100
-        self.obj_info.save()
-        self.obj.prop1 = 20
-        self.obj.attr1 = 200
-        self.obj_info.save_attributes()
-        self.obj_info.restore()
-        self.assertEquals(self.obj.prop1, 10)
-        self.assertEquals(self.obj.attr1, 200)
-
-    def test_save_attributes_without_object(self):
-        del self.obj
-        self.assertEquals(self.obj_info.get_obj(), None)
-        self.obj_info.save()
-        self.obj_info.save_attributes()
-        self.obj_info.restore()
-
     def test_checkpoint(self):
         self.obj.prop1 = 10
-        self.obj_info.save()
+        self.obj_info.checkpoint()
         self.assertEquals(self.obj.prop1, 10)
         self.assertEquals(self.variable1.has_changed(), False)
         self.obj.prop1 = 20
@@ -202,12 +154,9 @@ class ObjectInfoTest(TestHelper):
         self.obj_info.checkpoint()
         self.assertEquals(self.obj.prop1, 20)
         self.assertEquals(self.variable1.has_changed(), False)
-        self.obj_info.restore()
-        self.assertEquals(self.obj.prop1, 10)
-        self.assertEquals(self.variable1.has_changed(), False)
         self.obj.prop1 = 20
         self.assertEquals(self.obj.prop1, 20)
-        self.assertEquals(self.variable1.has_changed(), True)
+        self.assertEquals(self.variable1.has_changed(), False)
 
     def test_add_change_notification(self):
         changes1 = []
@@ -219,7 +168,7 @@ class ObjectInfoTest(TestHelper):
             changes2.append((2, obj_info, variable,
                              old_value, new_value, fromdb))
 
-        self.obj_info.save()
+        self.obj_info.checkpoint()
         self.obj_info.event.hook("changed", object_changed1)
         self.obj_info.event.hook("changed", object_changed2)
 
@@ -271,7 +220,7 @@ class ObjectInfoTest(TestHelper):
             changes2.append((2, obj_info, variable,
                              old_value, new_value, fromdb, arg))
 
-        self.obj_info.save()
+        self.obj_info.checkpoint()
 
         obj = object()
         
@@ -324,7 +273,7 @@ class ObjectInfoTest(TestHelper):
             changes2.append((2, obj_info, variable,
                              old_value, new_value, fromdb))
 
-        self.obj_info.save()
+        self.obj_info.checkpoint()
 
         self.obj_info.event.hook("changed", object_changed1)
         self.obj_info.event.hook("changed", object_changed2)
@@ -350,7 +299,7 @@ class ObjectInfoTest(TestHelper):
             changes2.append((2, obj_info, variable,
                              old_value, new_value, fromdb, arg))
 
-        self.obj_info.save()
+        self.obj_info.checkpoint()
 
         obj = object()
 
@@ -378,7 +327,7 @@ class ObjectInfoTest(TestHelper):
                              old_value, new_value, fromdb))
             return False
 
-        self.obj_info.save()
+        self.obj_info.checkpoint()
 
         self.obj_info.event.hook("changed", object_changed1)
         self.obj_info.event.hook("changed", object_changed2)
@@ -405,7 +354,7 @@ class ObjectInfoTest(TestHelper):
                              old_value, new_value, fromdb, arg))
             return False
 
-        self.obj_info.save()
+        self.obj_info.checkpoint()
 
         obj = object()
 
@@ -419,22 +368,6 @@ class ObjectInfoTest(TestHelper):
                   [(1, self.obj_info, self.variable2, Undef, 20, False, obj)])
         self.assertEquals(changes2,
                   [(2, self.obj_info, self.variable2, Undef, 20, False, obj)])
-
-    def test_restore_hooks(self):
-        changes = []
-        def object_changed(obj_info, variable, old_value, new_value, fromdb):
-            changes.append((obj_info, variable, old_value, new_value, fromdb))
-
-        self.obj_info.event.hook("changed", object_changed)
-        self.obj_info.save()
-        self.obj_info.event.unhook("changed", object_changed)
-
-        self.obj.prop1 = 10
-        self.obj_info.restore()
-        self.obj.prop1 = 20
-
-        self.assertEquals(changes,
-                          [(self.obj_info, self.variable1, Undef, 20, False)])
 
     def test_get_obj(self):
         self.assertTrue(self.obj_info.get_obj() is self.obj)
@@ -499,7 +432,7 @@ class ClassAliasTest(TestHelper):
 
     def test_compile(self):
         statement, parameters = compile(self.ClassAlias)
-        self.assertEquals(statement, "table AS alias")
+        self.assertEquals(statement, "alias")
 
     def test_compile_in_select(self):
         expr = Select(self.ClassAlias.prop1, self.ClassAlias.prop1 == 1,
@@ -522,5 +455,6 @@ class TypeCompilerTest(TestHelper):
             id = Property()
         statement, parameters = compile(Class2)
         self.assertEquals(statement, "class1")
-        statement, parameters = compile(ClassAlias(Class2, "alias"))
-        self.assertEquals(statement, "class1 AS alias")
+        alias = ClassAlias(Class2, "alias")
+        statement, parameters = compile(Select(alias.id))
+        self.assertEquals(statement, "SELECT alias.id FROM class1 AS alias")

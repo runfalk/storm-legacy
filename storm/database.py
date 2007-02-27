@@ -9,13 +9,13 @@
 #
 from storm.expr import Expr, compile
 from storm.variables import Variable
-from storm.exceptions import Error, ClosedError
+from storm.exceptions import ClosedError
 from storm.uri import URI
 import storm
 
 
 __all__ = ["Database", "Connection", "Result",
-           "convert_param_marks", "create_database"]
+           "convert_param_marks", "create_database", "register_scheme"]
 
 
 DEBUG = False
@@ -101,16 +101,9 @@ class Connection(object):
     def _build_raw_cursor(self):
         return self._raw_connection.cursor()
 
-    def execute(self, statement, params=None, noresult=False):
-        if self._closed:
-            raise ClosedError("Connection is closed")
-        if isinstance(statement, Expr):
-            if params is not None:
-                raise ValueError("Can't pass parameters with expressions")
-            statement, params = self._compile(statement)
+    def _raw_execute(self, statement, params=None):
         raw_cursor = self._build_raw_cursor()
-        statement = convert_param_marks(statement, "?", self._param_mark)
-        if params is None:
+        if not params:
             if DEBUG:
                 print statement, () 
             raw_cursor.execute(statement)
@@ -119,6 +112,17 @@ class Connection(object):
             if DEBUG:
                 print statement, params
             raw_cursor.execute(statement, params)
+        return raw_cursor
+
+    def execute(self, statement, params=None, noresult=False):
+        if self._closed:
+            raise ClosedError("Connection is closed")
+        if isinstance(statement, Expr):
+            if params is not None:
+                raise ValueError("Can't pass parameters with expressions")
+            statement, params = self._compile(statement)
+        statement = convert_param_marks(statement, "?", self._param_mark)
+        raw_cursor = self._raw_execute(statement, params)
         if noresult:
             raw_cursor.close()
             return None
@@ -163,6 +167,17 @@ def convert_param_marks(statement, from_param_mark, to_param_mark):
     return "'".join(tokens)
 
 
+_database_schemes = {}
+
+def register_scheme(scheme, factory):
+    """Register a handler for a new database URI scheme.
+
+    @param scheme: the database URI scheme
+    @param factory: a function taking a URI instance and returning a database.
+    """
+    _database_schemes[scheme] = factory
+
+
 def create_database(uri):
     """Create a database instance.
 
@@ -172,9 +187,15 @@ def create_database(uri):
         "postgres:test" The database 'test' from the local postgres server.
         "postgres://user:password@host/test" The database test on machine host
             with supplied user credentials, using postgres.
+        "anything:..." Where 'anything' has previously been registered
+            with L{register_scheme}.
     """
     if isinstance(uri, basestring):
         uri = URI.parse(uri)
-    module = __import__("%s.databases.%s" % (storm.__name__, uri.scheme),
-                        None, None, [""])
-    return module.create_from_uri(uri)
+    if uri.scheme in _database_schemes:
+        factory = _database_schemes[uri.scheme]
+    else:
+        module = __import__("%s.databases.%s" % (storm.__name__, uri.scheme),
+                            None, None, [""])
+        factory = module.create_from_uri
+    return factory(uri)

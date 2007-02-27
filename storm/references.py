@@ -7,20 +7,33 @@
 #
 # <license text goes here>
 #
-from storm.exceptions import WrongStoreError, NoStoreError
+from storm.exceptions import WrongStoreError, NoStoreError, ClassInfoError
 from storm.store import Store, get_where_for_args
-from storm.expr import Select, Exists, Undef, compare_columns
+from storm.expr import Select, Column, Exists, Undef, SQLRaw, compare_columns
 from storm.info import *
 
 
 class Reference(object):
 
     def __init__(self, local_key, remote_key, on_remote=False):
-        self._relation = Relation(local_key, remote_key, False, on_remote)
+        self._local_key = local_key
+        self._remote_key = remote_key
+        self._on_remote = on_remote
+        self._relation = None
+        self._cls = None
 
     def __get__(self, local, cls=None):
         if local is None:
+            if self._cls is None:
+                # Must set earlier, since __eq__() has no access
+                # to the used class.
+                self._cls = _find_descriptor_class(cls, self)
             return self
+
+        if self._relation is None:
+            # Don't use local.__class__ here, as it might be security
+            # proxied or something. # XXX UNTESTED!
+            self._build_relation(get_obj_info(local).cls_info.cls)
 
         remote = self._relation.get_remote(local)
         if remote is not None:
@@ -43,6 +56,11 @@ class Reference(object):
         return remote
 
     def __set__(self, local, remote):
+        if self._relation is None:
+            # Don't use local.__class__ here, as it might be security
+            # proxied or something. # XXX UNTESTED!
+            self._build_relation(get_obj_info(local).cls_info.cls)
+
         if remote is None:
             remote = self._relation.get_remote(local)
             if remote is not None:
@@ -51,30 +69,67 @@ class Reference(object):
         else:
             self._relation.link(local, remote, True)
 
+    def _build_relation(self, used_cls):
+        if self._cls is None:
+            assert used_cls is not None
+            self._cls = _find_descriptor_class(used_cls, self)
+        resolver = PropertyResolver(self, self._cls)
+        self._local_key = resolver.resolve(self._local_key)
+        self._remote_key = resolver.resolve(self._remote_key)
+        self._relation = Relation(self._local_key, self._remote_key,
+                                  False, self._on_remote)
+
+    def __eq__(self, other):
+        if self._relation is None:
+            self._build_relation(self._cls)
+        return self._relation.get_where_for_local(other)
+
 
 class ReferenceSet(object):
 
     def __init__(self, local_key1, remote_key1,
                  remote_key2=None, local_key2=None, order_by=None):
-        self._relation1 = Relation(local_key1, remote_key1, True, True)
-        if local_key2 and remote_key2:
-            self._relation2 = Relation(local_key2, remote_key2, True, True)
-        else:
-            self._relation2 = None
+        self._local_key1 = local_key1
+        self._remote_key1 = remote_key1
+        self._remote_key2 = remote_key2
+        self._local_key2 = local_key2
         self._order_by = order_by
+        self._relation1 = None
+        self._relation2 = None
 
     def __get__(self, local, cls=None):
         if local is None:
             return self
+
+        if self._relation1 is None:
+            # Don't use local.__class__ here, as it might be security
+            # proxied or something. # XXX UNTESTED!
+            self._build_relations(get_obj_info(local).cls_info.cls)
+
         #store = Store.of(local)
         #if store is None:
         #    return None
+
         if self._relation2 is None:
             return BoundReferenceSet(self._relation1, local, self._order_by)
         else:
             return BoundIndirectReferenceSet(self._relation1,
                                              self._relation2, local,
                                              self._order_by)
+
+    def _build_relations(self, used_cls):
+        resolver = PropertyResolver(self, used_cls)
+
+        self._local_key1 = resolver.resolve(self._local_key1)
+        self._remote_key1 = resolver.resolve(self._remote_key1)
+        self._relation1 = Relation(self._local_key1, self._remote_key1,
+                                   True, True)
+
+        if self._local_key2 and self._remote_key2:
+            self._local_key2 = resolver.resolve(self._local_key2)
+            self._remote_key2 = resolver.resolve(self._remote_key2)
+            self._relation2 = Relation(self._local_key2, self._remote_key2,
+                                       True, True)
 
 
 class BoundReferenceSet(object):
@@ -219,7 +274,7 @@ class BoundIndirectReferenceSet(object):
             filter = get_where_for_args(args, kwargs, self._target_cls)
             join = self._relation2.get_where_for_join()
             table = get_cls_info(self._target_cls).table
-            where &= Exists(Select("*", join & filter, tables=table))
+            where &= Exists(Select(SQLRaw("*"), join & filter, tables=table))
         store.find(self._link_cls, where).remove()
 
     def add(self, remote):
@@ -239,14 +294,10 @@ class BoundIndirectReferenceSet(object):
 class Relation(object):
 
     def __init__(self, local_key, remote_key, many, on_remote):
-        if type(local_key) is tuple:
-            self.local_key = local_key
-        else:
-            self.local_key = (local_key,)
-        if type(remote_key) is tuple:
-            self.remote_key = remote_key
-        else:
-            self.remote_key = (remote_key,)
+        assert type(local_key) is tuple and type(remote_key) is tuple
+
+        self.local_key = local_key
+        self.remote_key = remote_key
 
         self.local_cls = getattr(self.local_key[0], "cls", None)
         self.remote_cls = self.remote_key[0].cls
@@ -263,7 +314,9 @@ class Relation(object):
         self.many = many
         self.on_remote = on_remote
 
+        # XXX These should probably be weak dictionaries.
         self._local_columns = {}
+        self._remote_columns = {}
 
         self._l_to_r = {}
         self._r_to_l = {}
@@ -272,12 +325,45 @@ class Relation(object):
         return get_obj_info(local).get(self)
 
     def get_where_for_remote(self, local):
+        """Generate a column comparison expression for reference properties.
+
+        The returned expression may be used to find objects of the I{remote}
+        type referring to C{local}.
+        """
         local_variables = self.get_local_variables(local)
         for variable in local_variables:
             if not variable.is_defined():
                 Store.of(local).flush()
                 break
         return compare_columns(self.remote_key, local_variables)
+
+    def get_where_for_local(self, other):
+        """Generate a column comparison expression for reference properties.
+
+        The returned expression may be used to find objects of the I{local}
+        type referring to C{other}.
+
+        It handles the following cases:
+
+            Class.reference == obj
+            Class.reference == obj.id
+            Class.reference == (obj.id1, obj.id2)
+
+        Where the right-hand side is the C{other} object given.
+        """
+        try:
+            obj_info = get_obj_info(other)
+        except ClassInfoError:
+            if type(other) is not tuple:
+                remote_variables = (other,)
+            else:
+                remote_variables = other
+        else:
+            # Object may be security proxied or something, so
+            # we get the real object here. # XXX UNTESTED!
+            other = obj_info.get_obj()
+            remote_variables = self.get_remote_variables(other)
+        return compare_columns(self.local_key, remote_variables)
 
     def get_where_for_join(self):
         return compare_columns(self.local_key, self.remote_key)
@@ -287,9 +373,35 @@ class Relation(object):
         return tuple(local_info.variables[column]
                      for column in self._get_local_columns(local.__class__))
 
-    def link(self, local, remote, setting=False):
-        local_info = get_obj_info(local)
+    def get_remote_variables(self, remote):
         remote_info = get_obj_info(remote)
+        return tuple(remote_info.variables[column]
+                     for column in self._get_remote_columns(remote.__class__))
+
+    def link(self, local, remote, setting=False):
+        """Link objects to represent their relation.
+
+        @param local: Object representing the I{local} side of the reference.
+
+        @param remote: Object representing the I{remote} side of the reference,
+            or the actual value to be set as the local key.
+
+        @param setting: Pass true when the relationship is being newly created.
+        """
+        local_info = get_obj_info(local)
+
+        try:
+            remote_info = get_obj_info(remote)
+        except ClassInfoError:
+            # Must be a plain key. Just set it.
+            # XXX I guess this is broken if self.on_remote is True.
+            local_variables = self.get_local_variables(local)
+            if type(remote) is not tuple:
+                remote = (remote,)
+            assert len(remote) == len(local_variables)
+            for variable, value in zip(local_variables, remote):
+                variable.set(value)
+            return
 
         local_store = Store.of(local)
         remote_store = Store.of(remote)
@@ -304,7 +416,9 @@ class Relation(object):
         elif remote_store is None:
             local_store.add(remote)
         elif local_store is not remote_store:
-            raise WrongStoreError("Objects are living in different stores")
+            raise WrongStoreError("%r and %r cannot be linked because they "
+                                  "are in different stores." %
+                                  (local, remote))
 
         # In cases below, we maintain a reference to the remote object
         # to make sure it won't get deallocated while the link is active.
@@ -369,7 +483,10 @@ class Relation(object):
                                    local_info)
 
     def unlink(self, local_info, remote_info, setting=False):
+        """Break the relation between the local and remote objects.
 
+        @param setting: If true objects will be changed to persist breakage.
+        """
         unhook = False
         if self.many:
             relations = local_info.get(self)
@@ -501,12 +618,21 @@ class Relation(object):
         else:
             add(get_obj_info(local_info[self]))
 
+    def _get_remote_columns(self, remote_cls):
+        try:
+            return self._remote_columns[remote_cls]
+        except KeyError:
+            columns = tuple(prop.__get__(None, remote_cls)
+                            for prop in self.remote_key)
+            self._remote_columns[remote_cls] = columns
+            return columns
+
     def _get_local_columns(self, local_cls):
         try:
             return self._local_columns[local_cls]
         except KeyError:
-            columns = [prop.__get__(None, local_cls)
-                       for prop in self.local_key]
+            columns = tuple(prop.__get__(None, local_cls)
+                            for prop in self.local_key)
             self._local_columns[local_cls] = columns
             return columns
 
@@ -516,7 +642,7 @@ class Relation(object):
         except KeyError:
             map = {}
             for local_prop, _remote_column in zip(self.local_key,
-                                                   self.remote_key):
+                                                  self.remote_key):
                 map[local_prop.__get__(None, local_cls)] = _remote_column
             return self._l_to_r.setdefault(local_cls, map).get(local_column)
 
@@ -530,3 +656,55 @@ class Relation(object):
                 map[_remote_column] = local_prop.__get__(None, local_cls)
             return self._r_to_l.setdefault(local_cls, map).get(remote_column)
 
+
+class PropertyResolver(object):
+    """Transform strings and pure properties (non-columns) into columns."""
+
+    def __init__(self, reference, used_cls):
+        self._reference = reference
+        self._used_cls = used_cls
+
+        self._registry = None
+        self._namespace = None
+
+    def resolve(self, properties):
+        if not type(properties) is tuple:
+            return (self.resolve_one(properties),)
+        return tuple(self.resolve_one(property) for property in properties)
+
+    def resolve_one(self, property):
+        if type(property) is tuple:
+            return self.resolve(property)
+        elif isinstance(property, basestring):
+            return self._resolve_string(property)
+        elif not isinstance(property, Column):
+            return _find_descriptor_obj(self._used_cls, property)
+        return property
+
+    def _resolve_string(self, property_path):
+        if self._registry is None:
+            try:
+                registry = self._used_cls._storm_property_registry
+            except AttributeError:
+                raise RuntimeError("When using strings on references, "
+                                   "classes involved must be subclasses "
+                                   "of 'Storm'")
+            cls = _find_descriptor_class(self._used_cls, self._reference)
+            self._namespace = "%s.%s" % (cls.__module__, cls.__name__)
+
+        return registry.get(property_path, self._namespace)
+
+
+def _find_descriptor_class(used_cls, descr):
+    for cls in used_cls.__mro__:
+        for attr, _descr in cls.__dict__.iteritems():
+            if _descr is descr:
+                return cls
+    raise RuntimeError("Reference used in an unknown class")
+
+def _find_descriptor_obj(used_cls, descr):
+    for cls in used_cls.__mro__:
+        for attr, _descr in cls.__dict__.iteritems():
+            if _descr is descr:
+                return getattr(cls, attr)
+    raise RuntimeError("Reference used in an unknown class")

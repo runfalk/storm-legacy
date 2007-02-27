@@ -3,6 +3,7 @@ import gc
 from storm.references import Reference, ReferenceSet
 from storm.database import Result
 from storm.properties import Int, Str, Unicode, Property, Pickle
+from storm.properties import PropertyPublisherMeta
 from storm.expr import Asc, Desc, Select, Func, LeftJoin, SQL
 from storm.variables import Variable, UnicodeVariable, IntVariable
 from storm.info import get_obj_info, ClassAlias
@@ -322,6 +323,10 @@ class StoreTest(object):
         self.assertEquals([(foo.id, foo.title) for foo in result], [
                          ])
 
+    def test_find_sql(self):
+        foo = self.store.find(Foo, SQL("foo.id = 20")).one()
+        self.assertEquals(foo.title, "Title 20")
+
     def test_find_str(self):
         foo = self.store.find(Foo, "foo.id = 20").one()
         self.assertEquals(foo.title, "Title 20")
@@ -361,6 +366,60 @@ class StoreTest(object):
                           (10, "Title 30"),
                           (20, "Title 20"),
                           (30, "Title 10"),
+                         ])
+
+    def test_find_default_order_asc(self):
+        class MyFoo(Foo):
+            __order__ = "title"
+
+        result = self.store.find(MyFoo)
+        lst = [(foo.id, foo.title) for foo in result]
+        self.assertEquals(lst, [
+                          (30, "Title 10"),
+                          (20, "Title 20"),
+                          (10, "Title 30"),
+                         ])
+
+    def test_find_default_order_asc(self):
+        class MyFoo(Foo):
+            __order__ = "-title"
+
+        result = self.store.find(MyFoo)
+        lst = [(foo.id, foo.title) for foo in result]
+        self.assertEquals(lst, [
+                          (10, "Title 30"),
+                          (20, "Title 20"),
+                          (30, "Title 10"),
+                         ])
+
+    def test_find_default_order_with_tuple(self):
+        class MyLink(Link):
+            __order__ = ("foo_id", "-bar_id")
+
+        result = self.store.find(MyLink)
+        lst = [(link.foo_id, link.bar_id) for link in result]
+        self.assertEquals(lst, [
+                          (10, 300),
+                          (10, 200),
+                          (10, 100),
+                          (20, 200),
+                          (20, 100),
+                          (30, 300),
+                         ])
+
+    def test_find_default_order_with_tuple_and_expr(self):
+        class MyLink(Link):
+            __order__ = ("foo_id", Desc(Link.bar_id))
+
+        result = self.store.find(MyLink)
+        lst = [(link.foo_id, link.bar_id) for link in result]
+        self.assertEquals(lst, [
+                          (10, 300),
+                          (10, 200),
+                          (10, 100),
+                          (20, 200),
+                          (20, 100),
+                          (30, 300),
                          ])
 
     def test_find_index(self):
@@ -632,6 +691,27 @@ class StoreTest(object):
                           (300, u"Title 100"),
                          ])
 
+    def test_using_find_with_strings(self):
+        foo = self.store.using("foo").find(Foo, id=10).one()
+        self.assertEquals(foo.title, "Title 30")
+
+        foo = self.store.using("foo", "bar").find(Foo, id=10).any()
+        self.assertEquals(foo.title, "Title 30")
+
+    def test_using_find_join_with_strings(self):
+        bar = self.store.get(Bar, 100)
+        bar.foo_id = None
+
+        tables = self.store.using(LeftJoin("foo", "bar",
+                                           "bar.foo_id = foo.id"))
+        result = tables.find(Bar).order_by(Foo.id, Bar.id)
+        lst = [bar and (bar.id, bar.title) for bar in result]
+        self.assertEquals(lst, [
+                          None,
+                          (200, u"Title 200"),
+                          (300, u"Title 100"),
+                         ])
+
     def test_find_tuple(self):
         bar = self.store.get(Bar, 200)
         bar.foo_id = None
@@ -786,7 +866,7 @@ class StoreTest(object):
                           (20, "Title 20"),
                           (30, "Title 10"),
                          ])
-        
+
         self.store.commit()
 
         self.assertEquals(self.get_committed_items(), [
@@ -879,7 +959,7 @@ class StoreTest(object):
         self.store.remove(foo)
         self.assertEquals(Store.of(foo), self.store)
         self.store.flush()
-        self.assertEquals(Store.of(foo), self.store)
+        self.assertEquals(Store.of(foo), None)
 
         self.assertEquals(self.get_items(), [
                           (10, "Title 30"),
@@ -928,7 +1008,7 @@ class StoreTest(object):
 
         self.assertEquals(self.get_items(), [
                           (10, "Title 30"),
-                          (20, "Title 200"),
+                          (20, "Title 20"),
                           (30, "Title 10"),
                          ])
 
@@ -988,16 +1068,15 @@ class StoreTest(object):
 
         self.assertTrue(obj_info not in self.store._dirty)
 
-    def test_wb_remove_rollback_isnt_dirty_or_ghost(self):
+    def test_wb_remove_rollback_isnt_dirty(self):
         foo = self.store.get(Foo, 20)
         obj_info = get_obj_info(foo)
         self.store.remove(foo)
         self.store.rollback()
 
         self.assertTrue(obj_info not in self.store._dirty)
-        self.assertTrue(obj_info not in self.store._ghosts)
 
-    def test_wb_remove_flush_rollback_isnt_dirty_or_ghost(self):
+    def test_wb_remove_flush_rollback_isnt_dirty(self):
         foo = self.store.get(Foo, 20)
         obj_info = get_obj_info(foo)
         self.store.remove(foo)
@@ -1005,7 +1084,6 @@ class StoreTest(object):
         self.store.rollback()
 
         self.assertTrue(obj_info not in self.store._dirty)
-        self.assertTrue(obj_info not in self.store._ghosts)
 
     def test_add_rollback_not_in_store(self):
         foo = Foo()
@@ -1211,7 +1289,7 @@ class StoreTest(object):
         self.store.add(foo)
         self.store.remove(foo)
 
-        self.assertEquals(Store.of(foo), self.store)
+        self.assertEquals(Store.of(foo), None)
 
         foo.title = "Title 400"
 
@@ -1253,6 +1331,37 @@ class StoreTest(object):
         self.store.add(foo)
 
         self.assertTrue(obj_info in self.store._dirty)
+
+    def test_commit_autoreloads(self):
+        foo = self.store.get(Foo, 20)
+        self.assertEquals(foo.title, "Title 20")
+        self.store.execute("UPDATE foo SET title='New Title' WHERE id=20")
+        self.assertEquals(foo.title, "Title 20")
+        self.store.commit()
+        self.assertEquals(foo.title, "New Title")
+
+    def test_commit_invalidates(self):
+        foo = self.store.get(Foo, 20)
+        self.assertTrue(foo)
+        self.store.execute("DELETE FROM foo WHERE id=20")
+        self.assertEquals(self.store.get(Foo, 20), foo)
+        self.store.commit()
+        self.assertEquals(self.store.get(Foo, 20), None)
+
+    def test_rollback_autoreloads(self):
+        foo = self.store.get(Foo, 20)
+        self.assertEquals(foo.title, "Title 20")
+        self.store.rollback()
+        self.store.execute("UPDATE foo SET title='New Title' WHERE id=20")
+        self.assertEquals(foo.title, "New Title")
+
+    def test_rollback_invalidates(self):
+        foo = self.store.get(Foo, 20)
+        self.assertTrue(foo)
+        self.assertEquals(self.store.get(Foo, 20), foo)
+        self.store.rollback()
+        self.store.execute("DELETE FROM foo WHERE id=20")
+        self.assertEquals(self.store.get(Foo, 20), None)
 
     def test_sub_class(self):
         class SubFoo(Foo):
@@ -1331,24 +1440,10 @@ class StoreTest(object):
                          ])
 
     def test_sub_select(self):
-        foo = self.store.find(Foo, Foo.id == Select("20")).one()
+        foo = self.store.find(Foo, Foo.id == Select(SQL("20"))).one()
         self.assertTrue(foo)
         self.assertEquals(foo.id, 20)
         self.assertEquals(foo.title, "Title 20")
-
-    def test_attribute_rollback(self):
-        foo = self.store.get(Foo, 20)
-        foo.some_attribute = 1
-        self.store.rollback()
-        self.assertEquals(getattr(foo, "some_attribute", None), None)
-
-    def test_attribute_rollback_after_commit(self):
-        foo = self.store.get(Foo, 20)
-        foo.some_attribute = 1
-        self.store.commit()
-        foo.some_attribute = 2
-        self.store.rollback()
-        self.assertEquals(getattr(foo, "some_attribute", None), 1)
 
     def test_cache_has_improper_object(self):
         foo = self.store.get(Foo, 20)
@@ -1407,7 +1502,7 @@ class StoreTest(object):
         self.store.rollback()
 
         self.assertEquals(foo.title, "Title 20")
-        self.assertEquals(getattr(foo, "some_attribute", None), 1)
+        self.assertEquals(foo.some_attribute, 2)
 
     def test_retrieve_default_primary_key(self):
         foo = Foo()
@@ -1568,7 +1663,7 @@ class StoreTest(object):
     def test_find_set_on_cached_unsupported_python_expr(self):
         foo1 = self.store.get(Foo, 20)
         foo2 = self.store.get(Foo, 30)
-        self.store.find(Foo, Foo.id == Select("20")).set(title="Title 40")
+        self.store.find(Foo, Foo.id == Select(SQL("20"))).set(title="Title 40")
         self.assertEquals(foo1.title, "Title 40")
         self.assertEquals(foo2.title, "Title 10")
 
@@ -1656,6 +1751,15 @@ class StoreTest(object):
         result = self.store.execute("SELECT foo_id FROM bar WHERE id=100")
         self.assertEquals(result.get_one(), (30,))
 
+    def test_reference_assign_remote_key(self):
+        bar = self.store.get(Bar, 100)
+        self.assertEquals(bar.foo.id, 10)
+        bar.foo = 30
+        self.assertEquals(bar.foo_id, 30)
+        self.assertEquals(bar.foo.id, 30)
+        result = self.store.execute("SELECT foo_id FROM bar WHERE id=100")
+        self.assertEquals(result.get_one(), (30,))
+
     def test_reference_on_added(self):
         foo = Foo()
         foo.title = "Title 40"
@@ -1713,7 +1817,7 @@ class StoreTest(object):
                                     "foo.id = bar.foo_id")
         self.assertEquals(result.get_one(), ("Title 40",))
 
-    def test_reference_set_none(self):
+    def test_reference_assign_none(self):
         foo = Foo()
         foo.title = "Title 40"
 
@@ -1761,28 +1865,23 @@ class StoreTest(object):
                                     "foo.id = bar.foo_id")
         self.assertEquals(result.get_one(), ("Title 40",))
 
-    def test_reference_on_added_unlink_on_flush(self):
-        foo = Foo()
-        foo.title = "Title 40"
-        self.store.add(foo)
+    def test_reference_assign_composed_remote_key(self):
+        class Bar(object):
+            __table__ = "bar", "id"
+            id = Int()
+            foo_id = Int()
+            title = Unicode()
+            foo = Reference((foo_id, title), (Foo.id, Foo.title))
 
         bar = Bar()
         bar.id = 400
-        bar.foo = foo
-        bar.title = "Title 400"
+        bar.foo = (20, "Title 20")
         self.store.add(bar)
 
-        foo.id = 40
-        self.assertEquals(bar.foo_id, 40)
-        foo.id = 50
-        self.assertEquals(bar.foo_id, 50)
-        foo.id = 60
-        self.assertEquals(bar.foo_id, 60)
-
-        self.store.flush()
-
-        foo.id = 70
-        self.assertEquals(bar.foo_id, 60)
+        self.assertEquals(bar.foo_id, 20)
+        self.assertEquals(bar.foo.id, 20)
+        self.assertEquals(bar.title, "Title 20")
+        self.assertEquals(bar.foo.title, "Title 20")
 
     def test_reference_on_added_unlink_on_flush(self):
         foo = Foo()
@@ -1791,8 +1890,8 @@ class StoreTest(object):
 
         bar = Bar()
         bar.id = 400
-        bar.title = "Title 400"
         bar.foo = foo
+        bar.title = "Title 400"
         self.store.add(bar)
 
         foo.id = 40
@@ -1961,6 +2060,46 @@ class StoreTest(object):
 
         self.assertEquals(Store.of(bar), self.store)
         self.assertEquals(Store.of(foo1), store)
+
+    def test_reference_equals(self):
+        foo = self.store.get(Foo, 10)
+
+        bar = self.store.find(Bar, foo=foo).one()
+        self.assertTrue(bar)
+        self.assertEquals(bar.foo, foo)
+
+        bar = self.store.find(Bar, foo=foo.id).one()
+        self.assertTrue(bar)
+        self.assertEquals(bar.foo, foo)
+
+    def test_reference_equals_with_composed_key(self):
+        # Interesting case of self-reference.
+        class LinkWithRef(Link):
+            myself = Reference((Link.foo_id, Link.bar_id),
+                               (Link.foo_id, Link.bar_id))
+
+        link = self.store.find(LinkWithRef, foo_id=10, bar_id=100).one()
+        myself = self.store.find(LinkWithRef, myself=link).one()
+        self.assertEquals(link, myself)
+
+        myself = self.store.find(LinkWithRef,
+                                 myself=(link.foo_id, link.bar_id)).one()
+        self.assertEquals(link, myself)
+
+    def test_reference_self(self):
+        class Bar(object):
+            __table__ = "bar", "id"
+            id = Int()
+            title = Str()
+            bar_id = Int("foo_id")
+            bar = Reference(bar_id, id)
+
+        bar = self.store.new(Bar)
+        bar.id = 400
+        bar.title = "Title 400"
+        bar.bar_id = 100
+        self.assertEquals(bar.bar.id, 100)
+        self.assertEquals(bar.bar.title, "Title 300")
 
     def test_back_reference(self):
         class MyFoo(Foo):
@@ -2172,6 +2311,9 @@ class StoreTest(object):
         foo.bars.clear()
         self.assertEquals(list(foo.bars), [])
 
+        # Object wasn't removed.
+        self.assertTrue(self.store.get(Bar, 200))
+
     def test_reference_set_clear_cached(self):
         foo = self.store.get(FooRefSet, 20)
         bar = self.store.get(Bar, 200)
@@ -2324,6 +2466,19 @@ class StoreTest(object):
 
         self.assertEquals(bar.foo_id, None)
         self.assertEquals(list(foo.bars), [])
+
+    def test_reference_set_after_object_removed(self):
+        class MyBar(Bar):
+            # Make sure that this works even with allow_none=False.
+            foo_id = Int(allow_none=False)
+
+        class MyFoo(Foo):
+            bars = ReferenceSet(Foo.id, MyBar.foo_id)
+
+        foo = self.store.get(MyFoo, 20)
+        bar = foo.bars.any()
+        self.store.remove(bar)
+        self.assertTrue(bar not in list(foo.bars))
 
     def test_reference_set_add(self):
         bar = Bar()
@@ -2723,6 +2878,60 @@ class StoreTest(object):
         self.assertRaises(NoStoreError, foo2.bars.clear)
         self.assertRaises(NoStoreError, foo2.bars.remove, object())
 
+    def test_string_reference(self):
+        class Base(object):
+            __metaclass__ = PropertyPublisherMeta
+
+        class MyBar(Base):
+            __table__ = "bar", "id"
+            id = Int()
+            title = Unicode()
+            foo_id = Int()
+            foo = Reference("foo_id", "MyFoo.id")
+
+        class MyFoo(Base):
+            __table__ = "foo", "id"
+            id = Int()
+            title = Unicode()
+
+        bar = self.store.get(MyBar, 100)
+        self.assertTrue(bar.foo)
+        self.assertEquals(bar.foo.title, "Title 30")
+        self.assertEquals(type(bar.foo), MyFoo)
+
+    def test_string_indirect_reference_set(self):
+        class Base(object):
+            __metaclass__ = PropertyPublisherMeta
+
+        class MyFoo(Base):
+            __table__ = "foo", "id"
+            id = Int()
+            title = Unicode()
+            bars = ReferenceSet("id", "MyLink.foo_id",
+                                "MyLink.bar_id", "MyBar.id")
+
+        class MyBar(Base):
+            __table__ = "bar", "id"
+            id = Int()
+            title = Unicode()
+
+        class MyLink(Base):
+            __table__ = "link", ("foo_id", "bar_id")
+            foo_id = Int()
+            bar_id = Int()
+
+        foo = self.store.get(MyFoo, 20)
+
+        items = []
+        for bar in foo.bars:
+            items.append((bar.id, bar.title))
+        items.sort()
+
+        self.assertEquals(items, [
+                          (100, "Title 300"),
+                          (200, "Title 200"),
+                         ])
+
     def test_flush_order(self):
         foo1 = Foo()
         foo2 = Foo()
@@ -2940,7 +3149,7 @@ class StoreTest(object):
 
     def test_rollback_loaded_and_still_in_cached(self):
         # Explore problem found on interaction between caching, commits,
-        # and rollbacks.
+        # and rollbacks, when they still existed.
         foo1 = self.store.get(Foo, 20)
         self.store.commit()
         self.store.rollback()
@@ -3292,6 +3501,187 @@ class StoreTest(object):
         self.store.execute("DELETE FROM foo WHERE id=40")
         self.assertEquals(self.store.get(Foo, 40), foo)
 
+    def test_invalidate_hook(self):
+        called = []
+        class MyFoo(Foo):
+            def __invalidate__(self):
+                called.append(True)
+        foo = self.store.get(MyFoo, 20)
+        self.assertEquals(called, [])
+        self.store.autoreload(foo)
+        self.assertEquals(called, [])
+        self.store.invalidate(foo)
+        self.assertEquals(called, [True])
+
+    def test_result_union(self):
+        result1 = self.store.find(Foo, id=30)
+        result2 = self.store.find(Foo, id=10)
+        result3 = result1.union(result2)
+
+        result3.order_by(Foo.title)
+        self.assertEquals([(foo.id, foo.title) for foo in result3], [
+                          (30, "Title 10"),
+                          (10, "Title 30"),
+                         ])
+
+        result3.order_by(Desc(Foo.title))
+        self.assertEquals([(foo.id, foo.title) for foo in result3], [
+                          (10, "Title 30"),
+                          (30, "Title 10"),
+                         ])
+
+    def test_result_union_duplicated(self):
+        result1 = self.store.find(Foo, id=30)
+        result2 = self.store.find(Foo, id=30)
+
+        result3 = result1.union(result2)
+
+        self.assertEquals([(foo.id, foo.title) for foo in result3], [
+                          (30, "Title 10"),
+                         ])
+
+    def test_result_union_duplicated_with_all(self):
+        result1 = self.store.find(Foo, id=30)
+        result2 = self.store.find(Foo, id=30)
+
+        result3 = result1.union(result2, all=True)
+
+        self.assertEquals([(foo.id, foo.title) for foo in result3], [
+                          (30, "Title 10"),
+                          (30, "Title 10"),
+                         ])
+
+    def test_result_union_with_empty(self):
+        result1 = self.store.find(Foo, id=30)
+        result2 = EmptyResultSet()
+
+        result3 = result1.union(result2)
+
+        self.assertEquals([(foo.id, foo.title) for foo in result3], [
+                          (30, "Title 10"),
+                         ])
+
+    def test_result_union_incompatible(self):
+        result1 = self.store.find(Foo, id=10)
+        result2 = self.store.find(Bar, id=100)
+        self.assertRaises(FeatureError, result1.union, result2)
+
+    def test_result_union_unsupported_methods(self):
+        result1 = self.store.find(Foo, id=30)
+        result2 = self.store.find(Foo, id=10)
+        result3 = result1.union(result2)
+
+        self.assertRaises(FeatureError, result3.set, title="Title 40")
+        self.assertRaises(FeatureError, result3.remove)
+
+    def test_result_union_count(self):
+        result1 = self.store.find(Foo, id=30)
+        result2 = self.store.find(Foo, id=30)
+
+        result3 = result1.union(result2, all=True)
+
+        self.assertEquals(result3.count(), 2)
+
+    def test_result_difference(self):
+        if self.__class__.__name__.startswith("MySQL"):
+            return
+
+        result1 = self.store.find(Foo)
+        result2 = self.store.find(Foo, id=20)
+        result3 = result1.difference(result2)
+
+        result3.order_by(Foo.title)
+        self.assertEquals([(foo.id, foo.title) for foo in result3], [
+                          (30, "Title 10"),
+                          (10, "Title 30"),
+                         ])
+
+        result3.order_by(Desc(Foo.title))
+        self.assertEquals([(foo.id, foo.title) for foo in result3], [
+                          (10, "Title 30"),
+                          (30, "Title 10"),
+                         ])
+
+    def test_result_difference_with_empty(self):
+        if self.__class__.__name__.startswith("MySQL"):
+            return
+
+        result1 = self.store.find(Foo, id=30)
+        result2 = EmptyResultSet()
+
+        result3 = result1.difference(result2)
+
+        self.assertEquals([(foo.id, foo.title) for foo in result3], [
+                          (30, "Title 10"),
+                         ])
+
+    def test_result_difference_incompatible(self):
+        if self.__class__.__name__.startswith("MySQL"):
+            return
+
+        result1 = self.store.find(Foo, id=10)
+        result2 = self.store.find(Bar, id=100)
+        self.assertRaises(FeatureError, result1.difference, result2)
+
+    def test_result_difference_count(self):
+        if self.__class__.__name__.startswith("MySQL"):
+            return
+
+        result1 = self.store.find(Foo)
+        result2 = self.store.find(Foo, id=20)
+
+        result3 = result1.difference(result2)
+
+        self.assertEquals(result3.count(), 2)
+
+    def test_result_intersection(self):
+        if self.__class__.__name__.startswith("MySQL"):
+            return
+
+        result1 = self.store.find(Foo)
+        result2 = self.store.find(Foo, Foo.id.is_in((10, 30)))
+        result3 = result1.intersection(result2)
+
+        result3.order_by(Foo.title)
+        self.assertEquals([(foo.id, foo.title) for foo in result3], [
+                          (30, "Title 10"),
+                          (10, "Title 30"),
+                         ])
+
+        result3.order_by(Desc(Foo.title))
+        self.assertEquals([(foo.id, foo.title) for foo in result3], [
+                          (10, "Title 30"),
+                          (30, "Title 10"),
+                         ])
+
+    def test_result_intersection_with_empty(self):
+        if self.__class__.__name__.startswith("MySQL"):
+            return
+
+        result1 = self.store.find(Foo, id=30)
+        result2 = EmptyResultSet()
+        result3 = result1.intersection(result2)
+
+        self.assertEquals(len(list(result3)), 0)
+
+    def test_result_intersection_incompatible(self):
+        if self.__class__.__name__.startswith("MySQL"):
+            return
+
+        result1 = self.store.find(Foo, id=10)
+        result2 = self.store.find(Bar, id=100)
+        self.assertRaises(FeatureError, result1.intersection, result2)
+
+    def test_result_intersection_count(self):
+        if self.__class__.__name__.startswith("MySQL"):
+            return
+
+        result1 = self.store.find(Foo, Foo.id.is_in((10, 20)))
+        result2 = self.store.find(Foo, Foo.id.is_in((10, 30)))
+        result3 = result1.intersection(result2)
+
+        self.assertEquals(result3.count(), 1)
+
 
 class EmptyResultSetTest(object):
 
@@ -3425,3 +3815,21 @@ class EmptyResultSetTest(object):
     def test_cached(self):
         self.assertEquals(self.result.cached(), [])
         self.assertEquals(self.empty.cached(), [])
+
+    def test_union(self):
+        self.assertEquals(self.empty.union(self.empty), self.empty)
+        self.assertEquals(type(self.empty.union(self.result)),
+                          type(self.result))
+        self.assertEquals(type(self.result.union(self.empty)),
+                          type(self.result))
+
+    def test_difference(self):
+        self.assertEquals(self.empty.difference(self.empty), self.empty)
+        self.assertEquals(self.empty.difference(self.result), self.empty)
+        self.assertEquals(self.result.difference(self.empty), self.result)
+
+    def test_intersection(self):
+        self.assertEquals(self.empty.intersection(self.empty), self.empty)
+        self.assertEquals(self.empty.intersection(self.result), self.empty)
+        self.assertEquals(self.result.intersection(self.empty), self.empty)
+

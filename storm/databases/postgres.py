@@ -17,12 +17,13 @@ try:
 except:
     psycopg = dummy
 
-from storm.expr import And, Eq
+from storm.expr import (
+    Undef, SetExpr, Select, Alias, And, Eq, FuncExpr, SQLRaw, COLUMN_NAME,
+    compile, compile_select, compile_set_expr)
 from storm.variables import (
     Variable, UnicodeVariable, StrVariable, ListVariable)
 from storm.database import *
 from storm.exceptions import install_exceptions, DatabaseModuleError
-from storm.expr import FuncExpr, compile
 
 
 install_exceptions(psycopg)
@@ -39,7 +40,7 @@ class currval(FuncExpr):
 @compile.when(currval)
 def compile_currval(compile, state, expr):
     return "currval('%s_%s_seq')" % (compile(state, expr.column.table),
-                                     compile(state, expr.column.name))
+                                     expr.column.name)
 
 @compile.when(ListVariable)
 def compile_list_variable(compile, state, list_variable):
@@ -50,6 +51,47 @@ def compile_list_variable(compile, state, list_variable):
     for variable in variables:
         elements.append(compile(state, variable))
     return "ARRAY[%s]" % ",".join(elements)
+
+@compile.when(SetExpr)
+def compile_set_expr_postgres(compile, state, expr):
+    if expr.order_by is not Undef:
+        # The following statement breaks in postgres:
+        #     SELECT 1 AS id UNION SELECT 1 ORDER BY id+1
+        # With the error:
+        #     ORDER BY on a UNION/INTERSECT/EXCEPT result must
+        #     be on one of the result columns
+        # So we transform it into something close to:
+        #     SELECT * FROM (SELECT 1 AS id UNION SELECT 1) AS a ORDER BY id+1
+
+        # Build new set expression without arguments (order_by, etc).
+        new_expr = expr.__class__()
+        new_expr.exprs = expr.exprs
+        new_expr.all = expr.all
+
+        # Make sure that state.aliases isn't None, since we want them to
+        # compile our order_by statement below.
+        no_aliases = state.aliases is None
+        if no_aliases:
+            state.push("aliases", {})
+
+        # Build set expression, collecting aliases.
+        set_stmt = SQLRaw("(%s)" % compile_set_expr(compile, state, new_expr))
+
+        # Build order_by statement, using aliases.
+        state.push("context", COLUMN_NAME)
+        order_by_stmt = SQLRaw(compile(state, expr.order_by))
+        state.pop()
+
+        # Discard aliases, if they were not being collected previously.
+        if no_aliases:
+            state.pop()
+
+        # Build wrapping select statement.
+        select = Select(SQLRaw("*"), tables=Alias(set_stmt), limit=expr.limit,
+                        offset=expr.offset, order_by=order_by_stmt)
+        return compile_select(compile, state, select)
+    else:
+        return compile_set_expr(compile, state, expr)
 
 def compile_str_variable_with_E(compile, state, variable):
     """Include an E just before the placeholder of string variables.
@@ -75,7 +117,8 @@ class PostgresResult(Result):
 
     def set_variable(self, variable, value):
         if isinstance(variable, UnicodeVariable):
-            value = unicode(value, self._connection._database._encoding)
+            if not isinstance(value, unicode):
+                value = unicode(value, self._connection._database._encoding)
         elif isinstance(variable, ListVariable):
             if value == "{}":
                 # Optimize the empty array case (parse_array() can handle it).
@@ -90,6 +133,12 @@ class PostgresConnection(Connection):
     _result_factory = PostgresResult
     _param_mark = "%s"
     _compile = compile
+
+    def _raw_execute(self, statement, params):
+        if type(statement) is unicode:
+            # psycopg breaks with unicode statements.
+            statement = statement.encode(self._database._encoding)
+        return Connection._raw_execute(self, statement, params)
 
     def _to_database(self, params):
         for param in params:

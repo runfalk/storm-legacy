@@ -13,10 +13,11 @@ from storm.info import get_cls_info, get_obj_info, set_obj_info, get_info
 from storm.variables import Variable, LazyValue
 from storm.expr import (
     Expr, Select, Insert, Update, Delete, Column, JoinExpr, Count, Max, Min,
-    Avg, Sum, Eq, And, Asc, Desc, compile_python, compare_columns)
+    Avg, Sum, Eq, And, Asc, Desc, compile_python, compare_columns, SQLRaw,
+    Union, Except, Intersect, Alias)
 from storm.exceptions import (
     WrongStoreError, NotFlushedError, OrderLoopError, UnorderedError,
-    NotOneError, FeatureError, CompileError, LostObjectError)
+    NotOneError, FeatureError, CompileError, LostObjectError, ClassInfoError)
 from storm import Undef
 
 
@@ -33,7 +34,6 @@ class Store(object):
     def __init__(self, database):
         self._connection = database.connect()
         self._cache = WeakValueDictionary()
-        self._ghosts = WeakKeyDictionary()
         self._dirty = {}
         self._order = {} # (info, info) = count
 
@@ -41,7 +41,7 @@ class Store(object):
     def of(obj):
         try:
             return get_obj_info(obj).get("store")
-        except AttributeError:
+        except (AttributeError, ClassInfoError):
             return None
 
     def execute(self, statement, params=None, noresult=False):
@@ -53,34 +53,22 @@ class Store(object):
 
     def commit(self):
         self.flush()
+        self.invalidate()
         self._connection.commit()
-        for obj_info in self._iter_ghosts():
-            del obj_info["store"]
-        for obj_info in self._iter_cached():
-            obj_info.save()
-        self._ghosts.clear()
 
     def rollback(self):
-        infos = set()
-        for obj_info in self._iter_dirty():
-            infos.add(obj_info)
-        for obj_info in self._iter_ghosts():
-            infos.add(obj_info)
-        for obj_info in self._iter_cached():
-            infos.add(obj_info)
-
-        for obj_info in infos:
-            self._remove_from_cache(obj_info)
-
-            obj_info.restore()
-
-            if obj_info.get("store") is self:
-                self._add_to_cache(obj_info)
-                self._enable_change_notification(obj_info)
+        for obj_info in self._dirty:
+            pending = obj_info.pop("pending", None)
+            if pending is PENDING_ADD:
+                # Object never got in the cache, so being "in the store"
+                # has no actual meaning for it.
+                del obj_info["store"]
+            elif pending is PENDING_REMOVE:
+                # Object never got removed, so it's still in the cache,
+                # and thus should continue to resolve from now on.
                 self._enable_lazy_resolving(obj_info)
-
-        self._ghosts.clear()
         self._dirty.clear()
+        self.invalidate()
         self._connection.rollback()
 
     def get(self, cls, key):
@@ -101,7 +89,7 @@ class Store(object):
 
         obj_info = self._cache.get((cls_info.cls, tuple(primary_vars)))
         if obj_info is not None:
-            if obj_info.get("validate-cache"):
+            if obj_info.get("invalidated"):
                 try:
                     self._fill_missing_values(obj_info, primary_vars)
                 except LostObjectError:
@@ -155,15 +143,8 @@ class Store(object):
             del obj_info["pending"]
             self._enable_lazy_resolving(obj_info)
             # obj_info.event.emit("added")
-        else:
-            if store is None:
-                obj_info.save()
-                obj_info["store"] = self
-            elif not self._is_ghost(obj_info):
-                return # It's fine already.
-            else:
-                self._set_alive(obj_info)
-
+        elif store is None:
+            obj_info["store"] = self
             obj_info["pending"] = PENDING_ADD
             self._set_dirty(obj_info)
             self._enable_lazy_resolving(obj_info)
@@ -180,11 +161,11 @@ class Store(object):
         if pending is PENDING_REMOVE:
             pass
         elif pending is PENDING_ADD:
+            del obj_info["store"]
             del obj_info["pending"]
-            self._set_ghost(obj_info)
             self._set_clean(obj_info)
             self._disable_lazy_resolving(obj_info)
-        elif not self._is_ghost(obj_info):
+        else:
             obj_info["pending"] = PENDING_REMOVE
             self._set_dirty(obj_info)
             self._disable_lazy_resolving(obj_info)
@@ -192,7 +173,7 @@ class Store(object):
     def reload(self, obj):
         obj_info = get_obj_info(obj)
         cls_info = obj_info.cls_info
-        if obj_info.get("store") is not self or self._is_ghost(obj_info):
+        if obj_info.get("store") is not self:
             raise WrongStoreError("%s is not in this store" % repr(obj))
         if "primary_vars" not in obj_info:
             raise NotFlushedError("Can't reload an object if it was "
@@ -223,7 +204,15 @@ class Store(object):
                 if id(column) not in cls_info.primary_key_idx:
                     obj_info.variables[column].set(AutoReload)
             if invalidate:
-                obj_info["validate-cache"] = True
+                # Marking an object with 'invalidated' means that we're
+                # not sure if the object is actually in the database
+                # anymore, so before the object is returned from the cache
+                # (e.g. by a get()), the database should be queried to see
+                # if the object's still there.
+                obj_info["invalidated"] = True
+                hook = getattr(obj_info.get_obj(), "__invalidate__", None)
+                if hook is not None:
+                    hook()
 
     def add_flush_order(self, before, after):
         pair = (get_obj_info(before), get_obj_info(after))
@@ -278,11 +267,11 @@ class Store(object):
             self._connection.execute(expr, noresult=True)
 
             # We're sure the cache is valid at this point.
-            obj_info.pop("validate-cache", None)
+            obj_info.pop("invalidated", None)
 
             self._disable_change_notification(obj_info)
-            self._set_ghost(obj_info)
             self._remove_from_cache(obj_info)
+            del obj_info["store"]
 
         elif pending is PENDING_ADD:
             columns = []
@@ -305,13 +294,12 @@ class Store(object):
 
             # We're sure the cache is valid at this point. We just added
             # the object.
-            obj_info.pop("validate-cache", None)
+            obj_info.pop("invalidated", None)
 
             self._fill_missing_values(obj_info, obj_info.primary_vars, result,
                                       checkpoint=False)
 
             self._enable_change_notification(obj_info)
-            self._set_alive(obj_info)
             self._add_to_cache(obj_info)
 
             obj_info.checkpoint()
@@ -329,19 +317,6 @@ class Store(object):
                         changes[column] = variable
                     else:
                         lazy_value = variable.get_lazy()
-                        if lazy_value is AutoReload:
-                            # If a primary key value is set to auto-reload,
-                            # restore it right now. We can't let an
-                            # auto-reloading primary key variable checkpoint
-                            # (in case of no changes below.. if there are
-                            # changes fill_missing_values will revive the
-                            # reload value). If an auto-reloading primary key
-                            # variable is checkpointed, rollback() will add
-                            # an undef variable as the cache key, which is of
-                            # course a bad thing.
-                            idx = primary_key_idx.get(id(column))
-                            if idx is not None:
-                                variable.set(cached_primary_vars[idx].get())
                         if isinstance(lazy_value, Expr):
                             changes[column] = lazy_value
 
@@ -354,7 +329,7 @@ class Store(object):
 
                 # We're sure the cache is valid at this point. We've
                 # just updated the object.
-                obj_info.pop("validate-cache", None)
+                obj_info.pop("invalidated", None)
 
                 self._fill_missing_values(obj_info, obj_info.primary_vars,
                                           checkpoint=False)
@@ -408,22 +383,22 @@ class Store(object):
             self._set_values(obj_info, missing_columns,
                              result, result.get_one())
 
-            obj_info.pop("validate-cache", None)
+            obj_info.pop("invalidated", None)
 
             if checkpoint:
                 for column in missing_columns:
                     obj_info.variables[column].checkpoint()
 
-        elif obj_info.get("validate-cache"):
-            # In of no explicit missing values, enforce cache validation.
+        elif obj_info.get("invalidated"):
+            # In case of no explicit missing values, enforce cache validation.
             # It might happen that the primary key was autoreloaded and
             # restored from the cache.
             where = compare_columns(cls_info.primary_key, primary_vars)
-            result = self._connection.execute(Select("1", where))
+            result = self._connection.execute(Select(SQLRaw("1"), where))
             if not result.get_one():
                 raise LostObjectError("Object is not in the database anymore")
 
-            obj_info.pop("validate-cache", None)
+            obj_info.pop("invalidated", None)
 
 
     def _load_objects(self, cls_spec_info, result, values):
@@ -470,7 +445,7 @@ class Store(object):
         if obj_info is not None:
             # Found object in cache, and it must be valid since the
             # primary key was extracted from result values.
-            obj_info.pop("validate-cache", None)
+            obj_info.pop("invalidated", None)
 
             # We're not sure if the obj is still in memory at this point.
             obj = obj_info.get_obj()
@@ -491,7 +466,7 @@ class Store(object):
 
             self._set_values(obj_info, cls_info.columns, result, values)
 
-            obj_info.save()
+            obj_info.checkpoint()
 
             self._add_to_cache(obj_info)
             self._enable_change_notification(obj_info)
@@ -514,7 +489,6 @@ class Store(object):
         load = getattr(obj, "__load__", None)
         if load is not None:
             load()
-        obj_info.save_attributes()
 
     def _set_values(self, obj_info, columns, result, values):
         if values is None:
@@ -540,24 +514,18 @@ class Store(object):
         return self._dirty
 
 
-    def _is_ghost(self, obj_info):
-        return obj_info in self._ghosts
-
-    def _set_ghost(self, obj_info):
-        self._ghosts[obj_info] = True
-
-    def _set_alive(self, obj_info):
-        self._ghosts.pop(obj_info, None)
-
-    def _iter_ghosts(self):
-        return self._ghosts.keys()
-
-
     def _add_to_cache(self, obj_info):
-        # Notice that the obj_info may be added back to the cache even
-        # though it already has primary_vars, since the object could be
-        # removed from cache, rolled back, and reinserted (commit() will
-        # save() obj_info with primary_vars).
+        """Add an object to the cache, keyed on primary key variables.
+
+        When an object is added to the cache, the key is built from
+        a copy of the current variables that are part of the primary
+        key.  This means that, when an object is retrieved from the
+        database, these values may be used to get the cached object
+        which is already in memory, even if it requested the primary
+        key value to be changed.  For that reason, when changes to
+        the primary key are flushed, the cache key should also be
+        updated to reflect these changes.
+        """
         cls_info = obj_info.cls_info
         old_primary_vars = obj_info.get("primary_vars")
         if old_primary_vars is not None:
@@ -568,6 +536,12 @@ class Store(object):
         obj_info["primary_vars"] = new_primary_vars
 
     def _remove_from_cache(self, obj_info):
+        """Remove an object from the cache.
+
+        This method is only called for objects that were explicitly
+        deleted and flushed.  Objects that are unused will get removed
+        from the cache dictionary automatically by their weakref callbacks.
+        """
         primary_vars = obj_info.get("primary_vars")
         if primary_vars is not None:
             del self._cache[obj_info.cls_info.cls, primary_vars]
@@ -603,7 +577,7 @@ class Store(object):
         if lazy_value is AutoReload:
             cached_primary_vars = obj_info.get("primary_vars")
             if cached_primary_vars is None:
-                # XXX Same comment as below.
+                # XXX See the comment on self.flush() below.
                 self.flush()
             else:
                 idx = obj_info.cls_info.primary_key_idx.get(id(variable.column))
@@ -623,12 +597,14 @@ class Store(object):
 
 class ResultSet(object):
 
-    def __init__(self, store, cls_spec_info, where, tables=Undef):
+    def __init__(self, store, cls_spec_info,
+                 where=Undef, tables=Undef, select=Undef):
         self._store = store
         self._cls_spec_info = cls_spec_info
         self._where = where
         self._tables = tables
-        self._order_by = Undef
+        self._select = select
+        self._order_by = getattr(cls_spec_info, "default_order", Undef)
         self._offset = Undef
         self._limit = Undef
         self._distinct = False
@@ -647,7 +623,15 @@ class ResultSet(object):
             self._limit = limit
         return self
 
-    def _get_select(self, **kwargs):
+    def _get_select(self):
+        if self._select is not Undef:
+            if self._order_by is not Undef:
+                self._select.order_by = self._order_by
+            if self._limit is not Undef: # XXX UNTESTED!
+                self._select.limit = self._limit
+            if self._offset is not Undef: # XXX UNTESTED!
+                self._select.offset = self._offset
+            return self._select
         if type(self._cls_spec_info) is tuple:
             columns = []
             default_tables = []
@@ -786,7 +770,7 @@ class ResultSet(object):
     def order_by(self, *args):
         if self._offset is not Undef or self._limit is not Undef:
             raise FeatureError("Can't reorder a sliced result set")
-        self._order_by = args
+        self._order_by = args or Undef
         return self
 
     def remove(self):
@@ -794,6 +778,9 @@ class ResultSet(object):
             raise FeatureError("Can't remove a sliced result set")
         if type(self._cls_spec_info) is tuple:
             raise FeatureError("Removing not yet supported with tuple finds")
+        if self._select is not Undef:
+            raise FeatureError("Removing isn't supported with "
+                               "set expressions (unions, etc)")
         self._store._connection.execute(Delete(self._where,
                                                self._cls_spec_info.table),
                                         noresult=True)
@@ -804,7 +791,10 @@ class ResultSet(object):
                               for cls_info in self._cls_spec_info]
         else:
             default_tables = self._cls_spec_info.table
-        select = Select(expr, self._where, self._tables, default_tables)
+        if self._select is Undef:
+            select = Select(expr, self._where, self._tables, default_tables)
+        else:
+            select = Select(expr, tables=Alias(self._select))
         result = self._store._connection.execute(select)
         value = result.get_one()[0]
         if column is None:
@@ -853,7 +843,10 @@ class ResultSet(object):
 
     def set(self, *args, **kwargs):
         if type(self._cls_spec_info) is tuple:
-            raise FeatureError("Setting isn't supportted with tuple finds")
+            raise FeatureError("Setting isn't supported with tuple finds")
+        if self._select is not Undef:
+            raise FeatureError("Setting isn't supported with "
+                               "set expressions (unions, etc)")
 
         if not (args or kwargs):
             return
@@ -928,11 +921,36 @@ class ResultSet(object):
                     objects.append(obj)
         return objects
 
+    def _set_expr(self, expr_cls, other, all=False):
+        if self._cls_spec_info != other._cls_spec_info:
+            raise FeatureError("Incompatible results for set operation")
+
+        expr = expr_cls(self._get_select(), other._get_select(), all=all)
+        return ResultSet(self._store, self._cls_spec_info, select=expr)
+
+    def union(self, other, all=False):
+        if isinstance(other, EmptyResultSet):
+            return self
+        return self._set_expr(Union, other, all)
+
+    def difference(self, other, all=False):
+        if isinstance(other, EmptyResultSet):
+            return self
+        return self._set_expr(Except, other, all)
+
+    def intersection(self, other, all=False):
+        if isinstance(other, EmptyResultSet):
+            return other
+        return self._set_expr(Intersect, other, all)
+
 
 class EmptyResultSet(object):
 
     def __init__(self, ordered=False):
         self._order_by = ordered
+
+    def _get_select(self):
+        return Select(SQLRaw("1"), SQLRaw("1 = 2"))
 
     def copy(self):
         result = EmptyResultSet(self._order_by)
@@ -999,6 +1017,17 @@ class EmptyResultSet(object):
     def cached(self):
         return []
 
+    def union(self, other):
+        if isinstance(other, EmptyResultSet):
+            return self
+        return other.union(self)
+
+    def difference(self, other):
+        return self
+
+    def intersection(self, other):
+        return self
+
 
 class TableSet(object):
     
@@ -1029,8 +1058,7 @@ def get_where_for_args(args, kwargs, cls=None):
             raise FeatureError("Can't determine class that keyword "
                                "arguments are associated with")
         for key, value in kwargs.items():
-            column = getattr(cls, key)
-            equals.append(Eq(column, column.variable_factory(value=value)))
+            equals.append(getattr(cls, key) == value)
     if equals:
         return And(*equals)
     return Undef

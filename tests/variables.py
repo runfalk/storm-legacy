@@ -1,10 +1,11 @@
-from datetime import datetime, date, time
+from datetime import datetime, date, time, timedelta
 import cPickle as pickle
 
 from storm.exceptions import NoneError
 from storm.variables import *
 from storm.event import EventSystem
-from storm.expr import Column
+from storm.expr import Column, SQLToken
+from storm.tz import tzutc, tzoffset
 from storm import Undef
 
 from tests.helper import TestHelper
@@ -111,7 +112,7 @@ class VariableTest(TestHelper):
         self.assertTrue("column_name" in str(e))
 
     def test_set_none_with_allow_none_and_column_with_table(self):
-        column = Column("column_name", "table_name")
+        column = Column("column_name", SQLToken("table_name"))
         variable = CustomVariable(allow_none=False, column=column)
         try:
             variable.set(None)
@@ -169,7 +170,7 @@ class VariableTest(TestHelper):
         self.assertTrue(variable.has_changed())
         variable.set(marker)
         self.assertTrue(variable.has_changed())
-        variable.save()
+        variable.checkpoint()
         self.assertFalse(variable.has_changed())
         variable.set(marker)
         self.assertFalse(variable.has_changed())
@@ -179,22 +180,10 @@ class VariableTest(TestHelper):
         self.assertFalse(variable.has_changed())
         variable.set((marker, marker))
         self.assertFalse(variable.has_changed())
-        variable.restore()
-        self.assertFalse(variable.has_changed())
-        variable.set((marker, marker))
+        variable.set(marker)
         self.assertTrue(variable.has_changed())
-        variable.set(marker)
-        self.assertFalse(variable.has_changed())
-
-    def test_save_restore(self):
-        variable = CustomVariable()
-        variable.set(marker)
-        variable.save()
-        self.assertTrue(variable.get(), ("g", ("s", marker)))
         variable.set((marker, marker))
-        self.assertTrue(variable.get(), ("g", ("s", (marker, marker))))
-        variable.restore()
-        self.assertTrue(variable.get(), ("g", ("s", marker)))
+        self.assertFalse(variable.has_changed())
 
     def test_copy(self):
         variable = CustomVariable()
@@ -395,6 +384,38 @@ class DateTimeVariableTest(TestHelper):
         self.assertRaises(ValueError, variable.set, "foobar", from_db=True)
         self.assertRaises(ValueError, variable.set, "foo bar", from_db=True)
 
+    def test_get_set_with_tzinfo(self):
+        datetime_str = "1977-05-04 12:34:56.78"
+        datetime_obj = datetime(1977, 5, 4, 12, 34, 56, 780000, tzinfo=tzutc())
+
+        variable = DateTimeVariable(tzinfo=tzutc())
+
+        # Naive timezone, from_db=True.
+        variable.set(datetime_str, from_db=True)
+        self.assertEquals(variable.get(), datetime_obj)
+        variable.set(datetime_obj, from_db=True)
+        self.assertEquals(variable.get(), datetime_obj)
+
+        # Naive timezone, from_db=False (doesn't work).
+        datetime_obj = datetime(1977, 5, 4, 12, 34, 56, 780000)
+        self.assertRaises(ValueError, variable.set, datetime_obj)
+
+        # Different timezone, from_db=False.
+        datetime_obj = datetime(1977, 5, 4, 12, 34, 56, 780000,
+                                tzinfo=tzoffset("1h", 3600))
+        variable.set(datetime_obj, from_db=False)
+        converted_obj = variable.get()
+        self.assertEquals(converted_obj, datetime_obj)
+        self.assertEquals(type(converted_obj.tzinfo), tzutc)
+
+        # Different timezone, from_db=True.
+        datetime_obj = datetime(1977, 5, 4, 12, 34, 56, 780000,
+                                tzinfo=tzoffset("1h", 3600))
+        variable.set(datetime_obj, from_db=True)
+        converted_obj = variable.get()
+        self.assertEquals(converted_obj, datetime_obj)
+        self.assertEquals(type(converted_obj.tzinfo), tzutc)
+
 
 class DateVariableTest(TestHelper):
 
@@ -428,6 +449,13 @@ class DateVariableTest(TestHelper):
         self.assertRaises(TypeError, variable.set, 0, from_db=True)
         self.assertRaises(TypeError, variable.set, marker, from_db=True)
         self.assertRaises(ValueError, variable.set, "foobar", from_db=True)
+
+    def test_set_with_datetime(self):
+        datetime_str = "1977-05-04 12:34:56.78"
+        date_obj = date(1977, 5, 4)
+        variable = DateVariable()
+        variable.set(datetime_str, from_db=True)
+        self.assertEquals(variable.get(), date_obj)
 
 
 class TimeVariableTest(TestHelper):
@@ -473,6 +501,61 @@ class TimeVariableTest(TestHelper):
         self.assertRaises(TypeError, variable.set, 0, from_db=True)
         self.assertRaises(TypeError, variable.set, marker, from_db=True)
         self.assertRaises(ValueError, variable.set, "foobar", from_db=True)
+
+    def test_set_with_datetime(self):
+        datetime_str = "1977-05-04 12:34:56.78"
+        time_obj = time(12, 34, 56, 780000)
+        variable = TimeVariable()
+        variable.set(datetime_str, from_db=True)
+        self.assertEquals(variable.get(), time_obj)
+
+
+class TimeDeltaVariableTest(TestHelper):
+
+    def test_get_set(self):
+        delta = timedelta(days=42)
+
+        variable = TimeDeltaVariable()
+
+        variable.set(delta)
+        self.assertEquals(variable.get(), delta)
+
+        self.assertRaises(TypeError, variable.set, marker)
+    
+    def test_get_set_from_database(self):
+        delta_str = "42 days 12:34:56.78"
+        delta_uni = unicode(delta_str)
+        delta_obj = timedelta(days=42, hours=12, minutes=34,
+                              seconds=56, microseconds=780000)
+
+        variable = TimeDeltaVariable()
+
+        variable.set(delta_str, from_db=True)
+        self.assertEquals(variable.get(), delta_obj)
+        variable.set(delta_uni, from_db=True)
+        self.assertEquals(variable.get(), delta_obj)
+        variable.set(delta_obj, from_db=True)
+        self.assertEquals(variable.get(), delta_obj)
+
+        delta_str = "1 day, 12:34:56"
+        delta_uni = unicode(delta_str)
+        delta_obj = timedelta(days=1, hours=12, minutes=34, seconds=56)
+
+        variable.set(delta_str, from_db=True)
+        self.assertEquals(variable.get(), delta_obj)
+        variable.set(delta_uni, from_db=True)
+        self.assertEquals(variable.get(), delta_obj)
+        variable.set(delta_obj, from_db=True)
+        self.assertEquals(variable.get(), delta_obj)
+
+        self.assertRaises(TypeError, variable.set, 0, from_db=True)
+        self.assertRaises(TypeError, variable.set, marker, from_db=True)
+        self.assertRaises(ValueError, variable.set, "foobar", from_db=True)
+
+        # Intervals of months or years can not be converted to a
+        # Python timedelta, so a ValueError exception is raised:
+        self.assertRaises(ValueError, variable.set, "42 months", from_db=True)
+        self.assertRaises(ValueError, variable.set, "42 years", from_db=True)
 
 
 class PickleVariableTest(TestHelper):
@@ -598,3 +681,15 @@ class ListVariableTest(TestHelper):
         event.emit("object-deleted")
         self.assertEquals(changes, [(variable, None, ["a"], False)])
 
+
+class EnumVariableTest(TestHelper):
+
+    def test_set_get(self):
+        variable = EnumVariable({"foo": 1, "bar": 2})
+        variable.set("foo")
+        self.assertEquals(variable.get(), "foo")
+        self.assertEquals(variable.get(to_db=True), 1)
+        variable.set(2, from_db=True)
+        self.assertEquals(variable.get(), "bar")
+        self.assertEquals(variable.get(to_db=True), 2)
+        self.assertRaises(ValueError, variable.set, "foobar")

@@ -1,3 +1,5 @@
+- Unicode(autoreload=True) will mark the field as autoreload by default.
+
 - Generic finds:
 
   foo, count = store.find((Foo, Count(Foo.name))).group_by(Foo.name)
@@ -29,7 +31,7 @@
 
   lazy_group=None means not lazy.
 
-- Reference.__contains__
+- ReferenceSet.__contains__
 
 - Implement ResultSet.reverse[d]() to invert order_by()?
 
@@ -60,12 +62,8 @@
 
 - Could Reference(Set)s include a "where" clause? Readonly perhaps?
 
-- Implement reference comparisons (Foo.ref == obj)
-
 - Make the primary key in __table__ be optional. If it's not provided
   the object isn't cached and updates aren't tracked.
-
-- Add support for deferred class/attribute definition on references.
 
 - Between()
 
@@ -74,3 +72,7 @@
   http://www.djangoproject.com/documentation/legacy_databases/
   http://www.djangoproject.com/documentation/django_admin/
 
+- Support allow_microseconds=False in DateTime properties/variables.
+
+- Support allow_self in Reference and ReferenceSet, and default
+  to false.

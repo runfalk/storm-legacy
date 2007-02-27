@@ -7,11 +7,15 @@
 #
 # <license text goes here>
 #
+from datetime import datetime, date, time, timedelta
 from copy import copy
 import sys
 
 from storm.exceptions import CompileError, NoTableError, ExprError
-from storm.variables import Variable, LazyValue
+from storm.variables import (
+    Variable, StrVariable, UnicodeVariable, LazyValue,
+    DateTimeVariable, DateVariable, TimeVariable, TimeDeltaVariable,
+    BoolVariable, IntVariable, FloatVariable)
 from storm import Undef
 
 
@@ -84,18 +88,34 @@ class Compile(object):
             raise CompileError("Don't know how to compile type %r of %r"
                                % (expr.__class__, expr))
 
-    def _compile(self, state, expr, join=", "):
+    def _compile(self, state, expr, join=", ", raw=False):
+        # This docstring is in a pretty crappy place; where could it
+        # go that would be more discoverable?
+        """
+        @type state: L{State}.
+        @param expr: The expression to compile.
+        @param join: The string token to use to put between
+                     subexpressions. Defaults to ", ".
+        @param raw: If true, any string or unicode expression or
+                    subexpression will not be further compiled.
+        """
         outer_precedence = state.precedence
-        if type(expr) is str:
+        expr_type = type(expr)
+        if (expr_type is SQLRaw or
+            expr_type is SQLToken or
+            raw and (expr_type is str or expr_type is unicode)):
             return expr
-        if type(expr) in (tuple, list):
+        if expr_type in (tuple, list):
             compiled = []
             for subexpr in expr:
-                if type(subexpr) is str:
+                subexpr_type = type(subexpr)
+                if (subexpr_type is SQLRaw or
+                    subexpr_type is SQLToken or
+                    raw and (subexpr_type is str or subexpr_type is unicode)):
                     statement = subexpr
-                elif type(subexpr) in (tuple, list):
+                elif subexpr_type in (tuple, list):
                     state.precedence = outer_precedence
-                    statement = self._compile(state, subexpr, join)
+                    statement = self._compile(state, subexpr, join, raw)
                 else:
                     statement = self._compile_single(state, subexpr,
                                                      outer_precedence)
@@ -124,22 +144,48 @@ class CompilePython(Compile):
 
 
 class State(object):
+    """All the data necessary during compilation of an expression.
+
+    @ivar aliases: Dict of L{Column} instances to L{Alias} instances,
+        specifying how columns should be compiled as aliases in very
+        specific situations.  This is typically used to work around
+        strange deficiencies in various databases.
+
+    @ivar auto_tables: Whenever an expression that would require a
+        table in a FROM expression is compiled, it should add the
+        respective table to this value, so that statements may
+        automatically include these tables.
+
+    @ivar context: an instance of L{Context}, specifying the context
+        of the expression currently being compiled.
+
+    @ivar precedence: Current precedence, automatically set and restored
+        by the compiler. If an inner precedence is lower than an outer
+        precedence, parenthesis around the inner expression are
+        automatically emitted.
+    """
 
     def __init__(self):
         self._stack = []
         self.precedence = 0
         self.parameters = []
         self.auto_tables = []
-        self.column_prefix = False
+        self.context = None
+        self.aliases = None
 
     def push(self, attr, new_value=Undef):
+        """Set an attribute in a way that can later be reverted with L{pop}.
+        """
         old_value = getattr(self, attr, None)
         self._stack.append((attr, old_value))
         if new_value is Undef:
             new_value = copy(old_value)
         setattr(self, attr, new_value)
+        return old_value
 
     def pop(self):
+        """Revert the topmost L{push}.
+        """
         setattr(self, *self._stack.pop(-1))
 
 
@@ -148,20 +194,86 @@ compile_python = CompilePython()
 
 
 # --------------------------------------------------------------------
+# Expression contexts
+
+class Context(object):
+    """
+    An object used to specify the nature of expected SQL expressions
+    being compiled in a given context.
+    """
+
+    def __init__(self, name):
+        self._name = name
+
+    def __repr__(self):
+        return "%s(%r)" % (self.__class__.__name__, self._name)
+
+
+TABLE = Context("TABLE")
+EXPR = Context("EXPR")
+COLUMN = Context("COLUMN")
+COLUMN_PREFIX = Context("COLUMN_PREFIX")
+COLUMN_NAME = Context("COLUMN_NAME")
+SELECT = Context("SELECT")
+
+
+# --------------------------------------------------------------------
 # Builtin type support
 
-# Most common case. Optimized in Compile._compile.
-#@compile.when(str)
-#def compile_str(compile, state, expr):
-#    return expr
+@compile.when(str)
+def compile_str(compile, state, expr):
+    state.parameters.append(StrVariable(expr))
+    return "?"
+
+@compile.when(unicode)
+def compile_unicode(compile, state, expr):
+    state.parameters.append(UnicodeVariable(expr))
+    return "?"
+
+@compile.when(int, long)
+def compile_int(compile, state, expr):
+    state.parameters.append(IntVariable(expr))
+    return "?"
+
+@compile.when(float)
+def compile_float(compile, state, expr):
+    state.parameters.append(FloatVariable(expr))
+    return "?"
+
+@compile.when(bool)
+def compile_bool(compile, state, expr):
+    state.parameters.append(BoolVariable(expr))
+    return "?"
+
+@compile.when(datetime)
+def compile_datetime(compile, state, expr):
+    state.parameters.append(DateTimeVariable(expr))
+    return "?"
+
+@compile.when(date)
+def compile_date(compile, state, expr):
+    state.parameters.append(DateVariable(expr))
+    return "?"
+
+@compile.when(time)
+def compile_time(compile, state, expr):
+    state.parameters.append(TimeVariable(expr))
+    return "?"
+
+@compile.when(timedelta)
+def compile_timedelta(compile, state, expr):
+    state.parameters.append(TimeDeltaVariable(expr))
+    return "?"
 
 @compile.when(type(None))
 def compile_none(compile, state, expr):
     return "NULL"
 
-@compile_python.when(type(None))
-def compile_python_none(compile, state, expr):
-    return "None"
+
+@compile_python.when(str, unicode, bool, int, long, float,
+                     datetime, date, time, timedelta, type(None))
+def compile_python_builtin(compile, state, expr):
+    return repr(expr)
 
 
 @compile.when(Variable)
@@ -172,6 +284,18 @@ def compile_variable(compile, state, variable):
 @compile_python.when(Variable)
 def compile_python_variable(compile, state, variable):
     return repr(variable.get())
+
+
+class SQLToken(str):
+    """Marker for strings the should be considered as a single SQL token.
+
+    In the future, these strings will be quoted, when needed.
+    """
+
+@compile.when(SQLToken)
+def compile_str(compile, state, expr):
+    return expr
+
 
 # --------------------------------------------------------------------
 # Base classes for expressions
@@ -274,10 +398,10 @@ class Comparable(object):
                     others[i] = variable_factory(value=other)
         return In(self, others)
 
-    def like(self, other):
+    def like(self, other, escape=Undef):
         if not isinstance(other, (Expr, Variable)):
             other = getattr(self, "variable_factory", Variable)(value=other)
-        return Like(self, other)
+        return Like(self, other, escape)
 
     def lower(self):
         return Lower(self)
@@ -313,7 +437,7 @@ def build_tables(compile, state, expr):
     if expr.tables is not Undef:
         result = []
         if type(expr.tables) not in (list, tuple):
-            return compile(state, expr.tables)
+            return compile(state, expr.tables, raw=True)
         else:
             for elem in expr.tables:
                 if result:
@@ -321,31 +445,31 @@ def build_tables(compile, state, expr):
                         result.append(", ")
                     else:
                         result.append(" ")
-                result.append(compile(state, elem))
+                result.append(compile(state, elem, raw=True))
             return "".join(result)
     elif state.auto_tables:
         tables = []
         for expr in state.auto_tables:
-            table = compile(state, expr)
+            table = compile(state, expr, raw=True)
             if table not in tables:
                 tables.append(table)
         return ", ".join(tables)
     elif expr.default_tables is not Undef:
-        return compile(state, expr.default_tables)
+        return compile(state, expr.default_tables, raw=True)
     raise NoTableError("Couldn't find any tables")
 
 def build_table(compile, state, expr):
     if expr.table is not Undef:
-        return compile(state, expr.table)
+        return compile(state, expr.table, raw=True)
     elif state.auto_tables:
         tables = []
         for expr in state.auto_tables:
-            table = compile(state, expr)
+            table = compile(state, expr, raw=True)
             if table not in tables:
                 tables.append(table)
         return ", ".join(tables)
     elif expr.default_table is not Undef:
-        return compile(state, expr.default_table)
+        return compile(state, expr.default_table, raw=True)
     raise NoTableError("Couldn't find any table")
 
 
@@ -367,35 +491,37 @@ class Select(Expr):
 
 @compile.when(Select)
 def compile_select(compile, state, select):
-    state.push("auto_tables", [])
-    state.push("column_prefix", True)
     tokens = ["SELECT "]
     if select.distinct:
         tokens.append("DISTINCT ")
+    state.push("auto_tables", [])
+    state.push("context", COLUMN)
     tokens.append(compile(state, select.columns))
     tables_pos = len(tokens)
     parameters_pos = len(state.parameters)
+    state.context = EXPR
     if select.where is not Undef:
         tokens.append(" WHERE ")
-        tokens.append(compile(state, select.where))
+        tokens.append(compile(state, select.where, raw=True))
     if select.order_by is not Undef:
         tokens.append(" ORDER BY ")
-        tokens.append(compile(state, select.order_by))
+        tokens.append(compile(state, select.order_by, raw=True))
     if select.group_by is not Undef:
         tokens.append(" GROUP BY ")
-        tokens.append(compile(state, select.group_by))
+        tokens.append(compile(state, select.group_by, raw=True))
     if select.limit is not Undef:
         tokens.append(" LIMIT %d" % select.limit)
     if select.offset is not Undef:
         tokens.append(" OFFSET %d" % select.offset)
-    state.pop()
     if has_tables(state, select):
+        state.context = TABLE
         state.push("parameters", [])
         tokens.insert(tables_pos, " FROM ")
         tokens.insert(tables_pos+1, build_tables(compile, state, select))
         parameters = state.parameters
         state.pop()
         state.parameters[parameters_pos:parameters_pos] = parameters
+    state.pop()
     state.pop()
     return "".join(tokens)
 
@@ -410,10 +536,15 @@ class Insert(Expr):
 
 @compile.when(Insert)
 def compile_insert(compile, state, insert):
+    state.push("context", COLUMN_NAME)
     columns = compile(state, insert.columns)
-    tokens = ["INSERT INTO ", build_table(compile, state, insert),
-              " (", columns, ") VALUES (", compile(state, insert.values), ")"]
-    return "".join(tokens)
+    state.context = TABLE
+    table = build_table(compile, state, insert)
+    state.context = EXPR
+    values = compile(state, insert.values)
+    state.pop()
+    return "".join(["INSERT INTO ", table, " (", columns,
+                    ") VALUES (", values, ")"])
 
 
 class Update(Expr):
@@ -427,15 +558,17 @@ class Update(Expr):
 @compile.when(Update)
 def compile_update(compile, state, update):
     set = update.set
+    state.push("context", COLUMN_NAME)
     sets = ["%s=%s" % (compile(state, col), compile(state, set[col]))
             for col in set]
+    state.context = TABLE
     tokens = ["UPDATE ", build_table(compile, state, update),
               " SET ", ", ".join(sets)]
     if update.where is not Undef:
-        state.push("column_prefix", True)
+        state.context = EXPR
         tokens.append(" WHERE ")
-        tokens.append(compile(state, update.where))
-        state.pop()
+        tokens.append(compile(state, update.where, raw=True))
+    state.pop()
     return "".join(tokens)
 
 
@@ -449,13 +582,14 @@ class Delete(Expr):
 @compile.when(Delete)
 def compile_delete(compile, state, delete):
     tokens = ["DELETE FROM ", None]
+    state.push("context", EXPR)
     if delete.where is not Undef:
-        state.push("column_prefix", True)
         tokens.append(" WHERE ")
-        tokens.append(compile(state, delete.where))
-        state.pop()
+        tokens.append(compile(state, delete.where, raw=True))
     # Compile later for auto_tables support.
+    state.context = TABLE
     tokens[1] = build_table(compile, state, delete)
+    state.pop()
     return "".join(tokens)
 
 
@@ -473,13 +607,49 @@ class Column(ComparableExpr):
 def compile_column(compile, state, column):
     if column.table is not Undef:
         state.auto_tables.append(column.table)
-    if column.table is Undef or not state.column_prefix:
+    if column.table is Undef or state.context is COLUMN_NAME:
+        if state.aliases is not None:
+            # See compile_set_expr().
+            alias = state.aliases.get(column)
+            if alias is not None:
+                return alias.name
         return column.name
-    return "%s.%s" % (compile(state, column.table), column.name)
+    state.push("context", COLUMN_PREFIX)
+    table = compile(state, column.table, raw=True)
+    state.pop()
+    return "%s.%s" % (table, column.name)
 
 @compile_python.when(Column)
 def compile_python_column(compile, state, column):
     return "get_column(%s)" % repr(column.name)
+
+
+# --------------------------------------------------------------------
+# Alias expressions
+
+class Alias(ComparableExpr):
+    """A representation of "AS" alias clauses. e.g., SELECT foo AS bar.
+    """
+
+    auto_counter = 0
+
+    def __init__(self, expr, name=Undef):
+        """Create alias of C{expr} AS C{name}.
+
+        If C{name} is not given, then a name will automatically be
+        generated.
+        """
+        self.expr = expr
+        if name is Undef:
+            Alias.auto_counter += 1
+            name = "_%x" % Alias.auto_counter
+        self.name = name
+
+@compile.when(Alias)
+def compile_alias(compile, state, alias):
+    if state.context is COLUMN or state.context is TABLE:
+        return "%s AS %s" % (compile(state, alias.expr), alias.name)
+    return alias.name
 
 
 # --------------------------------------------------------------------
@@ -499,25 +669,6 @@ def compile_table(compile, state, table):
     return table.name
 
 
-class Alias(FromExpr):
-    
-    auto_counter = 0
-
-    def __init__(self, expr, name=Undef):
-        self.expr = expr
-        if name is Undef:
-            Alias.auto_counter += 1
-            name = "_%x" % Alias.auto_counter
-        self.name = name
-
-
-@compile.when(Alias)
-def compile_alias(compile, state, alias):
-    if state.column_prefix:
-        return alias.name
-    return "%s AS %s" % (compile(state, alias.expr), alias.name)
-
-
 class JoinExpr(FromExpr):
 
     left = on = Undef
@@ -529,7 +680,7 @@ class JoinExpr(FromExpr):
             self.right = arg1
             if on is not Undef:
                 self.on = on
-        elif not isinstance(arg2, Expr) or isinstance(arg2, FromExpr):
+        elif not isinstance(arg2, Expr) or isinstance(arg2, (FromExpr, Alias)):
             self.left = arg1
             self.right = arg2
             if on is not Undef:
@@ -544,15 +695,16 @@ class JoinExpr(FromExpr):
 @compile.when(JoinExpr)
 def compile_join(compile, state, expr):
     result = []
+    # Ensure that nested JOINs get parentheses.
     state.precedence += 0.5
     if expr.left is not Undef:
-        result.append(compile(state, expr.left))
+        result.append(compile(state, expr.left, raw=True))
     result.append(expr.oper)
-    result.append(compile(state, expr.right))
+    result.append(compile(state, expr.right, raw=True))
     if expr.on is not Undef:
-        state.push("column_prefix", True)
+        state.push("context", EXPR)
         result.append("ON")
-        result.append(compile(state, expr.on))
+        result.append(compile(state, expr.on, raw=True))
         state.pop()
     return " ".join(result)
 
@@ -596,7 +748,7 @@ class NonAssocBinaryOper(BinaryOper):
 @compile_python.when(NonAssocBinaryOper)
 def compile_non_assoc_binary_oper(compile, state, oper):
     expr1 = compile(state, oper.expr1)
-    state.precedence += 0.5
+    state.precedence += 0.5 # Enforce parentheses.
     expr2 = compile(state, oper.expr2)
     return "%s%s%s" % (expr1, oper.oper, expr2)
 
@@ -606,11 +758,11 @@ class CompoundOper(CompoundExpr):
 
 @compile.when(CompoundOper)
 def compile_compound_oper(compile, state, oper):
-    return "%s" % compile(state, oper.exprs, oper.oper)
+    return compile(state, oper.exprs, oper.oper)
 
 @compile_python.when(CompoundOper)
 def compile_compound_oper(compile, state, oper):
-    return "%s" % compile(state, oper.exprs, oper.oper.lower())
+    return compile(state, oper.exprs, oper.oper.lower())
 
 
 class Eq(BinaryOper):
@@ -659,6 +811,19 @@ class LShift(BinaryOper):
 class Like(BinaryOper):
     oper = " LIKE "
 
+    def __init__(self, expr1, expr2, escape=Undef):
+        self.expr1 = expr1
+        self.expr2 = expr2
+        self.escape = escape
+
+@compile.when(Like)
+def compile_binary_oper(compile, state, like):
+    statement = "%s%s%s" % (compile(state, like.expr1), like.oper,
+                            compile(state, like.expr2))
+    if like.escape is not Undef:
+        statement = "%s ESCAPE %s" % (statement, compile(state, like.escape))
+    return statement
+
 # It's easy to support it. Later.
 compile_python.when(Like)(compile_python_unsupported)
 
@@ -679,13 +844,6 @@ def compile_in(compile, state, expr):
     return "%s in (%s,)" % (expr1, compile(state, expr.expr2))
 
 
-class And(CompoundOper):
-    oper = " AND "
-
-class Or(CompoundOper):
-    oper = " OR "
-
-
 class Add(CompoundOper):
     oper = "+"
 
@@ -700,6 +858,94 @@ class Div(NonAssocBinaryOper):
 
 class Mod(NonAssocBinaryOper):
     oper = "%"
+
+
+class And(CompoundOper):
+    oper = " AND "
+
+class Or(CompoundOper):
+    oper = " OR "
+
+@compile.when(And, Or)
+def compile_compound_oper(compile, state, oper):
+    return compile(state, oper.exprs, oper.oper, raw=True)
+
+
+# --------------------------------------------------------------------
+# Set expressions.
+
+class SetExpr(Expr):
+    oper = " (unknown) "
+
+    def __init__(self, *exprs, **kwargs):
+        self.exprs = exprs
+        self.all = kwargs.get("all", False)
+        self.order_by = kwargs.get("order_by", Undef)
+        self.limit = kwargs.get("limit", Undef)
+        self.offset = kwargs.get("offset", Undef)
+
+@compile.when(SetExpr)
+def compile_set_expr(compile, state, expr):
+    if expr.order_by is not Undef:
+        # When ORDER BY is present, databases usually have trouble using
+        # fully qualified column names.  Because of that, we transform
+        # pure column names into aliases, and use them in the ORDER BY.
+        aliases = {}
+        for subexpr in expr.exprs:
+            if isinstance(subexpr, Select):
+                columns = subexpr.columns
+                if not isinstance(columns, (tuple, list)):
+                    columns = [columns]
+                else:
+                    columns = list(columns)
+                for i, column in enumerate(columns):
+                    if column not in aliases:
+                        if isinstance(column, Column):
+                            aliases[column] = columns[i] = Alias(column)
+                        elif isinstance(column, Alias):
+                            aliases[column.expr] = column
+                subexpr.columns = columns
+
+    state.push("context", SELECT)
+    # In the statement:
+    #   SELECT foo UNION SELECT bar LIMIT 1
+    # The LIMIT 1 applies to the union results, not the SELECT bar
+    # This ensures that parentheses will be placed around the
+    # sub-selects in the expression.
+    state.precedence += 0.5
+    oper = expr.oper
+    if expr.all:
+        oper += "ALL "
+    statement = compile(state, expr.exprs, oper)
+    state.precedence -= 0.5
+    if expr.order_by is not Undef:
+        state.context = COLUMN_NAME
+        if state.aliases is None:
+            state.push("aliases", aliases)
+        else:
+            # Previously defined aliases have precedence.
+            aliases.update(state.aliases)
+            state.aliases = aliases
+            aliases = None
+        statement += " ORDER BY " + compile(state, expr.order_by)
+        if aliases is not None:
+            state.pop()
+    if expr.limit is not Undef:
+        statement += " LIMIT %d" % expr.limit
+    if expr.offset is not Undef:
+        statement += " OFFSET %d" % expr.offset
+    state.pop()
+    return statement
+
+
+class Union(SetExpr):
+    oper = " UNION "
+
+class Except(SetExpr):
+    oper = " EXCEPT "
+
+class Intersect(SetExpr):
+    oper = " INTERSECT "
 
 
 # --------------------------------------------------------------------
@@ -785,7 +1031,7 @@ class SuffixExpr(Expr):
 
 @compile.when(SuffixExpr)
 def compile_suffix_expr(compile, state, expr):
-    return "%s %s" % (compile(state, expr.expr), expr.suffix)
+    return "%s %s" % (compile(state, expr.expr, raw=True), expr.suffix)
 
 
 class Not(PrefixExpr):
@@ -803,6 +1049,20 @@ class Desc(SuffixExpr):
 
 # --------------------------------------------------------------------
 # Plain SQL expressions.
+
+class SQLRaw(str):
+    """Subtype to mark a string as something that shouldn't be compiled.
+
+    This is handled internally by the compiler.
+    """
+
+class SQLToken(str):
+    """Marker for strings the should be considered as a single SQL token.
+
+    In the future, these strings will be quoted, when needed.
+
+    This is handled internally by the compiler.
+    """
 
 class SQL(ComparableExpr):
 
@@ -850,6 +1110,7 @@ def compare_columns(columns, values):
 compile.set_precedence(10, Select, Insert, Update, Delete)
 compile.set_precedence(10, Join, LeftJoin, RightJoin)
 compile.set_precedence(10, NaturalJoin, NaturalLeftJoin, NaturalRightJoin)
+compile.set_precedence(10, Union, Except, Intersect)
 compile.set_precedence(20, SQL)
 compile.set_precedence(30, Or)
 compile.set_precedence(40, And)
