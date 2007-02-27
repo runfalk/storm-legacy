@@ -899,6 +899,7 @@ class ResultSet(object):
                     variables[column].checkpoint()
 
     def cached(self):
+        """Return matching objects from the cache for the current query."""
         if type(self._cls_spec_info) is tuple:
             raise FeatureError("Cached finds not supported with tuples")
         if self._tables is not Undef:
