@@ -842,6 +842,17 @@ class ResultSet(object):
                 yield tuple(variable.get() for variable in variables)
 
     def set(self, *args, **kwargs):
+        """Update objects in the result set with the given arguments.
+
+        This method will update all objects in the current result set
+        to match expressions given as equalities or keyword arguments.
+        These objects may still be in the database (an UPDATE is issued)
+        or may be cached.
+
+        For instance, C{result.set(Class.attr1 == 1, attr2=2)} will set
+        C{attr1} to 1 and C{attr2} to 2, on all matching objects.
+        """
+
         if type(self._cls_spec_info) is tuple:
             raise FeatureError("Setting isn't supported with tuple finds")
         if self._select is not Undef:
@@ -854,6 +865,7 @@ class ResultSet(object):
         changes = {}
         cls = self._cls_spec_info.cls
 
+        # For now only "Class.attr == var" is supported in args.
         for expr in args:
             if (not isinstance(expr, Eq) or
                 not isinstance(expr.expr1, Column) or
@@ -881,9 +893,8 @@ class ResultSet(object):
             cached = self.cached()
         except CompileError:
             for obj_info in self._store._iter_cached():
-                obj = obj_info.get_obj()
-                if obj is not None and isinstance(obj, cls):
-                    self._store.reload(obj)
+                for column in changes:
+                    obj_info.variables[column].set(AutoReload)
         else:
             changes = changes.items()
             for obj in cached:
@@ -914,11 +925,14 @@ class ResultSet(object):
         objects = []
         cls = self._cls_spec_info.cls
         for obj_info in self._store._iter_cached():
-            if (obj_info.cls_info is self._cls_spec_info and
-                (match is None or match(get_column))):
-                obj = obj_info.get_obj()
-                if obj is not None:
-                    objects.append(obj)
+            try:
+                if (obj_info.cls_info is self._cls_spec_info and
+                    (match is None or match(get_column))):
+                    obj = obj_info.get_obj()
+                    if obj is not None:
+                        objects.append(obj)
+            except LostObjectError:
+                pass
         return objects
 
     def _set_expr(self, expr_cls, other, all=False):
