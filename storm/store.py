@@ -123,11 +123,6 @@ class Store(object):
     def using(self, *tables):
         return self._table_set(self, tables)
 
-    def new(self, cls, *args, **kwargs):
-        obj = cls(*args, **kwargs)
-        self.add(obj)
-        return obj
-
     def add(self, obj):
         obj_info = get_obj_info(obj)
 

@@ -970,19 +970,6 @@ class StoreTest(object):
         self.store.reload(bar)
         self.assertEquals(bar.title, "Title 500")
 
-    def test_new(self):
-        class MyFoo(Foo):
-            def __init__(self, id, title):
-                self.id = id
-                self.title = title
-
-        foo = self.store.new(MyFoo, 40, title="Title 40")
-        
-        self.assertEquals(type(foo), MyFoo)
-        self.assertEquals(foo.id, 40)
-        self.assertEquals(foo.title, "Title 40")
-        self.assertEquals(Store.of(foo), self.store)
-
     def test_remove_commit(self):
         foo = self.store.get(Foo, 20)
         self.store.remove(foo)
@@ -2136,7 +2123,7 @@ class StoreTest(object):
             bar_id = Int("foo_id")
             bar = Reference(bar_id, id)
 
-        bar = self.store.new(Bar)
+        bar = self.store.add(Bar())
         bar.id = 400
         bar.title = "Title 400"
         bar.bar_id = 100
