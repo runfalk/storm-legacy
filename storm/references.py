@@ -286,7 +286,9 @@ class BoundIndirectReferenceSet(object):
     def add(self, remote):
         link = self._link_cls()
         self._relation1.link(self._local, link, True)
-        self._relation2.link(remote, link, True)
+        # Don't use remote here, as it might be security
+        # proxied or something. # XXX UNTESTED!
+        self._relation2.link(get_obj_info(remote).get_obj(), link, True)
 
     def remove(self, remote):
         store = Store.of(self._local)
