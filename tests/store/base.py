@@ -2483,6 +2483,24 @@ class StoreTest(object):
         foo = self.store.get(FooRefSet, 20)
         self.assertTrue(foo.bars.any().id in [200, 400])
 
+    def test_reference_set_one(self):
+        self.add_reference_set_bar_400()
+
+        foo = self.store.get(FooRefSetOrderID, 20)
+        self.assertRaises(NotOneError, foo.bars.one)
+
+        foo = self.store.get(FooRefSetOrderID, 30)
+        self.assertEquals(foo.bars.one().id, 300)
+
+        foo = self.store.get(FooRefSetOrderID, 20)
+        self.assertEquals(foo.bars.one(Bar.id > 400), None)
+
+        foo = self.store.get(FooRefSetOrderID, 20)
+        self.assertEquals(foo.bars.one(Bar.id < 400).id, 200)
+
+        foo = self.store.get(FooRefSetOrderID, 20)
+        self.assertEquals(foo.bars.one(id=200).id, 200)
+
     def test_reference_set_remove(self):
         self.add_reference_set_bar_400()
 
@@ -2776,6 +2794,22 @@ class StoreTest(object):
 
         foo = self.store.get(FooIndRefSet, 20)
         self.assertTrue(foo.bars.any().id in [100, 200])
+
+    def test_indirect_reference_set_any(self):
+        foo = self.store.get(FooIndRefSetOrderID, 20)
+        self.assertRaises(NotOneError, foo.bars.one)
+
+        foo = self.store.get(FooIndRefSetOrderID, 30)
+        self.assertEquals(foo.bars.one().id, 300)
+
+        foo = self.store.get(FooIndRefSetOrderID, 20)
+        self.assertEquals(foo.bars.one(Bar.id > 200), None)
+
+        foo = self.store.get(FooIndRefSetOrderID, 20)
+        self.assertEquals(foo.bars.one(Bar.id < 200).id, 100)
+
+        foo = self.store.get(FooIndRefSetOrderID, 20)
+        self.assertEquals(foo.bars.one(id=200).id, 200)
 
     def test_indirect_reference_set_add(self):
         foo = self.store.get(FooIndRefSet, 20)

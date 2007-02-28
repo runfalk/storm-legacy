@@ -169,6 +169,9 @@ class BoundReferenceSet(object):
     def any(self, *args, **kwargs):
         return self.find(*args, **kwargs).any()
 
+    def one(self, *args, **kwargs):
+        return self.find(*args, **kwargs).one()
+
     def values(self, *columns):
         return self.find().values(*columns)
 
@@ -245,6 +248,9 @@ class BoundIndirectReferenceSet(object):
 
     def any(self, *args, **kwargs):
         return self.find(*args, **kwargs).any()
+
+    def one(self, *args, **kwargs):
+        return self.find(*args, **kwargs).one()
 
     def values(self, *columns):
         return self.find().values(*columns)
