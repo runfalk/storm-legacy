@@ -123,11 +123,6 @@ class Store(object):
     def using(self, *tables):
         return self._table_set(self, tables)
 
-    def new(self, cls, *args, **kwargs):
-        obj = cls(*args, **kwargs)
-        self.add(obj)
-        return obj
-
     def add(self, obj):
         obj_info = get_obj_info(obj)
 
@@ -149,6 +144,8 @@ class Store(object):
             self._set_dirty(obj_info)
             self._enable_lazy_resolving(obj_info)
             obj_info.event.emit("added")
+
+        return obj
 
     def remove(self, obj):
         obj_info = get_obj_info(obj)

@@ -215,6 +215,22 @@ class StoreTest(object):
         foo = self.store.get(Foo, 10)
         self.assertFalse(getattr(foo, "taint", False))
 
+    def test_add_returns_object(self):
+        """
+        Store.add() returns the object passed to it.  This allows this
+        kind of code:
+
+        thing = Thing()
+        store.add(thing)
+        return thing
+
+        to be simplified as:
+
+        return store.add(Thing())
+        """
+        foo = Foo()
+        self.assertEquals(self.store.add(foo), foo)
+
     def test_add_and_stop_referencing(self):
         # After adding an object, no references should be needed in
         # python for it still to be added to the database.
@@ -953,19 +969,6 @@ class StoreTest(object):
         self.store.flush()
         self.store.reload(bar)
         self.assertEquals(bar.title, "Title 500")
-
-    def test_new(self):
-        class MyFoo(Foo):
-            def __init__(self, id, title):
-                self.id = id
-                self.title = title
-
-        foo = self.store.new(MyFoo, 40, title="Title 40")
-        
-        self.assertEquals(type(foo), MyFoo)
-        self.assertEquals(foo.id, 40)
-        self.assertEquals(foo.title, "Title 40")
-        self.assertEquals(Store.of(foo), self.store)
 
     def test_remove_commit(self):
         foo = self.store.get(Foo, 20)
@@ -2120,7 +2123,7 @@ class StoreTest(object):
             bar_id = Int("foo_id")
             bar = Reference(bar_id, id)
 
-        bar = self.store.new(Bar)
+        bar = self.store.add(Bar())
         bar.id = 400
         bar.title = "Title 400"
         bar.bar_id = 100
