@@ -1,6 +1,6 @@
 import gc
 
-from storm.references import Reference, ReferenceSet
+from storm.references import Reference, ReferenceSet, Proxy
 from storm.database import Result
 from storm.properties import Int, Str, Unicode, Property, Pickle
 from storm.properties import PropertyPublisherMeta
@@ -58,6 +58,14 @@ class FooIndRefSetOrderTitle(Foo):
     bars = ReferenceSet(Foo.id, Link.foo_id, Link.bar_id, Bar.id,
                         order_by=Bar.title)
 
+class BarProxy(object):
+    __table__ = "bar", "id"
+    id = Int()
+    title = Unicode()
+    foo_id = Int()
+    foo = Reference(foo_id, Foo.id)
+    foo_title = Proxy(foo, Foo.title)
+
 
 class DecorateVariable(Variable):
 
@@ -72,12 +80,12 @@ class FooVariable(Foo):
     title = Property(variable_class=DecorateVariable)
 
 
-class Proxy(object):
+class Wrapper(object):
 
     def __init__(self, obj):
         self._obj = obj
 
-Proxy.__object_info = property(lambda self: self._obj.__object_info)
+Wrapper.__object_info = property(lambda self: self._obj.__object_info)
 
 
 class StoreTest(object):
@@ -3203,10 +3211,10 @@ class StoreTest(object):
 
         self.assertTrue(self.store.get(DictFoo, 40) is new_obj)
 
-    def test_proxy(self):
+    def test_wrapper(self):
         foo = self.store.get(Foo, 20)
-        proxy = Proxy(foo)
-        self.store.remove(proxy)
+        wrapper = Wrapper(foo)
+        self.store.remove(wrapper)
         self.store.flush()
         self.assertEquals(self.store.get(Foo, 20), None)
 
@@ -3744,6 +3752,54 @@ class StoreTest(object):
         result3 = result1.intersection(result2)
 
         self.assertEquals(result3.count(), 1)
+
+    def test_proxy(self):
+        bar = self.store.get(BarProxy, 200)
+        self.assertEquals(bar.foo_title, "Title 20")
+
+    def test_proxy_equals(self):
+        bar = self.store.find(BarProxy, BarProxy.foo_title == "Title 20").one()
+        self.assertTrue(bar)
+        self.assertEquals(bar.id, 200)
+
+    def test_proxy_as_column(self):
+        result = self.store.find(BarProxy, BarProxy.id == 200)
+        self.assertEquals(list(result.values(BarProxy.foo_title)),
+                          ["Title 20"])
+
+    def test_proxy_set(self):
+        bar = self.store.get(BarProxy, 200)
+        bar.foo_title = "New Title"
+        foo = self.store.get(Foo, 20)
+        self.assertEquals(foo.title, "New Title")
+
+    def get_bar_proxy_with_string(self):
+        class Base(object):
+            __metaclass__ = PropertyPublisherMeta
+
+        class MyBarProxy(Base):
+            __table__ = "bar", "id"
+            id = Int()
+            foo_id = Int()
+            foo = Reference("foo_id", "MyFoo.id")
+            foo_title = Proxy(foo, "MyFoo.title")
+
+        class MyFoo(Base):
+            __table__ = "foo", "id"
+            id = Int()
+            title = Unicode()
+
+        return MyBarProxy, MyFoo
+
+    def test_proxy_with_string(self):
+        MyBarProxy, MyFoo = self.get_bar_proxy_with_string()
+        bar = self.store.get(MyBarProxy, 200)
+        self.assertEquals(bar.foo_title, "Title 20")
+
+    def test_proxy_with_string_variable_factory_attribute(self):
+        MyBarProxy, MyFoo = self.get_bar_proxy_with_string()
+        variable = MyBarProxy.foo_title.variable_factory(value="Hello")
+        self.assertTrue(isinstance(variable, UnicodeVariable))
 
 
 class EmptyResultSetTest(object):

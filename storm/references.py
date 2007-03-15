@@ -9,8 +9,13 @@
 #
 from storm.exceptions import WrongStoreError, NoStoreError, ClassInfoError
 from storm.store import Store, get_where_for_args
-from storm.expr import Select, Column, Exists, Undef, SQLRaw, compare_columns
+from storm.expr import (
+    Select, Column, Exists, ComparableExpr, LeftJoin, Undef, SQLRaw,
+    compare_columns, compile)
 from storm.info import *
+
+
+__all__ = ["Reference", "ReferenceSet", "Proxy"]
 
 
 class Reference(object):
@@ -69,7 +74,7 @@ class Reference(object):
         else:
             self._relation.link(local, remote, True)
 
-    def _build_relation(self, used_cls):
+    def _build_relation(self, used_cls=None):
         if self._cls is None:
             assert used_cls is not None
             self._cls = _find_descriptor_class(used_cls, self)
@@ -81,7 +86,7 @@ class Reference(object):
 
     def __eq__(self, other):
         if self._relation is None:
-            self._build_relation(self._cls)
+            self._build_relation()
         return self._relation.get_where_for_local(other)
 
 
@@ -297,6 +302,67 @@ class BoundIndirectReferenceSet(object):
         where = (self._relation1.get_where_for_remote(self._local) &
                  self._relation2.get_where_for_remote(remote))
         store.find(self._link_cls, where).remove()
+
+
+class Proxy(ComparableExpr):
+    """Proxy exposes a referred object's column as a local column.
+
+    For example:
+
+    class Foo(object):
+        bar_id = Int()
+        bar = Reference(bar_id, Bar.id)
+        bar_title = Proxy(bar, Bar.title)
+
+    For most uses, Foo.bar_title should behave like if it was
+    a native property of Foo.
+    """
+
+    class RemoteProp(object):
+        """
+        This descriptor will resolve and set the _remote_prop attribute
+        when it's first used. It avoids having a test on every single
+        place where the attribute is touched.
+        """
+        def __get__(self, obj, cls=None):
+            resolver = PropertyResolver(obj, obj._cls)
+            obj._remote_prop = resolver.resolve_one(obj._unresolved_prop)
+            return obj._remote_prop
+
+    _remote_prop = RemoteProp()
+
+    def __init__(self, reference, remote_prop):
+        self._reference = reference
+        self._unresolved_prop = remote_prop
+        self._cls = None
+
+    def __get__(self, obj, cls=None):
+        if self._cls is None:
+            self._cls = _find_descriptor_class(cls, self)
+        if obj is None:
+            return self
+        return self._remote_prop.__get__(self._reference.__get__(obj))
+
+    def __set__(self, obj, value):
+        return self._remote_prop.__set__(self._reference.__get__(obj), value)
+
+    @property
+    def variable_factory(self):
+        return self._remote_prop.variable_factory
+
+@compile.when(Proxy)
+def compile_proxy(compile, state, proxy):
+    if proxy._reference._relation is None:
+        proxy._reference._build_relation()
+
+    # Inject the join between the table of the class holding the proxy
+    # and the table of the class which is the target of the reference.
+    left_join = LeftJoin(proxy._remote_prop.table,
+                         proxy._reference._relation.get_where_for_join())
+    state.auto_tables.append(left_join)
+
+    # And compile the remote property normally.
+    return compile(state, proxy._remote_prop)
 
 
 class Relation(object):
