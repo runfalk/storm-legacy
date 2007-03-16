@@ -111,14 +111,23 @@ class ExprTest(TestHelper):
         expr = Column()
         self.assertEquals(expr.name, Undef)
         self.assertEquals(expr.table, Undef)
+
+        # Test for identity. We don't want False there.
+        self.assertTrue(expr.primary is 0)
+
         self.assertEquals(expr.variable_factory, Variable)
 
     def test_column_constructor(self):
         objects = [object() for i in range(3)]
+        objects.insert(2, True)
         expr = Column(*objects)
         self.assertEquals(expr.name, objects[0])
         self.assertEquals(expr.table, objects[1])
-        self.assertEquals(expr.variable_factory, objects[2])
+
+        # Test for identity. We don't want True there either.
+        self.assertTrue(expr.primary is 1)
+
+        self.assertEquals(expr.variable_factory, objects[3])
 
     def test_func(self):
         expr = Func("myfunc", elem1, elem2)

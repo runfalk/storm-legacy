@@ -12,14 +12,14 @@ class BaseTest(TestHelper):
 
     def test_metaclass(self):
         class Class(Storm):
-            __storm_table__ = "table_name", "prop"
-            prop = Property()
+            __storm_table__ = "table_name"
+            prop = Property(primary=True)
         self.assertEquals(type(Class), PropertyPublisherMeta)
 
     def test_class_is_collectable(self):
         class Class(Storm):
-            __storm_table__ = "table_name", "prop"
-            prop = Property()
+            __storm_table__ = "table_name"
+            prop = Property(primary=True)
         obj = Class()
         get_info(obj) # Build all wanted meta-information.
         obj_ref = weakref.ref(obj)

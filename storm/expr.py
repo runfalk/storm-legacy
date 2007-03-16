@@ -559,10 +559,22 @@ def compile_delete(compile, state, delete):
 # Columns
 
 class Column(ComparableExpr):
+    """Representation of a column in some table.
 
-    def __init__(self, name=Undef, table=Undef, variable_factory=None):
+    @ivar name: Column name.
+    @ivar table: Column table (maybe another expression).
+    @ivar primary: Integer representing the primary key position of
+        this column, or 0 if it's not a primary key. May be provided as
+        a bool.
+    @ivar variable_factory: Factory producing C{Variable} instances typed
+        according to this column.
+    """
+
+    def __init__(self, name=Undef, table=Undef, primary=False,
+                 variable_factory=None):
         self.name = name
         self.table = table
+        self.primary = int(primary)
         self.variable_factory = variable_factory or Variable
 
 @compile.when(Column)

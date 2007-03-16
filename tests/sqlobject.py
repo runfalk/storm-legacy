@@ -91,10 +91,13 @@ class SQLObjectTest(TestHelper):
         self.assertEquals(person.name, "John Doe")
 
     def test_custom_id_name(self):
-        class MyPerson(self.Person):
+        class MyPerson(self.SQLObject):
+            _defaultOrder = "-Person.name"
             _table = "person"
             _idName = "name"
             _idType = unicode
+            age = IntCol()
+            ts = UtcDateTimeCol()
 
         person = MyPerson.get("John Doe")
 

@@ -13,8 +13,8 @@ class GetTest(TestHelper):
     def setUp(self):
         TestHelper.setUp(self)
         class Class(object):
-            __storm_table__ = "table", "column1"
-            prop1 = Property("column1")
+            __storm_table__ = "table"
+            prop1 = Property("column1", primary=True)
         self.Class = Class
         self.obj = Class()
 
@@ -60,8 +60,8 @@ class ClassInfoTest(TestHelper):
     def setUp(self):
         TestHelper.setUp(self)
         class Class(object):
-            __storm_table__ = "table", "column1"
-            prop1 = Property("column1")
+            __storm_table__ = "table"
+            prop1 = Property("column1", primary=True)
             prop2 = Property("column2")
         self.Class = Class
         self.cls_info = get_cls_info(Class)
@@ -83,9 +83,9 @@ class ClassInfoTest(TestHelper):
 
     def test_primary_key_composed(self):
         class Class(object):
-            __storm_table__ = "table", ("column2", "column1")
-            prop1 = Property("column1")
-            prop2 = Property("column2")
+            __storm_table__ = "table"
+            prop1 = Property("column1", primary=2)
+            prop2 = Property("column2", primary=1)
         cls_info = ClassInfo(Class)
 
         # Can't use == for props, since they're columns.
@@ -95,10 +95,10 @@ class ClassInfoTest(TestHelper):
 
     def test_primary_key_pos(self):
         class Class(object):
-            __storm_table__ = "table", ("column3", "column1")
-            prop1 = Property("column1")
+            __storm_table__ = "table"
+            prop1 = Property("column1", primary=2)
             prop2 = Property("column2")
-            prop3 = Property("column3")
+            prop3 = Property("column3", primary=1)
         cls_info = ClassInfo(Class)
         self.assertEquals(cls_info.primary_key_pos, (2, 0))
 
@@ -108,8 +108,8 @@ class ObjectInfoTest(TestHelper):
     def setUp(self):
         TestHelper.setUp(self)
         class Class(object):
-            __storm_table__ = "table", "column1"
-            prop1 = Property("column1")
+            __storm_table__ = "table"
+            prop1 = Property("column1", primary=True)
             prop2 = Property("column2")
         self.Class = Class
         self.obj = Class()
@@ -417,8 +417,8 @@ class ClassAliasTest(TestHelper):
     def setUp(self):
         TestHelper.setUp(self)
         class Class(object):
-            __storm_table__ = "table", "column1"
-            prop1 = Property("column1")
+            __storm_table__ = "table"
+            prop1 = Property("column1", primary=True)
         self.Class = Class
         self.obj = Class()
         self.ClassAlias = ClassAlias(self.Class, "alias")
@@ -448,11 +448,11 @@ class TypeCompilerTest(TestHelper):
     def test_nested_classes(self):
         """Convoluted case checking that the model is right."""
         class Class1(object):
-            __storm_table__ = "class1", "id"
-            id = Property()
+            __storm_table__ = "class1"
+            id = Property(primary=True)
         class Class2(object):
-            __storm_table__ = Class1, "id"
-            id = Property()
+            __storm_table__ = Class1
+            id = Property(primary=True)
         statement, parameters = compile(Class2)
         self.assertEquals(statement, "class1")
         alias = ClassAlias(Class2, "alias")

@@ -14,26 +14,26 @@ from tests.helper import run_this
 
 
 class Foo(object):
-    __storm_table__ = "foo", "id"
-    id = Int()
+    __storm_table__ = "foo"
+    id = Int(primary=True)
     title = Unicode()
 
 class Bar(object):
-    __storm_table__ = "bar", "id"
-    id = Int()
+    __storm_table__ = "bar"
+    id = Int(primary=True)
     title = Unicode()
     foo_id = Int()
     foo = Reference(foo_id, Foo.id)
 
 class Blob(object):
-    __storm_table__ = "bin", "id"
-    id = Int()
+    __storm_table__ = "bin"
+    id = Int(primary=True)
     bin = Str()
 
 class Link(object):
-    __storm_table__ = "link", ("foo_id", "bar_id")
-    foo_id = Int()
-    bar_id = Int()
+    __storm_table__ = "link"
+    foo_id = Int(primary=1)
+    bar_id = Int(primary=2)
 
 class FooRef(Foo):
     bar = Reference(Foo.id, Bar.foo_id)
@@ -280,9 +280,9 @@ class StoreTest(object):
 
     def test_get_tuple(self):
         class Foo(object):
-            __storm_table__ = "foo", ("title", "id")
-            id = Int()
-            title = Unicode()
+            __storm_table__ = "foo"
+            title = Unicode(primary=1)
+            id = Int(primary=2)
         foo = self.store.get(Foo, ("Title 30", 10))
         self.assertEquals(foo.id, 10)
         self.assertEquals(foo.title, "Title 30")
@@ -1382,8 +1382,8 @@ class StoreTest(object):
     def test_join(self):
 
         class Bar(object):
-            __storm_table__ = "bar", "id"
-            id = Int()
+            __storm_table__ = "bar"
+            id = Int(primary=True)
             title = Unicode()
 
         bar = Bar()
@@ -1411,8 +1411,8 @@ class StoreTest(object):
     def test_join_distinct(self):
 
         class Bar(object):
-            __storm_table__ = "bar", "id"
-            id = Int()
+            __storm_table__ = "bar"
+            id = Int(primary=True)
             title = Unicode()
 
         bar = Bar()
@@ -1421,7 +1421,7 @@ class StoreTest(object):
 
         self.store.add(bar)
 
-        # Add anbar object with the same title to ensure DISTINCT
+        # Add a bar object with the same title to ensure DISTINCT
         # is in place.
 
         bar = Bar()
@@ -1825,8 +1825,8 @@ class StoreTest(object):
 
     def test_reference_on_added_composed_key(self):
         class Bar(object):
-            __storm_table__ = "bar", "id"
-            id = Int()
+            __storm_table__ = "bar"
+            id = Int(primary=True)
             foo_id = Int()
             title = Unicode()
             foo = Reference((foo_id, title), (Foo.id, Foo.title))
@@ -1856,8 +1856,8 @@ class StoreTest(object):
 
     def test_reference_assign_composed_remote_key(self):
         class Bar(object):
-            __storm_table__ = "bar", "id"
-            id = Int()
+            __storm_table__ = "bar"
+            id = Int(primary=True)
             foo_id = Int()
             title = Unicode()
             foo = Reference((foo_id, title), (Foo.id, Foo.title))
@@ -1932,8 +1932,8 @@ class StoreTest(object):
 
     def test_reference_on_added_composed_key_changed_manually(self):
         class Bar(object):
-            __storm_table__ = "bar", "id"
-            id = Int()
+            __storm_table__ = "bar"
+            id = Int(primary=True)
             foo_id = Int()
             title = Str()
             foo = Reference((foo_id, title), (Foo.id, Foo.title))
@@ -2077,8 +2077,8 @@ class StoreTest(object):
 
     def test_reference_self(self):
         class Bar(object):
-            __storm_table__ = "bar", "id"
-            id = Int()
+            __storm_table__ = "bar"
+            id = Int(primary=True)
             title = Str()
             bar_id = Int("foo_id")
             bar = Reference(bar_id, id)
@@ -2872,15 +2872,15 @@ class StoreTest(object):
             __metaclass__ = PropertyPublisherMeta
 
         class MyBar(Base):
-            __storm_table__ = "bar", "id"
-            id = Int()
+            __storm_table__ = "bar"
+            id = Int(primary=True)
             title = Unicode()
             foo_id = Int()
             foo = Reference("foo_id", "MyFoo.id")
 
         class MyFoo(Base):
-            __storm_table__ = "foo", "id"
-            id = Int()
+            __storm_table__ = "foo"
+            id = Int(primary=True)
             title = Unicode()
 
         bar = self.store.get(MyBar, 100)
@@ -2893,21 +2893,21 @@ class StoreTest(object):
             __metaclass__ = PropertyPublisherMeta
 
         class MyFoo(Base):
-            __storm_table__ = "foo", "id"
-            id = Int()
+            __storm_table__ = "foo"
+            id = Int(primary=True)
             title = Unicode()
             bars = ReferenceSet("id", "MyLink.foo_id",
                                 "MyLink.bar_id", "MyBar.id")
 
         class MyBar(Base):
-            __storm_table__ = "bar", "id"
-            id = Int()
+            __storm_table__ = "bar"
+            id = Int(primary=True)
             title = Unicode()
 
         class MyLink(Base):
-            __storm_table__ = "link", ("foo_id", "bar_id")
-            foo_id = Int()
-            bar_id = Int()
+            __storm_table__ = "link"
+            foo_id = Int(primary=1)
+            bar_id = Int(primary=2)
 
         foo = self.store.get(MyFoo, 20)
 
