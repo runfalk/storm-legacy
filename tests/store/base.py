@@ -232,7 +232,7 @@ class StoreTest(object):
         # while still holding a reference to the obj_info.
         class MyFoo(Foo):
             loaded = False
-            def __loaded__(self):
+            def __storm_loaded__(self):
                 self.loaded = True
 
         foo = self.store.get(MyFoo, 20)
@@ -1472,14 +1472,14 @@ class StoreTest(object):
 
         self.assertTrue(self.store.get(Foo, 20) is foo)
 
-    def test__loaded__(self):
+    def test_loaded_hook(self):
 
         loaded = []
 
         class MyFoo(Foo):
             def __init__(self):
                 loaded.append("NO!")
-            def __loaded__(self):
+            def __storm_loaded__(self):
                 loaded.append((self.id, self.title))
                 self.title = "Title 200"
                 self.some_attribute = 1
@@ -1505,11 +1505,11 @@ class StoreTest(object):
         self.assertEquals(foo.title, "Title 20")
         self.assertEquals(foo.some_attribute, 2)
 
-    def test__flushed__(self):
+    def test_flushed_hook(self):
 
         class MyFoo(Foo):
             done = False
-            def __flushed__(self):
+            def __storm_flushed__(self):
                 if not self.done:
                     self.done = True
                     self.title = "Flushed: %s" % self.title
@@ -3493,7 +3493,7 @@ class StoreTest(object):
     def test_invalidate_hook(self):
         called = []
         class MyFoo(Foo):
-            def __invalidate__(self):
+            def __storm_invalidate__(self):
                 called.append(True)
         foo = self.store.get(MyFoo, 20)
         self.assertEquals(called, [])

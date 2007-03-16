@@ -210,9 +210,7 @@ class Store(object):
                 # (e.g. by a get()), the database should be queried to see
                 # if the object's still there.
                 obj_info["invalidated"] = True
-                hook = getattr(obj_info.get_obj(), "__invalidate__", None)
-                if hook is not None:
-                    hook()
+                self._run_hook(obj_info, "__storm_invalidate__")
 
     def add_flush_order(self, before, after):
         pair = (get_obj_info(before), get_obj_info(after))
@@ -339,7 +337,7 @@ class Store(object):
 
             obj_info.checkpoint()
 
-        self._run_hook(obj_info, "__flushed__")
+        self._run_hook(obj_info, "__storm_flushed__")
 
         obj_info.event.emit("flushed")
 
@@ -474,7 +472,7 @@ class Store(object):
             self._enable_change_notification(obj_info)
             self._enable_lazy_resolving(obj_info)
 
-            self._run_hook(obj_info, "__loaded__")
+            self._run_hook(obj_info, "__storm_loaded__")
             return obj
 
     def _rebuild_deleted_object(self, obj_info):
@@ -483,7 +481,7 @@ class Store(object):
         obj = cls.__new__(cls)
         obj_info.set_obj(obj)
         set_obj_info(obj, obj_info)
-        self._run_hook(obj_info, "__loaded__")
+        self._run_hook(obj_info, "__storm_loaded__")
         return obj
 
     @staticmethod
