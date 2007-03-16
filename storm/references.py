@@ -20,10 +20,11 @@ __all__ = ["Reference", "ReferenceSet", "Proxy"]
 
 class Reference(object):
 
-    def __init__(self, local_key, remote_key, on_remote=False):
+    def __init__(self, local_key, remote_key, on_remote=False, adapt=True):
         self._local_key = local_key
         self._remote_key = remote_key
         self._on_remote = on_remote
+        self._adapt = adapt
         self._relation = None
         self._cls = None
 
@@ -50,10 +51,14 @@ class Reference(object):
 
         if self._relation.remote_key_is_primary:
             remote = store.get(self._relation.remote_cls,
-                               self._relation.get_local_variables(local))
+                               self._relation.get_local_variables(local),
+                               adapt=self._adapt)
         else:
             where = self._relation.get_where_for_remote(local)
-            remote = store.find(self._relation.remote_cls, where).one()
+            result = store.find(self._relation.remote_cls, where)
+            if self._adapt is False:
+                result.config(adapt=False)
+            remote = result.one()
 
         if remote is not None:
             self._relation.link(local, remote)
@@ -93,12 +98,13 @@ class Reference(object):
 class ReferenceSet(object):
 
     def __init__(self, local_key1, remote_key1,
-                 remote_key2=None, local_key2=None, order_by=None):
+                 remote_key2=None, local_key2=None, order_by=None, adapt=True):
         self._local_key1 = local_key1
         self._remote_key1 = remote_key1
         self._remote_key2 = remote_key2
         self._local_key2 = local_key2
         self._order_by = order_by
+        self._adapt = adapt
         self._relation1 = None
         self._relation2 = None
 
@@ -116,11 +122,12 @@ class ReferenceSet(object):
         #    return None
 
         if self._relation2 is None:
-            return BoundReferenceSet(self._relation1, local, self._order_by)
+            return BoundReferenceSet(self._relation1, local,
+                                     self._order_by, self._adapt)
         else:
             return BoundIndirectReferenceSet(self._relation1,
                                              self._relation2, local,
-                                             self._order_by)
+                                             self._order_by, self._adapt)
 
     def _build_relations(self, used_cls):
         resolver = PropertyResolver(self, used_cls)
@@ -137,33 +144,10 @@ class ReferenceSet(object):
                                        True, True)
 
 
-class BoundReferenceSet(object):
-
-    def __init__(self, relation, local, order_by):
-        self._relation = relation
-        self._local = local
-        self._target_cls = self._relation.remote_cls
-        self._order_by = order_by
+class BoundReferenceSetBase(object):
 
     def __iter__(self):
-        store = Store.of(self._local)
-        if store is None:
-            raise NoStoreError("Can't perform operation without a store")
-        where = self._relation.get_where_for_remote(self._local)
-        result = store.find(self._target_cls, where)
-        if self._order_by is not None:
-            result = result.order_by(self._order_by)
-        return result.__iter__()
-
-    def find(self, *args, **kwargs):
-        store = Store.of(self._local)
-        if store is None:
-            raise NoStoreError("Can't perform operation without a store")
-        where = self._relation.get_where_for_remote(self._local)
-        result = store.find(self._target_cls, where, *args, **kwargs)
-        if self._order_by is not None:
-            return result.order_by(self._order_by)
-        return result
+        return self.find().__iter__()
 
     def first(self, *args, **kwargs):
         return self.find(*args, **kwargs).first()
@@ -181,18 +165,32 @@ class BoundReferenceSet(object):
         return self.find().values(*columns)
 
     def order_by(self, *args):
-        store = Store.of(self._local)
-        if store is None:
-            raise NoStoreError("Can't perform operation without a store")
-        where = self._relation.get_where_for_remote(self._local)
-        return store.find(self._target_cls, where).order_by(*args)
+        return self.find().order_by(*args)
 
     def count(self):
+        return self.find().count()
+
+
+class BoundReferenceSet(BoundReferenceSetBase):
+
+    def __init__(self, relation, local, order_by, adapt):
+        self._relation = relation
+        self._local = local
+        self._target_cls = self._relation.remote_cls
+        self._order_by = order_by
+        self._adapt = adapt
+
+    def find(self, *args, **kwargs):
         store = Store.of(self._local)
         if store is None:
             raise NoStoreError("Can't perform operation without a store")
         where = self._relation.get_where_for_remote(self._local)
-        return store.find(self._target_cls, where).count()
+        result = store.find(self._target_cls, where, *args, **kwargs)
+        if self._order_by is not None:
+            result.order_by(self._order_by)
+        if self._adapt is False:
+            result.config(adapt=False)
+        return result
 
     def clear(self, *args, **kwargs):
         set_kwargs = {}
@@ -212,27 +210,17 @@ class BoundReferenceSet(object):
                               get_obj_info(remote), True)
 
 
-class BoundIndirectReferenceSet(object):
+class BoundIndirectReferenceSet(BoundReferenceSetBase):
 
-    def __init__(self, relation1, relation2, local, order_by):
+    def __init__(self, relation1, relation2, local, order_by, adapt):
         self._relation1 = relation1
         self._relation2 = relation2
         self._local = local
         self._order_by = order_by
+        self._adapt = adapt
 
         self._target_cls = relation2.local_cls
         self._link_cls = relation1.remote_cls
-
-    def __iter__(self):
-        store = Store.of(self._local)
-        if store is None:
-            raise NoStoreError("Can't perform operation without a store")
-        where = (self._relation1.get_where_for_remote(self._local) &
-                 self._relation2.get_where_for_join())
-        result = store.find(self._target_cls, where)
-        if self._order_by is not None:
-            result = result.order_by(self._order_by)
-        return result.__iter__()
 
     def find(self, *args, **kwargs):
         store = Store.of(self._local)
@@ -242,39 +230,13 @@ class BoundIndirectReferenceSet(object):
                  self._relation2.get_where_for_join())
         result = store.find(self._target_cls, where, *args, **kwargs)
         if self._order_by is not None:
-            return result.order_by(self._order_by)
+            result.order_by(self._order_by)
+        if self._adapt is False:
+            result.config(adapt=False)
         return result
 
-    def first(self, *args, **kwargs):
-        return self.find(*args, **kwargs).first()
-
-    def last(self, *args, **kwargs):
-        return self.find(*args, **kwargs).last()
-
-    def any(self, *args, **kwargs):
-        return self.find(*args, **kwargs).any()
-
-    def one(self, *args, **kwargs):
-        return self.find(*args, **kwargs).one()
-
-    def values(self, *columns):
-        return self.find().values(*columns)
-
-    def order_by(self, *args):
-        store = Store.of(self._local)
-        if store is None:
-            raise NoStoreError("Can't perform operation without a store")
-        where = (self._relation1.get_where_for_remote(self._local) &
-                 self._relation2.get_where_for_join())
-        return store.find(self._target_cls, where).order_by(*args)
-
     def count(self):
-        store = Store.of(self._local)
-        if store is None:
-            raise NoStoreError("Can't perform operation without a store")
-        where = (self._relation1.get_where_for_remote(self._local) &
-                 self._relation2.get_where_for_join())
-        return store.find(self._target_cls, where).count()
+        return self.find().count()
 
     def clear(self, *args, **kwargs):
         store = Store.of(self._local)

@@ -71,7 +71,17 @@ class Store(object):
         self.invalidate()
         self._connection.rollback()
 
-    def get(self, cls, key):
+    def get(self, cls, key, **kwargs):
+        """Get object of type cls with the given primary key from the database.
+
+        If the object is cached the database won't be touched.
+
+        @param cls: Class of the object to be retrieved.
+        @param key: Primary key of object. May be a tuple for composed keys.
+        @param adapt: If false, the object won't be submitted to adaptation,
+                      after being loaded.
+        """
+
         self.flush()
 
         if type(key) != tuple:
@@ -87,6 +97,8 @@ class Store(object):
                 variable = column.variable_factory(value=variable)
             primary_vars.append(variable)
 
+        adapt = kwargs.get("adapt", True)
+
         obj_info = self._cache.get((cls_info.cls, tuple(primary_vars)))
         if obj_info is not None:
             if obj_info.get("invalidated"):
@@ -96,7 +108,9 @@ class Store(object):
                     return None
             obj = obj_info.get_obj()
             if obj is None:
-                return self._rebuild_deleted_object(obj_info)
+                obj = self._rebuild_deleted_object(obj_info)
+            if adapt:
+                return self._adapt(obj)
             return obj
 
         where = compare_columns(cls_info.primary_key, primary_vars)
@@ -108,7 +122,7 @@ class Store(object):
         values = result.get_one()
         if values is None:
             return None
-        return self._load_object(cls_info, result, values)
+        return self._load_object(cls_info, result, values, adapt)
 
     def find(self, cls_spec, *args, **kwargs):
         self.flush()
@@ -398,21 +412,21 @@ class Store(object):
             obj_info.pop("invalidated", None)
 
 
-    def _load_objects(self, cls_spec_info, result, values):
+    def _load_objects(self, cls_spec_info, result, values, adapt=True):
         if type(cls_spec_info) is not tuple:
-            return self._load_object(cls_spec_info, result, values)
+            return self._load_object(cls_spec_info, result, values, adapt)
         else:
             objects = []
             values_start = values_end = 0
             for cls_info in cls_spec_info:
                 values_end += len(cls_info.columns)
                 obj = self._load_object(cls_info, result,
-                                        values[values_start:values_end])
+                                        values[values_start:values_end], adapt)
                 objects.append(obj)
                 values_start = values_end
             return tuple(objects)
 
-    def _load_object(self, cls_info, result, values):
+    def _load_object(self, cls_info, result, values, adapt=True):
         # _set_values() need the cls_info columns for the class of the
         # actual object, not from a possible wrapper (e.g. an alias).
         cls = cls_info.cls
@@ -426,8 +440,7 @@ class Store(object):
             value = values[i]
             if value is not None:
                 is_null = False
-            variable = columns[i].variable_factory(value=value,
-                                                   from_db=True)
+            variable = columns[i].variable_factory(value=value, from_db=True)
             primary_vars.append(variable)
 
         if is_null:
@@ -448,11 +461,11 @@ class Store(object):
             obj = obj_info.get_obj()
             if obj is not None:
                 # Great, the object is still in memory. Nothing to do.
-                return obj
+                pass
             else:
                 # Object died while obj_info was still in memory.
                 # Rebuild the object and maintain the obj_info.
-                return self._rebuild_deleted_object(obj_info)
+                obj = self._rebuild_deleted_object(obj_info)
         
         else:
             # Nothing found in the cache. Build everything from the ground.
@@ -470,7 +483,17 @@ class Store(object):
             self._enable_lazy_resolving(obj_info)
 
             self._run_load_hook(obj_info, obj)
-            return obj
+
+        if adapt:
+            return self._adapt(obj)
+        return obj
+
+    @staticmethod
+    def _adapt(obj):
+        adapt_hook = getattr(obj, "__storm_adapt__", None)
+        if adapt_hook is not None:
+            return adapt_hook()
+        return obj
 
     def _rebuild_deleted_object(self, obj_info):
         """Rebuild a deleted object and maintain the obj_info."""
@@ -605,19 +628,38 @@ class ResultSet(object):
         self._offset = Undef
         self._limit = Undef
         self._distinct = False
+        self._adapt = True
 
     def copy(self):
+        """Return a copy of this resultset object, with the same configuration.
+        """
         result_set = object.__new__(self.__class__)
         result_set.__dict__.update(self.__dict__)
         return result_set
 
-    def config(self, distinct=None, offset=None, limit=None):
+    def config(self, distinct=None, offset=None, limit=None, adapt=None):
+        """Configure this result object in-place. All parameters are optional.
+
+        @param distinct: Boolean enabling/disabling usage of the DISTINCT
+            keyword in the query made.
+        @param offset: Offset where results will start to be retrieved
+            from the result set.
+        @param limit: Limit the number of objects retrieved from the
+            result set.
+        @param adapt: Boolean enabling/disabling adaptation of objects
+            retrieved.
+
+        @return: self (not a copy).
+        """
+
         if distinct is not None:
             self._distinct = distinct
         if offset is not None:
             self._offset = offset
         if limit is not None:
             self._limit = limit
+        if adapt is not None:
+            self._adapt = adapt
         return self
 
     def _get_select(self):
@@ -642,11 +684,14 @@ class ResultSet(object):
                       self._order_by, offset=self._offset, limit=self._limit,
                       distinct=self._distinct)
 
+    def _load_objects(self, result, values):
+        return self._store._load_objects(self._cls_spec_info, result, values,
+                                         self._adapt)
+
     def __iter__(self):
         result = self._store._connection.execute(self._get_select())
         for values in result:
-            yield self._store._load_objects(self._cls_spec_info,
-                                            result, values)
+            yield self._load_objects(result, values)
 
     def __getitem__(self, index):
         if isinstance(index, (int, long)):
@@ -699,8 +744,7 @@ class ResultSet(object):
         result = self._store._connection.execute(select)
         values = result.get_one()
         if values:
-            return self._store._load_objects(self._cls_spec_info,
-                                             result, values)
+            return self._load_objects(result, values)
         return None
 
     def first(self):
@@ -740,8 +784,7 @@ class ResultSet(object):
         result = self._store._connection.execute(select)
         values = result.get_one()
         if values:
-            return self._store._load_objects(self._cls_spec_info,
-                                             result, values)
+            return self._load_objects(result, values)
         return None
 
     def one(self):
@@ -760,8 +803,7 @@ class ResultSet(object):
         if result.get_one():
             raise NotOneError("one() used with more than one result available")
         if values:
-            return self._store._load_objects(self._cls_spec_info,
-                                             result, values)
+            return self._load_objects(result, values)
         return None
 
     def order_by(self, *args):
