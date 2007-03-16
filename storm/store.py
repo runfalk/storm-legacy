@@ -210,7 +210,9 @@ class Store(object):
                 # (e.g. by a get()), the database should be queried to see
                 # if the object's still there.
                 obj_info["invalidated"] = True
-                self._run_hook(obj_info, "__storm_invalidate__")
+        if invalidate:
+            for obj_info in obj_infos:
+                self._run_hook(obj_info, "__storm_invalidated__")
 
     def add_flush_order(self, before, after):
         pair = (get_obj_info(before), get_obj_info(after))

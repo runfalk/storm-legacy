@@ -3490,10 +3490,10 @@ class StoreTest(object):
         self.store.execute("DELETE FROM foo WHERE id=40")
         self.assertEquals(self.store.get(Foo, 40), foo)
 
-    def test_invalidate_hook(self):
+    def test_invalidated_hook(self):
         called = []
         class MyFoo(Foo):
-            def __storm_invalidate__(self):
+            def __storm_invalidated__(self):
                 called.append(True)
         foo = self.store.get(MyFoo, 20)
         self.assertEquals(called, [])
