@@ -126,7 +126,7 @@ class SQLObjectMeta(type(Storm)):
         # Handle this later to call _parse_orderBy() on the created class.
         default_order = cls._get_attr("_defaultOrder", bases, dict)
 
-        dict["__table__"] = table_name, id_name
+        dict["__storm_table__"] = table_name, id_name
 
         attr_to_prop = {}
         for attr, prop in dict.items():
@@ -197,7 +197,7 @@ class BoundDotQ(object):
         if attr.startswith('__'):
             raise AttributeError(attr)
         elif attr == 'id':
-            return getattr(self._cls, self._cls.__table__[1])
+            return getattr(self._cls, self._cls.__storm_table__[1])
         else:
             return getattr(self._cls, attr)
 
@@ -275,7 +275,7 @@ class SQLObjectBase(Storm):
             args = (clause,)
         if clauseTables is not None:
             clauseTables = set(table.lower() for table in clauseTables)
-            clauseTables.add(cls.__table__[0].lower())
+            clauseTables.add(cls.__storm_table__[0].lower())
             store = store.using(*clauseTables)
         result = store.find(cls, *args, **_by)
         if orderBy is not None:

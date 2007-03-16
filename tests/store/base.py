@@ -14,24 +14,24 @@ from tests.helper import run_this
 
 
 class Foo(object):
-    __table__ = "foo", "id"
+    __storm_table__ = "foo", "id"
     id = Int()
     title = Unicode()
 
 class Bar(object):
-    __table__ = "bar", "id"
+    __storm_table__ = "bar", "id"
     id = Int()
     title = Unicode()
     foo_id = Int()
     foo = Reference(foo_id, Foo.id)
 
 class Blob(object):
-    __table__ = "bin", "id"
+    __storm_table__ = "bin", "id"
     id = Int()
     bin = Str()
 
 class Link(object):
-    __table__ = "link", ("foo_id", "bar_id")
+    __storm_table__ = "link", ("foo_id", "bar_id")
     foo_id = Int()
     bar_id = Int()
 
@@ -280,7 +280,7 @@ class StoreTest(object):
 
     def test_get_tuple(self):
         class Foo(object):
-            __table__ = "foo", ("title", "id")
+            __storm_table__ = "foo", ("title", "id")
             id = Int()
             title = Unicode()
         foo = self.store.get(Foo, ("Title 30", 10))
@@ -1382,7 +1382,7 @@ class StoreTest(object):
     def test_join(self):
 
         class Bar(object):
-            __table__ = "bar", "id"
+            __storm_table__ = "bar", "id"
             id = Int()
             title = Unicode()
 
@@ -1411,7 +1411,7 @@ class StoreTest(object):
     def test_join_distinct(self):
 
         class Bar(object):
-            __table__ = "bar", "id"
+            __storm_table__ = "bar", "id"
             id = Int()
             title = Unicode()
 
@@ -1825,7 +1825,7 @@ class StoreTest(object):
 
     def test_reference_on_added_composed_key(self):
         class Bar(object):
-            __table__ = "bar", "id"
+            __storm_table__ = "bar", "id"
             id = Int()
             foo_id = Int()
             title = Unicode()
@@ -1856,7 +1856,7 @@ class StoreTest(object):
 
     def test_reference_assign_composed_remote_key(self):
         class Bar(object):
-            __table__ = "bar", "id"
+            __storm_table__ = "bar", "id"
             id = Int()
             foo_id = Int()
             title = Unicode()
@@ -1932,7 +1932,7 @@ class StoreTest(object):
 
     def test_reference_on_added_composed_key_changed_manually(self):
         class Bar(object):
-            __table__ = "bar", "id"
+            __storm_table__ = "bar", "id"
             id = Int()
             foo_id = Int()
             title = Str()
@@ -2077,7 +2077,7 @@ class StoreTest(object):
 
     def test_reference_self(self):
         class Bar(object):
-            __table__ = "bar", "id"
+            __storm_table__ = "bar", "id"
             id = Int()
             title = Str()
             bar_id = Int("foo_id")
@@ -2872,14 +2872,14 @@ class StoreTest(object):
             __metaclass__ = PropertyPublisherMeta
 
         class MyBar(Base):
-            __table__ = "bar", "id"
+            __storm_table__ = "bar", "id"
             id = Int()
             title = Unicode()
             foo_id = Int()
             foo = Reference("foo_id", "MyFoo.id")
 
         class MyFoo(Base):
-            __table__ = "foo", "id"
+            __storm_table__ = "foo", "id"
             id = Int()
             title = Unicode()
 
@@ -2893,19 +2893,19 @@ class StoreTest(object):
             __metaclass__ = PropertyPublisherMeta
 
         class MyFoo(Base):
-            __table__ = "foo", "id"
+            __storm_table__ = "foo", "id"
             id = Int()
             title = Unicode()
             bars = ReferenceSet("id", "MyLink.foo_id",
                                 "MyLink.bar_id", "MyBar.id")
 
         class MyBar(Base):
-            __table__ = "bar", "id"
+            __storm_table__ = "bar", "id"
             id = Int()
             title = Unicode()
 
         class MyLink(Base):
-            __table__ = "link", ("foo_id", "bar_id")
+            __storm_table__ = "link", ("foo_id", "bar_id")
             foo_id = Int()
             bar_id = Int()
 

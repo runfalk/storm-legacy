@@ -13,7 +13,7 @@ class GetTest(TestHelper):
     def setUp(self):
         TestHelper.setUp(self)
         class Class(object):
-            __table__ = "table", "column1"
+            __storm_table__ = "table", "column1"
             prop1 = Property("column1")
         self.Class = Class
         self.obj = Class()
@@ -60,7 +60,7 @@ class ClassInfoTest(TestHelper):
     def setUp(self):
         TestHelper.setUp(self)
         class Class(object):
-            __table__ = "table", "column1"
+            __storm_table__ = "table", "column1"
             prop1 = Property("column1")
             prop2 = Property("column2")
         self.Class = Class
@@ -83,7 +83,7 @@ class ClassInfoTest(TestHelper):
 
     def test_primary_key_composed(self):
         class Class(object):
-            __table__ = "table", ("column2", "column1")
+            __storm_table__ = "table", ("column2", "column1")
             prop1 = Property("column1")
             prop2 = Property("column2")
         cls_info = ClassInfo(Class)
@@ -95,7 +95,7 @@ class ClassInfoTest(TestHelper):
 
     def test_primary_key_pos(self):
         class Class(object):
-            __table__ = "table", ("column3", "column1")
+            __storm_table__ = "table", ("column3", "column1")
             prop1 = Property("column1")
             prop2 = Property("column2")
             prop3 = Property("column3")
@@ -108,7 +108,7 @@ class ObjectInfoTest(TestHelper):
     def setUp(self):
         TestHelper.setUp(self)
         class Class(object):
-            __table__ = "table", "column1"
+            __storm_table__ = "table", "column1"
             prop1 = Property("column1")
             prop2 = Property("column2")
         self.Class = Class
@@ -417,7 +417,7 @@ class ClassAliasTest(TestHelper):
     def setUp(self):
         TestHelper.setUp(self)
         class Class(object):
-            __table__ = "table", "column1"
+            __storm_table__ = "table", "column1"
             prop1 = Property("column1")
         self.Class = Class
         self.obj = Class()
@@ -448,10 +448,10 @@ class TypeCompilerTest(TestHelper):
     def test_nested_classes(self):
         """Convoluted case checking that the model is right."""
         class Class1(object):
-            __table__ = "class1", "id"
+            __storm_table__ = "class1", "id"
             id = Property()
         class Class2(object):
-            __table__ = Class1, "id"
+            __storm_table__ = Class1, "id"
             id = Property()
         statement, parameters = compile(Class2)
         self.assertEquals(statement, "class1")

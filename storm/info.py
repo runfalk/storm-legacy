@@ -60,12 +60,12 @@ class ClassInfo(dict):
     """
 
     def __init__(self, cls):
-        __table__ = getattr(cls, "__table__", ())
-        if len(__table__) != 2:
-            raise ClassInfoError("%s.__table__ must be (<table name>, "
+        table = getattr(cls, "__storm_table__", ())
+        if len(table) != 2:
+            raise ClassInfoError("%s.__storm_table__ must be (<table name>, "
                                  "<primary key(s)>) tuple." % repr(cls))
 
-        self.table = __table__[0]
+        self.table = table[0]
         self.cls = cls
 
         if not isinstance(self.table, Expr):
@@ -84,7 +84,7 @@ class ClassInfo(dict):
         name_positions = dict((prop.name, i)
                               for i, prop in enumerate(self.columns))
 
-        primary_key_names = __table__[1]
+        primary_key_names = table[1]
         if type(primary_key_names) not in (list, tuple):
             primary_key_names = (primary_key_names,)
 
@@ -182,7 +182,7 @@ class ClassAlias(FromExpr):
             name = "_%x" % ClassAlias.alias_count
         cls_info = get_cls_info(cls)
         alias_cls = type(cls.__name__+"Alias", (cls, self_cls),
-                         {"__table__": (name, cls.__table__[1])})
+                         {"__storm_table__": (name, cls.__storm_table__[1])})
         alias_cls_info = get_cls_info(alias_cls)
         alias_cls_info.cls = cls
         return alias_cls
@@ -190,7 +190,7 @@ class ClassAlias(FromExpr):
 
 @compile.when(type)
 def compile_type(compile, state, expr):
-    table = getattr(expr, "__table__", None)
+    table = getattr(expr, "__storm_table__", None)
     if table is None:
         raise CompileError("Don't know how to compile %r" % expr)
     if state.context is TABLE and issubclass(expr, ClassAlias):

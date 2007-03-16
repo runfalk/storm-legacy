@@ -23,12 +23,12 @@ class PropertyTest(TestHelper):
     def setUp(self):
         TestHelper.setUp(self)
         class Class(object):
-            __table__ = "table", "column1"
+            __storm_table__ = "table", "column1"
             prop1 = Custom("column1")
             prop2 = Custom()
             prop3 = Custom("column3", default=50, allow_none=False)
         class SubClass(Class):
-            __table__ = "subtable", "column1"
+            __storm_table__ = "subtable", "column1"
         self.Class = Class
         self.SubClass = SubClass
 
@@ -224,7 +224,7 @@ class PropertyKindsTest(TestHelper):
     def setup(self, property, *args, **kwargs):
         prop2_kwargs = kwargs.pop("prop2_kwargs", {})
         class Class(object):
-            __table__ = "table", "column1"
+            __storm_table__ = "table", "column1"
             prop1 = property("column1", *args, **kwargs)
             prop2 = property(**prop2_kwargs)
         class SubClass(Class):
@@ -569,7 +569,7 @@ class PropertyKindsTest(TestHelper):
 
     def test_variable_factory_arguments(self):
         class Class(object):
-            __table__ = "test", "name"
+            __storm_table__ = "test", "name"
 
         for func, cls, value in [
                                (Bool, BoolVariable, True),
@@ -623,12 +623,12 @@ class PropertyRegistryTest(TestHelper):
         TestHelper.setUp(self)
 
         class Class(object):
-            __table__ = "table", "column1"
+            __storm_table__ = "table", "column1"
             prop1 = Property("column1")
             prop2 = Property()
 
         class SubClass(Class):
-            __table__ = "subtable", "column1"
+            __storm_table__ = "subtable", "column1"
 
         self.Class = Class
         self.SubClass = SubClass
@@ -736,12 +736,12 @@ class PropertyPublisherMetaTest(TestHelper):
             __metaclass__ = PropertyPublisherMeta
 
         class Class(Base):
-            __table__ = "table", "column1"
+            __storm_table__ = "table", "column1"
             prop1 = Property("column1")
             prop2 = Property()
 
         class SubClass(Class):
-            __table__ = "subtable", "column1"
+            __storm_table__ = "subtable", "column1"
 
         self.Class = Class
         self.SubClass = SubClass

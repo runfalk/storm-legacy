@@ -11,12 +11,12 @@ from tests.helper import run_this
 
 
 class Lst1(object):
-    __table__ = "lst1", "id"
+    __storm_table__ = "lst1", "id"
     id = Int()
     ints = List(type=Int())
 
 class Lst2(object):
-    __table__ = "lst2", "id"
+    __storm_table__ = "lst2", "id"
     id = Int()
     ints = List(type=List(type=Int()))
 
