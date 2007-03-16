@@ -221,9 +221,9 @@ class Store(object):
                 # (e.g. by a get()), the database should be queried to see
                 # if the object's still there.
                 obj_info["invalidated"] = True
-                hook = getattr(obj_info.get_obj(), "__invalidate__", None)
-                if hook is not None:
-                    hook()
+        if invalidate:
+            for obj_info in obj_infos:
+                self._run_hook(obj_info, "__storm_invalidated__")
 
     def add_flush_order(self, before, after):
         pair = (get_obj_info(before), get_obj_info(after))
@@ -349,6 +349,8 @@ class Store(object):
 
 
             obj_info.checkpoint()
+
+        self._run_hook(obj_info, "__storm_flushed__")
 
         obj_info.event.emit("flushed")
 
@@ -482,7 +484,7 @@ class Store(object):
             self._enable_change_notification(obj_info)
             self._enable_lazy_resolving(obj_info)
 
-            self._run_load_hook(obj_info, obj)
+            self._run_hook(obj_info, "__storm_loaded__")
 
         if adapt:
             return self._adapt(obj)
@@ -501,14 +503,14 @@ class Store(object):
         obj = cls.__new__(cls)
         obj_info.set_obj(obj)
         set_obj_info(obj, obj_info)
-        self._run_load_hook(obj_info, obj)
+        self._run_hook(obj_info, "__storm_loaded__")
         return obj
 
     @staticmethod
-    def _run_load_hook(obj_info, obj):
-        load = getattr(obj, "__load__", None)
-        if load is not None:
-            load()
+    def _run_hook(obj_info, hook_name):
+        func = getattr(obj_info.get_obj(), hook_name, None)
+        if func is not None:
+            func()
 
     def _set_values(self, obj_info, columns, result, values):
         if values is None:

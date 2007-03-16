@@ -14,24 +14,25 @@ from tests.helper import run_this
 
 
 class Foo(object):
-    __table__ = "foo", "id"
-    id = Int()
+    __storm_table__ = "foo"
+    id = Int(primary=True)
     title = Unicode()
 
 class Bar(object):
-    __table__ = "bar", "id"
-    id = Int()
+    __storm_table__ = "bar"
+    id = Int(primary=True)
     title = Unicode()
     foo_id = Int()
     foo = Reference(foo_id, Foo.id)
 
 class Blob(object):
-    __table__ = "bin", "id"
-    id = Int()
+    __storm_table__ = "bin"
+    id = Int(primary=True)
     bin = Str()
 
 class Link(object):
-    __table__ = "link", ("foo_id", "bar_id")
+    __storm_table__ = "link"
+    __storm_primary__ = "foo_id", "bar_id"
     foo_id = Int()
     bar_id = Int()
 
@@ -59,8 +60,8 @@ class FooIndRefSetOrderTitle(Foo):
                         order_by=Bar.title)
 
 class BarProxy(object):
-    __table__ = "bar", "id"
-    id = Int()
+    __storm_table__ = "bar"
+    id = Int(primary=True)
     title = Unicode()
     foo_id = Int()
     foo = Reference(foo_id, Foo.id)
@@ -264,7 +265,7 @@ class StoreTest(object):
         # while still holding a reference to the obj_info.
         class MyFoo(Foo):
             loaded = False
-            def __load__(self):
+            def __storm_loaded__(self):
                 self.loaded = True
 
         foo = self.store.get(MyFoo, 20)
@@ -311,15 +312,13 @@ class StoreTest(object):
         self.assertTrue(obj_info.get_obj())
 
     def test_get_tuple(self):
-        class Foo(object):
-            __table__ = "foo", ("title", "id")
-            id = Int()
-            title = Unicode()
-        foo = self.store.get(Foo, ("Title 30", 10))
+        class MyFoo(Foo):
+            __storm_primary__ = "title", "id"
+        foo = self.store.get(MyFoo, ("Title 30", 10))
         self.assertEquals(foo.id, 10)
         self.assertEquals(foo.title, "Title 30")
 
-        foo = self.store.get(Foo, ("Title 20", 10))
+        foo = self.store.get(MyFoo, ("Title 20", 10))
         self.assertEquals(foo, None)
 
     def test_of(self):
@@ -1413,8 +1412,8 @@ class StoreTest(object):
     def test_join(self):
 
         class Bar(object):
-            __table__ = "bar", "id"
-            id = Int()
+            __storm_table__ = "bar"
+            id = Int(primary=True)
             title = Unicode()
 
         bar = Bar()
@@ -1442,8 +1441,8 @@ class StoreTest(object):
     def test_join_distinct(self):
 
         class Bar(object):
-            __table__ = "bar", "id"
-            id = Int()
+            __storm_table__ = "bar"
+            id = Int(primary=True)
             title = Unicode()
 
         bar = Bar()
@@ -1452,7 +1451,7 @@ class StoreTest(object):
 
         self.store.add(bar)
 
-        # Add anbar object with the same title to ensure DISTINCT
+        # Add a bar object with the same title to ensure DISTINCT
         # is in place.
 
         bar = Bar()
@@ -1503,14 +1502,14 @@ class StoreTest(object):
 
         self.assertTrue(self.store.get(Foo, 20) is foo)
 
-    def test__load__(self):
+    def test_loaded_hook(self):
 
         loaded = []
 
         class MyFoo(Foo):
             def __init__(self):
                 loaded.append("NO!")
-            def __load__(self):
+            def __storm_loaded__(self):
                 loaded.append((self.id, self.title))
                 self.title = "Title 200"
                 self.some_attribute = 1
@@ -1535,6 +1534,38 @@ class StoreTest(object):
 
         self.assertEquals(foo.title, "Title 20")
         self.assertEquals(foo.some_attribute, 2)
+
+    def test_flushed_hook(self):
+
+        class MyFoo(Foo):
+            done = False
+            def __storm_flushed__(self):
+                if not self.done:
+                    self.done = True
+                    self.title = "Flushed: %s" % self.title
+
+        foo = self.store.get(MyFoo, 20)
+
+        self.assertEquals(foo.title, "Title 20")
+        self.store.flush()
+        self.assertEquals(foo.title, "Title 20") # It wasn't dirty.
+        foo.title = "Something"
+        self.store.flush()
+        self.assertEquals(foo.title, "Flushed: Something")
+
+        # It got in the database, because it was flushed *twice* (the
+        # title was changed after flushed, and thus the object got dirty
+        # again).
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Flushed: Something"),
+                          (30, "Title 10"),
+                         ])
+
+        # This shouldn't do anything, because the object is clean again.
+        foo.done = False
+        self.store.flush()
+        self.assertEquals(foo.title, "Flushed: Something")
 
     def test_retrieve_default_primary_key(self):
         foo = Foo()
@@ -1881,8 +1912,8 @@ class StoreTest(object):
 
     def test_reference_on_added_composed_key(self):
         class Bar(object):
-            __table__ = "bar", "id"
-            id = Int()
+            __storm_table__ = "bar"
+            id = Int(primary=True)
             foo_id = Int()
             title = Unicode()
             foo = Reference((foo_id, title), (Foo.id, Foo.title))
@@ -1912,8 +1943,8 @@ class StoreTest(object):
 
     def test_reference_assign_composed_remote_key(self):
         class Bar(object):
-            __table__ = "bar", "id"
-            id = Int()
+            __storm_table__ = "bar"
+            id = Int(primary=True)
             foo_id = Int()
             title = Unicode()
             foo = Reference((foo_id, title), (Foo.id, Foo.title))
@@ -1988,8 +2019,8 @@ class StoreTest(object):
 
     def test_reference_on_added_composed_key_changed_manually(self):
         class Bar(object):
-            __table__ = "bar", "id"
-            id = Int()
+            __storm_table__ = "bar"
+            id = Int(primary=True)
             foo_id = Int()
             title = Str()
             foo = Reference((foo_id, title), (Foo.id, Foo.title))
@@ -2133,8 +2164,8 @@ class StoreTest(object):
 
     def test_reference_self(self):
         class Bar(object):
-            __table__ = "bar", "id"
-            id = Int()
+            __storm_table__ = "bar"
+            id = Int(primary=True)
             title = Str()
             bar_id = Int("foo_id")
             bar = Reference(bar_id, id)
@@ -2962,15 +2993,15 @@ class StoreTest(object):
             __metaclass__ = PropertyPublisherMeta
 
         class MyBar(Base):
-            __table__ = "bar", "id"
-            id = Int()
+            __storm_table__ = "bar"
+            id = Int(primary=True)
             title = Unicode()
             foo_id = Int()
             foo = Reference("foo_id", "MyFoo.id")
 
         class MyFoo(Base):
-            __table__ = "foo", "id"
-            id = Int()
+            __storm_table__ = "foo"
+            id = Int(primary=True)
             title = Unicode()
 
         bar = self.store.get(MyBar, 100)
@@ -2983,19 +3014,20 @@ class StoreTest(object):
             __metaclass__ = PropertyPublisherMeta
 
         class MyFoo(Base):
-            __table__ = "foo", "id"
-            id = Int()
+            __storm_table__ = "foo"
+            id = Int(primary=True)
             title = Unicode()
             bars = ReferenceSet("id", "MyLink.foo_id",
                                 "MyLink.bar_id", "MyBar.id")
 
         class MyBar(Base):
-            __table__ = "bar", "id"
-            id = Int()
+            __storm_table__ = "bar"
+            id = Int(primary=True)
             title = Unicode()
 
         class MyLink(Base):
-            __table__ = "link", ("foo_id", "bar_id")
+            __storm_table__ = "link"
+            __storm_primary__ = "foo_id", "bar_id"
             foo_id = Int()
             bar_id = Int()
 
@@ -3580,10 +3612,10 @@ class StoreTest(object):
         self.store.execute("DELETE FROM foo WHERE id=40")
         self.assertEquals(self.store.get(Foo, 40), foo)
 
-    def test_invalidate_hook(self):
+    def test_invalidated_hook(self):
         called = []
         class MyFoo(Foo):
-            def __invalidate__(self):
+            def __storm_invalidated__(self):
                 called.append(True)
         foo = self.store.get(MyFoo, 20)
         self.assertEquals(called, [])
@@ -3786,15 +3818,15 @@ class StoreTest(object):
             __metaclass__ = PropertyPublisherMeta
 
         class MyBarProxy(Base):
-            __table__ = "bar", "id"
-            id = Int()
+            __storm_table__ = "bar"
+            id = Int(primary=True)
             foo_id = Int()
             foo = Reference("foo_id", "MyFoo.id")
             foo_title = Proxy(foo, "MyFoo.title")
 
         class MyFoo(Base):
-            __table__ = "foo", "id"
-            id = Int()
+            __storm_table__ = "foo"
+            id = Int(primary=True)
             title = Unicode()
 
         return MyBarProxy, MyFoo
@@ -3896,7 +3928,6 @@ class StoreTest(object):
         self.assertEquals(len(bars), 2)
         for bar in bars:
             self.assertTrue(isinstance(bar, BarAdapt))
-
 
 
 class EmptyResultSetTest(object):

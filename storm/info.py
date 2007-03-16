@@ -62,12 +62,10 @@ class ClassInfo(dict):
     """
 
     def __init__(self, cls):
-        __table__ = getattr(cls, "__table__", ())
-        if len(__table__) != 2:
-            raise ClassInfoError("%s.__table__ must be (<table name>, "
-                                 "<primary key(s)>) tuple." % repr(cls))
+        self.table = getattr(cls, "__storm_table__", None)
+        if self.table is None:
+            raise ClassInfoError("%s.__storm_table__ missing" % repr(cls))
 
-        self.table = __table__[0]
         self.cls = cls
 
         if not isinstance(self.table, Expr):
@@ -78,25 +76,47 @@ class ClassInfo(dict):
             column = getattr(cls, attr, None)
             if isinstance(column, Column):
                 pairs.append((attr, column))
+
+
         pairs.sort()
 
         self.columns = tuple(pair[1] for pair in pairs)
         self.attributes = dict(pairs)
 
-        name_positions = dict((prop.name, i)
-                              for i, prop in enumerate(self.columns))
+        storm_primary = getattr(cls, "__storm_primary__", None)
+        if storm_primary is not None:
+            if type(storm_primary) is not tuple:
+                storm_primary = (storm_primary,)
+            self.primary_key = tuple(self.attributes[attr]
+                                     for attr in storm_primary)
+        else:
+            primary = []
+            primary_attrs = {}
+            for attr, column in pairs:
+                if column.primary is not 0:
+                    if column.primary in primary_attrs:
+                        raise ClassInfoError(
+                            "%s has two columns with the same primary id: "
+                            "%s and %s" %
+                            (repr(cls), attr, primary_attrs[column.primary]))
+                    primary.append((column.primary, column))
+                    primary_attrs[column.primary] = attr
+            primary.sort()
+            self.primary_key = tuple(column for i, column in primary)
 
-        primary_key_names = __table__[1]
-        if type(primary_key_names) not in (list, tuple):
-            primary_key_names = (primary_key_names,)
+        if not self.primary_key:
+            raise ClassInfoError("%s has no primary key information" %
+                                 repr(cls))
 
-        self.primary_key_pos = tuple(name_positions[name]
-                                     for name in primary_key_names)
-        self.primary_key = tuple(self.columns[i]
-                                 for i in self.primary_key_pos)
+        id_positions = dict((id(column), i)
+                             for i, column in enumerate(self.columns))
+
         self.primary_key_idx = dict((id(column), i)
                                     for i, column in
                                     enumerate(self.primary_key))
+        self.primary_key_pos = tuple(id_positions[id(column)]
+                                     for column in self.primary_key)
+
 
         __order__ = getattr(cls, "__order__", None)
         if __order__ is None:
@@ -185,7 +205,7 @@ class ClassAlias(FromExpr):
             name = "_%x" % ClassAlias.alias_count
         cls_info = get_cls_info(cls)
         alias_cls = type(cls.__name__+"Alias", (cls, self_cls),
-                         {"__table__": (name, cls.__table__[1])})
+                         {"__storm_table__": name})
         alias_cls_info = get_cls_info(alias_cls)
         alias_cls_info.cls = cls
         return alias_cls
@@ -193,12 +213,12 @@ class ClassAlias(FromExpr):
 
 @compile.when(type)
 def compile_type(compile, state, expr):
-    table = getattr(expr, "__table__", None)
+    table = getattr(expr, "__storm_table__", None)
     if table is None:
         raise CompileError("Don't know how to compile %r" % expr)
     if state.context is TABLE and issubclass(expr, ClassAlias):
         cls_info = get_cls_info(expr)
-        return "%s AS %s" % (compile(state, cls_info.cls), table[0])
-    if isinstance(table[0], basestring):
-        return table[0]
-    return compile(state, table[0])
+        return "%s AS %s" % (compile(state, cls_info.cls), table)
+    if isinstance(table, basestring):
+        return table
+    return compile(state, table)

@@ -113,8 +113,8 @@ class SQLObjectMeta(PropertyPublisherMeta):
         return value
 
     def __new__(cls, name, bases, dict):
-        if dict.get("__metaclass__") is SQLObjectMeta:
-            # Do not parse SQLObjectBase itself.
+        if Storm in bases or SQLObjectBase in bases:
+            # Do not parse abstract base classes.
             return type.__new__(cls, name, bases, dict)
 
         style = cls._get_attr("_style", bases, dict)
@@ -132,7 +132,7 @@ class SQLObjectMeta(PropertyPublisherMeta):
         # Handle this later to call _parse_orderBy() on the created class.
         default_order = cls._get_attr("_defaultOrder", bases, dict)
 
-        dict["__table__"] = table_name, id_name
+        dict["__storm_table__"] = table_name
 
         attr_to_prop = {}
         for attr, prop in dict.items():
@@ -160,9 +160,9 @@ class SQLObjectMeta(PropertyPublisherMeta):
                     dict[method_name] = classmethod(func)
 
 
-        dict[id_name] = {int: Int(),
-                         str: Str(),
-                         unicode: Unicode()}[dict.get("_idType", int)]
+        id_type = dict.get("_idType", int)
+        id_cls = {int: Int, str: Str, unicode: Unicode}[id_type]
+        dict[id_name] = id_cls(primary=True)
 
         # Notice that obj is the class since this is the metaclass.
         obj = super(SQLObjectMeta, cls).__new__(cls, name, bases, dict)
@@ -203,7 +203,8 @@ class BoundDotQ(object):
         if attr.startswith('__'):
             raise AttributeError(attr)
         elif attr == 'id':
-            return getattr(self._cls, self._cls.__table__[1])
+            cls_info = get_cls_info(self._cls)
+            return cls_info.primary_key[0]
         else:
             return getattr(self._cls, attr)
 
@@ -226,7 +227,7 @@ class SQLObjectBase(Storm):
         self._get_store().add(self)
         self._create(None, **kwargs)
 
-    def __load__(self):
+    def __storm_loaded__(self):
         self._init(None)
 
     def _init(self, id, *args, **kwargs):
@@ -290,7 +291,7 @@ class SQLObjectBase(Storm):
             args = (clause,)
         if clauseTables is not None:
             clauseTables = set(table.lower() for table in clauseTables)
-            clauseTables.add(cls.__table__[0].lower())
+            clauseTables.add(cls.__storm_table__.lower())
             store = store.using(*clauseTables)
         result = store.find(cls, *args, **_by)
         if orderBy is not None:
