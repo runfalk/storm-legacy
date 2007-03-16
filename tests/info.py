@@ -1,5 +1,6 @@
 import gc
 
+from storm.exceptions import ClassInfoError
 from storm.properties import Property
 from storm.variables import Variable
 from storm.expr import Undef, Select, compile
@@ -66,6 +67,10 @@ class ClassInfoTest(TestHelper):
         self.Class = Class
         self.cls_info = get_cls_info(Class)
 
+    def test_invalid_class(self):
+        class Class(object): pass
+        self.assertRaises(ClassInfoError, ClassInfo, Class)
+
     def test_cls(self):
         self.assertEquals(self.cls_info.cls, self.Class)
 
@@ -81,6 +86,15 @@ class ClassInfoTest(TestHelper):
         self.assertTrue(self.cls_info.primary_key[0] is self.Class.prop1)
         self.assertEquals(len(self.cls_info.primary_key), 1)
 
+    def test_primary_key_with_attribute(self):
+        class SubClass(self.Class):
+            __storm_primary__ = "prop2"
+
+        cls_info = get_cls_info(SubClass)
+
+        self.assertTrue(cls_info.primary_key[0] is SubClass.prop2)
+        self.assertEquals(len(self.cls_info.primary_key), 1)
+
     def test_primary_key_composed(self):
         class Class(object):
             __storm_table__ = "table"
@@ -92,6 +106,43 @@ class ClassInfoTest(TestHelper):
         self.assertTrue(cls_info.primary_key[0] is Class.prop2)
         self.assertTrue(cls_info.primary_key[1] is Class.prop1)
         self.assertEquals(len(cls_info.primary_key), 2)
+
+    def test_primary_key_composed_with_attribute(self):
+        class Class(object):
+            __storm_table__ = "table"
+            __storm_primary__ = "prop2", "prop1"
+            # Define primary=True to ensure that the attribute
+            # has precedence.
+            prop1 = Property("column1", primary=True)
+            prop2 = Property("column2")
+        cls_info = ClassInfo(Class)
+
+        # Can't use == for props, since they're columns.
+        self.assertTrue(cls_info.primary_key[0] is Class.prop2)
+        self.assertTrue(cls_info.primary_key[1] is Class.prop1)
+        self.assertEquals(len(cls_info.primary_key), 2)
+
+    def test_primary_key_composed_duplicated(self):
+        class Class(object):
+            __storm_table__ = "table"
+            prop1 = Property("column1", primary=True)
+            prop2 = Property("column2", primary=True)
+        self.assertRaises(ClassInfoError, ClassInfo, Class)
+
+    def test_primary_key_missing(self):
+        class Class(object):
+            __storm_table__ = "table"
+            prop1 = Property("column1")
+            prop2 = Property("column2")
+        self.assertRaises(ClassInfoError, ClassInfo, Class)
+
+    def test_primary_key_attribute_missing(self):
+        class Class(object):
+            __storm_table__ = "table"
+            __storm_primary__ = ()
+            prop1 = Property("column1", primary=True)
+            prop2 = Property("column2")
+        self.assertRaises(ClassInfoError, ClassInfo, Class)
 
     def test_primary_key_pos(self):
         class Class(object):

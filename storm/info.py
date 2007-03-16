@@ -70,12 +70,27 @@ class ClassInfo(dict):
             self.table = SQLToken(self.table)
 
         pairs = []
-        primary = []
-        primary_attrs = {}
         for attr in dir(cls):
             column = getattr(cls, attr, None)
             if isinstance(column, Column):
                 pairs.append((attr, column))
+
+
+        pairs.sort()
+
+        self.columns = tuple(pair[1] for pair in pairs)
+        self.attributes = dict(pairs)
+
+        storm_primary = getattr(cls, "__storm_primary__", None)
+        if storm_primary is not None:
+            if type(storm_primary) is not tuple:
+                storm_primary = (storm_primary,)
+            self.primary_key = tuple(self.attributes[attr]
+                                     for attr in storm_primary)
+        else:
+            primary = []
+            primary_attrs = {}
+            for attr, column in pairs:
                 if column.primary is not 0:
                     if column.primary in primary_attrs:
                         raise ClassInfoError(
@@ -84,17 +99,16 @@ class ClassInfo(dict):
                             (repr(cls), attr, primary_attrs[column.primary]))
                     primary.append((column.primary, column))
                     primary_attrs[column.primary] = attr
+            primary.sort()
+            self.primary_key = tuple(column for i, column in primary)
 
-        pairs.sort()
-        primary.sort()
-
-        self.columns = tuple(pair[1] for pair in pairs)
-        self.attributes = dict(pairs)
+        if not self.primary_key:
+            raise ClassInfoError("%s has no primary key information" %
+                                 repr(cls))
 
         id_positions = dict((id(column), i)
                              for i, column in enumerate(self.columns))
 
-        self.primary_key = tuple(column for i, column in primary)
         self.primary_key_idx = dict((id(column), i)
                                     for i, column in
                                     enumerate(self.primary_key))
