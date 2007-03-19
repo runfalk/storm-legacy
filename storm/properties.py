@@ -28,8 +28,10 @@ __all__ = ["Property", "SimpleProperty",
 
 class Property(object):
 
-    def __init__(self, name=None, variable_class=Variable, variable_kwargs={}):
+    def __init__(self, name=None, primary=False,
+                 variable_class=Variable, variable_kwargs={}):
         self._name = name
+        self._primary = primary
         self._variable_class = variable_class
         self._variable_kwargs = variable_kwargs
 
@@ -82,7 +84,7 @@ class Property(object):
         if column is None:
             if self._name is None:
                 self._detect_name(cls)
-            column = PropertyColumn(self, cls, self._name,
+            column = PropertyColumn(self, cls, self._name, self._primary,
                                     self._variable_class,
                                     self._variable_kwargs)
             cls._storm_columns[self] = column
@@ -91,8 +93,9 @@ class Property(object):
 
 class PropertyColumn(Column):
 
-    def __init__(self, prop, cls, name, variable_class, variable_kwargs):
-        Column.__init__(self, name, cls,
+    def __init__(self, prop, cls, name, primary,
+                 variable_class, variable_kwargs):
+        Column.__init__(self, name, cls, primary,
                         VariableFactory(variable_class, column=self,
                                         **variable_kwargs))
 
@@ -108,10 +111,10 @@ class SimpleProperty(Property):
 
     variable_class = None
 
-    def __init__(self, name=None, **kwargs):
+    def __init__(self, name=None, primary=False, **kwargs):
         kwargs["value"] = kwargs.pop("default", Undef)
         kwargs["value_factory"] = kwargs.pop("default_factory", Undef)
-        Property.__init__(self, name, self.variable_class, kwargs)
+        Property.__init__(self, name, primary, self.variable_class, kwargs)
 
 
 class Bool(SimpleProperty):
@@ -274,5 +277,5 @@ class PropertyPublisherMeta(type):
     def __init__(self, name, bases, dict):
         if not hasattr(self, "_storm_property_registry"):
             self._storm_property_registry = PropertyRegistry()
-        elif hasattr(self, "__table__"):
+        elif hasattr(self, "__storm_table__"):
             self._storm_property_registry.add_class(self)

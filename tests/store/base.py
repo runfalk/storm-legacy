@@ -1,6 +1,6 @@
 import gc
 
-from storm.references import Reference, ReferenceSet
+from storm.references import Reference, ReferenceSet, Proxy
 from storm.database import Result
 from storm.properties import Int, Str, Unicode, Property, Pickle
 from storm.properties import PropertyPublisherMeta
@@ -14,24 +14,25 @@ from tests.helper import run_this
 
 
 class Foo(object):
-    __table__ = "foo", "id"
-    id = Int()
+    __storm_table__ = "foo"
+    id = Int(primary=True)
     title = Unicode()
 
 class Bar(object):
-    __table__ = "bar", "id"
-    id = Int()
+    __storm_table__ = "bar"
+    id = Int(primary=True)
     title = Unicode()
     foo_id = Int()
     foo = Reference(foo_id, Foo.id)
 
 class Blob(object):
-    __table__ = "bin", "id"
-    id = Int()
+    __storm_table__ = "bin"
+    id = Int(primary=True)
     bin = Str()
 
 class Link(object):
-    __table__ = "link", ("foo_id", "bar_id")
+    __storm_table__ = "link"
+    __storm_primary__ = "foo_id", "bar_id"
     foo_id = Int()
     bar_id = Int()
 
@@ -58,6 +59,22 @@ class FooIndRefSetOrderTitle(Foo):
     bars = ReferenceSet(Foo.id, Link.foo_id, Link.bar_id, Bar.id,
                         order_by=Bar.title)
 
+class BarProxy(object):
+    __storm_table__ = "bar"
+    id = Int(primary=True)
+    title = Unicode()
+    foo_id = Int()
+    foo = Reference(foo_id, Foo.id)
+    foo_title = Proxy(foo, Foo.title)
+
+class FooAdapt(Foo):
+    def __storm_adapt__(self):
+        return Wrapper(self)
+
+class BarAdapt(Bar):
+    def __storm_adapt__(self):
+        return Wrapper(self)
+
 
 class DecorateVariable(Variable):
 
@@ -72,12 +89,12 @@ class FooVariable(Foo):
     title = Property(variable_class=DecorateVariable)
 
 
-class Proxy(object):
+class Wrapper(object):
 
     def __init__(self, obj):
-        self._obj = obj
+        self.obj = obj
 
-Proxy.__object_info = property(lambda self: self._obj.__object_info)
+Wrapper.__object_info = property(lambda self: self.obj.__object_info)
 
 
 class StoreTest(object):
@@ -248,7 +265,7 @@ class StoreTest(object):
         # while still holding a reference to the obj_info.
         class MyFoo(Foo):
             loaded = False
-            def __load__(self):
+            def __storm_loaded__(self):
                 self.loaded = True
 
         foo = self.store.get(MyFoo, 20)
@@ -295,15 +312,13 @@ class StoreTest(object):
         self.assertTrue(obj_info.get_obj())
 
     def test_get_tuple(self):
-        class Foo(object):
-            __table__ = "foo", ("title", "id")
-            id = Int()
-            title = Unicode()
-        foo = self.store.get(Foo, ("Title 30", 10))
+        class MyFoo(Foo):
+            __storm_primary__ = "title", "id"
+        foo = self.store.get(MyFoo, ("Title 30", 10))
         self.assertEquals(foo.id, 10)
         self.assertEquals(foo.title, "Title 30")
 
-        foo = self.store.get(Foo, ("Title 20", 10))
+        foo = self.store.get(MyFoo, ("Title 20", 10))
         self.assertEquals(foo, None)
 
     def test_of(self):
@@ -1397,8 +1412,8 @@ class StoreTest(object):
     def test_join(self):
 
         class Bar(object):
-            __table__ = "bar", "id"
-            id = Int()
+            __storm_table__ = "bar"
+            id = Int(primary=True)
             title = Unicode()
 
         bar = Bar()
@@ -1426,8 +1441,8 @@ class StoreTest(object):
     def test_join_distinct(self):
 
         class Bar(object):
-            __table__ = "bar", "id"
-            id = Int()
+            __storm_table__ = "bar"
+            id = Int(primary=True)
             title = Unicode()
 
         bar = Bar()
@@ -1436,7 +1451,7 @@ class StoreTest(object):
 
         self.store.add(bar)
 
-        # Add anbar object with the same title to ensure DISTINCT
+        # Add a bar object with the same title to ensure DISTINCT
         # is in place.
 
         bar = Bar()
@@ -1487,14 +1502,14 @@ class StoreTest(object):
 
         self.assertTrue(self.store.get(Foo, 20) is foo)
 
-    def test__load__(self):
+    def test_loaded_hook(self):
 
         loaded = []
 
         class MyFoo(Foo):
             def __init__(self):
                 loaded.append("NO!")
-            def __load__(self):
+            def __storm_loaded__(self):
                 loaded.append((self.id, self.title))
                 self.title = "Title 200"
                 self.some_attribute = 1
@@ -1519,6 +1534,38 @@ class StoreTest(object):
 
         self.assertEquals(foo.title, "Title 20")
         self.assertEquals(foo.some_attribute, 2)
+
+    def test_flushed_hook(self):
+
+        class MyFoo(Foo):
+            done = False
+            def __storm_flushed__(self):
+                if not self.done:
+                    self.done = True
+                    self.title = "Flushed: %s" % self.title
+
+        foo = self.store.get(MyFoo, 20)
+
+        self.assertEquals(foo.title, "Title 20")
+        self.store.flush()
+        self.assertEquals(foo.title, "Title 20") # It wasn't dirty.
+        foo.title = "Something"
+        self.store.flush()
+        self.assertEquals(foo.title, "Flushed: Something")
+
+        # It got in the database, because it was flushed *twice* (the
+        # title was changed after flushed, and thus the object got dirty
+        # again).
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Flushed: Something"),
+                          (30, "Title 10"),
+                         ])
+
+        # This shouldn't do anything, because the object is clean again.
+        foo.done = False
+        self.store.flush()
+        self.assertEquals(foo.title, "Flushed: Something")
 
     def test_retrieve_default_primary_key(self):
         foo = Foo()
@@ -1865,8 +1912,8 @@ class StoreTest(object):
 
     def test_reference_on_added_composed_key(self):
         class Bar(object):
-            __table__ = "bar", "id"
-            id = Int()
+            __storm_table__ = "bar"
+            id = Int(primary=True)
             foo_id = Int()
             title = Unicode()
             foo = Reference((foo_id, title), (Foo.id, Foo.title))
@@ -1896,8 +1943,8 @@ class StoreTest(object):
 
     def test_reference_assign_composed_remote_key(self):
         class Bar(object):
-            __table__ = "bar", "id"
-            id = Int()
+            __storm_table__ = "bar"
+            id = Int(primary=True)
             foo_id = Int()
             title = Unicode()
             foo = Reference((foo_id, title), (Foo.id, Foo.title))
@@ -1972,8 +2019,8 @@ class StoreTest(object):
 
     def test_reference_on_added_composed_key_changed_manually(self):
         class Bar(object):
-            __table__ = "bar", "id"
-            id = Int()
+            __storm_table__ = "bar"
+            id = Int(primary=True)
             foo_id = Int()
             title = Str()
             foo = Reference((foo_id, title), (Foo.id, Foo.title))
@@ -2117,8 +2164,8 @@ class StoreTest(object):
 
     def test_reference_self(self):
         class Bar(object):
-            __table__ = "bar", "id"
-            id = Int()
+            __storm_table__ = "bar"
+            id = Int(primary=True)
             title = Str()
             bar_id = Int("foo_id")
             bar = Reference(bar_id, id)
@@ -2946,15 +2993,15 @@ class StoreTest(object):
             __metaclass__ = PropertyPublisherMeta
 
         class MyBar(Base):
-            __table__ = "bar", "id"
-            id = Int()
+            __storm_table__ = "bar"
+            id = Int(primary=True)
             title = Unicode()
             foo_id = Int()
             foo = Reference("foo_id", "MyFoo.id")
 
         class MyFoo(Base):
-            __table__ = "foo", "id"
-            id = Int()
+            __storm_table__ = "foo"
+            id = Int(primary=True)
             title = Unicode()
 
         bar = self.store.get(MyBar, 100)
@@ -2967,19 +3014,20 @@ class StoreTest(object):
             __metaclass__ = PropertyPublisherMeta
 
         class MyFoo(Base):
-            __table__ = "foo", "id"
-            id = Int()
+            __storm_table__ = "foo"
+            id = Int(primary=True)
             title = Unicode()
             bars = ReferenceSet("id", "MyLink.foo_id",
                                 "MyLink.bar_id", "MyBar.id")
 
         class MyBar(Base):
-            __table__ = "bar", "id"
-            id = Int()
+            __storm_table__ = "bar"
+            id = Int(primary=True)
             title = Unicode()
 
         class MyLink(Base):
-            __table__ = "link", ("foo_id", "bar_id")
+            __storm_table__ = "link"
+            __storm_primary__ = "foo_id", "bar_id"
             foo_id = Int()
             bar_id = Int()
 
@@ -3203,10 +3251,10 @@ class StoreTest(object):
 
         self.assertTrue(self.store.get(DictFoo, 40) is new_obj)
 
-    def test_proxy(self):
+    def test_wrapper(self):
         foo = self.store.get(Foo, 20)
-        proxy = Proxy(foo)
-        self.store.remove(proxy)
+        wrapper = Wrapper(foo)
+        self.store.remove(wrapper)
         self.store.flush()
         self.assertEquals(self.store.get(Foo, 20), None)
 
@@ -3564,10 +3612,10 @@ class StoreTest(object):
         self.store.execute("DELETE FROM foo WHERE id=40")
         self.assertEquals(self.store.get(Foo, 40), foo)
 
-    def test_invalidate_hook(self):
+    def test_invalidated_hook(self):
         called = []
         class MyFoo(Foo):
-            def __invalidate__(self):
+            def __storm_invalidated__(self):
                 called.append(True)
         foo = self.store.get(MyFoo, 20)
         self.assertEquals(called, [])
@@ -3575,6 +3623,23 @@ class StoreTest(object):
         self.assertEquals(called, [])
         self.store.invalidate(foo)
         self.assertEquals(called, [True])
+
+    def test_invalidated_hook_called_after_all_invalidated(self):
+        """
+        Ensure that invalidated hooks are called only when all objects have
+        already been marked as invalidated. See comment in 
+        store.py:_mark_autoreload.
+        """
+        called = []
+        class MyFoo(Foo):
+            def __storm_invalidated__(self):
+                if not called:
+                    called.append(get_obj_info(foo1).get("invalidated"))
+                    called.append(get_obj_info(foo2).get("invalidated"))
+        foo1 = self.store.get(MyFoo, 10)
+        foo2 = self.store.get(MyFoo, 20)
+        self.store.invalidate()
+        self.assertEquals(called, [True, True])
 
     def test_result_union(self):
         result1 = self.store.find(Foo, id=30)
@@ -3744,6 +3809,141 @@ class StoreTest(object):
         result3 = result1.intersection(result2)
 
         self.assertEquals(result3.count(), 1)
+
+    def test_proxy(self):
+        bar = self.store.get(BarProxy, 200)
+        self.assertEquals(bar.foo_title, "Title 20")
+
+    def test_proxy_equals(self):
+        bar = self.store.find(BarProxy, BarProxy.foo_title == "Title 20").one()
+        self.assertTrue(bar)
+        self.assertEquals(bar.id, 200)
+
+    def test_proxy_as_column(self):
+        result = self.store.find(BarProxy, BarProxy.id == 200)
+        self.assertEquals(list(result.values(BarProxy.foo_title)),
+                          ["Title 20"])
+
+    def test_proxy_set(self):
+        bar = self.store.get(BarProxy, 200)
+        bar.foo_title = "New Title"
+        foo = self.store.get(Foo, 20)
+        self.assertEquals(foo.title, "New Title")
+
+    def get_bar_proxy_with_string(self):
+        class Base(object):
+            __metaclass__ = PropertyPublisherMeta
+
+        class MyBarProxy(Base):
+            __storm_table__ = "bar"
+            id = Int(primary=True)
+            foo_id = Int()
+            foo = Reference("foo_id", "MyFoo.id")
+            foo_title = Proxy(foo, "MyFoo.title")
+
+        class MyFoo(Base):
+            __storm_table__ = "foo"
+            id = Int(primary=True)
+            title = Unicode()
+
+        return MyBarProxy, MyFoo
+
+    def test_proxy_with_string(self):
+        MyBarProxy, MyFoo = self.get_bar_proxy_with_string()
+        bar = self.store.get(MyBarProxy, 200)
+        self.assertEquals(bar.foo_title, "Title 20")
+
+    def test_proxy_with_string_variable_factory_attribute(self):
+        MyBarProxy, MyFoo = self.get_bar_proxy_with_string()
+        variable = MyBarProxy.foo_title.variable_factory(value="Hello")
+        self.assertTrue(isinstance(variable, UnicodeVariable))
+
+    def test_adapt_get(self):
+        foo = self.store.get(FooAdapt, 20)
+        self.assertTrue(isinstance(foo, Wrapper))
+        self.assertEquals(foo.obj.title, "Title 20")
+
+    def test_adapt_get_cached(self):
+        foo = self.store.get(FooAdapt, 20)
+        self.assertTrue(isinstance(foo, Wrapper))
+        self.assertEquals(foo.obj.title, "Title 20")
+
+    def test_adapt_get_adapt_false(self):
+        foo = self.store.get(FooAdapt, 20, adapt=False)
+        self.assertTrue(isinstance(foo, FooAdapt))
+
+    def test_adapt_find(self):
+        result = self.store.find(FooAdapt, id=20)
+        foo = result.one()
+        self.assertTrue(isinstance(foo, Wrapper))
+
+    def test_adapt_find_adapt_false(self):
+        result = self.store.find(FooAdapt, id=20)
+        result.config(adapt=False)
+        foo = result.one()
+        self.assertTrue(isinstance(foo, FooAdapt))
+
+    def test_adapt_find_tuple(self):
+        result = self.store.find((FooAdapt, FooAdapt), FooAdapt.id == 20)
+        foo1, foo2 = result.one()
+        self.assertTrue(isinstance(foo1, Wrapper))
+        self.assertTrue(isinstance(foo2, Wrapper))
+
+    def test_adapt_find_tuple_adapt_false(self):
+        result = self.store.find((FooAdapt, FooAdapt), FooAdapt.id == 20)
+        result.config(adapt=False)
+        foo1, foo2 = result.one()
+        self.assertTrue(isinstance(foo1, FooAdapt))
+        self.assertTrue(isinstance(foo2, FooAdapt))
+
+    def test_adapt_reference(self):
+        class MyBar(Bar):
+            foo = Reference(Bar.foo_id, FooAdapt.id)
+        bar = self.store.get(MyBar, 200)
+        self.assertTrue(isinstance(bar.foo, Wrapper))
+
+    def test_adapt_reference_adapt_false(self):
+        class MyBar(Bar):
+            foo = Reference(Bar.foo_id, FooAdapt.id, adapt=False)
+        bar = self.store.get(MyBar, 200)
+        self.assertTrue(isinstance(bar.foo, Foo))
+
+    def test_adapt_reference_non_primary_adapt_false(self):
+        class MyFoo(Foo):
+            bar = Reference(Foo.id, BarAdapt.foo_id, adapt=False)
+        foo = self.store.get(MyFoo, 20)
+        self.assertTrue(isinstance(foo.bar, BarAdapt))
+
+    def test_adapt_reference_set(self):
+        class MyFoo(Foo):
+            bars = ReferenceSet(Foo.id, BarAdapt.foo_id)
+        foo = self.store.get(MyFoo, 20)
+        self.assertTrue(isinstance(list(foo.bars)[0], Wrapper))
+
+    def test_adapt_reference_set_adapt_false(self):
+        class MyFoo(Foo):
+            bars = ReferenceSet(Foo.id, BarAdapt.foo_id, adapt=False)
+        foo = self.store.get(MyFoo, 20)
+        self.assertTrue(isinstance(list(foo.bars)[0], BarAdapt))
+
+    def test_adapt_indirect_reference_set(self):
+        class MyFoo(Foo):
+            bars = ReferenceSet(Foo.id, Link.foo_id, Link.bar_id, BarAdapt.id)
+        foo = self.store.get(MyFoo, 20)
+        bars = list(foo.bars)
+        self.assertEquals(len(bars), 2)
+        for bar in bars:
+            self.assertTrue(isinstance(bar, Wrapper))
+
+    def test_adapt_indirect_reference_set_adapt_false(self):
+        class MyFoo(Foo):
+            bars = ReferenceSet(Foo.id, Link.foo_id,
+                                Link.bar_id, BarAdapt.id, adapt=False)
+        foo = self.store.get(MyFoo, 20)
+        bars = list(foo.bars)
+        self.assertEquals(len(bars), 2)
+        for bar in bars:
+            self.assertTrue(isinstance(bar, BarAdapt))
 
 
 class EmptyResultSetTest(object):

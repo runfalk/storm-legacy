@@ -1,5 +1,6 @@
 import gc
 
+from storm.exceptions import ClassInfoError
 from storm.properties import Property
 from storm.variables import Variable
 from storm.expr import Undef, Select, compile
@@ -13,8 +14,8 @@ class GetTest(TestHelper):
     def setUp(self):
         TestHelper.setUp(self)
         class Class(object):
-            __table__ = "table", "column1"
-            prop1 = Property("column1")
+            __storm_table__ = "table"
+            prop1 = Property("column1", primary=True)
         self.Class = Class
         self.obj = Class()
 
@@ -60,11 +61,15 @@ class ClassInfoTest(TestHelper):
     def setUp(self):
         TestHelper.setUp(self)
         class Class(object):
-            __table__ = "table", "column1"
-            prop1 = Property("column1")
+            __storm_table__ = "table"
+            prop1 = Property("column1", primary=True)
             prop2 = Property("column2")
         self.Class = Class
         self.cls_info = get_cls_info(Class)
+
+    def test_invalid_class(self):
+        class Class(object): pass
+        self.assertRaises(ClassInfoError, ClassInfo, Class)
 
     def test_cls(self):
         self.assertEquals(self.cls_info.cls, self.Class)
@@ -81,10 +86,34 @@ class ClassInfoTest(TestHelper):
         self.assertTrue(self.cls_info.primary_key[0] is self.Class.prop1)
         self.assertEquals(len(self.cls_info.primary_key), 1)
 
+    def test_primary_key_with_attribute(self):
+        class SubClass(self.Class):
+            __storm_primary__ = "prop2"
+
+        cls_info = get_cls_info(SubClass)
+
+        self.assertTrue(cls_info.primary_key[0] is SubClass.prop2)
+        self.assertEquals(len(self.cls_info.primary_key), 1)
+
     def test_primary_key_composed(self):
         class Class(object):
-            __table__ = "table", ("column2", "column1")
-            prop1 = Property("column1")
+            __storm_table__ = "table"
+            prop1 = Property("column1", primary=2)
+            prop2 = Property("column2", primary=1)
+        cls_info = ClassInfo(Class)
+
+        # Can't use == for props, since they're columns.
+        self.assertTrue(cls_info.primary_key[0] is Class.prop2)
+        self.assertTrue(cls_info.primary_key[1] is Class.prop1)
+        self.assertEquals(len(cls_info.primary_key), 2)
+
+    def test_primary_key_composed_with_attribute(self):
+        class Class(object):
+            __storm_table__ = "table"
+            __storm_primary__ = "prop2", "prop1"
+            # Define primary=True to ensure that the attribute
+            # has precedence.
+            prop1 = Property("column1", primary=True)
             prop2 = Property("column2")
         cls_info = ClassInfo(Class)
 
@@ -93,12 +122,34 @@ class ClassInfoTest(TestHelper):
         self.assertTrue(cls_info.primary_key[1] is Class.prop1)
         self.assertEquals(len(cls_info.primary_key), 2)
 
-    def test_primary_key_pos(self):
+    def test_primary_key_composed_duplicated(self):
         class Class(object):
-            __table__ = "table", ("column3", "column1")
+            __storm_table__ = "table"
+            prop1 = Property("column1", primary=True)
+            prop2 = Property("column2", primary=True)
+        self.assertRaises(ClassInfoError, ClassInfo, Class)
+
+    def test_primary_key_missing(self):
+        class Class(object):
+            __storm_table__ = "table"
             prop1 = Property("column1")
             prop2 = Property("column2")
-            prop3 = Property("column3")
+        self.assertRaises(ClassInfoError, ClassInfo, Class)
+
+    def test_primary_key_attribute_missing(self):
+        class Class(object):
+            __storm_table__ = "table"
+            __storm_primary__ = ()
+            prop1 = Property("column1", primary=True)
+            prop2 = Property("column2")
+        self.assertRaises(ClassInfoError, ClassInfo, Class)
+
+    def test_primary_key_pos(self):
+        class Class(object):
+            __storm_table__ = "table"
+            prop1 = Property("column1", primary=2)
+            prop2 = Property("column2")
+            prop3 = Property("column3", primary=1)
         cls_info = ClassInfo(Class)
         self.assertEquals(cls_info.primary_key_pos, (2, 0))
 
@@ -108,8 +159,8 @@ class ObjectInfoTest(TestHelper):
     def setUp(self):
         TestHelper.setUp(self)
         class Class(object):
-            __table__ = "table", "column1"
-            prop1 = Property("column1")
+            __storm_table__ = "table"
+            prop1 = Property("column1", primary=True)
             prop2 = Property("column2")
         self.Class = Class
         self.obj = Class()
@@ -417,8 +468,8 @@ class ClassAliasTest(TestHelper):
     def setUp(self):
         TestHelper.setUp(self)
         class Class(object):
-            __table__ = "table", "column1"
-            prop1 = Property("column1")
+            __storm_table__ = "table"
+            prop1 = Property("column1", primary=True)
         self.Class = Class
         self.obj = Class()
         self.ClassAlias = ClassAlias(self.Class, "alias")
@@ -448,11 +499,11 @@ class TypeCompilerTest(TestHelper):
     def test_nested_classes(self):
         """Convoluted case checking that the model is right."""
         class Class1(object):
-            __table__ = "class1", "id"
-            id = Property()
+            __storm_table__ = "class1"
+            id = Property(primary=True)
         class Class2(object):
-            __table__ = Class1, "id"
-            id = Property()
+            __storm_table__ = Class1
+            id = Property(primary=True)
         statement, parameters = compile(Class2)
         self.assertEquals(statement, "class1")
         alias = ClassAlias(Class2, "alias")

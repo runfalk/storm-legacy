@@ -151,10 +151,15 @@ class State(object):
         specific situations.  This is typically used to work around
         strange deficiencies in various databases.
 
-    @ivar auto_tables: Whenever an expression that would require a
-        table in a FROM expression is compiled, it should add the
-        respective table to this value, so that statements may
-        automatically include these tables.
+    @ivar auto_tables: The list of all implicitly-used tables.  e.g.,
+        in store.find(Foo, Foo.attr==Bar.id), the tables of Bar and
+        Foo are implicitly used because columns in them are
+        referenced. This is used when building tables.
+
+    @ivar join_tables: If not None, when Join expressions are
+        compiled, tables seen will be added to this set. This acts as
+        a blacklist against auto_tables when compiling Joins, because
+        the generated statements should not refer to the table twice.
 
     @ivar context: an instance of L{Context}, specifying the context
         of the expression currently being compiled.
@@ -170,6 +175,7 @@ class State(object):
         self.precedence = 0
         self.parameters = []
         self.auto_tables = []
+        self.join_tables = None
         self.context = None
         self.aliases = None
 
@@ -433,44 +439,87 @@ def has_tables(state, expr):
             expr.default_tables is not Undef or
             state.auto_tables)
 
-def build_tables(compile, state, expr):
-    if expr.tables is not Undef:
-        result = []
-        if type(expr.tables) not in (list, tuple):
-            return compile(state, expr.tables, raw=True)
-        else:
-            for elem in expr.tables:
-                if result:
-                    if not (isinstance(elem, JoinExpr) and elem.left is Undef):
-                        result.append(", ")
-                    else:
-                        result.append(" ")
-                result.append(compile(state, elem, raw=True))
-            return "".join(result)
-    elif state.auto_tables:
-        tables = []
-        for expr in state.auto_tables:
-            table = compile(state, expr, raw=True)
-            if table not in tables:
-                tables.append(table)
-        return ", ".join(tables)
-    elif expr.default_tables is not Undef:
-        return compile(state, expr.default_tables, raw=True)
-    raise NoTableError("Couldn't find any tables")
+def build_tables(compile, state, tables, default_tables):
+    """Compile provided tables.
 
-def build_table(compile, state, expr):
-    if expr.table is not Undef:
-        return compile(state, expr.table, raw=True)
-    elif state.auto_tables:
-        tables = []
-        for expr in state.auto_tables:
-            table = compile(state, expr, raw=True)
-            if table not in tables:
-                tables.append(table)
-        return ", ".join(tables)
-    elif expr.default_table is not Undef:
-        return compile(state, expr.default_table, raw=True)
-    raise NoTableError("Couldn't find any table")
+    Tables will be built from either C{tables}, C{state.auto_tables}, or
+    C{default_tables}.  If C{tables} is not C{Undef}, it will be used. If
+    C{tables} is C{Undef} and C{state.auto_tables} is available, that's used
+    instead. If neither C{tables} nor C{state.auto_tables} are available,
+    C{default_tables} is tried as a last resort. If none of them are available,
+    C{NoTableError} is raised.
+    """
+    if tables is Undef:
+        if state.auto_tables:
+            tables = state.auto_tables
+        elif default_tables is not Undef:
+            tables = default_tables
+        else:
+            tables = None
+
+    # If we have no elements, it's an error.
+    if not tables:
+        raise NoTableError("Couldn't find any tables")
+
+    # If it's a single element, it's trivial.
+    if type(tables) not in (list, tuple) or len(tables) == 1:
+        return compile(state, tables, raw=True)
+    
+    # If we have no joins, it's trivial as well.
+    for elem in tables:
+        if isinstance(elem, JoinExpr):
+            break
+    else:
+        if tables is state.auto_tables:
+            tables = set(compile(state, table, raw=True) for table in tables)
+            return ", ".join(sorted(tables))
+        else:
+            return compile(state, tables, raw=True)
+
+    # Ok, now we have to be careful.
+
+    # If we're dealing with auto_tables, we have to take care of
+    # duplicated tables, join ordering, and so on.
+    if tables is state.auto_tables:
+        table_stmts = set()
+        join_stmts = set()
+        half_join_stmts = set()
+
+        # push a join_tables onto the state: compile calls below will
+        # populate this set so that we know what tables not to include.
+        state.push("join_tables", set())
+
+        for elem in tables:
+            statement = compile(state, elem, raw=True)
+            if isinstance(elem, JoinExpr):
+                if elem.left is Undef:
+                    half_join_stmts.add(statement)
+                else:
+                    join_stmts.add(statement)
+            else:
+                table_stmts.add(statement)
+
+        # Remove tables that were seen in join statements.
+        table_stmts -= state.join_tables
+
+        state.pop()
+
+        result = ", ".join(sorted(table_stmts)+sorted(join_stmts))
+        if half_join_stmts:
+            result += " " + " ".join(sorted(half_join_stmts))
+
+        return "".join(result)
+
+    # Otherwise, it's just a matter of putting it together.
+    result = []
+    for elem in tables:
+        if result:
+            if isinstance(elem, JoinExpr) and elem.left is Undef: #half-join
+                result.append(" ")
+            else:
+                result.append(", ")
+        result.append(compile(state, elem, raw=True))
+    return "".join(result)
 
 
 class Select(Expr):
@@ -517,7 +566,8 @@ def compile_select(compile, state, select):
         state.context = TABLE
         state.push("parameters", [])
         tokens.insert(tables_pos, " FROM ")
-        tokens.insert(tables_pos+1, build_tables(compile, state, select))
+        tokens.insert(tables_pos+1, build_tables(compile, state, select.tables,
+                                                 select.default_tables))
         parameters = state.parameters
         state.pop()
         state.parameters[parameters_pos:parameters_pos] = parameters
@@ -539,7 +589,7 @@ def compile_insert(compile, state, insert):
     state.push("context", COLUMN_NAME)
     columns = compile(state, insert.columns)
     state.context = TABLE
-    table = build_table(compile, state, insert)
+    table = build_tables(compile, state, insert.table, insert.default_table)
     state.context = EXPR
     values = compile(state, insert.values)
     state.pop()
@@ -562,7 +612,8 @@ def compile_update(compile, state, update):
     sets = ["%s=%s" % (compile(state, col), compile(state, set[col]))
             for col in set]
     state.context = TABLE
-    tokens = ["UPDATE ", build_table(compile, state, update),
+    tokens = ["UPDATE ", build_tables(compile, state, update.table,
+                                      update.default_table),
               " SET ", ", ".join(sets)]
     if update.where is not Undef:
         state.context = EXPR
@@ -588,7 +639,8 @@ def compile_delete(compile, state, delete):
         tokens.append(compile(state, delete.where, raw=True))
     # Compile later for auto_tables support.
     state.context = TABLE
-    tokens[1] = build_table(compile, state, delete)
+    tokens[1] = build_tables(compile, state, delete.table,
+                             delete.default_table)
     state.pop()
     return "".join(tokens)
 
@@ -597,10 +649,22 @@ def compile_delete(compile, state, delete):
 # Columns
 
 class Column(ComparableExpr):
+    """Representation of a column in some table.
 
-    def __init__(self, name=Undef, table=Undef, variable_factory=None):
+    @ivar name: Column name.
+    @ivar table: Column table (maybe another expression).
+    @ivar primary: Integer representing the primary key position of
+        this column, or 0 if it's not a primary key. May be provided as
+        a bool.
+    @ivar variable_factory: Factory producing C{Variable} instances typed
+        according to this column.
+    """
+
+    def __init__(self, name=Undef, table=Undef, primary=False,
+                 variable_factory=None):
         self.name = name
         self.table = table
+        self.primary = int(primary)
         self.variable_factory = variable_factory or Variable
 
 @compile.when(Column)
@@ -698,9 +762,15 @@ def compile_join(compile, state, expr):
     # Ensure that nested JOINs get parentheses.
     state.precedence += 0.5
     if expr.left is not Undef:
-        result.append(compile(state, expr.left, raw=True))
+        statement = compile(state, expr.left, raw=True)
+        result.append(statement)
+        if state.join_tables is not None:
+            state.join_tables.add(statement)
     result.append(expr.oper)
-    result.append(compile(state, expr.right, raw=True))
+    statement = compile(state, expr.right, raw=True)
+    result.append(statement)
+    if state.join_tables is not None:
+        state.join_tables.add(statement)
     if expr.on is not Undef:
         state.push("context", EXPR)
         result.append("ON")
@@ -1102,6 +1172,32 @@ def compare_columns(columns, values):
                 value = column.variable_factory(value=value)
             equals.append(Eq(column, value))
         return And(*equals)
+
+
+# --------------------------------------------------------------------
+# Auto table
+
+class AutoTable(Expr):
+    """This class will inject an entry in state.auto_tables.
+    
+    If the constructor is passed replace=True, it will also discard any
+    auto_table entries injected by compiling the given expression.
+    """
+
+    def __init__(self, expr, table, replace=False):
+        self.expr = expr
+        self.table = table
+        self.replace = replace
+
+@compile.when(AutoTable)
+def compile_auto_table(compile, state, expr):
+    if expr.replace:
+        state.push("auto_tables", [])
+    statement = compile(state, expr.expr)
+    if expr.replace:
+        state.pop()
+    state.auto_tables.append(expr.table)
+    return statement
 
 
 # --------------------------------------------------------------------

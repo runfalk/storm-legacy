@@ -9,16 +9,24 @@
 #
 from storm.exceptions import WrongStoreError, NoStoreError, ClassInfoError
 from storm.store import Store, get_where_for_args
-from storm.expr import Select, Column, Exists, Undef, SQLRaw, compare_columns
+from storm.expr import (
+    Select, Column, Exists, ComparableExpr, LeftJoin, Undef, SQLRaw,
+    compare_columns, compile)
 from storm.info import *
 
 
-class Reference(object):
+__all__ = ["Reference", "ReferenceSet", "Proxy"]
 
-    def __init__(self, local_key, remote_key, on_remote=False):
+
+class Reference(object):
+    """Descriptor for one-to-one relationships."""
+
+    def __init__(self, local_key, remote_key, on_remote=False, adapt=True):
+        # Reference internals are public to the Proxy.
         self._local_key = local_key
         self._remote_key = remote_key
         self._on_remote = on_remote
+        self._adapt = adapt
         self._relation = None
         self._cls = None
 
@@ -45,10 +53,14 @@ class Reference(object):
 
         if self._relation.remote_key_is_primary:
             remote = store.get(self._relation.remote_cls,
-                               self._relation.get_local_variables(local))
+                               self._relation.get_local_variables(local),
+                               adapt=self._adapt)
         else:
             where = self._relation.get_where_for_remote(local)
-            remote = store.find(self._relation.remote_cls, where).one()
+            result = store.find(self._relation.remote_cls, where)
+            if self._adapt is False:
+                result.config(adapt=False)
+            remote = result.one()
 
         if remote is not None:
             self._relation.link(local, remote)
@@ -69,7 +81,7 @@ class Reference(object):
         else:
             self._relation.link(local, remote, True)
 
-    def _build_relation(self, used_cls):
+    def _build_relation(self, used_cls=None):
         if self._cls is None:
             assert used_cls is not None
             self._cls = _find_descriptor_class(used_cls, self)
@@ -81,19 +93,20 @@ class Reference(object):
 
     def __eq__(self, other):
         if self._relation is None:
-            self._build_relation(self._cls)
+            self._build_relation()
         return self._relation.get_where_for_local(other)
 
 
 class ReferenceSet(object):
 
     def __init__(self, local_key1, remote_key1,
-                 remote_key2=None, local_key2=None, order_by=None):
+                 remote_key2=None, local_key2=None, order_by=None, adapt=True):
         self._local_key1 = local_key1
         self._remote_key1 = remote_key1
         self._remote_key2 = remote_key2
         self._local_key2 = local_key2
         self._order_by = order_by
+        self._adapt = adapt
         self._relation1 = None
         self._relation2 = None
 
@@ -111,11 +124,12 @@ class ReferenceSet(object):
         #    return None
 
         if self._relation2 is None:
-            return BoundReferenceSet(self._relation1, local, self._order_by)
+            return BoundReferenceSet(self._relation1, local,
+                                     self._order_by, self._adapt)
         else:
             return BoundIndirectReferenceSet(self._relation1,
                                              self._relation2, local,
-                                             self._order_by)
+                                             self._order_by, self._adapt)
 
     def _build_relations(self, used_cls):
         resolver = PropertyResolver(self, used_cls)
@@ -132,33 +146,10 @@ class ReferenceSet(object):
                                        True, True)
 
 
-class BoundReferenceSet(object):
-
-    def __init__(self, relation, local, order_by):
-        self._relation = relation
-        self._local = local
-        self._target_cls = self._relation.remote_cls
-        self._order_by = order_by
+class BoundReferenceSetBase(object):
 
     def __iter__(self):
-        store = Store.of(self._local)
-        if store is None:
-            raise NoStoreError("Can't perform operation without a store")
-        where = self._relation.get_where_for_remote(self._local)
-        result = store.find(self._target_cls, where)
-        if self._order_by is not None:
-            result = result.order_by(self._order_by)
-        return result.__iter__()
-
-    def find(self, *args, **kwargs):
-        store = Store.of(self._local)
-        if store is None:
-            raise NoStoreError("Can't perform operation without a store")
-        where = self._relation.get_where_for_remote(self._local)
-        result = store.find(self._target_cls, where, *args, **kwargs)
-        if self._order_by is not None:
-            return result.order_by(self._order_by)
-        return result
+        return self.find().__iter__()
 
     def first(self, *args, **kwargs):
         return self.find(*args, **kwargs).first()
@@ -176,18 +167,32 @@ class BoundReferenceSet(object):
         return self.find().values(*columns)
 
     def order_by(self, *args):
-        store = Store.of(self._local)
-        if store is None:
-            raise NoStoreError("Can't perform operation without a store")
-        where = self._relation.get_where_for_remote(self._local)
-        return store.find(self._target_cls, where).order_by(*args)
+        return self.find().order_by(*args)
 
     def count(self):
+        return self.find().count()
+
+
+class BoundReferenceSet(BoundReferenceSetBase):
+
+    def __init__(self, relation, local, order_by, adapt):
+        self._relation = relation
+        self._local = local
+        self._target_cls = self._relation.remote_cls
+        self._order_by = order_by
+        self._adapt = adapt
+
+    def find(self, *args, **kwargs):
         store = Store.of(self._local)
         if store is None:
             raise NoStoreError("Can't perform operation without a store")
         where = self._relation.get_where_for_remote(self._local)
-        return store.find(self._target_cls, where).count()
+        result = store.find(self._target_cls, where, *args, **kwargs)
+        if self._order_by is not None:
+            result.order_by(self._order_by)
+        if self._adapt is False:
+            result.config(adapt=False)
+        return result
 
     def clear(self, *args, **kwargs):
         set_kwargs = {}
@@ -207,27 +212,17 @@ class BoundReferenceSet(object):
                               get_obj_info(remote), True)
 
 
-class BoundIndirectReferenceSet(object):
+class BoundIndirectReferenceSet(BoundReferenceSetBase):
 
-    def __init__(self, relation1, relation2, local, order_by):
+    def __init__(self, relation1, relation2, local, order_by, adapt):
         self._relation1 = relation1
         self._relation2 = relation2
         self._local = local
         self._order_by = order_by
+        self._adapt = adapt
 
         self._target_cls = relation2.local_cls
         self._link_cls = relation1.remote_cls
-
-    def __iter__(self):
-        store = Store.of(self._local)
-        if store is None:
-            raise NoStoreError("Can't perform operation without a store")
-        where = (self._relation1.get_where_for_remote(self._local) &
-                 self._relation2.get_where_for_join())
-        result = store.find(self._target_cls, where)
-        if self._order_by is not None:
-            result = result.order_by(self._order_by)
-        return result.__iter__()
 
     def find(self, *args, **kwargs):
         store = Store.of(self._local)
@@ -237,39 +232,10 @@ class BoundIndirectReferenceSet(object):
                  self._relation2.get_where_for_join())
         result = store.find(self._target_cls, where, *args, **kwargs)
         if self._order_by is not None:
-            return result.order_by(self._order_by)
+            result.order_by(self._order_by)
+        if self._adapt is False:
+            result.config(adapt=False)
         return result
-
-    def first(self, *args, **kwargs):
-        return self.find(*args, **kwargs).first()
-
-    def last(self, *args, **kwargs):
-        return self.find(*args, **kwargs).last()
-
-    def any(self, *args, **kwargs):
-        return self.find(*args, **kwargs).any()
-
-    def one(self, *args, **kwargs):
-        return self.find(*args, **kwargs).one()
-
-    def values(self, *columns):
-        return self.find().values(*columns)
-
-    def order_by(self, *args):
-        store = Store.of(self._local)
-        if store is None:
-            raise NoStoreError("Can't perform operation without a store")
-        where = (self._relation1.get_where_for_remote(self._local) &
-                 self._relation2.get_where_for_join())
-        return store.find(self._target_cls, where).order_by(*args)
-
-    def count(self):
-        store = Store.of(self._local)
-        if store is None:
-            raise NoStoreError("Can't perform operation without a store")
-        where = (self._relation1.get_where_for_remote(self._local) &
-                 self._relation2.get_where_for_join())
-        return store.find(self._target_cls, where).count()
 
     def clear(self, *args, **kwargs):
         store = Store.of(self._local)
@@ -297,6 +263,72 @@ class BoundIndirectReferenceSet(object):
         where = (self._relation1.get_where_for_remote(self._local) &
                  self._relation2.get_where_for_remote(remote))
         store.find(self._link_cls, where).remove()
+
+
+class Proxy(ComparableExpr):
+    """Proxy exposes a referred object's column as a local column.
+
+    For example:
+
+    class Foo(object):
+        bar_id = Int()
+        bar = Reference(bar_id, Bar.id)
+        bar_title = Proxy(bar, Bar.title)
+
+    For most uses, Foo.bar_title should behave as if it were
+    a native property of Foo.
+    """
+
+    class RemoteProp(object):
+        """
+        This descriptor will resolve and set the _remote_prop attribute
+        when it's first used. It avoids having a test at every single
+        place where the attribute is touched.
+        """
+        def __get__(self, obj, cls=None):
+            resolver = PropertyResolver(obj, obj._cls)
+            obj._remote_prop = resolver.resolve_one(obj._unresolved_prop)
+            return obj._remote_prop
+
+    _remote_prop = RemoteProp()
+
+    def __init__(self, reference, remote_prop):
+        self._reference = reference
+        self._unresolved_prop = remote_prop
+        self._cls = None
+
+    def __get__(self, obj, cls=None):
+        if self._cls is None:
+            self._cls = _find_descriptor_class(cls, self)
+        if obj is None:
+            return self
+        # Have you counted how many descriptors we're dealing with here? ;-)
+        return self._remote_prop.__get__(self._reference.__get__(obj))
+
+    def __set__(self, obj, value):
+        return self._remote_prop.__set__(self._reference.__get__(obj), value)
+
+    @property
+    def variable_factory(self):
+        return self._remote_prop.variable_factory
+
+@compile.when(Proxy)
+def compile_proxy(compile, state, proxy):
+    # References build the relation lazily so that they don't immediately
+    # try to resolve string properties. Unfortunately we have to check that
+    # here as well and make sure that at this point it's actually there.
+    # Maybe this should use the same trick as _remote_prop on Proxy
+    if proxy._reference._relation is None:
+        proxy._reference._build_relation()
+
+    # Inject the join between the table of the class holding the proxy
+    # and the table of the class which is the target of the reference.
+    left_join = LeftJoin(proxy._remote_prop.table,
+                         proxy._reference._relation.get_where_for_join())
+    state.auto_tables.append(left_join)
+
+    # And compile the remote property normally.
+    return compile(state, proxy._remote_prop)
 
 
 class Relation(object):
