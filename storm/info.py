@@ -93,7 +93,7 @@ class ClassInfo(dict):
             primary = []
             primary_attrs = {}
             for attr, column in pairs:
-                if column.primary is not 0:
+                if column.primary != 0:
                     if column.primary in primary_attrs:
                         raise ClassInfoError(
                             "%s has two columns with the same primary id: "
@@ -108,6 +108,8 @@ class ClassInfo(dict):
             raise ClassInfoError("%s has no primary key information" %
                                  repr(cls))
 
+        # columns have __eq__ implementations that do things we don't want - we
+        # want to look these up in a dict and use identity semantics
         id_positions = dict((id(column), i)
                              for i, column in enumerate(self.columns))
 

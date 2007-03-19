@@ -221,6 +221,9 @@ class Store(object):
                 # (e.g. by a get()), the database should be queried to see
                 # if the object's still there.
                 obj_info["invalidated"] = True
+        # We want to make sure we've marked all objects as invalidated and set
+        # up their autoreloads before calling the invalidated hook on *any* of
+        # them, because an invalidated hook might
         if invalidate:
             for obj_info in obj_infos:
                 self._run_hook(obj_info, "__storm_invalidated__")

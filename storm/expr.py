@@ -151,15 +151,15 @@ class State(object):
         specific situations.  This is typically used to work around
         strange deficiencies in various databases.
 
-    @ivar auto_tables: Whenever an expression that would require a
-        table in a FROM expression is compiled, it should add the
-        respective table to this value, so that statements may
-        automatically include these tables.
+    @ivar auto_tables: The list of all implicitly-used tables.  e.g.,
+        in store.find(Foo, Foo.attr==Bar.id), the tables of Bar and
+        Foo are implicitly used because columns in them are
+        referenced. This is used when building tables.
 
-    @ivar join_tables: If not None, when Join expressions are compiled,
-        table statements seen will be added to this set. This way it is
-        possible to prevent tables from being entered twice when
-        processing auto_tables.
+    @ivar join_tables: If not None, when Join expressions are
+        compiled, tables seen will be added to this set. This acts as
+        a blacklist against auto_tables when compiling Joins, because
+        the generated statements should not refer to the table twice.
 
     @ivar context: an instance of L{Context}, specifying the context
         of the expression currently being compiled.
@@ -442,11 +442,12 @@ def has_tables(state, expr):
 def build_tables(compile, state, tables, default_tables):
     """Compile provided tables.
 
-    If C{tables} is not C{Undef}, it will be used. If C{tables} is C{Undef}
-    and C{state.auto_tables} is available, it's used instead. If neither
-    C{tables} or C{state.auto_tables} are available, C{default_tables} is
-    tried as a last resort. If none of them is available, C{NoTableError}
-    is raised.
+    Tables will be built from either C{tables}, C{state.auto_tables}, or
+    C{default_tables}.  If C{tables} is not C{Undef}, it will be used. If
+    C{tables} is C{Undef} and C{state.auto_tables} is available, that's used
+    instead. If neither C{tables} nor C{state.auto_tables} are available,
+    C{default_tables} is tried as a last resort. If none of them are available,
+    C{NoTableError} is raised.
     """
     if tables is Undef:
         if state.auto_tables:
@@ -478,12 +479,14 @@ def build_tables(compile, state, tables, default_tables):
     # Ok, now we have to be careful.
 
     # If we're dealing with auto_tables, we have to take care of
-    # duplicated statements, join ordering, and so on.
+    # duplicated tables, join ordering, and so on.
     if tables is state.auto_tables:
         table_stmts = set()
         join_stmts = set()
         half_join_stmts = set()
 
+        # push a join_tables onto the state: compile calls below will
+        # populate this set so that we know what tables not to include.
         state.push("join_tables", set())
 
         for elem in tables:
@@ -503,7 +506,7 @@ def build_tables(compile, state, tables, default_tables):
 
         result = ", ".join(sorted(table_stmts)+sorted(join_stmts))
         if half_join_stmts:
-            result += " "+" ".join(sorted(half_join_stmts))
+            result += " " + " ".join(sorted(half_join_stmts))
 
         return "".join(result)
 
@@ -511,10 +514,10 @@ def build_tables(compile, state, tables, default_tables):
     result = []
     for elem in tables:
         if result:
-            if not (isinstance(elem, JoinExpr) and elem.left is Undef):
-                result.append(", ")
-            else:
+            if isinstance(elem, JoinExpr) and elem.left is Undef: #half-join
                 result.append(" ")
+            else:
+                result.append(", ")
         result.append(compile(state, elem, raw=True))
     return "".join(result)
 

@@ -19,8 +19,10 @@ __all__ = ["Reference", "ReferenceSet", "Proxy"]
 
 
 class Reference(object):
+    """Descriptor for one-to-one relationships."""
 
     def __init__(self, local_key, remote_key, on_remote=False, adapt=True):
+        # Reference internals are public to the Proxy.
         self._local_key = local_key
         self._remote_key = remote_key
         self._on_remote = on_remote
@@ -235,9 +237,6 @@ class BoundIndirectReferenceSet(BoundReferenceSetBase):
             result.config(adapt=False)
         return result
 
-    def count(self):
-        return self.find().count()
-
     def clear(self, *args, **kwargs):
         store = Store.of(self._local)
         if store is None:
@@ -276,14 +275,14 @@ class Proxy(ComparableExpr):
         bar = Reference(bar_id, Bar.id)
         bar_title = Proxy(bar, Bar.title)
 
-    For most uses, Foo.bar_title should behave like if it was
+    For most uses, Foo.bar_title should behave as if it were
     a native property of Foo.
     """
 
     class RemoteProp(object):
         """
         This descriptor will resolve and set the _remote_prop attribute
-        when it's first used. It avoids having a test on every single
+        when it's first used. It avoids having a test at every single
         place where the attribute is touched.
         """
         def __get__(self, obj, cls=None):
@@ -303,6 +302,7 @@ class Proxy(ComparableExpr):
             self._cls = _find_descriptor_class(cls, self)
         if obj is None:
             return self
+        # Have you counted how many descriptors we're dealing with here? ;-)
         return self._remote_prop.__get__(self._reference.__get__(obj))
 
     def __set__(self, obj, value):
@@ -314,6 +314,10 @@ class Proxy(ComparableExpr):
 
 @compile.when(Proxy)
 def compile_proxy(compile, state, proxy):
+    # References build the relation lazily so that they don't immediately
+    # try to resolve string properties. Unfortunately we have to check that
+    # here as well and make sure that at this point it's actually there.
+    # Maybe this should use the same trick as _remote_prop on Proxy
     if proxy._reference._relation is None:
         proxy._reference._build_relation()
 

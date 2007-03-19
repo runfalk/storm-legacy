@@ -137,7 +137,7 @@ class PostgresTest(TestHelper, DatabaseTest):
         #     ORDER BY on a UNION/INTERSECT/EXCEPT result must
         #     be on one of the result columns
         column = SQLRaw("1")
-	Alias.auto_counter = 0
+        Alias.auto_counter = 0
         alias = Alias(column, "id")
         expr = Union(Select(alias), Select(column), order_by=alias+1,
                      limit=1, offset=1, all=True)

@@ -3624,6 +3624,23 @@ class StoreTest(object):
         self.store.invalidate(foo)
         self.assertEquals(called, [True])
 
+    def test_invalidated_hook_called_after_all_invalidated(self):
+        """
+        Ensure that invalidated hooks are called only when all objects have
+        already been marked as invalidated. See comment in 
+        store.py:_mark_autoreload.
+        """
+        called = []
+        class MyFoo(Foo):
+            def __storm_invalidated__(self):
+                if not called:
+                    called.append(get_obj_info(foo1).get("invalidated"))
+                    called.append(get_obj_info(foo2).get("invalidated"))
+        foo1 = self.store.get(MyFoo, 10)
+        foo2 = self.store.get(MyFoo, 20)
+        self.store.invalidate()
+        self.assertEquals(called, [True, True])
+
     def test_result_union(self):
         result1 = self.store.find(Foo, id=30)
         result2 = self.store.find(Foo, id=10)
@@ -3847,7 +3864,6 @@ class StoreTest(object):
         self.assertEquals(foo.obj.title, "Title 20")
 
     def test_adapt_get_cached(self):
-        foo = self.store.get(FooAdapt, 20)
         foo = self.store.get(FooAdapt, 20)
         self.assertTrue(isinstance(foo, Wrapper))
         self.assertEquals(foo.obj.title, "Title 20")
