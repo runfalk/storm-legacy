@@ -120,7 +120,7 @@ class ClassInfo(dict):
                                      for column in self.primary_key)
 
 
-        __order__ = getattr(cls, "__order__", None)
+        __order__ = getattr(cls, "__storm_order__", None)
         if __order__ is None:
             self.default_order = Undef
         else:

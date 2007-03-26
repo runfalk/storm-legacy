@@ -401,7 +401,7 @@ class StoreTest(object):
 
     def test_find_default_order_asc(self):
         class MyFoo(Foo):
-            __order__ = "title"
+            __storm_order__ = "title"
 
         result = self.store.find(MyFoo)
         lst = [(foo.id, foo.title) for foo in result]
@@ -413,7 +413,7 @@ class StoreTest(object):
 
     def test_find_default_order_asc(self):
         class MyFoo(Foo):
-            __order__ = "-title"
+            __storm_order__ = "-title"
 
         result = self.store.find(MyFoo)
         lst = [(foo.id, foo.title) for foo in result]
@@ -425,7 +425,7 @@ class StoreTest(object):
 
     def test_find_default_order_with_tuple(self):
         class MyLink(Link):
-            __order__ = ("foo_id", "-bar_id")
+            __storm_order__ = ("foo_id", "-bar_id")
 
         result = self.store.find(MyLink)
         lst = [(link.foo_id, link.bar_id) for link in result]
@@ -440,7 +440,7 @@ class StoreTest(object):
 
     def test_find_default_order_with_tuple_and_expr(self):
         class MyLink(Link):
-            __order__ = ("foo_id", Desc(Link.bar_id))
+            __storm_order__ = ("foo_id", Desc(Link.bar_id))
 
         result = self.store.find(MyLink)
         lst = [(link.foo_id, link.bar_id) for link in result]
