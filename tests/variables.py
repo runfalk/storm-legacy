@@ -685,7 +685,7 @@ class ListVariableTest(TestHelper):
 class EnumVariableTest(TestHelper):
 
     def test_set_get(self):
-        variable = EnumVariable({"foo": 1, "bar": 2})
+        variable = EnumVariable({1: "foo", 2: "bar"}, {"foo": 1, "bar": 2})
         variable.set("foo")
         self.assertEquals(variable.get(), "foo")
         self.assertEquals(variable.get(to_db=True), 1)
@@ -693,3 +693,15 @@ class EnumVariableTest(TestHelper):
         self.assertEquals(variable.get(), "bar")
         self.assertEquals(variable.get(to_db=True), 2)
         self.assertRaises(ValueError, variable.set, "foobar")
+        self.assertRaises(ValueError, variable.set, 2)
+
+    def test_in_map(self):
+        variable = EnumVariable({1: "foo", 2: "bar"}, {"one": 1, "two": 2})
+        variable.set("one")
+        self.assertEquals(variable.get(), "foo")
+        self.assertEquals(variable.get(to_db=True), 1)
+        variable.set(2, from_db=True)
+        self.assertEquals(variable.get(), "bar")
+        self.assertEquals(variable.get(to_db=True), 2)
+        self.assertRaises(ValueError, variable.set, "foo")
+        self.assertRaises(ValueError, variable.set, 2)

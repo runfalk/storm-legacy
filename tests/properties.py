@@ -466,6 +466,35 @@ class PropertyKindsTest(TestHelper):
         self.assertEquals(self.obj.prop1, "bar")
 
         self.assertRaises(ValueError, setattr, self.obj, "prop1", "baz")
+        self.assertRaises(ValueError, setattr, self.obj, "prop1", 1)
+
+    def test_enum_with_set_map(self):
+        self.setup(Enum, map={"foo": 1, "bar": 2},
+                   set_map={"fooics": 1, "barics": 2},
+                   default="fooics", allow_none=False,
+                   prop2_kwargs=dict(map={"foo": 1, "bar": 2}))
+
+        self.assertTrue(isinstance(self.column1, Column))
+        self.assertTrue(isinstance(self.column2, Column))
+        self.assertEquals(self.column1.name, "column1")
+        self.assertEquals(self.column1.table, self.SubClass)
+        self.assertEquals(self.column2.name, "prop2")
+        self.assertEquals(self.column2.table, self.SubClass)
+        self.assertTrue(isinstance(self.variable1, EnumVariable))
+        self.assertTrue(isinstance(self.variable2, EnumVariable))
+
+        self.assertEquals(self.obj.prop1, "foo")
+        self.assertRaises(NoneError, setattr, self.obj, "prop1", None)
+        self.obj.prop2 = None
+        self.assertEquals(self.obj.prop2, None)
+
+        self.obj.prop1 = "fooics"
+        self.assertEquals(self.obj.prop1, "foo")
+        self.obj.prop1 = "barics"
+        self.assertEquals(self.obj.prop1, "bar")
+
+        self.assertRaises(ValueError, setattr, self.obj, "prop1", "foo")
+        self.assertRaises(ValueError, setattr, self.obj, "prop1", 1)
 
     def test_pickle(self):
         self.setup(Pickle, default_factory=dict, allow_none=False)

@@ -314,18 +314,16 @@ class TimeDeltaVariable(Variable):
 
 class EnumVariable(Variable):
 
-    def __init__(self, map, *args, **kwargs):
-        # XXX These maps should be cached in the property.
-        self._py_to_db = dict(map)
-        self._db_to_py = dict((value, key)
-                              for key, value in self._py_to_db.items())
+    def __init__(self, get_map, set_map, *args, **kwargs):
+        self._get_map = get_map
+        self._set_map = set_map
         Variable.__init__(self, *args, **kwargs)
 
     def _parse_set(self, value, db):
         if db:
             return value
         try:
-            return self._py_to_db[value]
+            return self._set_map[value]
         except KeyError:
             raise ValueError("Invalid enum value: %s" % repr(value))
 
@@ -333,7 +331,7 @@ class EnumVariable(Variable):
         if db:
             return value
         try:
-            return self._db_to_py[value]
+            return self._get_map[value]
         except KeyError:
             raise ValueError("Invalid enum value: %s" % repr(value))
 
