@@ -144,9 +144,6 @@ class Time(SimpleProperty):
 class TimeDelta(SimpleProperty):
     variable_class = TimeDeltaVariable
 
-class Enum(SimpleProperty):
-    variable_class = EnumVariable
-
 class Pickle(SimpleProperty):
     variable_class = PickleVariable
 
