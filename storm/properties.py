@@ -144,9 +144,6 @@ class Time(SimpleProperty):
 class TimeDelta(SimpleProperty):
     variable_class = TimeDeltaVariable
 
-class Enum(SimpleProperty):
-    variable_class = EnumVariable
-
 class Pickle(SimpleProperty):
     variable_class = PickleVariable
 
@@ -164,6 +161,42 @@ class List(SimpleProperty):
         kwargs["item_factory"] = VariableFactory(type._variable_class,
                                                  **type._variable_kwargs)
         SimpleProperty.__init__(self, name, **kwargs)
+
+
+class Enum(SimpleProperty):
+    """Enumeration property, allowing used values to differ from stored ones.
+
+    For instance:
+
+        class Class(Storm):
+            prop = Enum(map={"one": 1, "two": 2})
+
+        obj.prop = "one"
+        assert obj.prop == "one"
+
+        obj.prop = 1 # Raises error.
+
+    Another example:
+
+        class Class(Storm):
+            prop = Enum(map={"one": 1, "two": 2}, set_map={"um": 1})
+
+        obj.prop = "um"
+        assert obj.prop is "one"
+
+        obj.prop = "one" # Raises error.
+    """
+    variable_class = EnumVariable
+
+    def __init__(self, name=None, primary=False, **kwargs):
+        set_map = dict(kwargs.pop("map"))
+        get_map = dict((value, key) for key, value in set_map.items())
+        if "set_map" in kwargs:
+            set_map = dict(kwargs.pop("set_map"))
+
+        kwargs["get_map"] = get_map
+        kwargs["set_map"] = set_map
+        SimpleProperty.__init__(self, name, primary, **kwargs)
 
 
 class PropertyRegistry(object):
