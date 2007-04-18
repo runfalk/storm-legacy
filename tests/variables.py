@@ -509,6 +509,27 @@ class TimeVariableTest(TestHelper):
         variable.set(datetime_str, from_db=True)
         self.assertEquals(variable.get(), time_obj)
 
+    def test_microsecond_error(self):
+        time_str = "15:14:18.598678"
+        time_obj = time(15, 14, 18, 598678)
+        variable = TimeVariable()
+        variable.set(time_str, from_db=True)
+        self.assertEquals(variable.get(), time_obj)
+
+    def test_microsecond_error_less_digits(self):
+        time_str = "15:14:18.5986"
+        time_obj = time(15, 14, 18, 598600)
+        variable = TimeVariable()
+        variable.set(time_str, from_db=True)
+        self.assertEquals(variable.get(), time_obj)
+
+    def test_microsecond_error_more_digits(self):
+        time_str = "15:14:18.5986789"
+        time_obj = time(15, 14, 18, 598678)
+        variable = TimeVariable()
+        variable.set(time_str, from_db=True)
+        self.assertEquals(variable.get(), time_obj)
+
 
 class TimeDeltaVariableTest(TestHelper):
 

@@ -420,9 +420,10 @@ def _parse_time(time_str):
         raise ValueError("Unknown time format: %r" % time_str)
     hour, minute, second = time_str.split(":")
     if "." in second:
-        fsecond = float(second)
-        second = int(fsecond)
-        return int(hour), int(minute), second, int((fsecond-second)*1000000)
+        second, microsecond = second.split(".")
+        second = int(second)
+        microsecond = int(int(microsecond) * 10 ** (6 - len(microsecond)))
+        return int(hour), int(minute), second, microsecond
     return int(hour), int(minute), int(second), 0
 
 def _parse_date(date_str):
