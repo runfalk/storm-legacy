@@ -48,6 +48,8 @@ def compile_list_variable(compile, state, list_variable):
     variables = list_variable.get(to_db=True)
     if variables is None:
         return "NULL"
+    if not variables:
+        return "'{}'"
     for variable in variables:
         elements.append(compile(state, variable))
     return "ARRAY[%s]" % ",".join(elements)

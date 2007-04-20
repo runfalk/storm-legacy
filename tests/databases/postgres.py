@@ -130,6 +130,34 @@ class PostgresTest(TestHelper, DatabaseTest):
         result.set_variable(variable, array)
         self.assertEquals(variable.get(), [1,2,3,4])
 
+    def test_array_support_with_empty(self):
+        try:
+            self.connection.execute("DROP TABLE array_test")
+            self.connection.commit()
+        except:
+            self.connection.rollback()
+
+        self.connection.execute("CREATE TABLE array_test "
+                                "(id SERIAL PRIMARY KEY, a INT[])")
+
+        variable = ListVariable(IntVariable)
+        variable.set([])
+
+        statement, params = compile(variable)
+
+        self.connection.execute("INSERT INTO array_test VALUES (1, %s)"
+                                % statement, params)
+
+        result = self.connection.execute("SELECT a FROM array_test WHERE id=1")
+
+        array = result.get_one()[0]
+
+        self.assertTrue(isinstance(array, str))
+
+        variable = ListVariable(IntVariable)
+        result.set_variable(variable, array)
+        self.assertEquals(variable.get(), [])
+
     def test_expressions_in_union_order_by(self):
         # The following statement breaks in postgres:
         #     SELECT 1 AS id UNION SELECT 1 ORDER BY id+1;
