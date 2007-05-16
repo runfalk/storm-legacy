@@ -20,6 +20,7 @@ class DatabaseTest(object):
     supports_microseconds = True
 
     def setUp(self):
+        super(DatabaseTest, self).setUp()
         self.create_database()
         self.create_connection()
         self.drop_tables()
@@ -30,6 +31,7 @@ class DatabaseTest(object):
         self.drop_sample_data()
         self.drop_tables()
         self.drop_database()
+        super(DatabaseTest, self).tearDown()
 
     def create_database(self):
         raise NotImplementedError

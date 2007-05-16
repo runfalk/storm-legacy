@@ -74,7 +74,7 @@ class PostgresStoreTest(TestHelper, StoreTest):
         self.store.add(lst)
 
         result = self.store.execute("SELECT ints FROM lst1 WHERE id=1")
-        self.assertEquals(result.get_one(), ("{1,2,3,4}",))
+        self.assertEquals(result.get_one(), ([1,2,3,4],))
 
         del lst
         gc.collect()
@@ -85,7 +85,7 @@ class PostgresStoreTest(TestHelper, StoreTest):
         lst.ints.append(5)
 
         result = self.store.execute("SELECT ints FROM lst1 WHERE id=1")
-        self.assertEquals(result.get_one(), ("{1,2,3,4,5}",))
+        self.assertEquals(result.get_one(), ([1,2,3,4,5],))
 
     def test_list_variable_nested(self):
 
@@ -96,7 +96,7 @@ class PostgresStoreTest(TestHelper, StoreTest):
         self.store.add(lst)
 
         result = self.store.execute("SELECT ints FROM lst2 WHERE id=1")
-        self.assertEquals(result.get_one(), ("{{1,2},{3,4}}",))
+        self.assertEquals(result.get_one(), ([[1,2],[3,4]],))
 
         del lst
         gc.collect()
@@ -107,7 +107,7 @@ class PostgresStoreTest(TestHelper, StoreTest):
         lst.ints.append([5, 6])
 
         result = self.store.execute("SELECT ints FROM lst2 WHERE id=1")
-        self.assertEquals(result.get_one(), ("{{1,2},{3,4},{5,6}}",))
+        self.assertEquals(result.get_one(), ([[1,2],[3,4],[5,6]],))
 
 
 class PostgresEmptyResultSetTest(TestHelper, EmptyResultSetTest):

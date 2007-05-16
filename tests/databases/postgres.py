@@ -1,7 +1,7 @@
 from datetime import datetime, date, time
 import os
 
-from storm.databases.postgres import Postgres, compile, parse_array
+from storm.databases.postgres import Postgres, compile
 from storm.uri import URI
 from storm.database import create_database
 from storm.variables import UnicodeVariable, DateTimeVariable
@@ -12,16 +12,8 @@ from tests.databases.base import DatabaseTest, UnsupportedDatabaseTest
 from tests.helper import TestHelper, MakePath
 
 
-class PostgresTest(TestHelper, DatabaseTest):
+class PostgresTest(DatabaseTest, TestHelper):
 
-    def setUp(self):
-        TestHelper.setUp(self)
-        DatabaseTest.setUp(self)
-
-    def tearDown(self):
-        DatabaseTest.setUp(self)
-        TestHelper.setUp(self)
-    
     def is_supported(self):
         return bool(os.environ.get("STORM_POSTGRES_URI"))
 
@@ -124,7 +116,7 @@ class PostgresTest(TestHelper, DatabaseTest):
 
         array = result.get_one()[0]
 
-        self.assertTrue(isinstance(array, str))
+        self.assertTrue(isinstance(array, list))
 
         variable = ListVariable(IntVariable)
         result.set_variable(variable, array)
@@ -152,7 +144,7 @@ class PostgresTest(TestHelper, DatabaseTest):
 
         array = result.get_one()[0]
 
-        self.assertTrue(isinstance(array, str))
+        self.assertTrue(isinstance(array, list))
 
         variable = ListVariable(IntVariable)
         result.set_variable(variable, array)
@@ -190,17 +182,7 @@ class PostgresTest(TestHelper, DatabaseTest):
         self.assertEquals(result.get_all(), [(1,), (1,)])
 
 
-class ParseArrayTest(TestHelper):
-
-    def test_parse_array(self):
-        data = r'{{meeting,lunch},{ training , "presentation"},"{}","\"",NULL}'
-        obj = parse_array(data)
-        self.assertEquals(obj,
-                          [["meeting", "lunch"],
-                           ["training", "presentation"], "{}", '"', None])
-
-
 class PostgresUnsupportedTest(UnsupportedDatabaseTest, TestHelper):
     
-    dbapi_module_name = "psycopg"
+    dbapi_module_name = "psycopg2"
     db_module_name = "postgres"

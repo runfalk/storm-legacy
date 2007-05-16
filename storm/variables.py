@@ -351,6 +351,8 @@ class PickleVariable(Variable):
     @staticmethod
     def _parse_set(value, db):
         if db:
+            if isinstance(value, buffer):
+                value = str(value)
             return pickle.loads(value)
         else:
             return value

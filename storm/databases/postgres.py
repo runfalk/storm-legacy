@@ -13,9 +13,10 @@ from time import strptime
 from storm.databases import dummy
 
 try:
-    import psycopg
+    import psycopg2
+    import psycopg2.extensions
 except:
-    psycopg = dummy
+    psycopg2 = dummy
 
 from storm.expr import (
     Undef, SetExpr, Select, Alias, And, Eq, FuncExpr, SQLRaw, COLUMN_NAME,
@@ -26,7 +27,7 @@ from storm.database import *
 from storm.exceptions import install_exceptions, DatabaseModuleError
 
 
-install_exceptions(psycopg)
+install_exceptions(psycopg2)
 compile = compile.fork()
 
 
@@ -121,12 +122,6 @@ class PostgresResult(Result):
         if isinstance(variable, UnicodeVariable):
             if not isinstance(value, unicode):
                 value = unicode(value, self._connection._database._encoding)
-        elif isinstance(variable, ListVariable):
-            if value == "{}":
-                # Optimize the empty array case (parse_array() can handle it).
-                value = []
-            else:
-                value = parse_array(value)
         variable.set(value, from_db=True)
 
 
@@ -151,7 +146,7 @@ class PostgresConnection(Connection):
             elif isinstance(param, unicode):
                 yield param.encode(self._database._encoding)
             elif isinstance(param, str):
-                yield psycopg.Binary(param)
+                yield psycopg2.Binary(param)
             else:
                 yield param
 
@@ -162,8 +157,8 @@ class Postgres(Database):
 
     def __init__(self, dbname, host=None, port=None,
                  username=None, password=None, encoding=None):
-        if psycopg is dummy:
-            raise DatabaseModuleError("'psycopg' module not found")
+        if psycopg2 is dummy:
+            raise DatabaseModuleError("'psycopg2' module not found")
         self._dsn = "dbname=%s" % dbname
         if host is not None:
             self._dsn += " host=%s" % host
@@ -178,7 +173,7 @@ class Postgres(Database):
 
     def connect(self):
         global psycopg_needs_E
-        raw_connection = psycopg.connect(self._dsn)
+        raw_connection = psycopg2.connect(self._dsn)
         if psycopg_needs_E is None:
             # This will conditionally change the compilation of binary
             # variables (StrVariable) to preceed the placeholder with an
@@ -189,8 +184,8 @@ class Postgres(Database):
             # were manually tested for correctness at some point.
             cursor = raw_connection.cursor()
             try:
-                cursor.execute("SELECT E%s", (psycopg.Binary(""),))
-            except psycopg.ProgrammingError:
+                cursor.execute("SELECT E%s", (psycopg2.Binary(""),))
+            except psycopg2.ProgrammingError:
                 raw_connection.rollback()
                 psycopg_needs_E = False
             else:
@@ -198,11 +193,12 @@ class Postgres(Database):
                 compile.when(StrVariable)(compile_str_variable_with_E)
         return self._connection_factory(self, raw_connection)
 
-def str_or_none(value):
-    return value and str(value)
-
-psycopg.register_type(psycopg.new_type(psycopg.DATETIME.values,
-                                       "DT", str_or_none))
+    #def str_or_none(value):
+    #    return value and str(value)
+    #
+    #psycopg2.extensions.register_type(
+    #    psycopg2.extensions.new_type(psycopg2.DATETIME.values, "DT",
+    #                                 str_or_none))
 
 
 def create_from_uri(uri):
@@ -223,54 +219,3 @@ def make_dsn(uri):
     if uri.password is not None:
         dsn += " password=%s" % uri.password
     return dsn
-
-
-def parse_array(array):
-    """Parse a PostgreSQL-formatted array literal.
-
-    E.g. r'{{meeting,lunch},{ training , "presentation" },"{}","\"", NULL}'
-    makes [["meeting", "lunch"], ["training", "presentation"], "{}", '"', None]
-    """
-
-    if array[0] != "{" or array[-1] != "}":
-        raise ValueError("Invalid array")
-    stack = []
-    current = []
-    token = ""
-    nesting = 0
-    quoting = False
-    quoted = False
-    chars = iter(array)
-    for c in chars:
-        if quoting:
-            if c == "\\":
-                token += chars.next()
-            elif c == '"':
-                quoting = False
-            else:
-                token += c
-        elif c == " ":
-            pass
-        elif c in ",}":
-            if token:
-                if quoted:
-                    quoted = False
-                elif token == "NULL":
-                    token = None
-                current.append(token)
-                token = ""
-            if c == "}":
-                current = stack.pop()
-        elif token:
-            token += c
-        elif c == '"':
-            quoting = True
-            quoted = True
-        elif c == "{":
-            lst = []
-            current.append(lst)
-            stack.append(current)
-            current = lst
-        else:
-            token = c
-    return current[0]
