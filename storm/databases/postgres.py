@@ -193,12 +193,13 @@ class Postgres(Database):
                 compile.when(StrVariable)(compile_str_variable_with_E)
         return self._connection_factory(self, raw_connection)
 
-    #def str_or_none(value):
-    #    return value and str(value)
-    #
-    #psycopg2.extensions.register_type(
-    #    psycopg2.extensions.new_type(psycopg2.DATETIME.values, "DT",
-    #                                 str_or_none))
+if psycopg2 is not dummy:
+    def str_or_none(value, cursor):
+        return value and str(value)
+
+    psycopg2.extensions.register_type(
+        psycopg2.extensions.new_type(psycopg2.DATETIME.values, "DT",
+                                     str_or_none))
 
 
 def create_from_uri(uri):
