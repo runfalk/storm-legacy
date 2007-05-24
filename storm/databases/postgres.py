@@ -118,12 +118,6 @@ class PostgresResult(Result):
             equals.append(Eq(column, variable))
         return And(*equals)
 
-    def set_variable(self, variable, value):
-        if isinstance(variable, UnicodeVariable):
-            if not isinstance(value, unicode):
-                value = unicode(value, self._connection._database._encoding)
-        variable.set(value, from_db=True)
-
 
 class PostgresConnection(Connection):
 
@@ -134,7 +128,7 @@ class PostgresConnection(Connection):
     def _raw_execute(self, statement, params):
         if type(statement) is unicode:
             # psycopg breaks with unicode statements.
-            statement = statement.encode(self._database._encoding)
+            statement = statement.encode("UTF-8")
         return Connection._raw_execute(self, statement, params)
 
     def _to_database(self, params):
@@ -144,7 +138,7 @@ class PostgresConnection(Connection):
             if isinstance(param, (datetime, date, time)):
                 yield str(param)
             elif isinstance(param, unicode):
-                yield param.encode(self._database._encoding)
+                yield param.encode('UTF-8')
             elif isinstance(param, str):
                 yield psycopg2.Binary(param)
             else:
@@ -156,7 +150,7 @@ class Postgres(Database):
     _connection_factory = PostgresConnection
 
     def __init__(self, dbname, host=None, port=None,
-                 username=None, password=None, encoding=None):
+                 username=None, password=None):
         if psycopg2 is dummy:
             raise DatabaseModuleError("'psycopg2' module not found")
         self._dsn = "dbname=%s" % dbname
@@ -169,11 +163,10 @@ class Postgres(Database):
         if password is not None:
             self._dsn += " password=%s" % password
 
-        self._encoding = encoding or "UTF-8"
-
     def connect(self):
         global psycopg_needs_E
         raw_connection = psycopg2.connect(self._dsn)
+        raw_connection.set_client_encoding('UTF8')
         if psycopg_needs_E is None:
             # This will conditionally change the compilation of binary
             # variables (StrVariable) to preceed the placeholder with an
@@ -193,18 +186,18 @@ class Postgres(Database):
                 compile.when(StrVariable)(compile_str_variable_with_E)
         return self._connection_factory(self, raw_connection)
 
-if psycopg2 is not dummy:
-    def str_or_none(value, cursor):
-        return value and str(value)
 
-    psycopg2.extensions.register_type(
-        psycopg2.extensions.new_type(psycopg2.DATETIME.values, "DT",
-                                     str_or_none))
+if psycopg2 is not dummy:
+    psycopg2.extensions.register_type(psycopg2.extensions.DATE)
+    psycopg2.extensions.register_type(psycopg2.extensions.INTERVAL)
+    psycopg2.extensions.register_type(psycopg2.extensions.TIME)
+    psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
+    psycopg2.extensions.register_type(psycopg2._psycopg.UNICODEARRAY)
 
 
 def create_from_uri(uri):
     return Postgres(uri.database, uri.host, uri.port,
-                    uri.username, uri.password, uri.options.get("encoding"))
+                    uri.username, uri.password)
 
 
 # FIXME Make Postgres constructor use that one.
