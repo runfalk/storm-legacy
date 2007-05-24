@@ -118,10 +118,7 @@ class PostgresResult(Result):
         return And(*equals)
 
     def set_variable(self, variable, value):
-        if isinstance(variable, UnicodeVariable):
-            if not isinstance(value, unicode):
-                value = unicode(value, self._connection._database._encoding)
-        elif isinstance(variable, ListVariable):
+        if isinstance(variable, ListVariable):
             if value == "{}":
                 # Optimize the empty array case (parse_array() can handle it).
                 value = []
@@ -139,7 +136,7 @@ class PostgresConnection(Connection):
     def _raw_execute(self, statement, params):
         if type(statement) is unicode:
             # psycopg breaks with unicode statements.
-            statement = statement.encode(self._database._encoding)
+            statement = statement.encode("UTF-8")
         return Connection._raw_execute(self, statement, params)
 
     def _to_database(self, params):
@@ -149,7 +146,7 @@ class PostgresConnection(Connection):
             if isinstance(param, (datetime, date, time)):
                 yield str(param)
             elif isinstance(param, unicode):
-                yield param.encode(self._database._encoding)
+                yield param.encode('UTF-8')
             elif isinstance(param, str):
                 yield psycopg.Binary(param)
             else:
@@ -161,7 +158,7 @@ class Postgres(Database):
     _connection_factory = PostgresConnection
 
     def __init__(self, dbname, host=None, port=None,
-                 username=None, password=None, encoding=None):
+                 username=None, password=None):
         if psycopg is dummy:
             raise DatabaseModuleError("'psycopg' module not found")
         self._dsn = "dbname=%s" % dbname
@@ -174,11 +171,13 @@ class Postgres(Database):
         if password is not None:
             self._dsn += " password=%s" % password
 
-        self._encoding = encoding or "UTF-8"
-
     def connect(self):
         global psycopg_needs_E
         raw_connection = psycopg.connect(self._dsn)
+        # Put the connection into UTF-8 mode.
+        cursor = raw_connection.cursor()
+        cursor.execute('SET client_encoding TO UTF8')
+        raw_connection.commit()
         if psycopg_needs_E is None:
             # This will conditionally change the compilation of binary
             # variables (StrVariable) to preceed the placeholder with an
@@ -198,16 +197,29 @@ class Postgres(Database):
                 compile.when(StrVariable)(compile_str_variable_with_E)
         return self._connection_factory(self, raw_connection)
 
+
+def decode_unicode(value):
+    if value is not None:
+        value = value.decode('UTF-8')
+    return value
+
+
 def str_or_none(value):
     return value and str(value)
 
-psycopg.register_type(psycopg.new_type(psycopg.DATETIME.values,
-                                       "DT", str_or_none))
+
+if psycopg is not dummy:
+    # Register for char, name, text, bpchar and varchar (like psycopg2 does)
+    psycopg.register_type(psycopg.new_type(
+        (18, 19, 25, 1042, 1043), "UNICODE", decode_unicode))
+
+    psycopg.register_type(psycopg.new_type(
+        psycopg.DATETIME.values, "DT", str_or_none))
 
 
 def create_from_uri(uri):
     return Postgres(uri.database, uri.host, uri.port,
-                    uri.username, uri.password, uri.options.get("encoding"))
+                    uri.username, uri.password)
 
 
 # FIXME Make Postgres constructor use that one.
