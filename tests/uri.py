@@ -89,6 +89,15 @@ class URITest(TestHelper):
         self.assertEquals(uri.port, 1234)
         self.assertEquals(uri.database, "database")
 
+    def test_parse_username_password_database(self):
+        uri = URI("scheme://user%6eame:pass%77ord@/d%61tabase")
+        self.assertEquals(uri.scheme, "scheme")
+        self.assertEquals(uri.username, "username")
+        self.assertEquals(uri.password, "password")
+        self.assertEquals(uri.host, None)
+        self.assertEquals(uri.port, None)
+        self.assertEquals(uri.database, "database")
+
     def test_parse_options(self):
         uri = URI("scheme:?a%62c=d%65f&ghi=jkl")
         self.assertEquals(uri.scheme, "scheme")
@@ -116,4 +125,3 @@ class URITest(TestHelper):
         self.assertTrue(uri_copy is not uri)
         self.assertTrue(uri_copy.__dict__ == uri.__dict__)
         self.assertTrue(uri_copy.options is not uri.options)
-
