@@ -96,17 +96,6 @@ def compile_set_expr_postgres(compile, state, expr):
     else:
         return compile_set_expr(compile, state, expr)
 
-def compile_str_variable_with_E(compile, state, variable):
-    """Include an E just before the placeholder of string variables.
-
-    PostgreSQL 8.2 will issue a warning without it, and old versions
-    of psycopg will use plain '' rather than E''.
-    """
-    state.parameters.append(variable)
-    return "E?"
-
-psycopg_needs_E = None
-
 
 class PostgresResult(Result):
 
@@ -164,26 +153,8 @@ class Postgres(Database):
             self._dsn += " password=%s" % password
 
     def connect(self):
-        global psycopg_needs_E
         raw_connection = psycopg2.connect(self._dsn)
         raw_connection.set_client_encoding("UTF8")
-        if psycopg_needs_E is None:
-            # This will conditionally change the compilation of binary
-            # variables (StrVariable) to preceed the placeholder with an
-            # 'E', if psycopg isn't doing it by itself.
-            #
-            # The "failing" code path isn't unittested because that
-            # would depend on a different psycopg version.  Both branches
-            # were manually tested for correctness at some point.
-            cursor = raw_connection.cursor()
-            try:
-                cursor.execute("SELECT E%s", (psycopg2.Binary(""),))
-            except psycopg2.ProgrammingError:
-                raw_connection.rollback()
-                psycopg_needs_E = False
-            else:
-                psycopg_needs_E = True
-                compile.when(StrVariable)(compile_str_variable_with_E)
         return self._connection_factory(self, raw_connection)
 
 
