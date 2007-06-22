@@ -138,19 +138,10 @@ class Postgres(Database):
 
     _connection_factory = PostgresConnection
 
-    def __init__(self, dbname, host=None, port=None,
-                 username=None, password=None):
+    def __init__(self, uri):
         if psycopg2 is dummy:
             raise DatabaseModuleError("'psycopg2' module not found")
-        self._dsn = "dbname=%s" % dbname
-        if host is not None:
-            self._dsn += " host=%s" % host
-        if port is not None:
-            self._dsn += " port=%d" % port
-        if username is not None:
-            self._dsn += " user=%s" % username
-        if password is not None:
-            self._dsn += " password=%s" % password
+        self._dsn = make_dsn(uri)
 
     def connect(self):
         raw_connection = psycopg2.connect(self._dsn)
@@ -158,17 +149,14 @@ class Postgres(Database):
         return self._connection_factory(self, raw_connection)
 
 
+create_from_uri = Postgres
+
+
 if psycopg2 is not dummy:
     psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
     psycopg2.extensions.register_type(psycopg2._psycopg.UNICODEARRAY)
 
 
-def create_from_uri(uri):
-    return Postgres(uri.database, uri.host, uri.port,
-                    uri.username, uri.password)
-
-
-# FIXME Make Postgres constructor use that one.
 def make_dsn(uri):
     """Convert a URI object to a PostgreSQL DSN string."""
     dsn = "dbname=%s" % uri.database
