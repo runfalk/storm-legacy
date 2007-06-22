@@ -188,9 +188,6 @@ class Postgres(Database):
 
 
 if psycopg2 is not dummy:
-    psycopg2.extensions.register_type(psycopg2.extensions.DATE)
-    psycopg2.extensions.register_type(psycopg2.extensions.INTERVAL)
-    psycopg2.extensions.register_type(psycopg2.extensions.TIME)
     psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
     psycopg2.extensions.register_type(psycopg2._psycopg.UNICODEARRAY)
 

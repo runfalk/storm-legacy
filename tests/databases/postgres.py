@@ -1,4 +1,4 @@
-from datetime import datetime, date, time
+from datetime import datetime, date, time, timedelta
 import os
 
 from storm.databases.postgres import Postgres, compile
@@ -54,13 +54,28 @@ class PostgresTest(DatabaseTest, TestHelper):
         self.assertTrue(isinstance(title, unicode))
         self.assertEquals(title, uni_str)
 
-    def test_unicode_array_extension(self):
+    def test_unicode_array(self):
         raw_str = "\xc3\xa1\xc3\xa9\xc3\xad\xc3\xb3\xc3\xba"
         uni_str = raw_str.decode("UTF-8")
 
         connection = self.database.connect()
         result = connection.execute("""SELECT '{"%s"}'::TEXT[]""" % raw_str)
         self.assertEquals(result.get_one()[0], [uni_str])
+
+    def test_time(self):
+        connection = self.database.connect()
+        result = connection.execute("SELECT '12:34'::TIME")
+        self.assertEquals(result.get_one()[0], time(12, 34))
+
+    def test_date(self):
+        connection = self.database.connect()
+        result = connection.execute("SELECT '2007-06-22'::DATE")
+        self.assertEquals(result.get_one()[0], date(2007, 6, 22))
+
+    def test_interval(self):
+        connection = self.database.connect()
+        result = connection.execute("SELECT '1 year'::INTERVAL")
+        self.assertEquals(result.get_one()[0], timedelta(365))
 
     def test_datetime_with_none(self):
         self.connection.execute("INSERT INTO datetime_test (dt) VALUES (NULL)")
