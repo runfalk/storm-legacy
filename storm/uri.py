@@ -18,36 +18,27 @@ class URI(object):
     port = None
     database = None
 
-    def __init__(self, scheme):
-        self.scheme = scheme
-        self.options = {}
-
-    def copy(self):
-        uri = object.__new__(self.__class__)
-        uri.__dict__.update(self.__dict__)
-        uri.options = self.options.copy()
-        return uri
-
-    @classmethod
-    def parse(cls, uri_str):
+    def __init__(self, uri_str):
         try:
-            scheme, rest = uri_str.split(":", 1)
+            self.scheme, rest = uri_str.split(":", 1)
         except ValueError:
             raise URIError("URI has no scheme: %s" % repr(uri_str))
-        uri = cls(scheme)
+
+        self.options = {}
+
         if "?" in rest:
             rest, options = rest.split("?", 1)
             for pair in options.split("&"):
                 key, value = pair.split("=", 1)
-                uri.options[unescape(key)] = unescape(value)
+                self.options[unescape(key)] = unescape(value)
         if rest:
             if not rest.startswith("//"):
-                uri.database = unescape(rest)
+                self.database = unescape(rest)
             else:
                 rest = rest[2:]
                 if "/" in rest:
                     rest, database = rest.split("/", 1)
-                    uri.database = unescape(database)
+                    self.database = unescape(database)
                 if "@" in rest:
                     userpass, hostport = rest.split("@", 1)
                 else:
@@ -56,19 +47,25 @@ class URI(object):
                 if hostport:
                     if ":" in hostport:
                         host, port = hostport.rsplit(":", 1)
-                        uri.host = unescape(host)
+                        self.host = unescape(host)
                         if port:
-                            uri.port = int(port)
+                            self.port = int(port)
                     else:
-                        uri.host = unescape(hostport)
+                        self.host = unescape(hostport)
                 if userpass is not None:
                     if ":" in userpass:
                         username, password = userpass.rsplit(":", 1)
-                        uri.username = unescape(username)
-                        uri.password = unescape(password)
+                        self.username = unescape(username)
+                        self.password = unescape(password)
                     else:
-                        uri.username = unescape(userpass)
+                        self.username = unescape(userpass)
+
+    def copy(self):
+        uri = object.__new__(self.__class__)
+        uri.__dict__.update(self.__dict__)
+        uri.options = self.options.copy()
         return uri
+
 
 def unescape(s):
     if "%" not in s:

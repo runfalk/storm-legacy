@@ -191,7 +191,7 @@ def create_database(uri):
             with L{register_scheme}.
     """
     if isinstance(uri, basestring):
-        uri = URI.parse(uri)
+        uri = URI(uri)
     if uri.scheme in _database_schemes:
         factory = _database_schemes[uri.scheme]
     else:

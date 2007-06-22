@@ -266,7 +266,7 @@ class CreateDatabaseTest(TestHelper):
         self.assertEquals(self.uri.database, "db")
 
     def test_create_database_with_uri(self):
-        uri = URI.parse("db_module:db")
+        uri = URI("db_module:db")
         create_database(uri)
         self.assertTrue(self.uri is uri)
 

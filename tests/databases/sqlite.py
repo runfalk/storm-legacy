@@ -13,7 +13,7 @@ class SQLiteTest(DatabaseTest, TestHelper):
     helpers = [MakePath]
 
     def create_database(self):
-        self.database = SQLite(URI.parse("sqlite:" + self.make_path()))
+        self.database = SQLite(URI("sqlite:" + self.make_path()))
 
     def create_tables(self):
         self.connection.execute("CREATE TABLE test "
@@ -37,7 +37,7 @@ class SQLiteTest(DatabaseTest, TestHelper):
 class SQLiteMemoryTest(SQLiteTest):
     
     def create_database(self):
-        self.database = SQLite(URI.parse("sqlite:"))
+        self.database = SQLite(URI("sqlite:"))
 
     def test_simultaneous_iter(self):
         pass

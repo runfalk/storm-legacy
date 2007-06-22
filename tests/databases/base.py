@@ -237,7 +237,7 @@ class UnsupportedDatabaseTest(object):
 
         # Finally, test it.
         import _fake_
-        uri = URI.parse("_fake_://db")
+        uri = URI("_fake_://db")
 
         try:
             self.assertRaises(DatabaseModuleError,

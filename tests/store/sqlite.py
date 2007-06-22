@@ -18,7 +18,7 @@ class SQLiteStoreTest(TestHelper, StoreTest):
         StoreTest.tearDown(self)
 
     def create_database(self):
-        self.database = SQLite(URI.parse("sqlite:" + self.make_path()))
+        self.database = SQLite(URI("sqlite:" + self.make_path()))
 
     def create_tables(self):
         connection = self.database.connect()
@@ -51,7 +51,7 @@ class SQLiteEmptyResultSetTest(TestHelper, EmptyResultSetTest):
         EmptyResultSetTest.tearDown(self)
 
     def create_database(self):
-        self.database = SQLite(URI.parse("sqlite:" + self.make_path()))
+        self.database = SQLite(URI("sqlite:" + self.make_path()))
 
     def create_tables(self):
         connection = self.database.connect()
