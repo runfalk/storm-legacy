@@ -85,15 +85,14 @@ class SQLite(Database):
 
     _connection_factory = SQLiteConnection
 
-    def __init__(self, filename=None):
+    def __init__(self, uri):
         if sqlite is dummy:
             raise DatabaseModuleError("'pysqlite2' module not found")
-        self._filename = filename or ":memory:"
+        self._filename = uri.database or ":memory:"
 
     def connect(self):
         raw_connection = sqlite.connect(self._filename)
         return self._connection_factory(self, raw_connection)
 
 
-def create_from_uri(uri):
-    return SQLite(uri.database)
+create_from_uri = SQLite

@@ -1,4 +1,5 @@
 from storm.databases.sqlite import SQLite
+from storm.uri import URI
 
 from tests.store.base import StoreTest, EmptyResultSetTest
 from tests.helper import TestHelper, MakePath
@@ -17,7 +18,7 @@ class SQLiteStoreTest(TestHelper, StoreTest):
         StoreTest.tearDown(self)
 
     def create_database(self):
-        self.database = SQLite(self.make_path())
+        self.database = SQLite(URI.parse("sqlite:" + self.make_path()))
 
     def create_tables(self):
         connection = self.database.connect()
@@ -50,7 +51,7 @@ class SQLiteEmptyResultSetTest(TestHelper, EmptyResultSetTest):
         EmptyResultSetTest.tearDown(self)
 
     def create_database(self):
-        self.database = SQLite(self.make_path())
+        self.database = SQLite(URI.parse("sqlite:" + self.make_path()))
 
     def create_tables(self):
         connection = self.database.connect()
