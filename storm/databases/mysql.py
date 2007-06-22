@@ -67,23 +67,23 @@ class MySQL(Database):
     _connection_factory = MySQLConnection
     _converters = None
 
-    def __init__(self, dbname, host=None, port=None,
-                 username=None, password=None, unix_socket=None):
+    def __init__(self, uri):
         if MySQLdb is dummy:
             raise DatabaseModuleError("'MySQLdb' module not found")
         self._connect_kwargs = {}
-        if dbname is not None:
-            self._connect_kwargs["db"] = dbname
-        if host is not None:
-            self._connect_kwargs["host"] = host
-        if port is not None:
-            self._connect_kwargs["port"] = port
-        if username is not None:
-            self._connect_kwargs["user"] = username
-        if password is not None:
-            self._connect_kwargs["passwd"] = password
-        if unix_socket is not None:
-            self._connect_kwargs["unix_socket"] = unix_socket
+        if uri.database is not None:
+            self._connect_kwargs["db"] = uri.database
+        if uri.host is not None:
+            self._connect_kwargs["host"] = uri.host
+        if uri.port is not None:
+            self._connect_kwargs["port"] = uri.port
+        if uri.username is not None:
+            self._connect_kwargs["user"] = uri.username
+        if uri.password is not None:
+            self._connect_kwargs["passwd"] = uri.password
+        for option in ["unix_socket"]:
+            if option in uri.options:
+                self._connect_kwargs[option] = uri.options.get(option)
 
         if self._converters is None:
             # MySQLdb returns a timedelta by default on TIME fields.
@@ -98,6 +98,9 @@ class MySQL(Database):
         return self._connection_factory(self, raw_connection)
 
 
+create_from_uri = MySQL
+
+
 def _convert_time(time_str):
     h, m, s = time_str.split(":")
     if "." in s:
@@ -105,8 +108,3 @@ def _convert_time(time_str):
         s = int(f)
         return time(int(h), int(m), s, (f-s)*1000000)
     return time(int(h), int(m), int(s), 0)
-
-
-def create_from_uri(uri):
-    return MySQL(uri.database, uri.host, uri.port,
-                 uri.username, uri.password, uri.options.get("unix_socket"))
