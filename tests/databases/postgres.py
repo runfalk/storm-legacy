@@ -61,21 +61,26 @@ class PostgresTest(DatabaseTest, TestHelper):
         connection = self.database.connect()
         result = connection.execute("""SELECT '{"%s"}'::TEXT[]""" % raw_str)
         self.assertEquals(result.get_one()[0], [uni_str])
+        result = connection.execute("""SELECT ?::TEXT[]""", ([uni_str],))
+        self.assertEquals(result.get_one()[0], [uni_str])
 
     def test_time(self):
         connection = self.database.connect()
-        result = connection.execute("SELECT '12:34'::TIME")
-        self.assertEquals(result.get_one()[0], time(12, 34))
+        value = time(12, 34)
+        result = connection.execute("SELECT ?::TIME", (value,))
+        self.assertEquals(result.get_one()[0], value)
 
     def test_date(self):
         connection = self.database.connect()
-        result = connection.execute("SELECT '2007-06-22'::DATE")
-        self.assertEquals(result.get_one()[0], date(2007, 6, 22))
+        value = date(2007, 6, 22)
+        result = connection.execute("SELECT ?::DATE", (value,))
+        self.assertEquals(result.get_one()[0], value)
 
     def test_interval(self):
         connection = self.database.connect()
-        result = connection.execute("SELECT '1 year'::INTERVAL")
-        self.assertEquals(result.get_one()[0], timedelta(365))
+        value = timedelta(365)
+        result = connection.execute("SELECT ?::INTERVAL", (value,))
+        self.assertEquals(result.get_one()[0], value)
 
     def test_datetime_with_none(self):
         self.connection.execute("INSERT INTO datetime_test (dt) VALUES (NULL)")
