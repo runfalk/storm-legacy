@@ -1,7 +1,7 @@
 from datetime import datetime, date, time
 import os
 
-from storm.databases.postgres import Postgres, compile, parse_array
+from storm.databases.postgres import Postgres, compile
 from storm.uri import URI
 from storm.database import create_database
 from storm.variables import UnicodeVariable, DateTimeVariable
@@ -12,16 +12,8 @@ from tests.databases.base import DatabaseTest, UnsupportedDatabaseTest
 from tests.helper import TestHelper, MakePath
 
 
-class PostgresTest(TestHelper, DatabaseTest):
+class PostgresTest(DatabaseTest, TestHelper):
 
-    def setUp(self):
-        TestHelper.setUp(self)
-        DatabaseTest.setUp(self)
-
-    def tearDown(self):
-        DatabaseTest.setUp(self)
-        TestHelper.setUp(self)
-    
     def is_supported(self):
         return bool(os.environ.get("STORM_POSTGRES_URI"))
 
@@ -38,62 +30,29 @@ class PostgresTest(TestHelper, DatabaseTest):
                                 "(id SERIAL PRIMARY KEY, b BYTEA)")
 
     def test_wb_create_database(self):
-        database = create_database("postgres://un:pw@ht:12/db?encoding=en")
+        database = create_database("postgres://un:pw@ht:12/db")
         self.assertTrue(isinstance(database, Postgres))
         self.assertEquals(database._dsn,
                           "dbname=db host=ht port=12 user=un password=pw")
-        self.assertEquals(database._encoding, "en")
 
-    def test_unicode_with_database_encoding(self):
-        encoding = "iso-8859-1"
-        raw_str = "\xe1\xe9\xed\xf3\xfa"
-        uni_str = raw_str.decode(encoding)
+    def test_utf8_client_encoding(self):
+        connection = self.database.connect()
+        result = connection.execute("SHOW client_encoding")
+        encoding = result.get_one()[0]
+        self.assertEquals(encoding.upper(), "UTF8")
 
-        database = create_database(os.environ["STORM_POSTGRES_URI"]
-                                   + "?encoding=%s" % encoding)
-
-        connection = database.connect()
-        connection.execute("SET client_encoding=?", (encoding,))
-        connection.execute("INSERT INTO test VALUES (1, ?)", (uni_str,))
-
-        result = connection.execute("SELECT title FROM test WHERE id=1")
-        title = result.get_one()[0]
-
-        self.assertTrue(isinstance(title, str))
-
-        variable = UnicodeVariable()
-        result.set_variable(variable, title)
-        self.assertEquals(variable.get(), uni_str)
-
-    def test_unicode_with_default_encoding(self):
-        encoding = "utf-8"
+    def test_unicode(self):
         raw_str = "\xc3\xa1\xc3\xa9\xc3\xad\xc3\xb3\xc3\xba"
-        uni_str = raw_str.decode(encoding)
+        uni_str = raw_str.decode("UTF-8")
 
         connection = self.database.connect()
-        connection.execute("SET client_encoding=?", (encoding,))
-        connection.execute("INSERT INTO test VALUES (1, ?)", (uni_str,))
+        connection.execute("INSERT INTO test VALUES (1, '%s')" % raw_str)
 
         result = connection.execute("SELECT title FROM test WHERE id=1")
         title = result.get_one()[0]
 
-        self.assertTrue(isinstance(title, str))
-
-        variable = UnicodeVariable()
-        result.set_variable(variable, title)
-        self.assertEquals(variable.get(), uni_str)
-
-    def test_unicode_with_unicode_data(self):
-        # Psycopg can be configured to return unicode objects for
-        # string columns (for example, psycopgda does this).
-        uni_str = u'\xe1\xe9\xed\xf3\xfa'
-
-        connection = self.database.connect()
-        result = connection.execute("SELECT TRUE")
-
-        variable = UnicodeVariable()
-        result.set_variable(variable, uni_str)
-        self.assertEquals(variable.get(), uni_str)
+        self.assertTrue(isinstance(title, unicode))
+        self.assertEquals(title, uni_str)
 
     def test_datetime_with_none(self):
         self.connection.execute("INSERT INTO datetime_test (dt) VALUES (NULL)")
@@ -124,7 +83,7 @@ class PostgresTest(TestHelper, DatabaseTest):
 
         array = result.get_one()[0]
 
-        self.assertTrue(isinstance(array, str))
+        self.assertTrue(isinstance(array, list))
 
         variable = ListVariable(IntVariable)
         result.set_variable(variable, array)
@@ -152,7 +111,7 @@ class PostgresTest(TestHelper, DatabaseTest):
 
         array = result.get_one()[0]
 
-        self.assertTrue(isinstance(array, str))
+        self.assertTrue(isinstance(array, list))
 
         variable = ListVariable(IntVariable)
         result.set_variable(variable, array)
@@ -190,17 +149,7 @@ class PostgresTest(TestHelper, DatabaseTest):
         self.assertEquals(result.get_all(), [(1,), (1,)])
 
 
-class ParseArrayTest(TestHelper):
-
-    def test_parse_array(self):
-        data = r'{{meeting,lunch},{ training , "presentation"},"{}","\"",NULL}'
-        obj = parse_array(data)
-        self.assertEquals(obj,
-                          [["meeting", "lunch"],
-                           ["training", "presentation"], "{}", '"', None])
-
-
 class PostgresUnsupportedTest(UnsupportedDatabaseTest, TestHelper):
     
-    dbapi_module_name = "psycopg"
+    dbapi_module_name = "psycopg2"
     db_module_name = "postgres"

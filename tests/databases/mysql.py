@@ -8,18 +8,10 @@ from tests.databases.base import DatabaseTest, UnsupportedDatabaseTest
 from tests.helper import TestHelper
 
 
-class MySQLTest(TestHelper, DatabaseTest):
+class MySQLTest(DatabaseTest, TestHelper):
 
     supports_microseconds = False
 
-    def setUp(self):
-        TestHelper.setUp(self)
-        DatabaseTest.setUp(self)
-
-    def tearDown(self):
-        DatabaseTest.setUp(self)
-        TestHelper.setUp(self)
-    
     def is_supported(self):
         return bool(os.environ.get("STORM_MYSQL_URI"))
 

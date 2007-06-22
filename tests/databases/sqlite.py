@@ -7,17 +7,9 @@ from tests.databases.base import DatabaseTest, UnsupportedDatabaseTest
 from tests.helper import TestHelper, MakePath
 
 
-class SQLiteTest(TestHelper, DatabaseTest):
+class SQLiteTest(DatabaseTest, TestHelper):
 
     helpers = [MakePath]
-
-    def setUp(self):
-        TestHelper.setUp(self)
-        DatabaseTest.setUp(self)
-
-    def tearDown(self):
-        DatabaseTest.setUp(self)
-        TestHelper.setUp(self)
 
     def create_database(self):
         self.database = SQLite(self.make_path())

@@ -13,9 +13,10 @@ from time import strptime
 from storm.databases import dummy
 
 try:
-    import psycopg
+    import psycopg2
+    import psycopg2.extensions
 except:
-    psycopg = dummy
+    psycopg2 = dummy
 
 from storm.expr import (
     Undef, SetExpr, Select, Alias, And, Eq, FuncExpr, SQLRaw, COLUMN_NAME,
@@ -26,7 +27,7 @@ from storm.database import *
 from storm.exceptions import install_exceptions, DatabaseModuleError
 
 
-install_exceptions(psycopg)
+install_exceptions(psycopg2)
 compile = compile.fork()
 
 
@@ -117,18 +118,6 @@ class PostgresResult(Result):
             equals.append(Eq(column, variable))
         return And(*equals)
 
-    def set_variable(self, variable, value):
-        if isinstance(variable, UnicodeVariable):
-            if not isinstance(value, unicode):
-                value = unicode(value, self._connection._database._encoding)
-        elif isinstance(variable, ListVariable):
-            if value == "{}":
-                # Optimize the empty array case (parse_array() can handle it).
-                value = []
-            else:
-                value = parse_array(value)
-        variable.set(value, from_db=True)
-
 
 class PostgresConnection(Connection):
 
@@ -139,7 +128,7 @@ class PostgresConnection(Connection):
     def _raw_execute(self, statement, params):
         if type(statement) is unicode:
             # psycopg breaks with unicode statements.
-            statement = statement.encode(self._database._encoding)
+            statement = statement.encode("UTF-8")
         return Connection._raw_execute(self, statement, params)
 
     def _to_database(self, params):
@@ -149,9 +138,9 @@ class PostgresConnection(Connection):
             if isinstance(param, (datetime, date, time)):
                 yield str(param)
             elif isinstance(param, unicode):
-                yield param.encode(self._database._encoding)
+                yield param.encode("UTF-8")
             elif isinstance(param, str):
-                yield psycopg.Binary(param)
+                yield psycopg2.Binary(param)
             else:
                 yield param
 
@@ -161,9 +150,9 @@ class Postgres(Database):
     _connection_factory = PostgresConnection
 
     def __init__(self, dbname, host=None, port=None,
-                 username=None, password=None, encoding=None):
-        if psycopg is dummy:
-            raise DatabaseModuleError("'psycopg' module not found")
+                 username=None, password=None):
+        if psycopg2 is dummy:
+            raise DatabaseModuleError("'psycopg2' module not found")
         self._dsn = "dbname=%s" % dbname
         if host is not None:
             self._dsn += " host=%s" % host
@@ -174,11 +163,10 @@ class Postgres(Database):
         if password is not None:
             self._dsn += " password=%s" % password
 
-        self._encoding = encoding or "UTF-8"
-
     def connect(self):
         global psycopg_needs_E
-        raw_connection = psycopg.connect(self._dsn)
+        raw_connection = psycopg2.connect(self._dsn)
+        raw_connection.set_client_encoding("UTF8")
         if psycopg_needs_E is None:
             # This will conditionally change the compilation of binary
             # variables (StrVariable) to preceed the placeholder with an
@@ -189,8 +177,8 @@ class Postgres(Database):
             # were manually tested for correctness at some point.
             cursor = raw_connection.cursor()
             try:
-                cursor.execute("SELECT E%s", (psycopg.Binary(""),))
-            except psycopg.ProgrammingError:
+                cursor.execute("SELECT E%s", (psycopg2.Binary(""),))
+            except psycopg2.ProgrammingError:
                 raw_connection.rollback()
                 psycopg_needs_E = False
             else:
@@ -198,16 +186,18 @@ class Postgres(Database):
                 compile.when(StrVariable)(compile_str_variable_with_E)
         return self._connection_factory(self, raw_connection)
 
-def str_or_none(value):
-    return value and str(value)
 
-psycopg.register_type(psycopg.new_type(psycopg.DATETIME.values,
-                                       "DT", str_or_none))
+if psycopg2 is not dummy:
+    psycopg2.extensions.register_type(psycopg2.extensions.DATE)
+    psycopg2.extensions.register_type(psycopg2.extensions.INTERVAL)
+    psycopg2.extensions.register_type(psycopg2.extensions.TIME)
+    psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
+    psycopg2.extensions.register_type(psycopg2._psycopg.UNICODEARRAY)
 
 
 def create_from_uri(uri):
     return Postgres(uri.database, uri.host, uri.port,
-                    uri.username, uri.password, uri.options.get("encoding"))
+                    uri.username, uri.password)
 
 
 # FIXME Make Postgres constructor use that one.
@@ -223,54 +213,3 @@ def make_dsn(uri):
     if uri.password is not None:
         dsn += " password=%s" % uri.password
     return dsn
-
-
-def parse_array(array):
-    """Parse a PostgreSQL-formatted array literal.
-
-    E.g. r'{{meeting,lunch},{ training , "presentation" },"{}","\"", NULL}'
-    makes [["meeting", "lunch"], ["training", "presentation"], "{}", '"', None]
-    """
-
-    if array[0] != "{" or array[-1] != "}":
-        raise ValueError("Invalid array")
-    stack = []
-    current = []
-    token = ""
-    nesting = 0
-    quoting = False
-    quoted = False
-    chars = iter(array)
-    for c in chars:
-        if quoting:
-            if c == "\\":
-                token += chars.next()
-            elif c == '"':
-                quoting = False
-            else:
-                token += c
-        elif c == " ":
-            pass
-        elif c in ",}":
-            if token:
-                if quoted:
-                    quoted = False
-                elif token == "NULL":
-                    token = None
-                current.append(token)
-                token = ""
-            if c == "}":
-                current = stack.pop()
-        elif token:
-            token += c
-        elif c == '"':
-            quoting = True
-            quoted = True
-        elif c == "{":
-            lst = []
-            current.append(lst)
-            stack.append(current)
-            current = lst
-        else:
-            token = c
-    return current[0]
