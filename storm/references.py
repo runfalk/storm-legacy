@@ -21,12 +21,11 @@ __all__ = ["Reference", "ReferenceSet", "Proxy"]
 class Reference(object):
     """Descriptor for one-to-one relationships."""
 
-    def __init__(self, local_key, remote_key, on_remote=False, adapt=True):
+    def __init__(self, local_key, remote_key, on_remote=False):
         # Reference internals are public to the Proxy.
         self._local_key = local_key
         self._remote_key = remote_key
         self._on_remote = on_remote
-        self._adapt = adapt
         self._relation = None
         self._cls = None
 
@@ -53,13 +52,10 @@ class Reference(object):
 
         if self._relation.remote_key_is_primary:
             remote = store.get(self._relation.remote_cls,
-                               self._relation.get_local_variables(local),
-                               adapt=self._adapt)
+                               self._relation.get_local_variables(local))
         else:
             where = self._relation.get_where_for_remote(local)
             result = store.find(self._relation.remote_cls, where)
-            if self._adapt is False:
-                result.config(adapt=False)
             remote = result.one()
 
         if remote is not None:
@@ -100,13 +96,12 @@ class Reference(object):
 class ReferenceSet(object):
 
     def __init__(self, local_key1, remote_key1,
-                 remote_key2=None, local_key2=None, order_by=None, adapt=True):
+                 remote_key2=None, local_key2=None, order_by=None):
         self._local_key1 = local_key1
         self._remote_key1 = remote_key1
         self._remote_key2 = remote_key2
         self._local_key2 = local_key2
         self._order_by = order_by
-        self._adapt = adapt
         self._relation1 = None
         self._relation2 = None
 
@@ -124,12 +119,11 @@ class ReferenceSet(object):
         #    return None
 
         if self._relation2 is None:
-            return BoundReferenceSet(self._relation1, local,
-                                     self._order_by, self._adapt)
+            return BoundReferenceSet(self._relation1, local, self._order_by)
         else:
             return BoundIndirectReferenceSet(self._relation1,
                                              self._relation2, local,
-                                             self._order_by, self._adapt)
+                                             self._order_by)
 
     def _build_relations(self, used_cls):
         resolver = PropertyResolver(self, used_cls)
@@ -175,12 +169,11 @@ class BoundReferenceSetBase(object):
 
 class BoundReferenceSet(BoundReferenceSetBase):
 
-    def __init__(self, relation, local, order_by, adapt):
+    def __init__(self, relation, local, order_by):
         self._relation = relation
         self._local = local
         self._target_cls = self._relation.remote_cls
         self._order_by = order_by
-        self._adapt = adapt
 
     def find(self, *args, **kwargs):
         store = Store.of(self._local)
@@ -190,8 +183,6 @@ class BoundReferenceSet(BoundReferenceSetBase):
         result = store.find(self._target_cls, where, *args, **kwargs)
         if self._order_by is not None:
             result.order_by(self._order_by)
-        if self._adapt is False:
-            result.config(adapt=False)
         return result
 
     def clear(self, *args, **kwargs):
@@ -214,12 +205,11 @@ class BoundReferenceSet(BoundReferenceSetBase):
 
 class BoundIndirectReferenceSet(BoundReferenceSetBase):
 
-    def __init__(self, relation1, relation2, local, order_by, adapt):
+    def __init__(self, relation1, relation2, local, order_by):
         self._relation1 = relation1
         self._relation2 = relation2
         self._local = local
         self._order_by = order_by
-        self._adapt = adapt
 
         self._target_cls = relation2.local_cls
         self._link_cls = relation1.remote_cls
@@ -233,8 +223,6 @@ class BoundIndirectReferenceSet(BoundReferenceSetBase):
         result = store.find(self._target_cls, where, *args, **kwargs)
         if self._order_by is not None:
             result.order_by(self._order_by)
-        if self._adapt is False:
-            result.config(adapt=False)
         return result
 
     def clear(self, *args, **kwargs):

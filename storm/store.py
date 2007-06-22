@@ -71,15 +71,13 @@ class Store(object):
         self.invalidate()
         self._connection.rollback()
 
-    def get(self, cls, key, **kwargs):
+    def get(self, cls, key):
         """Get object of type cls with the given primary key from the database.
 
         If the object is cached the database won't be touched.
 
         @param cls: Class of the object to be retrieved.
         @param key: Primary key of object. May be a tuple for composed keys.
-        @param adapt: If false, the object won't be submitted to adaptation,
-                      after being loaded.
         """
 
         self.flush()
@@ -97,8 +95,6 @@ class Store(object):
                 variable = column.variable_factory(value=variable)
             primary_vars.append(variable)
 
-        adapt = kwargs.get("adapt", True)
-
         obj_info = self._cache.get((cls_info.cls, tuple(primary_vars)))
         if obj_info is not None:
             if obj_info.get("invalidated"):
@@ -109,8 +105,6 @@ class Store(object):
             obj = obj_info.get_obj()
             if obj is None:
                 obj = self._rebuild_deleted_object(obj_info)
-            if adapt:
-                return self._adapt(obj)
             return obj
 
         where = compare_columns(cls_info.primary_key, primary_vars)
@@ -122,7 +116,7 @@ class Store(object):
         values = result.get_one()
         if values is None:
             return None
-        return self._load_object(cls_info, result, values, adapt)
+        return self._load_object(cls_info, result, values)
 
     def find(self, cls_spec, *args, **kwargs):
         self.flush()
@@ -223,7 +217,8 @@ class Store(object):
                 obj_info["invalidated"] = True
         # We want to make sure we've marked all objects as invalidated and set
         # up their autoreloads before calling the invalidated hook on *any* of
-        # them, because an invalidated hook might
+        # them, because an invalidated hook might use other objects and we want
+        # to prevent invalidation ordering issues.
         if invalidate:
             for obj_info in obj_infos:
                 self._run_hook(obj_info, "__storm_invalidated__")
@@ -417,21 +412,21 @@ class Store(object):
             obj_info.pop("invalidated", None)
 
 
-    def _load_objects(self, cls_spec_info, result, values, adapt=True):
+    def _load_objects(self, cls_spec_info, result, values):
         if type(cls_spec_info) is not tuple:
-            return self._load_object(cls_spec_info, result, values, adapt)
+            return self._load_object(cls_spec_info, result, values)
         else:
             objects = []
             values_start = values_end = 0
             for cls_info in cls_spec_info:
                 values_end += len(cls_info.columns)
                 obj = self._load_object(cls_info, result,
-                                        values[values_start:values_end], adapt)
+                                        values[values_start:values_end])
                 objects.append(obj)
                 values_start = values_end
             return tuple(objects)
 
-    def _load_object(self, cls_info, result, values, adapt=True):
+    def _load_object(self, cls_info, result, values):
         # _set_values() need the cls_info columns for the class of the
         # actual object, not from a possible wrapper (e.g. an alias).
         cls = cls_info.cls
@@ -489,15 +484,6 @@ class Store(object):
 
             self._run_hook(obj_info, "__storm_loaded__")
 
-        if adapt:
-            return self._adapt(obj)
-        return obj
-
-    @staticmethod
-    def _adapt(obj):
-        adapt_hook = getattr(obj, "__storm_adapt__", None)
-        if adapt_hook is not None:
-            return adapt_hook()
         return obj
 
     def _rebuild_deleted_object(self, obj_info):
@@ -633,7 +619,6 @@ class ResultSet(object):
         self._offset = Undef
         self._limit = Undef
         self._distinct = False
-        self._adapt = True
 
     def copy(self):
         """Return a copy of this resultset object, with the same configuration.
@@ -642,7 +627,7 @@ class ResultSet(object):
         result_set.__dict__.update(self.__dict__)
         return result_set
 
-    def config(self, distinct=None, offset=None, limit=None, adapt=None):
+    def config(self, distinct=None, offset=None, limit=None):
         """Configure this result object in-place. All parameters are optional.
 
         @param distinct: Boolean enabling/disabling usage of the DISTINCT
@@ -651,8 +636,6 @@ class ResultSet(object):
             from the result set.
         @param limit: Limit the number of objects retrieved from the
             result set.
-        @param adapt: Boolean enabling/disabling adaptation of objects
-            retrieved.
 
         @return: self (not a copy).
         """
@@ -663,8 +646,6 @@ class ResultSet(object):
             self._offset = offset
         if limit is not None:
             self._limit = limit
-        if adapt is not None:
-            self._adapt = adapt
         return self
 
     def _get_select(self):
@@ -690,8 +671,7 @@ class ResultSet(object):
                       distinct=self._distinct)
 
     def _load_objects(self, result, values):
-        return self._store._load_objects(self._cls_spec_info, result, values,
-                                         self._adapt)
+        return self._store._load_objects(self._cls_spec_info, result, values)
 
     def __iter__(self):
         result = self._store._connection.execute(self._get_select())

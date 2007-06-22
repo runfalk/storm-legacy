@@ -67,14 +67,6 @@ class BarProxy(object):
     foo = Reference(foo_id, Foo.id)
     foo_title = Proxy(foo, Foo.title)
 
-class FooAdapt(Foo):
-    def __storm_adapt__(self):
-        return Wrapper(self)
-
-class BarAdapt(Bar):
-    def __storm_adapt__(self):
-        return Wrapper(self)
-
 
 class DecorateVariable(Variable):
 
@@ -3857,93 +3849,6 @@ class StoreTest(object):
         MyBarProxy, MyFoo = self.get_bar_proxy_with_string()
         variable = MyBarProxy.foo_title.variable_factory(value="Hello")
         self.assertTrue(isinstance(variable, UnicodeVariable))
-
-    def test_adapt_get(self):
-        foo = self.store.get(FooAdapt, 20)
-        self.assertTrue(isinstance(foo, Wrapper))
-        self.assertEquals(foo.obj.title, "Title 20")
-
-    def test_adapt_get_cached(self):
-        foo = self.store.get(FooAdapt, 20)
-        self.assertTrue(isinstance(foo, Wrapper))
-        self.assertEquals(foo.obj.title, "Title 20")
-
-    def test_adapt_get_adapt_false(self):
-        foo = self.store.get(FooAdapt, 20, adapt=False)
-        self.assertTrue(isinstance(foo, FooAdapt))
-
-    def test_adapt_find(self):
-        result = self.store.find(FooAdapt, id=20)
-        foo = result.one()
-        self.assertTrue(isinstance(foo, Wrapper))
-
-    def test_adapt_find_adapt_false(self):
-        result = self.store.find(FooAdapt, id=20)
-        result.config(adapt=False)
-        foo = result.one()
-        self.assertTrue(isinstance(foo, FooAdapt))
-
-    def test_adapt_find_tuple(self):
-        result = self.store.find((FooAdapt, FooAdapt), FooAdapt.id == 20)
-        foo1, foo2 = result.one()
-        self.assertTrue(isinstance(foo1, Wrapper))
-        self.assertTrue(isinstance(foo2, Wrapper))
-
-    def test_adapt_find_tuple_adapt_false(self):
-        result = self.store.find((FooAdapt, FooAdapt), FooAdapt.id == 20)
-        result.config(adapt=False)
-        foo1, foo2 = result.one()
-        self.assertTrue(isinstance(foo1, FooAdapt))
-        self.assertTrue(isinstance(foo2, FooAdapt))
-
-    def test_adapt_reference(self):
-        class MyBar(Bar):
-            foo = Reference(Bar.foo_id, FooAdapt.id)
-        bar = self.store.get(MyBar, 200)
-        self.assertTrue(isinstance(bar.foo, Wrapper))
-
-    def test_adapt_reference_adapt_false(self):
-        class MyBar(Bar):
-            foo = Reference(Bar.foo_id, FooAdapt.id, adapt=False)
-        bar = self.store.get(MyBar, 200)
-        self.assertTrue(isinstance(bar.foo, Foo))
-
-    def test_adapt_reference_non_primary_adapt_false(self):
-        class MyFoo(Foo):
-            bar = Reference(Foo.id, BarAdapt.foo_id, adapt=False)
-        foo = self.store.get(MyFoo, 20)
-        self.assertTrue(isinstance(foo.bar, BarAdapt))
-
-    def test_adapt_reference_set(self):
-        class MyFoo(Foo):
-            bars = ReferenceSet(Foo.id, BarAdapt.foo_id)
-        foo = self.store.get(MyFoo, 20)
-        self.assertTrue(isinstance(list(foo.bars)[0], Wrapper))
-
-    def test_adapt_reference_set_adapt_false(self):
-        class MyFoo(Foo):
-            bars = ReferenceSet(Foo.id, BarAdapt.foo_id, adapt=False)
-        foo = self.store.get(MyFoo, 20)
-        self.assertTrue(isinstance(list(foo.bars)[0], BarAdapt))
-
-    def test_adapt_indirect_reference_set(self):
-        class MyFoo(Foo):
-            bars = ReferenceSet(Foo.id, Link.foo_id, Link.bar_id, BarAdapt.id)
-        foo = self.store.get(MyFoo, 20)
-        bars = list(foo.bars)
-        self.assertEquals(len(bars), 2)
-        for bar in bars:
-            self.assertTrue(isinstance(bar, Wrapper))
-
-    def test_adapt_indirect_reference_set_adapt_false(self):
-        class MyFoo(Foo):
-            bars = ReferenceSet(Foo.id, Link.foo_id,
-                                Link.bar_id, BarAdapt.id, adapt=False)
-        foo = self.store.get(MyFoo, 20)
-        bars = list(foo.bars)
-        self.assertEquals(len(bars), 2)
-        for bar in bars:
-            self.assertTrue(isinstance(bar, BarAdapt))
 
 
 class EmptyResultSetTest(object):
