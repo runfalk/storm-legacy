@@ -54,6 +54,14 @@ class PostgresTest(DatabaseTest, TestHelper):
         self.assertTrue(isinstance(title, unicode))
         self.assertEquals(title, uni_str)
 
+    def test_unicode_array_extension(self):
+        raw_str = "\xc3\xa1\xc3\xa9\xc3\xad\xc3\xb3\xc3\xba"
+        uni_str = raw_str.decode("UTF-8")
+
+        connection = self.database.connect()
+        result = connection.execute("""SELECT '{"%s"}'::TEXT[]""" % raw_str)
+        self.assertEquals(result.get_one()[0], [uni_str])
+
     def test_datetime_with_none(self):
         self.connection.execute("INSERT INTO datetime_test (dt) VALUES (NULL)")
         result = self.connection.execute("SELECT dt FROM datetime_test")
