@@ -29,12 +29,20 @@ class TestHelper(unittest.TestCase):
         for helper in reversed(self._helper_instances):
             helper.tear_down(self)
 
+    def _has_run_this(self, attr):
+        return getattr(getattr(self, attr, None), "run_this", False)
+
     def run(self, result=None):
         for attr in dir(self):
-            if getattr(getattr(self, attr, None), "run_this", False):
-                method = getattr(self, self._TestCase__testMethodName)
-                if not getattr(method, "run_this", False):
+            if self._has_run_this(attr):
+                try:
+                    method_name = self._testMethodName
+                except AttributeError:
+                    # On Python < 2.5
+                    method_name = self._TestCase__testMethodName
+                if not self._has_run_this(method_name):
                     return
+                break
         is_supported = getattr(self, "is_supported", None)
         if is_supported is not None and not is_supported():
             return

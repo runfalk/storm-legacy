@@ -3604,6 +3604,23 @@ class StoreTest(object):
         self.store.execute("DELETE FROM foo WHERE id=40")
         self.assertEquals(self.store.get(Foo, 40), foo)
 
+    def test_invalidate_and_update(self):
+        foo = self.store.get(Foo, 20)
+        self.store.execute("DELETE FROM foo WHERE id=20")
+        self.store.invalidate(foo)
+        self.assertRaises(LostObjectError, setattr, foo, "title", "Title 40")
+
+    def test_invalidate_and_get_fills_undefined(self):
+        foo = self.store.get(Foo, 20)
+        self.store.invalidate(foo)
+
+        unset_foo = Foo()
+        unset_state = get_obj_info(unset_foo).variables[Foo.title].get_state()
+        get_obj_info(foo).variables[Foo.title].set_state(unset_state)
+
+        foo = self.store.get(Foo, 20)
+        self.assertEquals(foo.title, "Title 20")
+
     def test_invalidated_hook(self):
         called = []
         class MyFoo(Foo):

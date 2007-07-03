@@ -306,7 +306,7 @@ class Store(object):
             obj_info.pop("invalidated", None)
 
             self._fill_missing_values(obj_info, obj_info.primary_vars, result,
-                                      checkpoint=False)
+                                      checkpoint=False, replace_lazy=True)
 
             self._enable_change_notification(obj_info)
             self._add_to_cache(obj_info)
@@ -338,10 +338,10 @@ class Store(object):
 
                 # We're sure the cache is valid at this point. We've
                 # just updated the object.
-                obj_info.pop("invalidated", None)
+                #obj_info.pop("invalidated", None)
 
                 self._fill_missing_values(obj_info, obj_info.primary_vars,
-                                          checkpoint=False)
+                                          checkpoint=False, replace_lazy=True)
 
                 self._add_to_cache(obj_info)
 
@@ -353,10 +353,7 @@ class Store(object):
         obj_info.event.emit("flushed")
 
     def _fill_missing_values(self, obj_info, primary_vars, result=None,
-                             checkpoint=True):
-        # XXX If there are no values which are part of the primary
-        #     key missing, they might be set to a lazy value for
-        #     on-demand reloading.
+                             checkpoint=True, replace_lazy=False):
         cls_info = obj_info.cls_info
 
         cached_primary_vars = obj_info.get("primary_vars")
@@ -367,12 +364,15 @@ class Store(object):
             variable = obj_info.variables[column]
             if not variable.is_defined():
                 idx = primary_key_idx.get(id(column))
+                lazy_value = variable.get_lazy()
                 if (idx is not None and cached_primary_vars is not None
-                    and variable.get_lazy()):
+                    and lazy_value):
+                    # XXX lazy_value might not be AutoReload. Test & fix this.
                     # For auto-reloading a primary key, just get the
                     # value out of the cache.
                     variable.set(cached_primary_vars[idx].get())
-                else:
+                elif (replace_lazy or lazy_value is None or
+                      lazy_value is AutoReload):
                     missing_columns.append(column)
 
         if missing_columns:
@@ -380,6 +380,8 @@ class Store(object):
 
             for variable in primary_vars:
                 if not variable.is_defined():
+                    # XXX Think about the case where the primary key is set
+                    #     to a lazy value which isn't AutoReload.
                     if result is None:
                         raise RuntimeError("Can't find missing primary values "
                                            "without a meaningful result")
@@ -573,9 +575,15 @@ class Store(object):
         # The fromdb check makes sure that values coming from the
         # database don't mark the object as dirty again.
         # XXX The fromdb check is untested. How to test it?
-        if not fromdb and (new_value is not Undef and
-                           new_value is not AutoReload):
-            self._set_dirty(obj_info)
+        if not fromdb:
+            if new_value is not Undef and new_value is not AutoReload:
+                if obj_info.get("invalidated"):
+                    # This might be a previously cached object being
+                    # updated.  Let's validate it now to improve debugging.
+                    # This will raise LostObjectError if the object is gone.
+                    self._fill_missing_values(obj_info,
+                                              obj_info["primary_vars"])
+                self._set_dirty(obj_info)
 
 
     def _enable_lazy_resolving(self, obj_info):
