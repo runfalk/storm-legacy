@@ -409,7 +409,7 @@ class CompileTest(TestHelper):
     def test_str(self):
         statement, parameters = compile("str")
         self.assertEquals(statement, "?")
-        self.assertEquals(parameters, [StrVariable("str")])
+        self.assertEquals(parameters, [BinVariable("str")])
 
     def test_unicode(self):
         statement, parameters = compile(u"str")
@@ -890,7 +890,7 @@ class CompileTest(TestHelper):
         expr = Like(Func1(), "value")
         statement, parameters = compile(expr)
         self.assertEquals(statement, "func1() LIKE ?")
-        self.assertEquals(parameters, [StrVariable("value")])
+        self.assertEquals(parameters, [BinVariable("value")])
 
         expr = Func1().like("Hello")
         statement, parameters = compile(expr)
@@ -901,18 +901,18 @@ class CompileTest(TestHelper):
         expr = Like(Func1(), "value", "!")
         statement, parameters = compile(expr)
         self.assertEquals(statement, "func1() LIKE ? ESCAPE ?")
-        self.assertEquals(parameters, [StrVariable("value"), StrVariable("!")])
+        self.assertEquals(parameters, [BinVariable("value"), BinVariable("!")])
 
         expr = Func1().like("Hello", "!")
         statement, parameters = compile(expr)
         self.assertEquals(statement, "func1() LIKE ? ESCAPE ?")
-        self.assertEquals(parameters, [Variable("Hello"), StrVariable("!")])
+        self.assertEquals(parameters, [Variable("Hello"), BinVariable("!")])
 
     def test_in(self):
         expr = In(Func1(), "value")
         statement, parameters = compile(expr)
         self.assertEquals(statement, "func1() IN (?)")
-        self.assertEquals(parameters, [StrVariable("value")])
+        self.assertEquals(parameters, [BinVariable("value")])
 
         expr = In(Func1(), elem1)
         statement, parameters = compile(expr)

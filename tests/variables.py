@@ -319,10 +319,10 @@ class FloatVariableTest(TestHelper):
         self.assertEquals(variable.get(), 1.1)
 
 
-class StrVariableTest(TestHelper):
+class BinVariableTest(TestHelper):
 
     def test_set_get(self):
-        variable = StrVariable()
+        variable = BinVariable()
         variable.set(1)
         self.assertEquals(variable.get(), "1")
         variable.set(u"")
@@ -670,7 +670,7 @@ class ListVariableTest(TestHelper):
     def test_list_events(self):
         event = EventSystem(marker)
 
-        variable = ListVariable(StrVariable, event=event, value_factory=list)
+        variable = ListVariable(BinVariable, event=event, value_factory=list)
 
         changes = []
         def changed(owner, variable, old_value, new_value, fromdb):

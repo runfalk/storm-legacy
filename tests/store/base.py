@@ -2,7 +2,7 @@ import gc
 
 from storm.references import Reference, ReferenceSet, Proxy
 from storm.database import Result
-from storm.properties import Int, Str, Unicode, Property, Pickle
+from storm.properties import Int, Bin, Unicode, Property, Pickle
 from storm.properties import PropertyPublisherMeta
 from storm.expr import Asc, Desc, Select, Func, LeftJoin, SQL
 from storm.variables import Variable, UnicodeVariable, IntVariable
@@ -28,7 +28,7 @@ class Bar(object):
 class Blob(object):
     __storm_table__ = "bin"
     id = Int(primary=True)
-    bin = Str()
+    bin = Bin()
 
 class Link(object):
     __storm_table__ = "link"
@@ -2014,7 +2014,7 @@ class StoreTest(object):
             __storm_table__ = "bar"
             id = Int(primary=True)
             foo_id = Int()
-            title = Str()
+            title = Bin()
             foo = Reference((foo_id, title), (Foo.id, Foo.title))
 
         foo = Foo()
@@ -2158,7 +2158,7 @@ class StoreTest(object):
         class Bar(object):
             __storm_table__ = "bar"
             id = Int(primary=True)
-            title = Str()
+            title = Bin()
             bar_id = Int("foo_id")
             bar = Reference(bar_id, id)
 
@@ -3161,7 +3161,7 @@ class StoreTest(object):
 
     def test_default(self):
         class MyFoo(Foo):
-            title = Str(default="Some default value")
+            title = Bin(default="Some default value")
 
         foo = MyFoo()
         self.store.add(foo)
@@ -3175,7 +3175,7 @@ class StoreTest(object):
 
     def test_default_factory(self):
         class MyFoo(Foo):
-            title = Str(default_factory=lambda:"Some default value")
+            title = Bin(default_factory=lambda:"Some default value")
 
         foo = MyFoo()
         self.store.add(foo)

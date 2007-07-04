@@ -13,7 +13,7 @@ import sys
 
 from storm.exceptions import CompileError, NoTableError, ExprError
 from storm.variables import (
-    Variable, StrVariable, UnicodeVariable, LazyValue,
+    Variable, BinVariable, UnicodeVariable, LazyValue,
     DateTimeVariable, DateVariable, TimeVariable, TimeDeltaVariable,
     BoolVariable, IntVariable, FloatVariable)
 from storm import Undef
@@ -228,7 +228,7 @@ SELECT = Context("SELECT")
 
 @compile.when(str)
 def compile_str(compile, state, expr):
-    state.parameters.append(StrVariable(expr))
+    state.parameters.append(BinVariable(expr))
     return "?"
 
 @compile.when(unicode)
