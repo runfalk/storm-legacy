@@ -1,4 +1,5 @@
 from datetime import datetime, date, time, timedelta
+from decimal import Decimal
 import cPickle as pickle
 
 from storm.exceptions import NoneError
@@ -297,26 +298,42 @@ class BoolVariableTest(TestHelper):
         self.assertTrue(variable.get() is True)
         variable.set(0)
         self.assertTrue(variable.get() is False)
+        variable.set(1.1)
+        self.assertTrue(variable.get() is True)
+        variable.set(0.0)
+        self.assertTrue(variable.get() is False)
+        variable.set(Decimal(1))
+        self.assertTrue(variable.get() is True)
+        variable.set(Decimal(0))
+        self.assertTrue(variable.get() is False)
+        self.assertRaises(TypeError, variable.set, "string")
 
 
 class IntVariableTest(TestHelper):
 
     def test_set_get(self):
         variable = IntVariable()
-        variable.set("1")
+        variable.set(1)
         self.assertEquals(variable.get(), 1)
         variable.set(1.1)
         self.assertEquals(variable.get(), 1)
+        variable.set(Decimal(2))
+        self.assertEquals(variable.get(), 2)
+        self.assertRaises(TypeError, variable.set, "1")
 
 
 class FloatVariableTest(TestHelper):
 
     def test_set_get(self):
         variable = FloatVariable()
-        variable.set("1.1")
-        self.assertEquals(variable.get(), 1.1)
         variable.set(1.1)
         self.assertEquals(variable.get(), 1.1)
+        variable.set(1)
+        self.assertEquals(variable.get(), 1)
+        self.assertEquals(type(variable.get()), float)
+        variable.set(Decimal("1.1"))
+        self.assertEquals(variable.get(), 1.1)
+        self.assertRaises(TypeError, variable.set, "1")
 
 
 class BinaryVariableTest(TestHelper):

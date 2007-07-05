@@ -8,6 +8,7 @@
 # <license text goes here>
 #
 from datetime import datetime, date, time, timedelta
+from decimal import Decimal
 import cPickle as pickle
 
 from storm.exceptions import NoneError
@@ -176,6 +177,9 @@ class BoolVariable(Variable):
 
     @staticmethod
     def _parse_set(value, from_db):
+        if not isinstance(value, (int, long, float, Decimal)):
+            raise TypeError("Expected bool, found %r: %r"
+                            % (type(value), value))
         return bool(value)
 
 
@@ -183,6 +187,9 @@ class IntVariable(Variable):
 
     @staticmethod
     def _parse_set(value, from_db):
+        if not isinstance(value, (int, long, float, Decimal)):
+            raise TypeError("Expected int, found %r: %r"
+                            % (type(value), value))
         return int(value)
 
 
@@ -190,6 +197,9 @@ class FloatVariable(Variable):
 
     @staticmethod
     def _parse_set(value, from_db):
+        if not isinstance(value, (int, long, float, Decimal)):
+            raise TypeError("Expected float, found %r: %r"
+                            % (type(value), value))
         return float(value)
 
 

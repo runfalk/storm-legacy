@@ -2,7 +2,7 @@ import gc
 
 from storm.references import Reference, ReferenceSet, Proxy
 from storm.database import Result
-from storm.properties import Int, Binary, Unicode, Property, Pickle
+from storm.properties import Int, Float, Binary, Unicode, Property, Pickle
 from storm.properties import PropertyPublisherMeta
 from storm.expr import Asc, Desc, Select, Func, LeftJoin, SQL
 from storm.variables import Variable, UnicodeVariable, IntVariable
@@ -1388,18 +1388,15 @@ class StoreTest(object):
 
     def test_sub_class(self):
         class SubFoo(Foo):
-            title = Int()
-
-        foo = self.store.get(Foo, 20)
-        foo.title = u"20"
+            id = Float(primary=True)
 
         foo1 = self.store.get(Foo, 20)
         foo2 = self.store.get(SubFoo, 20)
 
         self.assertEquals(foo1.id, 20)
-        self.assertEquals(foo1.title, "20")
         self.assertEquals(foo2.id, 20)
-        self.assertEquals(foo2.title, 20)
+        self.assertEquals(type(foo1.id), int)
+        self.assertEquals(type(foo2.id), float)
 
     def test_join(self):
 
