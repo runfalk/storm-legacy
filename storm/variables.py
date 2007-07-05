@@ -197,14 +197,22 @@ class BinVariable(Variable):
 
     @staticmethod
     def _parse_set(value, from_db):
-        return str(value)
+        if isinstance(value, buffer):
+            value = str(value)
+        elif not isinstance(value, str):
+            raise TypeError("Expected str, found %r: %r"
+                            % (type(value), value))
+        return value
 
 
 class UnicodeVariable(Variable):
 
     @staticmethod
     def _parse_set(value, from_db):
-        return unicode(value)
+        if not isinstance(value, unicode):
+            raise TypeError("Expected unicode, found %r: %r"
+                            % (type(value), value))
+        return value
 
 
 class DateTimeVariable(Variable):

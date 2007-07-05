@@ -18,7 +18,7 @@ try:
 except ImportError:
     sqlite = dummy
 
-from storm.variables import Variable
+from storm.variables import Variable, BinVariable
 from storm.database import *
 from storm.exceptions import install_exceptions, DatabaseModuleError
 from storm.expr import (
@@ -53,6 +53,13 @@ class SQLiteResult(Result):
 
     def get_insert_identity(self, primary_key, primary_variables):
         return SQLRaw("(OID=%d)" % self._raw_cursor.lastrowid)
+
+    @staticmethod
+    def set_variable(variable, value):
+        if isinstance(variable, BinVariable):
+            # pysqlite2 may return unicode.
+            value = str(value)
+        variable.set(value, from_db=True)
 
     @staticmethod
     def _from_database(row):

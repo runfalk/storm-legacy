@@ -7,7 +7,7 @@ import os
 
 from storm.uri import URI
 from storm.expr import Select, Column, Undef, SQLToken, SQLRaw
-from storm.variables import Variable, PickleVariable
+from storm.variables import Variable, PickleVariable, BinVariable
 from storm.variables import DateTimeVariable, DateVariable, TimeVariable
 from storm.database import *
 from storm.exceptions import DatabaseModuleError
@@ -82,9 +82,11 @@ class DatabaseTest(object):
         self.assertTrue(result.get_one())
 
     def test_execute_unicode_result(self):
-        result = self.connection.execute(u"SELECT 'áéíóú'")
+        result = self.connection.execute(u"SELECT title FROM test")
         self.assertTrue(isinstance(result, Result))
-        self.assertTrue(result.get_one())
+        row = result.get_one()
+        self.assertEquals(row, ("Title 10",))
+        self.assertTrue(isinstance(row[0], unicode))
 
     def test_execute_params(self):
         result = self.connection.execute("SELECT 1 FROM (SELECT 1) AS ALIAS "
@@ -199,6 +201,25 @@ class DatabaseTest(object):
         variable = PickleVariable()
         result.set_variable(variable, result.get_one()[0])
         self.assertEquals(variable.get(), value)
+
+    def test_binary(self):
+        """Ensure database works with high bits and embedded zeros."""
+        value = "\xff\x00\xff\x00"
+        self.connection.execute("INSERT INTO bin_test (b) VALUES (?)",
+                                (value,))
+        result = self.connection.execute("SELECT b FROM bin_test")
+        variable = BinVariable()
+        result.set_variable(variable, result.get_one()[0])
+        self.assertEquals(variable.get(), value)
+
+    def test_binary_ascii(self):
+        """Some databases like pysqlite2 may return unicode for strings."""
+        self.connection.execute("INSERT INTO bin_test VALUES (10, 'Value')")
+        result = self.connection.execute("SELECT b FROM bin_test")
+        variable = BinVariable()
+        # If the following doesn't raise a TypeError we're good.
+        result.set_variable(variable, result.get_one()[0])
+        self.assertEquals(variable.get(), "Value")
 
 
 class UnsupportedDatabaseTest(object):

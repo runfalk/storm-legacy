@@ -8,7 +8,8 @@ import re
 from storm.properties import (
     Unicode, Bin, Int, Bool, Float, DateTime, Date, TimeDelta)
 from storm.references import Reference, ReferenceSet
-from storm.properties import PropertyPublisherMeta
+from storm.properties import SimpleProperty, PropertyPublisherMeta
+from storm.variables import Variable
 from storm.exceptions import StormError
 from storm.info import get_cls_info
 from storm.store import Store
@@ -161,7 +162,7 @@ class SQLObjectMeta(PropertyPublisherMeta):
 
 
         id_type = dict.get("_idType", int)
-        id_cls = {int: Int, str: Bin, unicode: Unicode}[id_type]
+        id_cls = {int: Int, str: Bin, unicode: AutoUnicode}[id_type]
         dict[id_name] = id_cls(primary=True)
 
         # Notice that obj is the class since this is the metaclass.
@@ -434,7 +435,20 @@ class PropertyAdapter(object):
                                               default=default, **self._kwargs)
 
 
-class StringCol(PropertyAdapter, Unicode):
+class AutoUnicodeVariable(Variable):
+    """Unlike UnicodeVariable, this will try to convert str to unicode."""
+
+    @staticmethod
+    def _parse_set(value, from_db):
+        if not isinstance(value, basestring):
+            raise TypeError("Expected basestring, found %s" % repr(type(value)))
+        return unicode(value)
+
+class AutoUnicode(SimpleProperty):
+    variable_class = AutoUnicodeVariable
+
+
+class StringCol(PropertyAdapter, AutoUnicode):
     pass
 
 class IntCol(PropertyAdapter, Int):

@@ -323,20 +323,20 @@ class BinVariableTest(TestHelper):
 
     def test_set_get(self):
         variable = BinVariable()
-        variable.set(1)
-        self.assertEquals(variable.get(), "1")
-        variable.set(u"")
-        self.assertTrue(isinstance(variable.get(), str))
+        variable.set("str")
+        self.assertEquals(variable.get(), "str")
+        variable.set(buffer("buffer"))
+        self.assertEquals(variable.get(), "buffer")
+        self.assertRaises(TypeError, variable.set, u"unicode")
 
 
 class UnicodeVariableTest(TestHelper):
 
     def test_set_get(self):
         variable = UnicodeVariable()
-        variable.set(1)
-        self.assertEquals(variable.get(), u"1")
-        variable.set("")
-        self.assertTrue(isinstance(variable.get(), unicode))
+        variable.set(u"unicode")
+        self.assertEquals(variable.get(), u"unicode")
+        self.assertRaises(TypeError, variable.set, "str")
 
 
 class DateTimeVariableTest(TestHelper):

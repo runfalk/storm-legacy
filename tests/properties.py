@@ -320,8 +320,7 @@ class PropertyKindsTest(TestHelper):
         self.obj.prop2 = None
         self.assertEquals(self.obj.prop2, None)
 
-        self.obj.prop1 = u"str"
-        self.assertTrue(isinstance(self.obj.prop1, str))
+        self.assertRaises(TypeError, setattr, self.obj, "prop1", u"unicode")
 
     def test_unicode(self):
         self.setup(Unicode, default=u"def", allow_none=False)
@@ -340,8 +339,7 @@ class PropertyKindsTest(TestHelper):
         self.obj.prop2 = None
         self.assertEquals(self.obj.prop2, None)
 
-        self.obj.prop1 = "unicode"
-        self.assertTrue(isinstance(self.obj.prop1, unicode))
+        self.assertRaises(TypeError, setattr, self.obj, "prop1", "str")
 
     def test_datetime(self):
         self.setup(DateTime, default=0, allow_none=False)
@@ -606,7 +604,7 @@ class PropertyKindsTest(TestHelper):
                                (Int, IntVariable, 1),
                                (Float, FloatVariable, 1.1),
                                (Bin, BinVariable, "str"),
-                               (Unicode, UnicodeVariable, "unicode"),
+                               (Unicode, UnicodeVariable, u"unicode"),
                                (DateTime, DateTimeVariable, datetime.now()),
                                (Date, DateVariable, date.today()),
                                (Time, TimeVariable, datetime.now().time()),
