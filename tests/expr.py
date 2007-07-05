@@ -409,7 +409,7 @@ class CompileTest(TestHelper):
     def test_str(self):
         statement, parameters = compile("str")
         self.assertEquals(statement, "?")
-        self.assertEquals(parameters, [BinVariable("str")])
+        self.assertEquals(parameters, [BinaryVariable("str")])
 
     def test_unicode(self):
         statement, parameters = compile(u"str")
@@ -890,7 +890,7 @@ class CompileTest(TestHelper):
         expr = Like(Func1(), "value")
         statement, parameters = compile(expr)
         self.assertEquals(statement, "func1() LIKE ?")
-        self.assertEquals(parameters, [BinVariable("value")])
+        self.assertEquals(parameters, [BinaryVariable("value")])
 
         expr = Func1().like("Hello")
         statement, parameters = compile(expr)
@@ -901,18 +901,19 @@ class CompileTest(TestHelper):
         expr = Like(Func1(), "value", "!")
         statement, parameters = compile(expr)
         self.assertEquals(statement, "func1() LIKE ? ESCAPE ?")
-        self.assertEquals(parameters, [BinVariable("value"), BinVariable("!")])
+        self.assertEquals(parameters,
+                          [BinaryVariable("value"), BinaryVariable("!")])
 
         expr = Func1().like("Hello", "!")
         statement, parameters = compile(expr)
         self.assertEquals(statement, "func1() LIKE ? ESCAPE ?")
-        self.assertEquals(parameters, [Variable("Hello"), BinVariable("!")])
+        self.assertEquals(parameters, [Variable("Hello"), BinaryVariable("!")])
 
     def test_in(self):
         expr = In(Func1(), "value")
         statement, parameters = compile(expr)
         self.assertEquals(statement, "func1() IN (?)")
-        self.assertEquals(parameters, [BinVariable("value")])
+        self.assertEquals(parameters, [BinaryVariable("value")])
 
         expr = In(Func1(), elem1)
         statement, parameters = compile(expr)
@@ -1394,7 +1395,8 @@ class CompileTest(TestHelper):
     def test_except_all(self):
         expr = Except(Func1(), elem2, elem3, all=True)
         statement, parameters = compile(expr)
-        self.assertEquals(statement, "func1() EXCEPT ALL elem2 EXCEPT ALL elem3")
+        self.assertEquals(statement, "func1() EXCEPT ALL elem2 "
+                                     "EXCEPT ALL elem3")
         self.assertEquals(parameters, [])
 
     def test_except_order_by_limit_offset(self):

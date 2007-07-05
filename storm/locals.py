@@ -7,8 +7,8 @@
 #
 # <license text goes here>
 #
-from storm.properties import Bool, Int, Float, Bin, Unicode, Pickle, List, Enum
-from storm.properties import DateTime, Date, Time
+from storm.properties import Bool, Int, Float, Binary, Unicode, Pickle, List
+from storm.properties import DateTime, Date, Time, Enum
 from storm.references import Reference, ReferenceSet, Proxy
 from storm.database import create_database
 from storm.exceptions import StormError

@@ -21,8 +21,7 @@ except:
 from storm.expr import (
     Undef, SetExpr, Select, Alias, And, Eq, FuncExpr, SQLRaw, COLUMN_NAME,
     compile, compile_select, compile_set_expr)
-from storm.variables import (
-    Variable, BinVariable, ListVariable)
+from storm.variables import Variable, BinaryVariable, ListVariable
 from storm.database import *
 from storm.exceptions import install_exceptions, DatabaseModuleError
 

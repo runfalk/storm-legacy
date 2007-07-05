@@ -18,7 +18,7 @@ try:
 except ImportError:
     sqlite = dummy
 
-from storm.variables import Variable, BinVariable
+from storm.variables import Variable, BinaryVariable
 from storm.database import *
 from storm.exceptions import install_exceptions, DatabaseModuleError
 from storm.expr import (
@@ -56,7 +56,7 @@ class SQLiteResult(Result):
 
     @staticmethod
     def set_variable(variable, value):
-        if isinstance(variable, BinVariable):
+        if isinstance(variable, BinaryVariable):
             # pysqlite2 may return unicode.
             value = str(value)
         variable.set(value, from_db=True)

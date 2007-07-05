@@ -2,7 +2,7 @@ import gc
 
 from storm.references import Reference, ReferenceSet, Proxy
 from storm.database import Result
-from storm.properties import Int, Bin, Unicode, Property, Pickle
+from storm.properties import Int, Binary, Unicode, Property, Pickle
 from storm.properties import PropertyPublisherMeta
 from storm.expr import Asc, Desc, Select, Func, LeftJoin, SQL
 from storm.variables import Variable, UnicodeVariable, IntVariable
@@ -28,7 +28,7 @@ class Bar(object):
 class Blob(object):
     __storm_table__ = "bin"
     id = Int(primary=True)
-    bin = Bin()
+    bin = Binary()
 
 class Link(object):
     __storm_table__ = "link"
@@ -3161,7 +3161,7 @@ class StoreTest(object):
 
     def test_default(self):
         class MyFoo(Foo):
-            title = Bin(default="Some default value")
+            title = Binary(default="Some default value")
 
         foo = MyFoo()
         self.store.add(foo)
@@ -3175,7 +3175,7 @@ class StoreTest(object):
 
     def test_default_factory(self):
         class MyFoo(Foo):
-            title = Bin(default_factory=lambda:"Some default value")
+            title = Binary(default_factory=lambda:"Some default value")
 
         foo = MyFoo()
         self.store.add(foo)
