@@ -347,10 +347,6 @@ class Store(object):
                               cls_info.table)
                 self._connection.execute(expr, noresult=True)
 
-                # We're sure the cache is valid at this point. We've
-                # just updated the object.
-                #obj_info.pop("invalidated", None)
-
                 self._fill_missing_values(obj_info, obj_info.primary_vars,
                                           checkpoint=False, replace_lazy=True)
 
