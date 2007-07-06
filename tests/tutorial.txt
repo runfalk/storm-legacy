@@ -1,6 +1,13 @@
 
 [[TableOfContents]]
 
+==== It runs! ====
+
+This Storm tutorial is included in the source code at
+tests/tutorial.txt, so that it may be tested and stay
+up to date.
+
+
 ==== Importing ====
 
 Let's start by importing some names into the namespace.
@@ -659,11 +666,95 @@ u'BRL'
 Questions!? ;-)
 
 
-'''There's more! To be continued...'''
+==== Loading hook ====
 
-## Hooks
-## Auto Reload
-## Lazy SQL() expressions
+Storm allows classes to define a few different hooks are called
+to act when certain things happen.  One of the interesting hooks
+available is the `__storm_loaded__` one.
+
+Let's play with it.  We'll define a temporary subclass of Person
+for that.
+
+{{{#!python
+>>> class PersonWithHook(Person):
+...     def __init__(self, name):
+...         print "Creating %s" % name
+...         self.name = name
+...
+...     def __storm_loaded__(self):
+...         print "Loaded %s" % self.name
+
+
+>>> earl = store.add(PersonWithHook(u"Earl Easton"))
+Creating Earl Easton
+
+>>> earl = store.find(PersonWithHook, name=u"Earl Easton").one()
+
+>>> del earl
+>>> collected = gc.collect()
+
+>>> earl = store.find(PersonWithHook, name=u"Earl Easton").one()
+Loaded Earl Easton
+
+}}}
+
+Note that in the first find, nothing was called, since the object
+was still in memory and cached.  When we deleted the object and
+ensured that it was collected, the object had to be retrieved
+from the database again, and thus the hook was called (and not
+the constructor!).
+
+
+==== Auto-reloading values ====
+
+Storm offers some special values that may be assigned to attributes
+under its control.  One of these values is `AutoReload`.  When used,
+it will make the object automatically reload the value from the
+database when touched.  Even primary keys may benefit from its use,
+as shown below.
+
+{{{
+>>> from storm.locals import AutoReload
+
+>>> ruy = store.add(Person())
+>>> ruy.name = u"Ruy"
+>>> print ruy.id
+None
+
+>>> ruy.id = AutoReload
+>>> print ruy.id
+4
+
+}}}
+
+This may be set as the default value for any attribute, making the
+object be automatically flushed if necessary.
+
+
+==== Expression values ====
+
+Besides auto-reloading, it's also possible to assign a value that
+will run a SQL expression to update a value.  For instance:
+
+{{{#!python
+from storm.locals import SQL
+
+>>> ruy.name = SQL("(SELECT name || ' Ritcher' FROM person WHERE id=4)")
+>>> ruy.name
+u'Ruy Ritcher'
+
+}}}
+
+That's a silly example, of course, but there are many useful ways
+to use that feature.
+
+
+==== Much more! ====
+
+There's a lot more about Storm to be shown.  This tutorial is just a
+way to get initiated on some of the concepts.  While your questions
+are not answered somewhere else, feel free to ask them in the mailing
+list.
 
 
 ## vim:ts=4:sw=4:et:ft=moin
