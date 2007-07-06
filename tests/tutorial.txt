@@ -381,7 +381,7 @@ Let's commit everything.
 >>>
 }}}
 
-==== Reference sets ====
+==== Many-to-one reference sets ====
 
 So, while our model says that employees work for a single company
 (we only design normal people here), companies may of course have
@@ -429,6 +429,119 @@ should be reflected elsewhere.
 >>> mike.company is sweets
 True
 >>>
+}}}
+
+
+==== Many-to-many reference sets and composed keys ====
+
+We want to represent accountants in our model as well.  Companies have
+accountants, but accountants may also attend several companies, so we'll
+represent that using a many-to-many relationship.
+
+Let's create a simple class to use with accountants, and the relationship
+class.
+
+{{{#!python
+>>> class Accountant(Person):
+...     __storm_table__ = "accountant"
+...     def __init__(self, name):
+...         self.name = name
+
+>>> class CompanyAccountant(object):
+...     __storm_table__ = "company_accountant"
+...     __storm_primary__ = "company_id", "accountant_id"
+...     company_id = Int()
+...     accountant_id = Int()
+>>>
+}}}
+
+Hey, we've just declared a class with a composed key!
+
+Now, let's use it to declare the many-to-many relationship in the
+company.  Once more, we'll just stick the new attribute in the
+existent object.  It may easily be defined at class definition
+time.  Later we'll see another way to do that as well.
+
+{{{#!python
+>>> Company.accountants = ReferenceSet(Company.id,
+...                                    CompanyAccountant.company_id,
+...                                    CompanyAccountant.accountant_id,
+...                                    Accountant.id)
+>>>
+}}}
+
+Done!  The order in which attributes were defined is important,
+but the logic should be pretty obvious.
+
+We're missing some tables, at this point.
+
+{{{#!python
+>>> store.execute("CREATE TABLE accountant "
+...               "(id INTEGER PRIMARY KEY, name VARCHAR)", noresult=True)
+...
+>>> store.execute("CREATE TABLE company_accountant "
+...               "(company_id INTEGER, accountant_id INTEGER,"
+...               " PRIMARY KEY (company_id, accountant_id))", noresult=True)
+>>>
+}}}
+
+
+Let's give life to a couple of accountants, and register them
+in both companies.
+
+{{{#!python
+>>> karl = Accountant(u"Karl Kent")
+>>> frank = Accountant(u"Frank Fourt")
+
+>>> sweets.accountants.add(karl)
+>>> sweets.accountants.add(frank)
+
+>>> circus.accountants.add(frank)
+>>>
+}}}
+
+That's it! Really!  Notice that we didn't even have to add them to
+the store, since it happens implicitly by linking to the other object
+which is already in the store, and that we didn't have to declare the
+relationship object, since that's known to the reference set.
+
+We can now check them.
+
+{{{
+>>> sweets.accountants.count()
+2
+>>> circus.accountants.count()
+1
+>>>
+}}}
+
+Even though we didn't use the Company``Accountant object explicitly,
+we can check it if we're really curious.
+
+{{{#!python
+>>> store.get(CompanyAccountant, (sweets.id, frank.id))
+<CompanyAccountant object at 0x...>
+>>>
+}}}
+
+Notice that we pass a tuple for the `get()` method, due to the
+composed key.
+
+If we wanted to know which companies accountants are working for,
+we could easily define a reversed relationship:
+
+{{{#!python
+>>> Accountant.companies = ReferenceSet(Accountant.id,
+...                                     CompanyAccountant.accountant_id,
+...                                     CompanyAccountant.company_id,
+...                                     Company.id)
+
+>>> [company.name for company in frank.companies]
+[u'Circus Inc.', u'Sweets Inc.']
+
+>>> [company.name for company in karl.companies]
+[u'Sweets Inc.']
+
 }}}
 
 
