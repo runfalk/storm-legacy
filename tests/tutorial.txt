@@ -527,7 +527,7 @@ we can check it if we're really curious.
 Notice that we pass a tuple for the `get()` method, due to the
 composed key.
 
-If we wanted to know which companies accountants are working for,
+If we wanted to know for which companies accountants are working,
 we could easily define a reversed relationship:
 
 {{{#!python
@@ -545,11 +545,112 @@ we could easily define a reversed relationship:
 }}}
 
 
+==== Joins ====
+
+Since we've got some nice data to play with, let's try to make a
+few interesting queries.
+
+Let's start by checking which companies have at least one employee
+named Ben.  We have at least two ways to do it.
+
+First, with an implicit join.
+
+{{{#!python
+>>> result = store.find(Company,
+...                     Employee.company_id == Company.id,
+...                     Employee.name.like(u"Ben %"))
+...
+
+>>> [company.name for company in result]
+[u'Sweets Inc.']
+
+}}}
+
+Then, we can also do an explicit join.  This is interesting for mapping
+complex SQL joins to Storm queries.
+
+{{{#!python
+>>> origin = [Company, Join(Employee, Employee.company_id == Company.id)]
+>>> result = store.using(*origin).find(Company, Employee.name.like(u"Ben %"))
+
+>>> [company.name for company in result]
+[u'Sweets Inc.']
+
+}}}
+
+
+If we already had the company, and wanted to know which of his employees
+were named Ben, that'd have been easier.
+
+{{{#!python
+>>> result = sweets.employees.find(Employee.name.like(u"Ben %"))
+
+>>> [employee.name for employee in result]
+[u'Ben Bill']
+
+}}}
+
+
+==== The Storm base class ====
+
+So far we've been defining our references and reference sets using
+classes and their properties.  This has some advantages, like being
+easier to debug, but also has some disadvantages, such as requiring
+classes to be present in the local scope, what potentially leads to
+circular import issues.
+
+To prevent that kind of situation, Storm supports defining these
+references using the stringified version of the class and property
+names.  The only inconvenience of doing so is that all involved
+classes must inherit from the `Storm` base class.
+
+Let's define some new classes to show that.  To expose the point,
+we'll refer to a class before it's actually defined.
+
+{{{#!python
+>>> class Country(Storm):
+...     __storm_table__ = "country"
+...     id = Int(primary=True)
+...     name = Unicode()
+...     currency_id = Int()
+...     currency = Reference(currency_id, "Currency.id")
+
+>>> class Currency(Storm):
+...     __storm_table__ = "currency"
+...     id = Int(primary=True)
+...     symbol = Unicode()
+
+>>> store.execute("CREATE TABLE country "
+...               "(id INTEGER PRIMARY KEY, name VARCHAR, currency_id INTEGER)",
+...               noresult=True)
+
+>>> store.execute("CREATE TABLE currency "
+...               "(id INTEGER PRIMARY KEY, symbol VARCHAR)", noresult=True)
+
+}}}
+
+
+Now, let's see if it works.
+
+{{{#!python
+>>> real = store.add(Currency())
+>>> real.id = 1
+>>> real.symbol = u"BRL"
+
+>>> brazil = store.add(Country())
+>>> brazil.name = u"Brazil"
+>>> brazil.currency_id = 1
+
+>>> brazil.currency.symbol
+u'BRL'
+
+}}}
+
+Questions!? ;-)
+
+
 '''There's more! To be continued...'''
 
-## The Storm base class
-## Joins
-## Compound Keys
 ## Hooks
 ## Auto Reload
 ## Lazy SQL() expressions
