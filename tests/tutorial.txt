@@ -20,8 +20,6 @@ we're about to map.
 ...     __storm_table__ = "person"
 ...     id = Int(primary=True)
 ...     name = Unicode()
-...
->>>
 
 }}}
 
@@ -45,7 +43,7 @@ for our class.
 >>> store.execute("CREATE TABLE person "
 ...               "(id INTEGER PRIMARY KEY, name VARCHAR)")
 <storm.databases.sqlite.SQLiteResult object at 0x...>
->>>
+
 }}}
 
 We got a result back, but we don't care about it for now. We could also
@@ -58,9 +56,10 @@ Let's create an object of the defined class.
 {{{#!python
 >>> joe = Person()
 >>> joe.name = u"Joe Johnes"
+
 >>> print "%r, %r" % (joe.id, joe.name)
 None, u'Joe Johnes'
->>>
+
 }}}
 
 So far this object has no connection to a database. Let's add it to the
@@ -69,9 +68,10 @@ store we've created above.
 {{{#!python
 >>> store.add(joe)
 <Person object at 0x...>
+
 >>> print "%r, %r" % (joe.id, joe.name)
 None, u'Joe Johnes'
->>>
+
 }}}
 
 Notice that the object wasn't changed, even after being added to the
@@ -84,8 +84,10 @@ the person named ''Joe Johnes''?
 
 {{{#!python
 >>> person = store.find(Person, Person.name == u"Joe Johnes").one()
+
 >>> print "%r, %r" % (person.id, person.name)
 1, u'Joe Johnes'
+
 >>>
 }}}
 
@@ -100,7 +102,7 @@ two different objects?  There isn't.
 {{{#!python
 >>> person is joe
 True
->>>
+
 }}}
 
 What's going on behind the scenes is that each store has an object
@@ -115,10 +117,11 @@ Let's try to show that this is the case in practice.
 >>> joe.tainted = True
 >>> joe.tainted
 True
+
 >>> joe = store.get(Person, 1)
 >>> joe.tainted
 True
->>>
+
 }}}
 
 Now, let's get rid of the last reference, and see if it's still tainted.
@@ -132,9 +135,10 @@ Now, let's get rid of the last reference, and see if it's still tainted.
 Traceback (most recent call last):
 ...
 AttributeError: 'Person' object has no attribute 'tainted'
+
 >>> print "%r, %r" % (joe.id, joe.name)
 1, u'Joe Johnes'
->>>
+
 }}}
 
 So, basically the last reference disapeared, and the object got
@@ -154,12 +158,14 @@ Flushes may also happen explicitly.
 >>> mary.name = u"Mary Margaret"
 >>> store.add(mary)
 <Person object at 0x...>
+
 >>> print "%r, %r" % (mary.id, mary.name)
 None, u'Mary Margaret'
+
 >>> store.flush()
 >>> print "%r, %r" % (mary.id, mary.name)
 2, u'Mary Margaret'
->>>
+
 }}}
 
 ==== Changing objects with the Store ====
@@ -171,7 +177,7 @@ that objects are tied to a database to change them using expressions.
 >>> store.find(Person, Person.name == u"Mary Margaret").set(name=u"Mary Maggie")
 >>> mary.name
 u'Mary Maggie'
->>>
+
 }}}
 
 This operation will touch every matching object in the database, and
@@ -210,7 +216,7 @@ and by the database.
 >>> person = store.find(Person, Person.name == u"Tom Thomas").one()
 >>> person is joe
 True
->>>
+
 }}}
 
 Yes, they are. Now, for the magic step (suspense music, please).
@@ -227,7 +233,7 @@ Actually, something happened.. with Joe.  He's back!
 {{{#!python
 >>> print "%r, %r" % (joe.id, joe.name)
 1, u'Joe Johnes'
->>>
+
 }}}
 
 ==== Constructors ====
@@ -245,8 +251,7 @@ company class you've ever seen:
 ...
 ...     def __init__(self, name):
 ...         self.name = name
-...
->>>
+
 }}}
 
 Notice that the constructor parameter isn't optional.  It could be
@@ -257,17 +262,17 @@ Let's add the table for it.
 {{{#!python
 >>> store.execute("CREATE TABLE company "
 ...               "(id INTEGER PRIMARY KEY, name VARCHAR)", noresult=True)
->>>
+
 }}}
 
 Then, create a new company.
 
 {{{
 >>> circus = Company(u"Circus Inc.")
->>>
+
 >>> print "%r, %r" % (circus.id, circus.name)
 None, u'Circus Inc.'
->>>
+
 }}}
 
 The `id` is still undefined because we haven't flushed it.  In fact,
@@ -290,7 +295,7 @@ include one extra field: the company id.
 ...
 ...     def __init__(self, name):
 ...         self.name = name
->>>
+
 }}}
 
 Pay attention to that definiton for a moment. Notice that it doesn't
@@ -305,17 +310,17 @@ so we'll not bother to define it.
 >>> store.execute("CREATE TABLE employee "
 ...               "(id INTEGER PRIMARY KEY, name VARCHAR, company_id INTEGER)",
 ...               noresult=True)
->>>
+
 }}}
 
 Let's give life to Ben now.
 
 {{{#!python
 >>> ben = store.add(Employee(u"Ben Bill"))
->>>
+
 >>> print "%r, %r, %r" % (ben.id, ben.name, ben.company_id)
 None, u'Ben Bill', None
->>>
+
 }}}
 
 We can see that they were not flushed yet. Even then, we can say
@@ -323,9 +328,10 @@ that Bill works on Circus.
 
 {{{#!python
 >>> ben.company = circus
+
 >>> print "%r, %r" % (ben.company_id, ben.company.name)
 None, u'Circus Inc.'
->>>
+
 }}}
 
 Of course, we still don't know the company id since it was not
@@ -338,9 +344,10 @@ updated as well (before being flushed!).
 
 {{{#!python
 >>> store.flush()
+
 >>> print "%r, %r" % (ben.company_id, ben.company.name)
 1, u'Circus Inc.'
->>>
+
 }}}
 
 They're both flushed to the database.  Now, notice that the Circus
@@ -356,7 +363,7 @@ flush the store just after adding it.
 >>> store.flush()
 >>> sweets.id
 2
->>>
+
 }}}
 
 
@@ -369,7 +376,7 @@ happen if we changed '''just the id''' for Ben's company?
 u'Sweets Inc.'
 >>> ben.company is sweets
 True
->>>
+
 }}}
 
 Hah! '''That''' wasn't expected, was it? ;-)
@@ -401,14 +408,14 @@ working for a given company.
 {{{#!python
 >>> sweets.employees.count()
 1
->>> 
+
 >>> for employee in sweets.employees:
 ...     print "%r, %r" % (employee.id, employee.name)
 ...     print employee is ben
 ...
 1, u'Ben Bill'
 True
->>>
+
 }}}
 
 Let's create another employee, and add him to the company, rather
@@ -426,9 +433,10 @@ should be reflected elsewhere.
 {{{#!python
 >>> mike.company_id
 2
+
 >>> mike.company is sweets
 True
->>>
+
 }}}
 
 
@@ -452,7 +460,7 @@ class.
 ...     __storm_primary__ = "company_id", "accountant_id"
 ...     company_id = Int()
 ...     accountant_id = Int()
->>>
+
 }}}
 
 Hey, we've just declared a class with a composed key!
@@ -467,7 +475,7 @@ time.  Later we'll see another way to do that as well.
 ...                                    CompanyAccountant.company_id,
 ...                                    CompanyAccountant.accountant_id,
 ...                                    Accountant.id)
->>>
+
 }}}
 
 Done!  The order in which attributes were defined is important,
@@ -479,10 +487,11 @@ We're missing some tables, at this point.
 >>> store.execute("CREATE TABLE accountant "
 ...               "(id INTEGER PRIMARY KEY, name VARCHAR)", noresult=True)
 ...
+
 >>> store.execute("CREATE TABLE company_accountant "
 ...               "(company_id INTEGER, accountant_id INTEGER,"
 ...               " PRIMARY KEY (company_id, accountant_id))", noresult=True)
->>>
+
 }}}
 
 
@@ -510,9 +519,10 @@ We can now check them.
 {{{
 >>> sweets.accountants.count()
 2
+
 >>> circus.accountants.count()
 1
->>>
+
 }}}
 
 Even though we didn't use the Company``Accountant object explicitly,
@@ -521,7 +531,7 @@ we can check it if we're really curious.
 {{{#!python
 >>> store.get(CompanyAccountant, (sweets.id, frank.id))
 <CompanyAccountant object at 0x...>
->>>
+
 }}}
 
 Notice that we pass a tuple for the `get()` method, due to the
