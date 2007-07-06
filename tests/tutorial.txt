@@ -1,0 +1,426 @@
+
+[[TableOfContents]]
+
+==== Importing ====
+
+Let's start by importing some names into the namespace.
+
+{{{#!python
+>>> from storm.locals import *
+>>>
+}}}
+
+==== Basic definition ====
+
+Now we define a type with some properties describing the information
+we're about to map.
+
+{{{#!python
+>>> class Person(object):
+...     __storm_table__ = "person"
+...     id = Int(primary=True)
+...     name = Unicode()
+...
+>>>
+
+}}}
+
+Notice that this has no Storm-defined base class or constructor.
+
+==== Creating a database and the store ====
+
+We still don't have anyone to talk to, so let's define an in-memory
+SQLite database to play with, and a store using that database.
+
+{{{#!python
+>>> database = create_database("sqlite:")
+>>> store = Store(database)
+>>>
+}}}
+
+Good. Now we have to create the table that will actually hold the data
+for our class.
+
+{{{#!python
+>>> store.execute("CREATE TABLE person "
+...               "(id INTEGER PRIMARY KEY, name VARCHAR)")
+<storm.databases.sqlite.SQLiteResult object at 0x...>
+>>>
+}}}
+
+We got a result back, but we don't care about it for now. We could also
+use `noresult=True` to avoid the result entirely.
+
+==== Creating an object ====
+
+Let's create an object of the defined class.
+
+{{{#!python
+>>> joe = Person()
+>>> joe.name = u"Joe Johnes"
+>>> print "%r, %r" % (joe.id, joe.name)
+None, u'Joe Johnes'
+>>>
+}}}
+
+So far this object has no connection to a database. Let's add it to the
+store we've created above.
+
+{{{#!python
+>>> store.add(joe)
+<Person object at 0x...>
+>>> print "%r, %r" % (joe.id, joe.name)
+None, u'Joe Johnes'
+>>>
+}}}
+
+Notice that the object wasn't changed, even after being added to the
+store.  That's because it wasn't flushed yet.
+
+==== Finding an object ====
+
+Now, what would happen if we actually asked the store to give us
+the person named ''Joe Johnes''?
+
+{{{#!python
+>>> person = store.find(Person, Person.name == u"Joe Johnes").one()
+>>> print "%r, %r" % (person.id, person.name)
+1, u'Joe Johnes'
+>>>
+}}}
+
+The person is there!  Yeah, ok, you were expecting it. :-)
+
+==== Caching behavior ====
+
+One interesting thing is that this person is actually Joe, right? We've
+just added this object, so there's only one Joe, why would there be
+two different objects?  There isn't.
+
+{{{#!python
+>>> person is joe
+True
+>>>
+}}}
+
+What's going on behind the scenes is that each store has an object
+cache. When an object is linked to a store, it will be cached by
+the store for as long as there's a reference to the object somewhere,
+or while the object is dirty (has unflushed changes).
+
+Let's try to show that this is the case in practice.
+
+{{{#!python
+>>> del person
+>>> joe.tainted = True
+>>> joe.tainted
+True
+>>> joe = store.get(Person, 1)
+>>> joe.tainted
+True
+>>>
+}}}
+
+Now, let's get rid of the last reference, and see if it's still tainted.
+
+{{{#!python
+>>> del joe
+>>> import gc
+>>> collected = gc.collect()
+>>> joe = store.get(Person, 1)
+>>> joe.tainted
+Traceback (most recent call last):
+...
+AttributeError: 'Person' object has no attribute 'tainted'
+>>> print "%r, %r" % (joe.id, joe.name)
+1, u'Joe Johnes'
+>>>
+}}}
+
+So, basically the last reference disapeared, and the object got
+deallocated, so the store has loaded the object again for us.
+
+==== Flushing ====
+
+When we tried to find Joe in the database for the first time, we've
+noticed that the `id` property was magically assigned. This happened
+because the object was flushed implicitly so that the operation would
+affect any pending changes as well.
+
+Flush may also happen explicitly.
+
+{{{#!python
+>>> mary = Person()
+>>> mary.name = u"Mary Margaret"
+>>> store.add(mary)
+<Person object at 0x...>
+>>> print "%r, %r" % (mary.id, mary.name)
+None, u'Mary Margaret'
+>>> store.flush()
+>>> print "%r, %r" % (mary.id, mary.name)
+2, u'Mary Margaret'
+>>>
+}}}
+
+==== Changing objects with the Store ====
+
+Besides changing objects as usual, we can also benefit from the fact
+that objects are tied to a database to change them using expressions.
+
+{{{#!python
+>>> store.find(Person, Person.name == u"Mary Margaret").set(name=u"Mary Maggie")
+>>> mary.name
+u'Mary Maggie'
+>>>
+}}}
+
+This operation will touch every matching object in the database, and
+also objects that are alive in memory.
+
+==== Committing ====
+
+Everything we've done so far is inside a transaction. At this point,
+we can either make these changes and any pending uncommitted changes
+persistent by committing them, or we can undo everything by rolling
+them back.
+
+We'll commit them, with something as simple as
+
+{{{#!python
+>>> store.commit()
+>>>
+}}}
+
+That was straightforward. Everything is still the way it was, but now
+changes are there "for real".
+
+==== Rolling back ====
+
+Aborting changes is very straightforward as well.
+
+{{{#!python
+>>> joe.name = u"Tom Thomas"
+>>>
+}}}
+
+Notice we've also changed the primary key of this object.
+
+Let's see if these changes are really being considered by Storm
+and by the database.
+
+{{{#!python
+>>> person = store.find(Person, Person.name == u"Tom Thomas").one()
+>>> person is joe
+True
+>>>
+}}}
+
+Yes, they are. Now, for the magic step (suspense music, please).
+
+{{{#!python
+>>> store.rollback()
+>>>
+}}}
+
+Erm.. nothing happened?
+
+Actually, something happened.. with Joe.  He's back!
+
+{{{#!python
+>>> print "%r, %r" % (joe.id, joe.name)
+1, u'Joe Johnes'
+>>>
+}}}
+
+==== References and subclassing ====
+
+So, we've been working for too long with people only. Let's introduce
+a new kind of data in our model: companies. The general idea is that
+each person works for a company, and a company may have multiple
+employees.
+
+First, we create the simplest Company class you've ever seen:
+
+{{{#!python
+>>> class Company(object):
+...     __storm_table__ = "company"
+...     id = Int(primary=True)
+...     name = Unicode()
+...
+>>>
+}}}
+
+Now rather than redoing the Person definition, we'll keep it as it
+is, since it's general, and will create a new subclass of it for
+employees, which include one extra field: the company id.
+
+{{{#!python
+>>> class Employee(Person):
+...     __storm_table__ = "employee"
+...     company_id = Int()
+...     company = Reference(company_id, Company.id)
+...
+>>>
+}}}
+
+Pay attention to that definiton for a moment. Notice that it doesn't
+define what's already in person, and introduces the `company_id`,
+and a `company` property, which is a reference.
+
+We should create some tables now.
+
+{{{#!python
+>>> store.execute("CREATE TABLE employee "
+...               "(id INTEGER PRIMARY KEY, name VARCHAR, company_id INTEGER)",
+...               noresult=True)
+>>> store.execute("CREATE TABLE company "
+...               "(id INTEGER PRIMARY KEY, name VARCHAR)", noresult=True)
+>>>
+}}}
+
+We're ready to go. Let's start by the company, an employee, and adding
+them to the store.
+
+{{{#!python
+>>> cannonball = Company()
+>>> cannonball.name = u"Cannonball Inc."
+>>> store.add(cannonball)
+<Company object at 0x...>
+>>>
+>>> ben = Employee()
+>>> ben.name = u"Ben Bill"
+>>> store.add(ben)
+<Employee object at 0x...>
+>>>
+>>> print "%r, %r, %r" % (ben.id, ben.name, ben.company_id)
+None, u'Ben Bill', None
+>>>
+>>> print "%r, %r" % (cannonball.id, cannonball.name)
+None, u'Cannonball Inc.'
+>>>
+}}}
+
+We can see that they were not flushed yet. Even then, we can say
+that Bill works on Cannonball.
+
+{{{#!python
+>>> ben.company = cannonball
+>>> print "%r, %r" % (ben.company_id, ben.company.name)
+None, u'Cannonball Inc.'
+>>>
+}}}
+
+Of course, we still don't know the company id since it was not
+flushed to the database yet, and we didn't assign an id explicitly,
+but we'll do once we flush the store.
+
+{{{#!python
+>>> store.flush()
+>>> print "%r, %r" % (ben.company_id, ben.company.name)
+1, u'Cannonball Inc.'
+>>>
+}}}
+
+Let's create another company to check something. This time we'll
+flush the store just after adding it.
+
+{{{#!python
+>>> bulletpoint = Company()
+>>> bulletpoint.name = u"Bullet Point Inc."
+>>> store.add(bulletpoint)
+<Company object at 0x...>
+>>> store.flush()
+>>> bulletpoint.id
+2
+>>>
+}}}
+
+
+Nice, we've already got the id of the new company. So, what would
+happen if we changed '''just the id''' for Ben's company?
+
+{{{#!python
+>>> ben.company_id = 2
+>>> ben.company.name
+u'Bullet Point Inc.'
+>>> ben.company is bulletpoint
+True
+>>>
+}}}
+
+Hah! '''That''' wasn't expected, was it? ;-)
+
+Let's commit everything.
+
+{{{#!python
+>>> store.commit()
+>>>
+}}}
+
+==== Reference sets ====
+
+So, while our model says that employees work for a single company
+(we only design normal people here), companies may of course have
+multiple employees. We represent that in Storm using reference sets.
+
+We won't define the company again. Instead, we'll add a new attribute
+to the class.
+
+{{{#!python
+>>> Company.employees = ReferenceSet(Company.id, Employee.company_id)
+>>> 
+}}}
+
+Without any further work, we can already see which employees are
+working for a given company.
+
+{{{#!python
+>>> bulletpoint.employees.count()
+1
+>>> 
+>>> for employee in bulletpoint.employees:
+...     print "%r, %r" % (employee.id, employee.name)
+...     print employee is ben
+...
+1, u'Ben Bill'
+True
+>>>
+}}}
+
+Let's create another employee, and add that to the company, rather
+than setting the company in the employee.
+
+{{{#!python
+>>> mike = Employee()
+>>> mike.name = u"Mike Mayer"
+>>> store.add(mike)
+<Employee object at 0x...>
+>>>
+>>> bulletpoint.employees.add(mike)
+>>>
+}}}
+
+That, of course, means that Mike's working for a company, and so it
+should be reflected elsewhere.
+
+{{{#!python
+>>> mike.company_id
+2
+>>> mike.company is bulletpoint
+True
+>>>
+}}}
+
+
+'''There's more! To be continued...'''
+
+## The Storm base class
+## Constructors
+## Joins
+## Compound Keys
+## Hooks
+## Auto Reload
+## Lazy SQL() expressions
+
+
+## vim:ts=4:sw=4:et:ft=moin
