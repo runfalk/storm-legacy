@@ -361,6 +361,27 @@ class Store(object):
 
     def _fill_missing_values(self, obj_info, primary_vars, result=None,
                              checkpoint=True, replace_lazy=False):
+        """Query retrieve from the database any missing values in obj_info.
+
+        This method will verify which values are unset in obj_info,
+        and will retrieve them from the database to set them.
+
+        @param obj_info: ObjectInfo to have its values filled.
+        @param primary_vars: Variables composing the primary key with
+            up-to-date values (cached variables may be out-of-date when
+            this method is called).
+        @param result: If some value in the set of primary variables
+            isn't defined, it must be retrieved from the database
+            using database-dependent logic, which is provided by the
+            backend in the result of the query which inserted the object.
+        @param checkpoint: If true, variables will be checkpointed so that
+            they are aware that the value just set is the value currently
+            in the database.  Generally this will be false only when
+            checkpointing is being done at the calling place.
+        @param replace_lazy: If true, lazy values are handled as if they
+            were missing, and are replaced by values returned from the
+            database.
+        """
         cls_info = obj_info.cls_info
 
         cached_primary_vars = obj_info.get("primary_vars")
