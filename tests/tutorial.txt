@@ -147,7 +147,7 @@ noticed that the `id` property was magically assigned. This happened
 because the object was flushed implicitly so that the operation would
 affect any pending changes as well.
 
-Flush may also happen explicitly.
+Flushes may also happen explicitly.
 
 {{{#!python
 >>> mary = Person()
@@ -203,8 +203,6 @@ Aborting changes is very straightforward as well.
 >>>
 }}}
 
-Notice we've also changed the primary key of this object.
-
 Let's see if these changes are really being considered by Storm
 and by the database.
 
@@ -232,14 +230,12 @@ Actually, something happened.. with Joe.  He's back!
 >>>
 }}}
 
-==== References and subclassing ====
+==== Constructors ====
 
 So, we've been working for too long with people only. Let's introduce
-a new kind of data in our model: companies. The general idea is that
-each person works for a company, and a company may have multiple
-employees.
-
-First, we create the simplest Company class you've ever seen:
+a new kind of data in our model: companies.  For the company, we'll
+use a constructor, just for the fun of it.  It will be the simplest
+company class you've ever seen:
 
 {{{#!python
 >>> class Company(object):
@@ -247,12 +243,44 @@ First, we create the simplest Company class you've ever seen:
 ...     id = Int(primary=True)
 ...     name = Unicode()
 ...
+...     def __init__(self, name):
+...         self.name = name
+...
 >>>
 }}}
 
-Now rather than redoing the Person definition, we'll keep it as it
-is, since it's general, and will create a new subclass of it for
-employees, which include one extra field: the company id.
+Notice that the constructor parameter isn't optional.  It could be
+optional, if we wanted, but our companies always have names.
+
+Let's add the table for it.
+
+{{{#!python
+>>> store.execute("CREATE TABLE company "
+...               "(id INTEGER PRIMARY KEY, name VARCHAR)", noresult=True)
+>>>
+}}}
+
+Then, create a new company.
+
+{{{
+>>> circus = Company(u"Circus Inc.")
+>>>
+>>> print "%r, %r" % (circus.id, circus.name)
+None, u'Circus Inc.'
+>>>
+}}}
+
+The `id` is still undefined because we haven't flushed it.  In fact,
+we haven't even '''added''' the company to the store.  We'll do
+that soon.  Watch out.
+
+
+==== References and subclassing ====
+
+Now we want to assign some employees to our company.  Rather than
+redoing the Person definition, we'll keep it as it is, since it's
+general, and will create a new subclass of it for employees, which
+include one extra field: the company id.
 
 {{{#!python
 >>> class Employee(Person):
@@ -260,77 +288,73 @@ employees, which include one extra field: the company id.
 ...     company_id = Int()
 ...     company = Reference(company_id, Company.id)
 ...
+...     def __init__(self, name):
+...         self.name = name
 >>>
 }}}
 
 Pay attention to that definiton for a moment. Notice that it doesn't
 define what's already in person, and introduces the `company_id`,
-and a `company` property, which is a reference.
+and a `company` property, which is a reference to another class.  It
+also has a constructor, but which leaves the company alone.
 
-We should create some tables now.
+As usual, we need a table.  SQLite has no idea of what a foreign key is,
+so we'll not bother to define it.
 
 {{{#!python
 >>> store.execute("CREATE TABLE employee "
 ...               "(id INTEGER PRIMARY KEY, name VARCHAR, company_id INTEGER)",
 ...               noresult=True)
->>> store.execute("CREATE TABLE company "
-...               "(id INTEGER PRIMARY KEY, name VARCHAR)", noresult=True)
 >>>
 }}}
 
-We're ready to go. Let's start by the company, an employee, and adding
-them to the store.
+Let's give life to Ben now.
 
 {{{#!python
->>> cannonball = Company()
->>> cannonball.name = u"Cannonball Inc."
->>> store.add(cannonball)
-<Company object at 0x...>
->>>
->>> ben = Employee()
->>> ben.name = u"Ben Bill"
->>> store.add(ben)
-<Employee object at 0x...>
+>>> ben = store.add(Employee(u"Ben Bill"))
 >>>
 >>> print "%r, %r, %r" % (ben.id, ben.name, ben.company_id)
 None, u'Ben Bill', None
 >>>
->>> print "%r, %r" % (cannonball.id, cannonball.name)
-None, u'Cannonball Inc.'
->>>
 }}}
 
 We can see that they were not flushed yet. Even then, we can say
-that Bill works on Cannonball.
+that Bill works on Circus.
 
 {{{#!python
->>> ben.company = cannonball
+>>> ben.company = circus
 >>> print "%r, %r" % (ben.company_id, ben.company.name)
-None, u'Cannonball Inc.'
+None, u'Circus Inc.'
 >>>
 }}}
 
 Of course, we still don't know the company id since it was not
-flushed to the database yet, and we didn't assign an id explicitly,
-but we'll do once we flush the store.
+flushed to the database yet, and we didn't assign an id explicitly.
+Storm is keeping the relationship even then.
+
+If whatever is pending is flushed to the database (implicitly or
+explicitly), objects will get their ids, and any references are
+updated as well (before being flushed!).
 
 {{{#!python
 >>> store.flush()
 >>> print "%r, %r" % (ben.company_id, ben.company.name)
-1, u'Cannonball Inc.'
+1, u'Circus Inc.'
 >>>
 }}}
+
+They're both flushed to the database.  Now, notice that the Circus
+company wasn't added to the store explicitly in any moment.  Storm
+will do that automatically for referenced objects, for both objects
+(the referenced and the referencing one).
 
 Let's create another company to check something. This time we'll
 flush the store just after adding it.
 
 {{{#!python
->>> bulletpoint = Company()
->>> bulletpoint.name = u"Bullet Point Inc."
->>> store.add(bulletpoint)
-<Company object at 0x...>
+>>> sweets = store.add(Company(u"Sweets Inc."))
 >>> store.flush()
->>> bulletpoint.id
+>>> sweets.id
 2
 >>>
 }}}
@@ -342,8 +366,8 @@ happen if we changed '''just the id''' for Ben's company?
 {{{#!python
 >>> ben.company_id = 2
 >>> ben.company.name
-u'Bullet Point Inc.'
->>> ben.company is bulletpoint
+u'Sweets Inc.'
+>>> ben.company is sweets
 True
 >>>
 }}}
@@ -375,10 +399,10 @@ Without any further work, we can already see which employees are
 working for a given company.
 
 {{{#!python
->>> bulletpoint.employees.count()
+>>> sweets.employees.count()
 1
 >>> 
->>> for employee in bulletpoint.employees:
+>>> for employee in sweets.employees:
 ...     print "%r, %r" % (employee.id, employee.name)
 ...     print employee is ben
 ...
@@ -387,16 +411,12 @@ True
 >>>
 }}}
 
-Let's create another employee, and add that to the company, rather
-than setting the company in the employee.
+Let's create another employee, and add him to the company, rather
+than setting the company in the employee (it sounds better, at least).
 
 {{{#!python
->>> mike = Employee()
->>> mike.name = u"Mike Mayer"
->>> store.add(mike)
-<Employee object at 0x...>
->>>
->>> bulletpoint.employees.add(mike)
+>>> mike = store.add(Employee(u"Mike Mayer"))
+>>> sweets.employees.add(mike)
 >>>
 }}}
 
@@ -406,7 +426,7 @@ should be reflected elsewhere.
 {{{#!python
 >>> mike.company_id
 2
->>> mike.company is bulletpoint
+>>> mike.company is sweets
 True
 >>>
 }}}
@@ -415,7 +435,6 @@ True
 '''There's more! To be continued...'''
 
 ## The Storm base class
-## Constructors
 ## Joins
 ## Compound Keys
 ## Hooks
