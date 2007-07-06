@@ -19,7 +19,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 """
-Machinary to make py.test interpret standard unittest.TestCase classes.
+Machinery to make py.test interpret standard unittest.TestCase classes.
 """
 from unittest import TestCase, TestResult
 import doctest
