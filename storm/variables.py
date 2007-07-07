@@ -33,7 +33,7 @@ __all__ = [
     "BoolVariable",
     "IntVariable",
     "FloatVariable",
-    "BinaryVariable",
+    "CharsVariable",
     "UnicodeVariable",
     "DateTimeVariable",
     "DateVariable",
@@ -214,7 +214,7 @@ class FloatVariable(Variable):
         return float(value)
 
 
-class BinaryVariable(Variable):
+class CharsVariable(Variable):
 
     @staticmethod
     def _parse_set(value, from_db):

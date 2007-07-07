@@ -356,10 +356,10 @@ class FloatVariableTest(TestHelper):
         self.assertRaises(TypeError, variable.set, "1")
 
 
-class BinaryVariableTest(TestHelper):
+class CharsVariableTest(TestHelper):
 
     def test_set_get(self):
-        variable = BinaryVariable()
+        variable = CharsVariable()
         variable.set("str")
         self.assertEquals(variable.get(), "str")
         variable.set(buffer("buffer"))
@@ -707,7 +707,7 @@ class ListVariableTest(TestHelper):
     def test_list_events(self):
         event = EventSystem(marker)
 
-        variable = ListVariable(BinaryVariable, event=event,
+        variable = ListVariable(CharsVariable, event=event,
                                 value_factory=list)
 
         changes = []

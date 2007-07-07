@@ -32,7 +32,7 @@ from storm import Undef
 
 
 __all__ = ["Property", "SimpleProperty",
-           "Bool", "Int", "Float", "Binary", "Unicode",
+           "Bool", "Int", "Float", "Chars", "Unicode",
            "DateTime", "Date", "Time", "TimeDelta", "Enum", "Pickle", "List",
            "PropertyRegistry"]
 
@@ -137,8 +137,8 @@ class Int(SimpleProperty):
 class Float(SimpleProperty):
     variable_class = FloatVariable
 
-class Binary(SimpleProperty):
-    variable_class = BinaryVariable
+class Chars(SimpleProperty):
+    variable_class = CharsVariable
 
 class Unicode(SimpleProperty):
     variable_class = UnicodeVariable
