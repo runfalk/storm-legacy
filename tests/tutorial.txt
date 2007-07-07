@@ -43,7 +43,16 @@ SQLite database to play with, and a store using that database.
 >>>
 }}}
 
-Good. Now we have to create the table that will actually hold the data
+Three databases are supported at the moment: SQLite, MySQL and PostgreSQL.
+The parameter passed to `create_database()` is an URI, as follows:
+
+{{{
+database = create_database("scheme://username:password@hostname:port/database_name")
+}}}
+
+The scheme may be "sqlite", "postgres", or "mysql".
+
+Now we have to create the table that will actually hold the data
 for our class.
 
 {{{#!python
@@ -84,6 +93,21 @@ None, u'Joe Johnes'
 Notice that the object wasn't changed, even after being added to the
 store.  That's because it wasn't flushed yet.
 
+==== The store of an object ====
+
+Once an object is added to a store, or retrieved from a store, it's
+relation to that store is known.  We can easily verify which store
+an object is bound.
+
+{{{
+>>> Store.of(joe) is store
+True
+
+>>> Store.of(Person()) is None
+True
+
+}}}
+
 ==== Finding an object ====
 
 Now, what would happen if we actually asked the store to give us
@@ -99,6 +123,15 @@ the person named ''Joe Johnes''?
 }}}
 
 The person is there!  Yeah, ok, you were expecting it. :-)
+
+We can also retrieve the object using its primary key.
+
+{{{#!python
+>>> store.get(Person, 1).name
+u'Joe Johnes'
+
+}}}
+
 
 ==== Caching behavior ====
 
