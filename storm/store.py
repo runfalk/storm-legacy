@@ -18,12 +18,12 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from weakref import WeakValueDictionary, WeakKeyDictionary
+from weakref import WeakValueDictionary
 
-from storm.info import get_cls_info, get_obj_info, set_obj_info, get_info
+from storm.info import get_cls_info, get_obj_info, set_obj_info
 from storm.variables import Variable, LazyValue
 from storm.expr import (
-    Expr, Select, Insert, Update, Delete, Column, JoinExpr, Count, Max, Min,
+    Expr, Select, Insert, Update, Delete, Column, Count, Max, Min,
     Avg, Sum, Eq, And, Asc, Desc, compile_python, compare_columns, SQLRaw,
     Union, Except, Intersect, Alias)
 from storm.exceptions import (

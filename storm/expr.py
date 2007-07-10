@@ -20,7 +20,6 @@
 #
 from datetime import datetime, date, time, timedelta
 from copy import copy
-import sys
 
 from storm.exceptions import CompileError, NoTableError, ExprError
 from storm.variables import (
@@ -149,6 +148,7 @@ class CompilePython(Compile):
         return self._compile(State(), expr)
 
     def __call__(self, expr):
+        match = None
         exec ("def match(get_column): return bool(%s)" %
               self._compile(State(), expr))
         return match

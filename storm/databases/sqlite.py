@@ -26,15 +26,16 @@ from storm.databases import dummy
 
 try:
     from pysqlite2 import dbapi2 as sqlite
+    sqlite # pyflakes
 except ImportError:
     sqlite = dummy
 
 from storm.variables import Variable, CharsVariable
-from storm.database import *
+from storm.database import Connection, Database, Result
 from storm.exceptions import install_exceptions, DatabaseModuleError
 from storm.expr import (
-    Select, SELECT, Undef, SQLRaw, SetExpr, Union, Except, Intersect,
-    compile, compile_select, compile_set_expr)
+    Select, SELECT, Undef, SQLRaw, Union, Except, Intersect,
+    compile, compile_select)
 
 
 install_exceptions(sqlite)

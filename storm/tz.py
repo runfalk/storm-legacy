@@ -22,6 +22,7 @@ __all__ = ["tzutc", "tzoffset", "tzlocal", "tzfile", "tzrange",
 
 try:
     from dateutil.tzwin import tzwin, tzwinlocal
+    tzwin, tzwinlocal # pyflakes
 except (ImportError, OSError):
     tzwin, tzwinlocal = None, None
 
@@ -694,6 +695,7 @@ class tzical:
         global rrule
         if not rrule:
             from dateutil import rrule
+            rrule # pyflakes
 
         if isinstance(fileobj, basestring):
             self._s = fileobj
@@ -753,6 +755,8 @@ class tzical:
             else:
                 i += 1
 
+        tzid = None
+        comps = []
         invtz = False
         comptype = None
         for line in lines:

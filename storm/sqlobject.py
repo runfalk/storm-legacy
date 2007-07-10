@@ -26,7 +26,7 @@ L{SQLObjectBase} is the central point of compatibility.
 import re
 
 from storm.properties import (
-    Unicode, Chars, Int, Bool, Float, DateTime, Date, TimeDelta)
+    Chars, Int, Bool, Float, DateTime, Date, TimeDelta)
 from storm.references import Reference, ReferenceSet
 from storm.properties import SimpleProperty, PropertyPublisherMeta
 from storm.variables import Variable

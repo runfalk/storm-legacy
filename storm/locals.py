@@ -27,3 +27,14 @@ from storm.store import Store, AutoReload
 from storm.expr import Select, Insert, Update, Delete, Join, SQL
 from storm.expr import Like, In, Asc, Desc, And, Or, Min, Max
 from storm.base import Storm
+
+# pyflakes
+Bool, Int, Float, Chars, Unicode, Pickle, List
+DateTime, Date, Time, Enum
+Reference, ReferenceSet, Proxy
+create_database
+StormError
+Store, AutoReload
+Select, Insert, Update, Delete, Join, SQL
+Like, In, Asc, Desc, And, Or, Min, Max
+Storm

@@ -26,12 +26,14 @@ from storm.databases import dummy
 
 try:
     import MySQLdb
+    MySQLdb # pyflakes
     import MySQLdb.converters
+    MySQLdb # pyflakes
 except ImportError:
     MySQLdb = dummy
 
 from storm.expr import compile, Select, compile_select, Undef, And, Eq, SQLRaw
-from storm.database import *
+from storm.database import Connection, Database, Result
 from storm.exceptions import install_exceptions, DatabaseModuleError
 
 
