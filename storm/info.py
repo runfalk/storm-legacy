@@ -225,13 +225,13 @@ class ClassAlias(FromExpr):
 
 
 @compile.when(type)
-def compile_type(compile, state, expr):
+def compile_type(compile, expr, state):
     table = getattr(expr, "__storm_table__", None)
     if table is None:
         raise CompileError("Don't know how to compile %r" % expr)
     if state.context is TABLE and issubclass(expr, ClassAlias):
         cls_info = get_cls_info(expr)
-        return "%s AS %s" % (compile(state, cls_info.cls), table)
+        return "%s AS %s" % (compile(cls_info.cls, state), table)
     if isinstance(table, basestring):
         return table
-    return compile(state, table)
+    return compile(table, state)

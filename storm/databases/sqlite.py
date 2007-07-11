@@ -43,10 +43,10 @@ install_exceptions(sqlite)
 compile = compile.fork()
 
 @compile.when(Select)
-def compile_select_sqlite(compile, state, select):
+def compile_select_sqlite(compile, select, state):
     if select.offset is not Undef and select.limit is Undef:
         select.limit = sys.maxint
-    statement = compile_select(compile, state, select)
+    statement = compile_select(compile, select, state)
     if state.context is SELECT:
         # SQLite breaks with (SELECT ...) UNION (SELECT ...), so we
         # do SELECT * FROM (SELECT ...) instead.  This is important
@@ -57,7 +57,6 @@ def compile_select_sqlite(compile, state, select):
 
 # Considering the above, selects have a greater precedence.
 compile.set_precedence(5, Union, Except, Intersect)
-
 
 
 class SQLiteResult(Result):

@@ -49,12 +49,12 @@ class currval(FuncExpr):
         self.column = column
 
 @compile.when(currval)
-def compile_currval(compile, state, expr):
+def compile_currval(compile, expr, state):
     return "currval('%s_%s_seq')" % (compile(state, expr.column.table),
                                      expr.column.name)
 
 @compile.when(ListVariable)
-def compile_list_variable(compile, state, list_variable):
+def compile_list_variable(compile, list_variable, state):
     elements = []
     variables = list_variable.get(to_db=True)
     if variables is None:
@@ -66,7 +66,7 @@ def compile_list_variable(compile, state, list_variable):
     return "ARRAY[%s]" % ",".join(elements)
 
 @compile.when(SetExpr)
-def compile_set_expr_postgres(compile, state, expr):
+def compile_set_expr_postgres(compile, expr, state):
     if expr.order_by is not Undef:
         # The following statement breaks in postgres:
         #     SELECT 1 AS id UNION SELECT 1 ORDER BY id+1
@@ -102,9 +102,9 @@ def compile_set_expr_postgres(compile, state, expr):
         # Build wrapping select statement.
         select = Select(SQLRaw("*"), tables=Alias(set_stmt), limit=expr.limit,
                         offset=expr.offset, order_by=order_by_stmt)
-        return compile_select(compile, state, select)
+        return compile_select(compile, select, state)
     else:
-        return compile_set_expr(compile, state, expr)
+        return compile_set_expr(compile, expr, state)
 
 
 class PostgresResult(Result):

@@ -42,7 +42,7 @@ class TrackContext(FromExpr):
     context = None
 
 @compile.when(TrackContext)
-def compile_track_context(compile, state, expr):
+def compile_track_context(compile, expr, state):
     expr.context = state.context
     return ""
 
@@ -1545,6 +1545,19 @@ class CompileTest(TestHelper):
                           "(SELECT table1.elem1 FROM table1 JOIN table2)")
         self.assertEquals(parameters, [IntVariable(1)])
 
+    def test_sqltoken(self):
+        expr = SQLToken("something")
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "something")
+        self.assertEquals(parameters, [])
+
+    def test_sqltoken_reserved(self):
+        custom_compile = compile.fork()
+        custom_compile.add_reserved_words(["something"])
+        expr = SQLToken("something")
+        statement, parameters = custom_compile(expr)
+        self.assertEquals(statement, '"something"')
+        self.assertEquals(parameters, [])
 
 
 class CompilePythonTest(TestHelper):
