@@ -641,6 +641,24 @@ were named Ben, that'd have been easier.
 }}}
 
 
+==== Multiple types with one query ====
+
+Sometimes, it may be interesting to retrieve more than one object involved
+in a given query.  Imagine, for instance, that besides knowing which
+companies have an employee named Ben, we also want to know who is the
+employee.  This may be achieved with a query like follows:
+
+{{{#!python
+>>> result = store.find((Company, Employee),
+...                     Employee.company_id == Company.id,
+...                     Employee.name.like(u"Ben %"))
+
+>>> [(company.name, employee.name) for company, employee in result]
+[(u'Sweets Inc.', u'Ben Bill')]
+
+}}}
+
+
 ==== The Storm base class ====
 
 So far we've been defining our references and reference sets using
