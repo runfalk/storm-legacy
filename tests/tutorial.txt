@@ -738,6 +738,24 @@ from the database again, and thus the hook was called (and not
 the constructor!).
 
 
+==== Executing expressions ====
+
+Storm also offers a way to execute expressions in a
+database-agnostic way, when that's necessary.
+
+For instance:
+
+{{{#!python
+>>> result = store.execute(Select(Person.name, Person.id == 1))
+>>> result.get_one()
+(u'Joe Johnes',)
+
+}}}
+
+This mechanism is used internally by Storm itself to implement
+the higher level features.
+
+
 ==== Auto-reloading values ====
 
 Storm offers some special values that may be assigned to attributes
