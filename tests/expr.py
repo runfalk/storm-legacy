@@ -1576,7 +1576,7 @@ class CompileTest(TestHelper):
         child_compile.remove_reserved_words(["something"])
         expr = SQLToken("something")
         statement, parameters = child_compile(expr)
-        self.assertEquals(statement, 'something')
+        self.assertEquals(statement, "something")
         self.assertEquals(parameters, [])
 
 

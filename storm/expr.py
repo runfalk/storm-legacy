@@ -37,6 +37,8 @@ class Compile(object):
     """Compiler based on the concept of generic functions."""
 
     def __init__(self, parent=None):
+        self._state_version = 0
+        self._current_state_version = 0
         self._local_dispatch_table = {}
         self._local_precedence = {}
         self._local_reserved_words = {}
@@ -44,16 +46,16 @@ class Compile(object):
         self._precedence = {}
         self._reserved_words = {}
         self._hash = None
-        self._parents_hash = None
         self._parents = []
         if parent:
             self._parents.extend(parent._parents)
             self._parents.append(parent)
 
-    def _check_parents(self):
-        parents_hash = hash(tuple(parent._hash for parent in self._parents))
-        if parents_hash != self._parents_hash:
-            self._parents_hash = parents_hash
+    def _update_state(self):
+        version = sum((parent._state_version for parent in self._parents),
+                      self._state_version)
+        if version != self._current_state_version:
+            self._current_state_version = version
             for parent in self._parents:
                 self._dispatch_table.update(parent._local_dispatch_table)
                 self._precedence.update(parent._local_precedence)
@@ -62,11 +64,8 @@ class Compile(object):
             self._precedence.update(self._local_precedence)
             self._reserved_words.update(self._local_reserved_words)
 
-    def _update(self):
-        self._dispatch_table.update(self._local_dispatch_table)
-        self._precedence.update(self._local_precedence)
-        self._hash = hash(tuple(sorted(self._local_dispatch_table.items() +
-                                       self._local_precedence.items())))
+    def _state_changed(self):
+        self._state_version += 1
 
     def add_reserved_words(self, words):
         self._local_reserved_words.update(dict.fromkeys(words, True))
@@ -84,18 +83,18 @@ class Compile(object):
         def decorator(method):
             for type in types:
                 self._local_dispatch_table[type] = method
-            self._update()
+            self._state_changed()
             return method
         return decorator
 
     def get_precedence(self, type):
-        self._check_parents()
+        self._update_state()
         return self._precedence.get(type, MAX_PRECEDENCE)
 
     def set_precedence(self, precedence, *types):
         for type in types:
             self._local_precedence[type] = precedence
-        self._update()
+        self._state_changed()
 
     def _compile_single(self, expr, state, outer_precedence):
         cls = expr.__class__
@@ -126,7 +125,7 @@ class Compile(object):
         @param raw: If true, any string or unicode expression or
             subexpression will not be further compiled.
         """
-        self._check_parents()
+        self._update_state()
 
         if state is None:
             state_provided = False
