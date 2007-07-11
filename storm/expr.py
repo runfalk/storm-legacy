@@ -69,11 +69,14 @@ class Compile(object):
 
     def add_reserved_words(self, words):
         self._local_reserved_words.update(dict.fromkeys(words, True))
+        self._state_changed()
 
     def remove_reserved_words(self, words):
         self._local_reserved_words.update(dict.fromkeys(words, None))
+        self._state_changed()
 
     def is_reserved_word(self, word):
+        self._update_state()
         return self._reserved_words.get(word) is not None
 
     def fork(self):

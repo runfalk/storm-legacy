@@ -1545,13 +1545,13 @@ class CompileTest(TestHelper):
                           "(SELECT table1.elem1 FROM table1 JOIN table2)")
         self.assertEquals(parameters, [IntVariable(1)])
 
-    def test_sqltoken(self):
+    def test_sql_token(self):
         expr = SQLToken("something")
         statement, parameters = compile(expr)
         self.assertEquals(statement, "something")
         self.assertEquals(parameters, [])
 
-    def test_sqltoken_reserved(self):
+    def test_sql_token_reserved(self):
         custom_compile = compile.fork()
         custom_compile.add_reserved_words(["something"])
         expr = SQLToken("something")
@@ -1559,25 +1559,36 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, '"something"')
         self.assertEquals(parameters, [])
 
-    def test_sqltoken_reserved_from_parent(self):
+    def test_sql_token_reserved_from_parent(self):
+        expr = SQLToken("something")
         parent_compile = compile.fork()
         child_compile = parent_compile.fork()
-        # Add after forking.
-        parent_compile.add_reserved_words(["something"])
-        expr = SQLToken("something")
-        statement, parameters = child_compile(expr)
-        self.assertEquals(statement, '"something"')
-        self.assertEquals(parameters, [])
-
-    def test_sqltoken_remove_reserved_word_on_child(self):
-        parent_compile = compile.fork()
-        parent_compile.add_reserved_words(["something"])
-        child_compile = parent_compile.fork()
-        child_compile.remove_reserved_words(["something"])
-        expr = SQLToken("something")
         statement, parameters = child_compile(expr)
         self.assertEquals(statement, "something")
-        self.assertEquals(parameters, [])
+        parent_compile.add_reserved_words(["something"])
+        statement, parameters = child_compile(expr)
+        self.assertEquals(statement, '"something"')
+
+    def test_sql_token_remove_reserved_word_on_child(self):
+        expr = SQLToken("something")
+        parent_compile = compile.fork()
+        parent_compile.add_reserved_words(["something"])
+        child_compile = parent_compile.fork()
+        statement, parameters = child_compile(expr)
+        self.assertEquals(statement, '"something"')
+        child_compile.remove_reserved_words(["something"])
+        statement, parameters = child_compile(expr)
+        self.assertEquals(statement, "something")
+
+    def test_is_reserved_word(self):
+        expr = SQLToken("something")
+        parent_compile = compile.fork()
+        child_compile = parent_compile.fork()
+        self.assertEquals(child_compile.is_reserved_word("something"), False)
+        parent_compile.add_reserved_words(["something"])
+        self.assertEquals(child_compile.is_reserved_word("something"), True)
+        child_compile.remove_reserved_words(["something"])
+        self.assertEquals(child_compile.is_reserved_word("something"), False)
 
 
 class CompilePythonTest(TestHelper):
