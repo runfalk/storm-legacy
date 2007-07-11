@@ -785,7 +785,7 @@ object be automatically flushed if necessary.
 ==== Expression values ====
 
 Besides auto-reloading, it's also possible to assign a value that
-will run a SQL expression to update a value.  For instance:
+will run an arbitrary SQL expression to update a value.  For instance:
 
 {{{#!python
 from storm.locals import SQL
@@ -796,8 +796,10 @@ u'Ruy Ritcher'
 
 }}}
 
-That's a silly example, of course, but there are many useful ways
-to use that feature.
+Notice that this is just an example of what '''may''' be done.  There's
+no need to write SQL statements this way, if you don't want to.  You may
+also use class-based SQL expressions provided in Storm, or even
+not use lazy expressions at all.
 
 
 ==== Much more! ====
