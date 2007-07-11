@@ -68,16 +68,18 @@ class Compile(object):
         self._state_version += 1
 
     def add_reserved_words(self, words):
-        self._local_reserved_words.update(dict.fromkeys(words, True))
+        self._local_reserved_words.update((word.lower(), True)
+                                          for word in words)
         self._state_changed()
 
     def remove_reserved_words(self, words):
-        self._local_reserved_words.update(dict.fromkeys(words, None))
+        self._local_reserved_words.update((word.lower(), None)
+                                          for word in words)
         self._state_changed()
 
     def is_reserved_word(self, word):
         self._update_state()
-        return self._reserved_words.get(word) is not None
+        return self._reserved_words.get(word.lower()) is not None
 
     def fork(self):
         return self.__class__(self)
@@ -1252,3 +1254,35 @@ compile_python.set_precedence(30, Eq, Ne, Gt, Ge, Lt, Le, Like, In)
 compile_python.set_precedence(40, LShift, RShift)
 compile_python.set_precedence(50, Add, Sub)
 compile_python.set_precedence(60, Mul, Div, Mod)
+
+
+# --------------------------------------------------------------------
+# Reserved words, from SQL1992
+
+compile.add_reserved_words(
+    """
+    absolute action add all allocate alter and any are as asc assertion at
+    authorization avg begin between bit bit_length both by cascade cascaded
+    case cast catalog char character char_ length character_length check close
+    coalesce collate collation column commit connect connection constraint
+    constraints continue convert corresponding count create cross current
+    current_date current_time current_timestamp current_ user cursor date day
+    deallocate dec decimal declare default deferrable deferred delete desc
+    describe descriptor diagnostics disconnect distinct domain double drop
+    else end end-exec escape except exception exec execute exists external
+    extract false fetch first float for foreign found from full get global go
+    goto grant group having hour identity immediate in indicator initially
+    inner input insensitive insert int integer intersect interval into is
+    isolation join key language last leading left level like local lower
+    match max min minute module month names national natural nchar next no
+    not null nullif numeric octet_length of on only open option or order
+    outer output overlaps pad partial position precision prepare preserve
+    primary prior privileges procedure public read real references relative
+    restrict revoke right rollback rows schema scroll second section select
+    session session_ user set size smallint some space sql sqlcode sqlerror
+    sqlstate substring sum system_user table temporary then time timestamp
+    timezone_ hour timezone_minute to trailing transaction translate
+    translation trim true union unique unknown update upper usage user using
+    value values varchar varying view when whenever where with work write
+    year zone
+    """.split())

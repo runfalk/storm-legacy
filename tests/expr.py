@@ -1581,14 +1581,16 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, "something")
 
     def test_is_reserved_word(self):
-        expr = SQLToken("something")
         parent_compile = compile.fork()
         child_compile = parent_compile.fork()
-        self.assertEquals(child_compile.is_reserved_word("something"), False)
-        parent_compile.add_reserved_words(["something"])
-        self.assertEquals(child_compile.is_reserved_word("something"), True)
-        child_compile.remove_reserved_words(["something"])
-        self.assertEquals(child_compile.is_reserved_word("something"), False)
+        self.assertEquals(child_compile.is_reserved_word("someTHING"), False)
+        parent_compile.add_reserved_words(["SOMEthing"])
+        self.assertEquals(child_compile.is_reserved_word("somETHing"), True)
+        child_compile.remove_reserved_words(["soMETHing"])
+        self.assertEquals(child_compile.is_reserved_word("somethING"), False)
+
+    def test_sql1992_reserved_words(self):
+        self.assertEquals(compile.is_reserved_word("table"), True)
 
 
 class CompilePythonTest(TestHelper):

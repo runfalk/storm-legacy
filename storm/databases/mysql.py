@@ -44,7 +44,7 @@ compile = compile.fork()
 def compile_select_mysql(compile, select, state):
     if select.offset is not Undef and select.limit is Undef:
         select.limit = sys.maxint
-    return compile_select(compile, state, select)
+    return compile_select(compile, select, state)
 
 
 class MySQLResult(Result):

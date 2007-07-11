@@ -50,7 +50,7 @@ class currval(FuncExpr):
 
 @compile.when(currval)
 def compile_currval(compile, expr, state):
-    return "currval('%s_%s_seq')" % (compile(state, expr.column.table),
+    return "currval('%s_%s_seq')" % (compile(expr.column.table, state),
                                      expr.column.name)
 
 @compile.when(ListVariable)
@@ -62,7 +62,7 @@ def compile_list_variable(compile, list_variable, state):
     if not variables:
         return "'{}'"
     for variable in variables:
-        elements.append(compile(state, variable))
+        elements.append(compile(variable, state))
     return "ARRAY[%s]" % ",".join(elements)
 
 @compile.when(SetExpr)
@@ -88,11 +88,11 @@ def compile_set_expr_postgres(compile, expr, state):
             state.push("aliases", {})
 
         # Build set expression, collecting aliases.
-        set_stmt = SQLRaw("(%s)" % compile_set_expr(compile, state, new_expr))
+        set_stmt = SQLRaw("(%s)" % compile_set_expr(compile, new_expr, state))
 
         # Build order_by statement, using aliases.
         state.push("context", COLUMN_NAME)
-        order_by_stmt = SQLRaw(compile(state, expr.order_by))
+        order_by_stmt = SQLRaw(compile(expr.order_by, state))
         state.pop()
 
         # Discard aliases, if they were not being collected previously.
