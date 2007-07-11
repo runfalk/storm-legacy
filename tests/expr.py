@@ -1559,6 +1559,16 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, '"something"')
         self.assertEquals(parameters, [])
 
+    def test_sqltoken_reserved_from_parent(self):
+        parent_compile = compile.fork()
+        child_compile = parent_compile.fork()
+        # Add after forking.
+        parent_compile.add_reserved_words(["something"])
+        expr = SQLToken("something")
+        statement, parameters = child_compile(expr)
+        self.assertEquals(statement, '"something"')
+        self.assertEquals(parameters, [])
+
 
 class CompilePythonTest(TestHelper):
 

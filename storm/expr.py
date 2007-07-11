@@ -39,9 +39,10 @@ class Compile(object):
     def __init__(self, parent=None):
         self._local_dispatch_table = {}
         self._local_precedence = {}
-        self._reserved_words = set()
+        self._local_reserved_words = set()
         self._dispatch_table = {}
         self._precedence = {}
+        self._reserved_words = set()
         self._hash = None
         self._parents_hash = None
         self._parents = []
@@ -56,8 +57,10 @@ class Compile(object):
             for parent in self._parents:
                 self._dispatch_table.update(parent._local_dispatch_table)
                 self._precedence.update(parent._local_precedence)
+                self._reserved_words.update(parent._local_reserved_words)
             self._dispatch_table.update(self._local_dispatch_table)
             self._precedence.update(self._local_precedence)
+            self._reserved_words.update(self._local_reserved_words)
 
     def _update(self):
         self._dispatch_table.update(self._local_dispatch_table)
@@ -66,7 +69,7 @@ class Compile(object):
                                        self._local_precedence.items())))
 
     def add_reserved_words(self, words):
-        self._reserved_words.update(words)
+        self._local_reserved_words.update(words)
 
     def is_reserved_word(self, word):
         return word in self._reserved_words
