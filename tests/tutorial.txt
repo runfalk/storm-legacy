@@ -802,8 +802,12 @@ object be automatically flushed if necessary.
 
 ==== Expression values ====
 
-Besides auto-reloading, it's also possible to assign a value that
-will run an arbitrary SQL expression to update a value.  For instance:
+Besides auto-reloading, it's also possible to assign what we call
+a "lazy expression" to an attribute.  Such expressions are flushed
+to the database when the attribute is accessed, or when the object
+is flushed to the database (INSERT/UPDATE time).
+
+For instance:
 
 {{{#!python
 from storm.locals import SQL
