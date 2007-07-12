@@ -51,7 +51,7 @@ class Compile(object):
             self._parents.extend(parent._parents)
             self._parents.append(parent)
 
-    def _update_state(self):
+    def _update_cache(self):
         version = sum((parent._state_version for parent in self._parents),
                       self._state_version)
         if version != self._current_state_version:
@@ -78,7 +78,7 @@ class Compile(object):
         self._state_changed()
 
     def is_reserved_word(self, word):
-        self._update_state()
+        self._update_cache()
         return self._reserved_words.get(word.lower()) is not None
 
     def fork(self):
@@ -93,7 +93,7 @@ class Compile(object):
         return decorator
 
     def get_precedence(self, type):
-        self._update_state()
+        self._update_cache()
         return self._precedence.get(type, MAX_PRECEDENCE)
 
     def set_precedence(self, precedence, *types):
@@ -130,13 +130,10 @@ class Compile(object):
         @param raw: If true, any string or unicode expression or
             subexpression will not be further compiled.
         """
-        self._update_state()
+        self._update_cache()
 
         if state is None:
-            state_provided = False
             state = State()
-        else:
-            state_provided = True
 
         outer_precedence = state.precedence
         expr_type = type(expr)
@@ -162,23 +159,14 @@ class Compile(object):
             statement = self._compile_single(expr, state, outer_precedence)
         state.precedence = outer_precedence
 
-        if state_provided:
-            return statement
-        return statement, state.parameters
+        return statement
 
 
 class CompilePython(Compile):
 
-    def get_expr(self, expr):
-        return Compile.__call__(self, expr, State())
-
-    def __call__(self, expr, state=None, join=",", raw=False):
-        # XXX This is awful.
-        if state is None:
-            exec ("def match(get_column): return bool(%s)" %
-                  Compile.__call__(self, expr, State(), join, raw))
-            return match
-        return Compile.__call__(self, expr, state, join, raw)
+    def get_matcher(self, expr):
+        exec "def match(get_column): return bool(%s)" % self(expr)
+        return match
 
 
 class State(object):

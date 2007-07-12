@@ -172,7 +172,7 @@ class Variable(object):
             column = self.column.name
             if self.column.table is not Undef:
                 try:
-                    table, parameters = compile(self.column.table)
+                    table = compile(self.column.table)
                     column = "%s.%s" % (table, column)
                 except CompileError:
                     pass

@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from storm.expr import Expr, compile
+from storm.expr import Expr, State, compile
 from storm.variables import Variable
 from storm.exceptions import ClosedError
 from storm.uri import URI
@@ -131,7 +131,9 @@ class Connection(object):
         if isinstance(statement, Expr):
             if params is not None:
                 raise ValueError("Can't pass parameters with expressions")
-            statement, params = self._compile(statement)
+            state = State()
+            statement = self._compile(statement, state)
+            params = state.parameters
         statement = convert_param_marks(statement, "?", self._param_mark)
         raw_cursor = self._raw_execute(statement, params)
         if noresult:
