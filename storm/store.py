@@ -252,6 +252,18 @@ class Store(object):
         for obj_info in self._iter_cached():
             obj_info.event.emit("flush")
 
+        # The _dirty list may change under us while we're running
+        # the flush hooks, so we cannot just simply loop over it
+        # once.  To prevent infinite looping we keep track of which
+        # objects we've called the hook for using a `flushing` dict.
+        flushing = {}
+        while self._dirty:
+            (obj_info, obj) = self._dirty.popitem()
+            if obj_info not in flushing:
+                flushing[obj_info] = obj
+                self._run_hook(obj_info, "__storm_flush__")
+        self._dirty = flushing
+
         predecessors = {}
         for (before_info, after_info), n in self._order.iteritems():
             if n > 0:
