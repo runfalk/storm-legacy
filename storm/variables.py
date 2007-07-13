@@ -49,7 +49,7 @@ def VariableFactory(cls, **old_kwargs):
     """Build cls with kwargs of constructor updated by kwargs of call.
 
     This is really an implementation of partial/curry functions, and
-    should be replaced by 'partial' once 2.5 is in use.
+    is replaced by 'partial' when 2.5+ is in use.
     """
     def variable_factory(**new_kwargs):
         kwargs = old_kwargs.copy()
@@ -57,6 +57,10 @@ def VariableFactory(cls, **old_kwargs):
         return cls(**kwargs)
     return variable_factory
 
+try:
+    from functools import partial as VariableFactory
+except ImportError:
+    pass
 
 class Variable(object):
 
