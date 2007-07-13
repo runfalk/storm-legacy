@@ -33,27 +33,27 @@ __all__ = ["get_obj_info", "set_obj_info", "get_cls_info", "get_info",
 
 def get_obj_info(obj):
     try:
-        return obj.__object_info
+        return obj.__storm_object_info__
     except AttributeError:
         # Instantiate ObjectInfo first, so that it breaks gracefully,
         # in case the object isn't a storm object.
         obj_info = ObjectInfo(obj)
-        return obj.__dict__.setdefault("__object_info", obj_info)
+        return obj.__dict__.setdefault("__storm_object_info__", obj_info)
 
 def set_obj_info(obj, obj_info):
-    obj.__dict__["__object_info"] = obj_info
+    obj.__dict__["__storm_object_info__"] = obj_info
 
 def get_cls_info(cls):
-    try:
+    if "__storm_class_info__" in cls.__dict__:
         # Can't use attribute access here, otherwise subclassing won't work.
-        return cls.__dict__["__class_info"]
-    except KeyError:
-        cls.__class_info = ClassInfo(cls)
-        return cls.__class_info
+        return cls.__dict__["__storm_class_info__"]
+    else:
+        cls.__storm_class_info__ = ClassInfo(cls)
+        return cls.__storm_class_info__
 
 def get_info(obj):
     try:
-        obj_info = obj.__object_info
+        obj_info = obj.__storm_object_info__
     except AttributeError:
         obj_info = get_obj_info(obj)
     return obj_info, obj_info.cls_info
@@ -159,6 +159,9 @@ class ObjectInfo(dict):
 
     __hash__ = object.__hash__
 
+    # For get_obj_info(), an ObjectInfo is its own obj_info.
+    __storm_object_info__ = property(lambda self:self)
+
     def __init__(self, obj):
         # First thing, try to create a ClassInfo for the object's class.
         # This ensures that obj is the kind of object we expect.
@@ -201,11 +204,6 @@ class ObjectInfo(dict):
 
     def _emit_object_deleted(self, obj_ref):
         self.event.emit("object-deleted")
-
-
-# For get_obj_info(), an ObjectInfo is its own obj_info. Defined here
-# to prevent the name mangling on two underscores.
-ObjectInfo.__object_info = property(lambda self: self)
 
 
 class ClassAlias(FromExpr):
