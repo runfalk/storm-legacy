@@ -192,16 +192,6 @@ class ObjectInfo(dict):
         for variable in self._variable_sequence:
             variable.checkpoint()
 
-    def _copy_object(self, obj):
-        obj_type = type(obj)
-        if obj_type is dict:
-            return dict(((self._copy_object(key), self._copy_object(value))
-                         for key, value in obj.iteritems()))
-        elif obj_type in (tuple, set, list):
-            return obj_type(self._copy_object(subobj) for subobj in obj)
-        else:
-            return obj
-
     def _emit_object_deleted(self, obj_ref):
         self.event.emit("object-deleted")
 
