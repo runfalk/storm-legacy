@@ -327,8 +327,13 @@ class StateTest(TestHelper):
 
 class CompileTest(TestHelper):
 
+    def test_simple_inheritance(self):
+        custom_compile = compile.create_child()
+        statement = custom_compile(Func1())
+        self.assertEquals(statement, "func1()")
+
     def test_customize(self):
-        custom_compile = compile.fork()
+        custom_compile = compile.create_child()
         @custom_compile.when(type(None))
         def compile_none(compile, state, expr):
             return "None"
@@ -338,7 +343,7 @@ class CompileTest(TestHelper):
     def test_customize_inheritance(self):
         class C(object): pass
         compile_parent = Compile()
-        compile_child = compile_parent.fork()
+        compile_child = compile_parent.create_child()
 
         @compile_parent.when(C)
         def compile_in_parent(compile, state, expr):
@@ -375,7 +380,7 @@ class CompileTest(TestHelper):
 
     def test_customize_precedence(self):
         expr = And(elem1, Or(elem2, elem3))
-        custom_compile = compile.fork()
+        custom_compile = compile.create_child()
         custom_compile.set_precedence(10, And)
 
         custom_compile.set_precedence(11, Or)
@@ -391,8 +396,8 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, "elem1 AND (elem2 OR elem3)")
 
     def test_customize_precedence_inheritance(self):
-        compile_parent = compile.fork()
-        compile_child = compile_parent.fork()
+        compile_parent = compile.create_child()
+        compile_child = compile_parent.create_child()
 
         expr = And(elem1, Or(elem2, elem3))
 
@@ -1710,7 +1715,7 @@ class CompileTest(TestHelper):
         self.assertEquals(state.parameters, [])
 
     def test_sql_token_reserved(self):
-        custom_compile = compile.fork()
+        custom_compile = compile.create_child()
         custom_compile.add_reserved_words(["something"])
         expr = SQLToken("something")
         state = State()
@@ -1720,8 +1725,8 @@ class CompileTest(TestHelper):
 
     def test_sql_token_reserved_from_parent(self):
         expr = SQLToken("something")
-        parent_compile = compile.fork()
-        child_compile = parent_compile.fork()
+        parent_compile = compile.create_child()
+        child_compile = parent_compile.create_child()
         statement = child_compile(expr)
         self.assertEquals(statement, "something")
         parent_compile.add_reserved_words(["something"])
@@ -1730,9 +1735,9 @@ class CompileTest(TestHelper):
 
     def test_sql_token_remove_reserved_word_on_child(self):
         expr = SQLToken("something")
-        parent_compile = compile.fork()
+        parent_compile = compile.create_child()
         parent_compile.add_reserved_words(["something"])
-        child_compile = parent_compile.fork()
+        child_compile = parent_compile.create_child()
         statement = child_compile(expr)
         self.assertEquals(statement, '"something"')
         child_compile.remove_reserved_words(["something"])
@@ -1740,8 +1745,8 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, "something")
 
     def test_is_reserved_word(self):
-        parent_compile = compile.fork()
-        child_compile = parent_compile.fork()
+        parent_compile = compile.create_child()
+        child_compile = parent_compile.create_child()
         self.assertEquals(child_compile.is_reserved_word("someTHING"), False)
         parent_compile.add_reserved_words(["SOMEthing"])
         self.assertEquals(child_compile.is_reserved_word("somETHing"), True)

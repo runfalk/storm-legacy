@@ -19,6 +19,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 from datetime import datetime, date, time, timedelta
+from weakref import WeakKeyDictionary
 from copy import copy
 import sys
 
@@ -37,7 +38,6 @@ class Compile(object):
     """Compiler based on the concept of generic functions."""
 
     def __init__(self, parent=None):
-        self._state_version = 0
         self._current_state_version = 0
         self._local_dispatch_table = {}
         self._local_precedence = {}
@@ -46,75 +46,80 @@ class Compile(object):
         self._precedence = {}
         self._reserved_words = {}
         self._hash = None
+        self._children = WeakKeyDictionary()
         self._parents = []
         if parent:
             self._parents.extend(parent._parents)
             self._parents.append(parent)
+            parent._children[self] = True
+            self._update_cache()
 
     def _update_cache(self):
-        version = sum((parent._state_version for parent in self._parents),
-                      self._state_version)
-        if version != self._current_state_version:
-            self._current_state_version = version
-            for parent in self._parents:
-                self._dispatch_table.update(parent._local_dispatch_table)
-                self._precedence.update(parent._local_precedence)
-                self._reserved_words.update(parent._local_reserved_words)
-            self._dispatch_table.update(self._local_dispatch_table)
-            self._precedence.update(self._local_precedence)
-            self._reserved_words.update(self._local_reserved_words)
-
-    def _state_changed(self):
-        self._state_version += 1
+        for parent in self._parents:
+            self._dispatch_table.update(parent._local_dispatch_table)
+            self._precedence.update(parent._local_precedence)
+            self._reserved_words.update(parent._local_reserved_words)
+        self._dispatch_table.update(self._local_dispatch_table)
+        self._precedence.update(self._local_precedence)
+        self._reserved_words.update(self._local_reserved_words)
+        for child in self._children:
+            child._update_cache()
 
     def add_reserved_words(self, words):
         self._local_reserved_words.update((word.lower(), True)
                                           for word in words)
-        self._state_changed()
+        self._update_cache()
 
     def remove_reserved_words(self, words):
         self._local_reserved_words.update((word.lower(), None)
                                           for word in words)
-        self._state_changed()
+        self._update_cache()
 
     def is_reserved_word(self, word):
-        self._update_cache()
         return self._reserved_words.get(word.lower()) is not None
 
-    def fork(self):
+    def create_child(self):
         return self.__class__(self)
 
     def when(self, *types):
         def decorator(method):
             for type in types:
                 self._local_dispatch_table[type] = method
-            self._state_changed()
+            self._update_cache()
             return method
         return decorator
 
     def get_precedence(self, type):
-        self._update_cache()
         return self._precedence.get(type, MAX_PRECEDENCE)
 
     def set_precedence(self, precedence, *types):
         for type in types:
             self._local_precedence[type] = precedence
-        self._state_changed()
+        self._update_cache()
 
     def _compile_single(self, expr, state, outer_precedence):
+        # This method is part of the fast path.  Be careful when
+        # changing it (try to profile any changes).
         cls = expr.__class__
-        for class_ in cls.__mro__:
-            handler = self._dispatch_table.get(class_)
-            if handler is not None:
-                inner_precedence = state.precedence = \
-                                   self._precedence.get(cls, MAX_PRECEDENCE)
-                statement = handler(self, expr, state)
-                if inner_precedence < outer_precedence:
-                    statement = "(%s)" % statement
-                return statement
+        dispatch_table = self._dispatch_table
+        if cls in dispatch_table:
+            handler = dispatch_table[cls]
         else:
-            raise CompileError("Don't know how to compile type %r of %r"
-                               % (expr.__class__, expr))
+            for mro_cls in cls.__mro__:
+                # First iteration will always fail because we've already
+                # tested that the class itself isn't in the dispatch table.
+                if mro_cls in dispatch_table:
+                    handler = dispatch_table[mro_cls]
+                    break
+            else:
+                raise CompileError("Don't know how to compile type %r of %r"
+                                   % (expr.__class__, expr))
+        inner_precedence = state.precedence = \
+                           self._precedence.get(cls, MAX_PRECEDENCE)
+        statement = handler(self, expr, state)
+        if inner_precedence < outer_precedence:
+            return "(%s)" % statement
+        return statement
 
     def __call__(self, expr, state=None, join=", ", raw=False):
         """Compile the given expression into a SQL statement.
@@ -130,24 +135,26 @@ class Compile(object):
         @param raw: If true, any string or unicode expression or
             subexpression will not be further compiled.
         """
-        self._update_cache()
+        # This method is part of the fast path.  Be careful when
+        # changing it (try to profile any changes).
+
+        expr_type = type(expr)
+        if (expr_type is SQLRaw or
+            raw and (expr_type is str or expr_type is unicode)):
+            return expr
 
         if state is None:
             state = State()
 
         outer_precedence = state.precedence
-        expr_type = type(expr)
-        if (expr_type is SQLRaw or
-            raw and (expr_type is str or expr_type is unicode)):
-            return expr
-        if expr_type in (tuple, list):
+        if expr_type is tuple or expr_type is list:
             compiled = []
             for subexpr in expr:
                 subexpr_type = type(subexpr)
                 if (subexpr_type is SQLRaw or
                     raw and (subexpr_type is str or subexpr_type is unicode)):
                     statement = subexpr
-                elif subexpr_type in (tuple, list):
+                elif subexpr_type is tuple or subexpr_type is list:
                     state.precedence = outer_precedence
                     statement = self(subexpr, state, join, raw)
                 else:

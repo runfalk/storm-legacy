@@ -38,7 +38,7 @@ from storm.exceptions import install_exceptions, DatabaseModuleError
 
 
 install_exceptions(psycopg2)
-compile = compile.fork()
+compile = compile.create_child()
 
 
 class currval(FuncExpr):

@@ -40,7 +40,7 @@ from storm.expr import (
 install_exceptions(sqlite)
 
 
-compile = compile.fork()
+compile = compile.create_child()
 
 @compile.when(Select)
 def compile_select_sqlite(compile, select, state):
