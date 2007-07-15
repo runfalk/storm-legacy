@@ -222,6 +222,10 @@ class NumericVariable(Variable):
         if not isinstance(value, (int, long, Decimal)):
             raise TypeError("Expected Decimal, found %r: %r"
                             % (type(value), value))
+        return str(value)
+
+    @staticmethod
+    def _parse_get(value, from_db):
         return Decimal(value)
 
 
