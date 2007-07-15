@@ -356,6 +356,21 @@ class FloatVariableTest(TestHelper):
         self.assertRaises(TypeError, variable.set, "1")
 
 
+class DecimalVariableTest(TestHelper):
+
+    def test_set_get(self):
+        variable = NumericVariable()
+        variable.set(Decimal("1.1"))
+        self.assertEquals(variable.get(), Decimal("1.1"))
+        variable.set(1)
+        self.assertEquals(variable.get(), 1)
+        self.assertEquals(type(variable.get()), Decimal)
+        variable.set(Decimal("1.1"))
+        self.assertEquals(variable.get(), Decimal("1.1"))
+        self.assertRaises(TypeError, variable.set, "1")
+        self.assertRaises(TypeError, variable.set, 1.1)
+
+
 class CharsVariableTest(TestHelper):
 
     def test_set_get(self):

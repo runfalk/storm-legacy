@@ -19,7 +19,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 from storm.properties import Bool, Int, Float, Chars, Unicode, Pickle, List
-from storm.properties import DateTime, Date, Time, Enum
+from storm.properties import Numeric, DateTime, Date, Time, Enum
 from storm.references import Reference, ReferenceSet, Proxy
 from storm.database import create_database
 from storm.exceptions import StormError

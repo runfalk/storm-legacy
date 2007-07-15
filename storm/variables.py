@@ -33,6 +33,7 @@ __all__ = [
     "BoolVariable",
     "IntVariable",
     "FloatVariable",
+    "NumericVariable",
     "CharsVariable",
     "UnicodeVariable",
     "DateTimeVariable",
@@ -212,6 +213,16 @@ class FloatVariable(Variable):
             raise TypeError("Expected float, found %r: %r"
                             % (type(value), value))
         return float(value)
+
+
+class NumericVariable(Variable):
+
+    @staticmethod
+    def _parse_set(value, from_db):
+        if not isinstance(value, (int, long, Decimal)):
+            raise TypeError("Expected Decimal, found %r: %r"
+                            % (type(value), value))
+        return Decimal(value)
 
 
 class CharsVariable(Variable):
