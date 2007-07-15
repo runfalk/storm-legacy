@@ -98,8 +98,9 @@ class Compile(object):
         self._update_cache()
 
     def _compile_single(self, expr, state, outer_precedence):
-        # This method is part of the fast path.  Be careful when
-        # changing it (try to profile any changes).
+        # FASTPATH This method is part of the fast path.  Be careful when
+        #          changing it (try to profile any changes).
+
         cls = expr.__class__
         dispatch_table = self._dispatch_table
         if cls in dispatch_table:
@@ -135,8 +136,8 @@ class Compile(object):
         @param raw: If true, any string or unicode expression or
             subexpression will not be further compiled.
         """
-        # This method is part of the fast path.  Be careful when
-        # changing it (try to profile any changes).
+        # FASTPATH This method is part of the fast path.  Be careful when
+        #          changing it (try to profile any changes).
 
         expr_type = type(expr)
         if (expr_type is SQLRaw or

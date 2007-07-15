@@ -108,6 +108,9 @@ class Variable(object):
         return self._parse_get(value, to_db)
 
     def set(self, value, from_db=False):
+        # FASTPATH This method is part of the fast path.  Be careful when
+        #          changing it (try to profile any changes).
+
         if isinstance(value, LazyValue):
             self._lazy_value = value
             new_value = Undef

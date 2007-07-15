@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-import weakref
+from weakref import ref
 
 from storm.exceptions import ClassInfoError
 from storm.expr import Expr, FromExpr, Column, Desc, TABLE
@@ -163,6 +163,9 @@ class ObjectInfo(dict):
     __storm_object_info__ = property(lambda self:self)
 
     def __init__(self, obj):
+        # FASTPATH This method is part of the fast path.  Be careful when
+        #          changing it (try to profile any changes).
+
         # First thing, try to create a ClassInfo for the object's class.
         # This ensures that obj is the kind of object we expect.
         self.cls_info = get_cls_info(obj.__class__)
@@ -170,26 +173,20 @@ class ObjectInfo(dict):
         self.set_obj(obj)
 
         self.event = EventSystem(self)
-        self.variables = {}
+        self.variables = variables = {}
 
-        self._saved_self = None
-        self._saved_attrs = None
-
-        variables = self.variables
         for column in self.cls_info.columns:
             variables[column] = column.variable_factory(column=column,
                                                         event=self.event)
-        
+ 
         self.primary_vars = tuple(variables[column]
                                   for column in self.cls_info.primary_key)
 
-        self._variable_sequence = self.variables.values()
-
     def set_obj(self, obj):
-        self.get_obj = weakref.ref(obj, self._emit_object_deleted)
+        self.get_obj = ref(obj, self._emit_object_deleted)
 
     def checkpoint(self):
-        for variable in self._variable_sequence:
+        for variable in self.variables.itervalues():
             variable.checkpoint()
 
     def _emit_object_deleted(self, obj_ref):
