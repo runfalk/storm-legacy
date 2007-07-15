@@ -249,6 +249,24 @@ class Store(object):
             pass
 
     def flush(self):
+        """Flush all dirty objects in cache to database.
+
+        This method will first call the __storm_flush__ hook of all dirty
+        objects.  If more objects become dirty as a result of executing code
+        in the hooks, the hook is also called on them.  The hook is only
+        called once for each object.
+
+        It will then flush all dirty objects to the database, that is,
+        execute the SQL code to update them.
+
+        Finally, it will call the __storm_flushed__ hook of all objects
+        that were dirty/flushed.
+
+        Note that Storm will flush objects for you automatically, so you'll
+        only need to call this method explicitly in very rare cases where
+        normal flushing times are insufficient, such as when you want to
+        make sure a database trigger gets run at a particular time.
+        """ 
         for obj_info in self._iter_cached():
             obj_info.event.emit("flush")
 
