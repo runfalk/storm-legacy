@@ -45,6 +45,25 @@ __all__ = [
 ]
 
 
+class LazyValue(object):
+    """Marker to be used as a base class on lazily evaluated values."""
+
+
+def raise_none_error(column):
+    if not column:
+        raise NoneError("None isn't acceptable as a value")
+    else:
+        from storm.expr import compile, CompileError
+        name = column.name
+        if column.table is not Undef:
+            try:
+                table = compile(column.table)
+                name = "%s.%s" % (table, name)
+            except CompileError:
+                pass
+        raise NoneError("None isn't acceptable as a value for %s" % name)
+
+
 def VariableFactory(cls, **old_kwargs):
     """Build cls with kwargs of constructor updated by kwargs of call.
 
@@ -62,11 +81,11 @@ try:
 except ImportError:
     pass
 
+
 class Variable(object):
 
     _value = Undef
     _lazy_value = Undef
-    _saved_state = Undef
     _checkpoint_state = Undef
     _allow_none = True
 
@@ -84,12 +103,10 @@ class Variable(object):
         self.column = column
         self.event = event
 
-    @staticmethod
-    def _parse_get(value, to_db):
+    def _parse_get(self, value, to_db):
         return value
 
-    @staticmethod
-    def _parse_set(value, from_db):
+    def _parse_set(self, value, from_db):
         return value
 
     def get_lazy(self, default=None):
@@ -104,7 +121,7 @@ class Variable(object):
         if value is Undef:
             return default
         if value is None:
-            return value
+            return None
         return self._parse_get(value, to_db)
 
     def set(self, value, from_db=False):
@@ -115,11 +132,10 @@ class Variable(object):
             self._lazy_value = value
             new_value = Undef
         else:
-            if self._lazy_value is not Undef:
-                del self._lazy_value
+            self._lazy_value = Undef
             if value is None:
                 if self._allow_none is False:
-                    raise self._get_none_error()
+                    raise_none_error(self.column)
                 new_value = None
             else:
                 new_value = self._parse_set(value, from_db)
@@ -136,9 +152,9 @@ class Variable(object):
 
     def delete(self):
         old_value = self._value
-        if old_value != Undef:
+        if old_value is not Undef:
             self._value = Undef
-            if self.event:
+            if self.event is not None:
                 if old_value is not None and old_value is not Undef:
                     old_value = self._parse_get(old_value, False)
                 self.event.emit("changed", self, old_value, Undef, False)
@@ -160,7 +176,7 @@ class Variable(object):
         self._checkpoint_state = self.get_state()
 
     def copy(self):
-        variable = object.__new__(self.__class__)
+        variable = self.__class__.__new__(self.__class__)
         variable.set_state(self.get_state())
         return variable
 
@@ -171,30 +187,16 @@ class Variable(object):
     def __hash__(self):
         return hash(self._value)
 
-    def _get_none_error(self):
-        if not self.column:
-            return NoneError("None isn't acceptable as a value")
-        else:
-            from storm.expr import compile, CompileError
-            column = self.column.name
-            if self.column.table is not Undef:
-                try:
-                    table = compile(self.column.table)
-                    column = "%s.%s" % (table, column)
-                except CompileError:
-                    pass
-            return NoneError("None isn't acceptable as a value for %s"
-                             % column)
 
-
-class LazyValue(object):
-    """Marker to be used as a base class on lazily evaluated values."""
+try:
+    from storm.cextensions import Variable
+except ImportError, e:
+    assert "cextensions" in str(e)
 
 
 class BoolVariable(Variable):
 
-    @staticmethod
-    def _parse_set(value, from_db):
+    def _parse_set(self, value, from_db):
         if not isinstance(value, (int, long, float, Decimal)):
             raise TypeError("Expected bool, found %r: %r"
                             % (type(value), value))
@@ -203,8 +205,7 @@ class BoolVariable(Variable):
 
 class IntVariable(Variable):
 
-    @staticmethod
-    def _parse_set(value, from_db):
+    def _parse_set(self, value, from_db):
         if not isinstance(value, (int, long, float, Decimal)):
             raise TypeError("Expected int, found %r: %r"
                             % (type(value), value))
@@ -213,8 +214,7 @@ class IntVariable(Variable):
 
 class FloatVariable(Variable):
 
-    @staticmethod
-    def _parse_set(value, from_db):
+    def _parse_set(self, value, from_db):
         if not isinstance(value, (int, long, float, Decimal)):
             raise TypeError("Expected float, found %r: %r"
                             % (type(value), value))
@@ -223,8 +223,7 @@ class FloatVariable(Variable):
 
 class CharsVariable(Variable):
 
-    @staticmethod
-    def _parse_set(value, from_db):
+    def _parse_set(self, value, from_db):
         if isinstance(value, buffer):
             value = str(value)
         elif not isinstance(value, str):
@@ -235,8 +234,7 @@ class CharsVariable(Variable):
 
 class UnicodeVariable(Variable):
 
-    @staticmethod
-    def _parse_set(value, from_db):
+    def _parse_set(self, value, from_db):
         if not isinstance(value, unicode):
             raise TypeError("Expected unicode, found %r: %r"
                             % (type(value), value))
@@ -249,8 +247,8 @@ class DateTimeVariable(Variable):
         self._tzinfo = kwargs.pop("tzinfo", None)
         super(DateTimeVariable, self).__init__(*args, **kwargs)
 
-    def _parse_set(self, value, db):
-        if db:
+    def _parse_set(self, value, from_db):
+        if from_db:
             if isinstance(value, datetime):
                 pass
             elif isinstance(value, (str, unicode)):
@@ -278,9 +276,8 @@ class DateTimeVariable(Variable):
 
 class DateVariable(Variable):
 
-    @staticmethod
-    def _parse_set(value, db):
-        if db:
+    def _parse_set(self, value, from_db):
+        if from_db:
             if value is None:
                 return None
             if isinstance(value, date):
@@ -300,9 +297,8 @@ class DateVariable(Variable):
 
 class TimeVariable(Variable):
 
-    @staticmethod
-    def _parse_set(value, db):
-        if db:
+    def _parse_set(self, value, from_db):
+        if from_db:
             # XXX Can None ever get here, considering that set() checks for it?
             if value is None:
                 return None
@@ -323,9 +319,8 @@ class TimeVariable(Variable):
 
 class TimeDeltaVariable(Variable):
 
-    @staticmethod
-    def _parse_set(value, db):
-        if db:
+    def _parse_set(self, value, from_db):
+        if from_db:
             # XXX Can None ever get here, considering that set() checks for it?
             if value is None:
                 return None
@@ -355,16 +350,16 @@ class EnumVariable(Variable):
         self._set_map = set_map
         Variable.__init__(self, *args, **kwargs)
 
-    def _parse_set(self, value, db):
-        if db:
+    def _parse_set(self, value, from_db):
+        if from_db:
             return value
         try:
             return self._set_map[value]
         except KeyError:
             raise ValueError("Invalid enum value: %s" % repr(value))
 
-    def _parse_get(self, value, db):
-        if db:
+    def _parse_get(self, value, to_db):
+        if to_db:
             return value
         try:
             return self._get_map[value]
@@ -384,18 +379,16 @@ class PickleVariable(Variable):
         if self.get_state() != self._checkpoint_state:
             self.event.emit("changed", self, None, self._value, False)
 
-    @staticmethod
-    def _parse_set(value, db):
-        if db:
+    def _parse_set(self, value, from_db):
+        if from_db:
             if isinstance(value, buffer):
                 value = str(value)
             return pickle.loads(value)
         else:
             return value
 
-    @staticmethod
-    def _parse_get(value, db):
-        if db:
+    def _parse_get(self, value, to_db):
+        if to_db:
             return pickle.dumps(value, -1)
         else:
             return value
@@ -427,17 +420,19 @@ class ListVariable(Variable):
         if self.get_state() != self._checkpoint_state:
             self.event.emit("changed", self, None, self._value, False)
 
-    def _parse_set(self, value, db):
-        if db:
+    def _parse_set(self, value, from_db):
+        if from_db:
             item_factory = self._item_factory
-            return [item_factory(value=val, from_db=db).get() for val in value]
+            return [item_factory(value=val, from_db=from_db).get()
+                    for val in value]
         else:
             return value
 
-    def _parse_get(self, value, db):
-        if db:
+    def _parse_get(self, value, to_db):
+        if to_db:
             item_factory = self._item_factory
-            return [item_factory(value=val, from_db=db) for val in value]
+            # XXX This from_db=to_db is dubious. What to do here?
+            return [item_factory(value=val, from_db=to_db) for val in value]
         else:
             return value
 

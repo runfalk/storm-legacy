@@ -394,8 +394,7 @@ class Store(object):
                 idx = primary_key_idx.get(id(column))
                 lazy_value = variable.get_lazy()
                 if (idx is not None and cached_primary_vars is not None
-                    and lazy_value):
-                    # XXX lazy_value might not be AutoReload. Test & fix this.
+                    and lazy_value is AutoReload):
                     # For auto-reloading a primary key, just get the
                     # value out of the cache.
                     variable.set(cached_primary_vars[idx].get())

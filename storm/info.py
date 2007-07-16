@@ -155,42 +155,48 @@ class ClassInfo(dict):
         return self is not other
 
 
-class ObjectInfo(dict):
+try:
+    from storm.cextensions import ObjectInfo
+except ImportError:
+    pass
 
-    __hash__ = object.__hash__
+
+class ObjectInfo(ObjectInfo):
+
+    #__hash__ = object.__hash__
 
     # For get_obj_info(), an ObjectInfo is its own obj_info.
     __storm_object_info__ = property(lambda self:self)
 
-    def __init__(self, obj):
-        # FASTPATH This method is part of the fast path.  Be careful when
-        #          changing it (try to profile any changes).
+    #def __init__(self, obj):
+    #    # FASTPATH This method is part of the fast path.  Be careful when
+    #    #          changing it (try to profile any changes).
 
-        # First thing, try to create a ClassInfo for the object's class.
-        # This ensures that obj is the kind of object we expect.
-        self.cls_info = get_cls_info(obj.__class__)
+    #    # First thing, try to create a ClassInfo for the object's class.
+    #    # This ensures that obj is the kind of object we expect.
+    #    self.cls_info = get_cls_info(type(obj))
 
-        self.set_obj(obj)
+    #    self.set_obj(obj)
 
-        self.event = EventSystem(self)
-        self.variables = variables = {}
+    #    self.event = event = EventSystem(self)
+    #    self.variables = variables = {}
 
-        for column in self.cls_info.columns:
-            variables[column] = column.variable_factory(column=column,
-                                                        event=self.event)
+    #    for column in self.cls_info.columns:
+    #        variables[column] = column.variable_factory(column=column,
+    #                                                    event=event)
  
-        self.primary_vars = tuple(variables[column]
-                                  for column in self.cls_info.primary_key)
+    #    self.primary_vars = tuple(variables[column]
+    #                              for column in self.cls_info.primary_key)
 
-    def set_obj(self, obj):
-        self.get_obj = ref(obj, self._emit_object_deleted)
+    #def set_obj(self, obj):
+    #    self.get_obj = ref(obj, self._emit_object_deleted)
+
+    #def _emit_object_deleted(self, obj_ref):
+    #    self.event.emit("object-deleted")
 
     def checkpoint(self):
         for variable in self.variables.itervalues():
             variable.checkpoint()
-
-    def _emit_object_deleted(self, obj_ref):
-        self.event.emit("object-deleted")
 
 
 class ClassAlias(FromExpr):
