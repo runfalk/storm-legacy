@@ -1170,7 +1170,7 @@ class SQLToken(str):
 def compile_sql_token(compile, expr, state):
     if '"' in expr:
         return '"%s"' % expr.replace('"', '""')
-    elif " " in expr or compile.is_reserved_word(expr):
+    elif "'" in expr or " " in expr or compile.is_reserved_word(expr):
         return '"%s"' % expr
     return expr
 

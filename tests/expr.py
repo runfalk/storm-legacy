@@ -1748,6 +1748,11 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, '"some thing"')
 
     def test_sql_token_quotes(self):
+        expr = SQLToken("some'thing")
+        statement = compile(expr)
+        self.assertEquals(statement, '"some\'thing"')
+
+    def test_sql_token_double_quotes(self):
         expr = SQLToken('some"thing')
         statement = compile(expr)
         self.assertEquals(statement, '"some""thing"')
