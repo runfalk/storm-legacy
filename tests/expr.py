@@ -1714,6 +1714,16 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, "something")
         self.assertEquals(state.parameters, [])
 
+    def test_sql_token_spaces(self):
+        expr = SQLToken("some thing")
+        statement = compile(expr)
+        self.assertEquals(statement, '"some thing"')
+
+    def test_sql_token_quotes(self):
+        expr = SQLToken('some"thing')
+        statement = compile(expr)
+        self.assertEquals(statement, '"some""thing"')
+
     def test_sql_token_reserved(self):
         custom_compile = compile.create_child()
         custom_compile.add_reserved_words(["something"])
