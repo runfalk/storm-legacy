@@ -122,7 +122,7 @@ class Compile(object):
             return "(%s)" % statement
         return statement
 
-    def __call__(self, expr, state=None, join=", ", raw=False):
+    def __call__(self, expr, state=None, join=", ", raw=False, token=False):
         """Compile the given expression into a SQL statement.
 
         @param expr: The expression to compile.
@@ -140,9 +140,13 @@ class Compile(object):
         #          changing it (try to profile any changes).
 
         expr_type = type(expr)
+
         if (expr_type is SQLRaw or
             raw and (expr_type is str or expr_type is unicode)):
             return expr
+
+        if token and (expr_type is str or expr_type is unicode):
+            expr = SQLToken(expr)
 
         if state is None:
             state = State()
@@ -152,13 +156,16 @@ class Compile(object):
             compiled = []
             for subexpr in expr:
                 subexpr_type = type(subexpr)
-                if (subexpr_type is SQLRaw or
-                    raw and (subexpr_type is str or subexpr_type is unicode)):
+                if subexpr_type is SQLRaw or raw and (subexpr_type is str or
+                                                      subexpr_type is unicode):
                     statement = subexpr
                 elif subexpr_type is tuple or subexpr_type is list:
                     state.precedence = outer_precedence
                     statement = self(subexpr, state, join, raw)
                 else:
+                    if token and (subexpr_type is unicode or
+                                  subexpr_type is str):
+                        subexpr = SQLToken(subexpr)
                     statement = self._compile_single(subexpr, state,
                                                      outer_precedence)
                 compiled.append(statement)
@@ -486,18 +493,18 @@ def build_tables(compile, tables, default_tables, state):
 
     # If it's a single element, it's trivial.
     if type(tables) not in (list, tuple) or len(tables) == 1:
-        return compile(tables, state, raw=True)
-    
+        return compile(tables, state, token=True)
+ 
     # If we have no joins, it's trivial as well.
     for elem in tables:
         if isinstance(elem, JoinExpr):
             break
     else:
         if tables is state.auto_tables:
-            tables = set(compile(table, state, raw=True) for table in tables)
+            tables = set(compile(table, state, token=True) for table in tables)
             return ", ".join(sorted(tables))
         else:
-            return compile(tables, state, raw=True)
+            return compile(tables, state, token=True)
 
     # Ok, now we have to be careful.
 
@@ -513,7 +520,7 @@ def build_tables(compile, tables, default_tables, state):
         state.push("join_tables", set())
 
         for elem in tables:
-            statement = compile(elem, state, raw=True)
+            statement = compile(elem, state, token=True)
             if isinstance(elem, JoinExpr):
                 if elem.left is Undef:
                     half_join_stmts.add(statement)
@@ -541,7 +548,7 @@ def build_tables(compile, tables, default_tables, state):
                 result.append(" ")
             else:
                 result.append(", ")
-        result.append(compile(elem, state, raw=True))
+        result.append(compile(elem, state, token=True))
     return "".join(result)
 
 
@@ -699,12 +706,14 @@ def compile_column(compile, column, state):
             # See compile_set_expr().
             alias = state.aliases.get(column)
             if alias is not None:
+                # No need for SQLToken here. These aliases are created
+                # in compile_set_expr(), and are always automatic.
                 return alias.name
         return column.name
     state.push("context", COLUMN_PREFIX)
-    table = compile(column.table, state, raw=True)
+    table = compile(column.table, state, token=True)
     state.pop()
-    return "%s.%s" % (table, column.name)
+    return "%s.%s" % (table, compile(column.name, state, token=True))
 
 @compile_python.when(Column)
 def compile_python_column(compile, column, state):
@@ -733,10 +742,11 @@ class Alias(ComparableExpr):
         self.name = name
 
 @compile.when(Alias)
-def compile_expr(compile, alias, state):
+def compile_alias(compile, alias, state):
+    name = compile(alias.name, state, token=True)
     if state.context is COLUMN or state.context is TABLE:
-        return "%s AS %s" % (compile(alias.expr, state), alias.name)
-    return alias.name
+        return "%s AS %s" % (compile(alias.expr, state), name)
+    return name
 
 
 # --------------------------------------------------------------------
@@ -753,7 +763,7 @@ class Table(FromExpr):
 
 @compile.when(Table)
 def compile_table(compile, table, state):
-    return table.name
+    return compile(table.name, state, token=True)
 
 
 class JoinExpr(FromExpr):
@@ -785,12 +795,12 @@ def compile_join(compile, join, state):
     # Ensure that nested JOINs get parentheses.
     state.precedence += 0.5
     if join.left is not Undef:
-        statement = compile(join.left, state, raw=True)
+        statement = compile(join.left, state, token=True)
         result.append(statement)
         if state.join_tables is not None:
             state.join_tables.add(statement)
     result.append(join.oper)
-    statement = compile(join.right, state, raw=True)
+    statement = compile(join.right, state, token=True)
     result.append(statement)
     if state.join_tables is not None:
         state.join_tables.add(statement)
@@ -1162,6 +1172,10 @@ def compile_sql_token(compile, expr, state):
         return '"%s"' % expr.replace('"', '""')
     elif " " in expr or compile.is_reserved_word(expr):
         return '"%s"' % expr
+    return expr
+
+@compile_python.when(SQLToken)
+def compile_python_sql_token(compile, expr, state):
     return expr
 
 

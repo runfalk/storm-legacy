@@ -33,9 +33,9 @@ class Func2(NamedFunc):
 # Create columnN, tableN, and elemN variables.
 for i in range(10):
     for name in ["column", "elem"]:
-        exec "%s%d = SQLRaw('%s%d')" % (name, i, name, i)
+        exec "%s%d = SQLToken('%s%d')" % (name, i, name, i)
     for name in ["table"]:
-        exec "%s%d = '%s%d'" % (name, i, name, i)
+        exec "%s%d = '%s %d'" % (name, i, name, i)
 
 
 class TrackContext(FromExpr):
@@ -513,7 +513,7 @@ class CompileTest(TestHelper):
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement,
-                          "SELECT DISTINCT column1, column2 FROM table1")
+                          'SELECT DISTINCT column1, column2 FROM "table 1"')
         self.assertEquals(state.parameters, [])
 
     def test_select_where(self):
@@ -525,12 +525,12 @@ class CompileTest(TestHelper):
                       limit=3, offset=4)
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, "SELECT column1, func1() "
-                                     "FROM table1, func1() "
-                                     "WHERE func1() "
-                                     "ORDER BY column2, func1() "
-                                     "GROUP BY column3, func1() "
-                                     "LIMIT 3 OFFSET 4")
+        self.assertEquals(statement, 'SELECT column1, func1() '
+                                     'FROM "table 1", func1() '
+                                     'WHERE func1() '
+                                     'ORDER BY column2, func1() '
+                                     'GROUP BY column3, func1() '
+                                     'LIMIT 3 OFFSET 4')
         self.assertEquals(state.parameters, [])
 
     def test_select_join_where(self):
@@ -539,9 +539,9 @@ class CompileTest(TestHelper):
                       Join(table1, Func2() == "value2"))
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, "SELECT column1 FROM "
-                                     "JOIN table1 ON func2() = ? "
-                                     "WHERE func1() = ?")
+        self.assertEquals(statement, 'SELECT column1 FROM '
+                                     'JOIN "table 1" ON func2() = ? '
+                                     'WHERE func1() = ?')
         self.assertEquals([variable.get() for variable in state.parameters],
                           ["value2", "value1"])
 
@@ -550,9 +550,9 @@ class CompileTest(TestHelper):
                       Column(column2, table2) == 1),
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, "SELECT table1.column1 "
-                                     "FROM table1, table2 "
-                                     "WHERE table2.column2 = ?")
+        self.assertEquals(statement, 'SELECT "table 1".column1 '
+                                     'FROM "table 1", "table 2" '
+                                     'WHERE "table 2".column2 = ?')
         self.assertEquals(state.parameters, [Variable(1)])
 
     def test_select_auto_table_duplicated(self):
@@ -560,8 +560,9 @@ class CompileTest(TestHelper):
                       Column(column2, table1) == 1),
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, "SELECT table1.column1 "
-                                     "FROM table1 WHERE table1.column2 = ?")
+        self.assertEquals(statement, 'SELECT "table 1".column1 '
+                                     'FROM "table 1" WHERE '
+                                     '"table 1".column2 = ?')
         self.assertEquals(state.parameters, [Variable(1)])
 
     def test_select_auto_table_default(self):
@@ -570,9 +571,8 @@ class CompileTest(TestHelper):
                       default_tables=table1),
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, "SELECT column1 "
-                                     "FROM table1 "
-                                     "WHERE column2 = ?")
+        self.assertEquals(statement, 'SELECT column1 FROM "table 1" '
+                                     'WHERE column2 = ?')
         self.assertEquals(state.parameters, [Variable(1)])
 
     def test_select_auto_table_default_with_joins(self):
@@ -580,8 +580,8 @@ class CompileTest(TestHelper):
                       default_tables=[table1, Join(table2)]),
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, "SELECT column1 "
-                                     "FROM table1 JOIN table2")
+        self.assertEquals(statement, 'SELECT column1 '
+                                     'FROM "table 1" JOIN "table 2"')
         self.assertEquals(state.parameters, [])
 
     def test_select_auto_table_unknown(self):
@@ -594,18 +594,19 @@ class CompileTest(TestHelper):
         expr = Select(col1, In(elem1, Select(col2, col1 == col2, col2.table)))
         statement = compile(expr)
         self.assertEquals(statement,
-                          "SELECT table1.column1 FROM table1 WHERE "
-                          "elem1 IN (SELECT table2.column2 FROM table2 WHERE "
-                          "table1.column1 = table2.column2)")
+                          'SELECT "table 1".column1 FROM "table 1" WHERE '
+                          'elem1 IN (SELECT "table 2".column2 FROM "table 2" '
+                          'WHERE "table 1".column1 = "table 2".column2)')
 
     def test_select_join(self):
         expr = Select([column1, Func1()], Func1(),
                       [table1, Join(table2), Join(table3)])
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, "SELECT column1, func1() "
-                                     "FROM table1 JOIN table2 JOIN table3 "
-                                     "WHERE func1()")
+        self.assertEquals(statement, 'SELECT column1, func1() '
+                                     'FROM "table 1" JOIN "table 2"'
+                                     ' JOIN "table 3" '
+                                     'WHERE func1()')
         self.assertEquals(state.parameters, [])
 
     def test_select_join_right_left(self):
@@ -613,9 +614,9 @@ class CompileTest(TestHelper):
                       [table1, Join(table2, table3)])
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, "SELECT column1, func1() "
-                                     "FROM table1, table2 JOIN table3 "
-                                     "WHERE func1()")
+        self.assertEquals(statement, 'SELECT column1, func1() '
+                                     'FROM "table 1", "table 2" '
+                                     'JOIN "table 3" WHERE func1()')
         self.assertEquals(state.parameters, [])
 
     def test_select_with_strings(self):
@@ -623,9 +624,9 @@ class CompileTest(TestHelper):
                       group_by="column2")
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, "SELECT column1 FROM table1 "
-                                     "WHERE 1 = 2 ORDER BY column1 "
-                                     "GROUP BY column2")
+        self.assertEquals(statement, 'SELECT column1 FROM "table 1" '
+                                     'WHERE 1 = 2 ORDER BY column1 '
+                                     'GROUP BY column2')
         self.assertEquals(state.parameters, [])
 
     def test_select_with_unicode(self):
@@ -633,9 +634,9 @@ class CompileTest(TestHelper):
                       group_by=[u"column2"])
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, "SELECT column1 FROM table1 "
-                                     "WHERE 1 = 2 ORDER BY column1 "
-                                     "GROUP BY column2")
+        self.assertEquals(statement, 'SELECT column1 FROM "table 1" '
+                                     'WHERE 1 = 2 ORDER BY column1 '
+                                     'GROUP BY column2')
         self.assertEquals(state.parameters, [])
 
     def test_select_contexts(self):
@@ -662,24 +663,24 @@ class CompileTest(TestHelper):
                       [elem1, elem2], table2)
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, "INSERT INTO table2 (column1, column2) "
-                                     "VALUES (elem1, elem2)")
+        self.assertEquals(statement, 'INSERT INTO "table 2" (column1, column2) '
+                                     'VALUES (elem1, elem2)')
         self.assertEquals(state.parameters, [])
 
     def test_insert_auto_table(self):
         expr = Insert(Column(column1, table1), elem1)
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, "INSERT INTO table1 (column1) "
-                                     "VALUES (elem1)")
+        self.assertEquals(statement, 'INSERT INTO "table 1" (column1) '
+                                     'VALUES (elem1)')
         self.assertEquals(state.parameters, [])
 
     def test_insert_auto_table_default(self):
         expr = Insert(Column(column1), elem1, default_table=table1)
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, "INSERT INTO table1 (column1) "
-                                     "VALUES (elem1)")
+        self.assertEquals(statement, 'INSERT INTO "table 1" (column1) '
+                                     'VALUES (elem1)')
         self.assertEquals(state.parameters, [])
 
     def test_insert_auto_table_unknown(self):
@@ -707,7 +708,7 @@ class CompileTest(TestHelper):
         expr = Update({Column(column1, table1): elem1}, table=table1)
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, "UPDATE table1 SET column1=elem1")
+        self.assertEquals(statement, 'UPDATE "table 1" SET column1=elem1')
         self.assertEquals(state.parameters, [])
 
     def test_update_where(self):
@@ -722,14 +723,14 @@ class CompileTest(TestHelper):
         expr = Update({Column(column1, table1): elem1})
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, "UPDATE table1 SET column1=elem1")
+        self.assertEquals(statement, 'UPDATE "table 1" SET column1=elem1')
         self.assertEquals(state.parameters, [])
 
     def test_update_auto_table_default(self):
         expr = Update({Column(column1): elem1}, default_table=table1)
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, "UPDATE table1 SET column1=elem1")
+        self.assertEquals(statement, 'UPDATE "table 1" SET column1=elem1')
         self.assertEquals(state.parameters, [])
 
     def test_update_auto_table_unknown(self):
@@ -741,7 +742,7 @@ class CompileTest(TestHelper):
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement,
-                          "UPDATE table1 SET column1=elem1 WHERE 1 = 2")
+                          'UPDATE "table 1" SET column1=elem1 WHERE 1 = 2')
         self.assertEquals(state.parameters, [])
 
     def test_update_contexts(self):
@@ -754,10 +755,10 @@ class CompileTest(TestHelper):
         self.assertEquals(table.context, TABLE)
 
     def test_delete(self):
-        expr = Delete(table=Func1())
+        expr = Delete(table=table1)
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, "DELETE FROM func1()")
+        self.assertEquals(statement, 'DELETE FROM "table 1"')
         self.assertEquals(state.parameters, [])
 
     def test_delete_where(self):
@@ -771,7 +772,7 @@ class CompileTest(TestHelper):
         expr = Delete("1 = 2", table1)
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, "DELETE FROM table1 WHERE 1 = 2")
+        self.assertEquals(statement, 'DELETE FROM "table 1" WHERE 1 = 2')
         self.assertEquals(state.parameters, [])
 
     def test_delete_auto_table(self):
@@ -779,7 +780,7 @@ class CompileTest(TestHelper):
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement,
-                          "DELETE FROM table1 WHERE table1.column1 = ?")
+                          'DELETE FROM "table 1" WHERE "table 1".column1 = ?')
         self.assertEquals(state.parameters, [Variable(1)])
 
     def test_delete_auto_table_default(self):
@@ -787,7 +788,7 @@ class CompileTest(TestHelper):
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement,
-                          "DELETE FROM table1 WHERE column1 = ?")
+                          'DELETE FROM "table 1" WHERE column1 = ?')
         self.assertEquals(state.parameters, [Variable(1)])
 
     def test_delete_auto_table_unknown(self):
@@ -820,6 +821,13 @@ class CompileTest(TestHelper):
         expr = Column(column1, table)
         compile(expr)
         self.assertEquals(table.context, COLUMN_PREFIX)
+
+    def test_column_with_reserved_words(self):
+        expr = Select(Column("name 1", "table 1"))
+        state = State()
+        statement = compile(expr, state)
+        self.assertEquals(statement,
+                          'SELECT "table 1"."name 1" FROM "table 1"')
 
     def test_variable(self):
         expr = Variable("value")
@@ -1326,7 +1334,7 @@ class CompileTest(TestHelper):
         expr = Table(table1)
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, table1)
+        self.assertEquals(statement, '"table 1"')
         self.assertEquals(state.parameters, [])
 
     def test_alias(self):
@@ -1337,33 +1345,35 @@ class CompileTest(TestHelper):
         self.assertEquals(state.parameters, [])
 
     def test_alias_in_tables(self):
-        expr = Select(column1, tables=Alias(Table(table1), "name"))
+        expr = Select(column1, tables=Alias(Table(table1), "alias 1"))
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, "SELECT column1 FROM table1 AS name")
+        self.assertEquals(statement,
+                          'SELECT column1 FROM "table 1" AS "alias 1"')
         self.assertEquals(state.parameters, [])
 
     def test_alias_in_tables_auto_name(self):
         expr = Select(column1, tables=Alias(Table(table1)))
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement[:-1], "SELECT column1 FROM table1 AS _")
+        self.assertEquals(statement[:statement.rfind("_")+1],
+                          'SELECT column1 FROM "table 1" AS _')
         self.assertEquals(state.parameters, [])
 
     def test_alias_in_column_prefix(self):
-        expr = Select(Column(column1, Alias(Table(table1), "alias")))
+        expr = Select(Column(column1, Alias(Table(table1), "alias 1")))
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement,
-                          "SELECT alias.column1 FROM table1 AS alias")
+        self.assertEquals(statement, 'SELECT "alias 1".column1 '
+                                     'FROM "table 1" AS "alias 1"')
         self.assertEquals(state.parameters, [])
 
     def test_alias_for_column(self):
-        expr = Select(Alias(Column(column1, table1), "name"))
+        expr = Select(Alias(Column(column1, table1), "alias 1"))
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement,
-                          "SELECT table1.column1 AS name FROM table1")
+        self.assertEquals(statement, 'SELECT "table 1".column1 AS "alias 1" '
+                                     'FROM "table 1"')
         self.assertEquals(state.parameters, [])
 
     def test_alias_union(self):
@@ -1401,29 +1411,30 @@ class CompileTest(TestHelper):
         expr = Join(table1, table2)
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, "table1 JOIN table2")
+        self.assertEquals(statement, '"table 1" JOIN "table 2"')
         self.assertEquals(state.parameters, [])
 
     def test_join_nested(self):
         expr = Join(table1, Join(table2, table3))
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, "table1 JOIN (table2 JOIN table3)")
+        self.assertEquals(statement, '"table 1" JOIN '
+                                     '("table 2" JOIN "table 3")')
         self.assertEquals(state.parameters, [])
 
     def test_join_double_nested(self):
         expr = Join(Join(table1, table2), Join(table3, table4))
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement,
-                          "(table1 JOIN table2) JOIN (table3 JOIN table4)")
+        self.assertEquals(statement, '("table 1" JOIN "table 2") JOIN '
+                                     '("table 3" JOIN "table 4")')
         self.assertEquals(state.parameters, [])
 
     def test_join_table(self):
         expr = Join(Table(table1), Table(table2))
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, "table1 JOIN table2")
+        self.assertEquals(statement, '"table 1" JOIN "table 2"')
         self.assertEquals(state.parameters, [])
 
     def test_join_contexts(self):
@@ -1543,6 +1554,22 @@ class CompileTest(TestHelper):
                                      " ((SELECT elem2) UNION (SELECT elem3))")
         self.assertEquals(state.parameters, [])
 
+    def test_union_order_by_and_select(self):
+        # When ORDER BY is present, databases usually have trouble using
+        # fully qualified column names.  Because of that, we transform
+        # pure column names into aliases, and use them in the ORDER BY.
+        Alias.auto_counter = 0
+        column1 = Column(elem1)
+        column2 = Column(elem2)
+        expr = Union(Select(column1), Select(column2),
+                     order_by=(column1, column2))
+        state = State()
+        statement = compile(expr, state)
+        self.assertEquals(statement,
+                          '(SELECT elem1 AS _1) UNION (SELECT elem2 AS _2) '
+                          'ORDER BY _1, _2')
+        self.assertEquals(state.parameters, [])
+
     def test_union_contexts(self):
         select1, select2, order_by = track_contexts(3)
         expr = Union(select1, select2, order_by=order_by)
@@ -1646,29 +1673,30 @@ class CompileTest(TestHelper):
         expr = Select(AutoTable(1, table1))
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, "SELECT ? FROM table1")
+        self.assertEquals(statement, 'SELECT ? FROM "table 1"')
         self.assertEquals(state.parameters, [IntVariable(1)])
 
     def test_auto_table_with_column(self):
         expr = Select(AutoTable(Column(elem1, table1), table2))
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, "SELECT table1.elem1 FROM table1, table2")
+        self.assertEquals(statement, 'SELECT "table 1".elem1 '
+                                     'FROM "table 1", "table 2"')
         self.assertEquals(state.parameters, [])
 
     def test_auto_table_with_column_and_replace(self):
         expr = Select(AutoTable(Column(elem1, table1), table2, replace=True))
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, "SELECT table1.elem1 FROM table2")
+        self.assertEquals(statement, 'SELECT "table 1".elem1 FROM "table 2"')
         self.assertEquals(state.parameters, [])
 
     def test_auto_table_with_join(self):
         expr = Select(AutoTable(Column(elem1, table1), LeftJoin(table2)))
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement,
-                          "SELECT table1.elem1 FROM table1 LEFT JOIN table2")
+        self.assertEquals(statement, 'SELECT "table 1".elem1 FROM "table 1" '
+                                     'LEFT JOIN "table 2"')
         self.assertEquals(state.parameters, [])
 
     def test_auto_table_with_join_with_left_table(self):
@@ -1676,8 +1704,8 @@ class CompileTest(TestHelper):
                                 LeftJoin(table1, table2)))
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement,
-                          "SELECT table1.elem1 FROM table1 LEFT JOIN table2")
+        self.assertEquals(statement, 'SELECT "table 1".elem1 FROM "table 1" '
+                                     'LEFT JOIN "table 2"')
         self.assertEquals(state.parameters, [])
 
     def test_auto_table_duplicated(self):
@@ -1689,10 +1717,10 @@ class CompileTest(TestHelper):
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement,
-                          "SELECT table1.elem1, table2.elem2, table1.elem3,"
-                                " table3.elem4, table1.elem5 "
-                          "FROM table3,"
-                              " table4 JOIN table5 JOIN table1 JOIN table2")
+                          'SELECT "table 1".elem1, "table 2".elem2, '
+                          '"table 1".elem3, "table 3".elem4, "table 1".elem5 '
+                          'FROM "table 3", "table 4" JOIN "table 5" JOIN '
+                          '"table 1" JOIN "table 2"')
         self.assertEquals(state.parameters, [])
 
     def test_auto_table_duplicated_nested(self):
@@ -1702,9 +1730,9 @@ class CompileTest(TestHelper):
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement,
-                          "SELECT table1.elem1 FROM table1 JOIN table2 "
-                          "WHERE ? IN "
-                          "(SELECT table1.elem1 FROM table1 JOIN table2)")
+                          'SELECT "table 1".elem1 FROM "table 1" JOIN '
+                          '"table 2" WHERE ? IN (SELECT "table 1".elem1 '
+                          'FROM "table 1" JOIN "table 2")')
         self.assertEquals(state.parameters, [IntVariable(1)])
 
     def test_sql_token(self):
