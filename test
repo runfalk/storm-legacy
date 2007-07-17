@@ -91,6 +91,13 @@ def test_with_unittest():
                 pass
             elif filename.endswith(".py"):
                 unittests.append(relpath)
+            elif filename.endswith("README.txt"):
+                # Special case the inclusion of the Zope-dependent
+                # ZStorm doctest.
+                from tests.zope.zstorm import has_zope
+
+                if has_zope:
+                    doctests.append(relpath)
             elif filename.endswith(".txt"):
                 doctests.append(relpath)
 

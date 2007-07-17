@@ -78,7 +78,7 @@ see how it works.
   ... """)
   >>> store.commit()
 
-We'll need a Person class to back into this database.
+We'll need a Person class to use with this database.
 
   >>> from storm.locals import Storm, Int, Unicode
 
