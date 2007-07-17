@@ -251,16 +251,16 @@ class Store(object):
     def flush(self):
         """Flush all dirty objects in cache to database.
 
-        This method will first call the __storm_flush__ hook of all dirty
+        This method will first call the __storm_pre_flush__ hook of all dirty
         objects.  If more objects become dirty as a result of executing code
         in the hooks, the hook is also called on them.  The hook is only
         called once for each object.
 
-        It will then flush all dirty objects to the database, that is,
-        execute the SQL code to update them.
-
-        Finally, it will call the __storm_flushed__ hook of all objects
-        that were dirty/flushed.
+        It will then flush each dirty object to the database, that is,
+        execute the SQL code to insert/delete/update them.  After each
+        object is flushed, the hook __storm_flushed__ is called on it,
+        and if changes are made to the object it will get back to the
+        dirty list, and be flushed again.
 
         Note that Storm will flush objects for you automatically, so you'll
         only need to call this method explicitly in very rare cases where
@@ -279,7 +279,7 @@ class Store(object):
             (obj_info, obj) = self._dirty.popitem()
             if obj_info not in flushing:
                 flushing[obj_info] = obj
-                self._run_hook(obj_info, "__storm_flush__")
+                self._run_hook(obj_info, "__storm_pre_flush__")
         self._dirty = flushing
 
         predecessors = {}
