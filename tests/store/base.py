@@ -1548,7 +1548,7 @@ class StoreTest(object):
 
         class MyFoo(Foo):
             counter = 0
-            def __storm_flush__(self):
+            def __storm_pre_flush__(self):
                 if self.counter == 0:
                     self.title = u"Flushing: %s" % self.title
                 self.counter += 1
@@ -1579,7 +1579,7 @@ class StoreTest(object):
     def test_flush_hook_all(self):
 
         class MyFoo(Foo):
-            def __storm_flush__(self):
+            def __storm_pre_flush__(self):
                 other = [foo1, foo2][foo1 is self]
                 other.title = u"Changed in hook: " + other.title
 
