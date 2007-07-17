@@ -641,6 +641,32 @@ were named Ben, that'd have been easier.
 }}}
 
 
+==== Ordering and limiting results ====
+
+Ordering and limiting results obtained are certainly among the
+simplest and yet most wanted features for such tools, so we want
+to make them very easy to understand and use, of course.
+
+A code of line is worth a thousand words, so here are a few examples
+that demonstrate how it works:
+
+{{{
+>>> garry = store.add(Employee(u"Garry Glare"))
+
+>>> result = store.find(Employee)
+
+>>> [employee.name for employee in result.order_by(Employee.name)]
+[u'Ben Bill', u'Garry Glare', u'Mike Mayer']
+
+>>> [employee.name for employee in result.order_by(Desc(Employee.name))]
+[u'Mike Mayer', u'Garry Glare', u'Ben Bill']
+
+>>> [employee.name for employee in result.order_by(Employee.name)[:2]]
+[u'Ben Bill', u'Garry Glare']
+
+}}}
+
+
 ==== Multiple types with one query ====
 
 Sometimes, it may be interesting to retrieve more than one object involved
