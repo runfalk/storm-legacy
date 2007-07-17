@@ -5,7 +5,7 @@
     >
 
     <utility
-    	component=".zstorm.global_zstorm"
+        component=".zstorm.global_zstorm"
         provides=".interfaces.IZStorm"
         />
 
