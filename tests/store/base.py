@@ -1544,6 +1544,53 @@ class StoreTest(object):
         self.assertEquals(foo.title, "Title 20")
         self.assertEquals(foo.some_attribute, 2)
 
+    def test_flush_hook(self):
+
+        class MyFoo(Foo):
+            counter = 0
+            def __storm_pre_flush__(self):
+                if self.counter == 0:
+                    self.title = u"Flushing: %s" % self.title
+                self.counter += 1
+
+        foo = self.store.get(MyFoo, 20)
+
+        self.assertEquals(foo.title, "Title 20")
+        self.store.flush()
+        self.assertEquals(foo.title, "Title 20") # It wasn't dirty.
+        foo.title = u"Something"
+        self.store.flush()
+        self.assertEquals(foo.title, "Flushing: Something")
+
+        # It got in the database, because it was flushed *twice* (the
+        # title was changed after flushed, and thus the object got dirty
+        # again).
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Flushing: Something"),
+                          (30, "Title 10"),
+                         ])
+
+        # This shouldn't do anything, because the object is clean again.
+        foo.counter = 0
+        self.store.flush()
+        self.assertEquals(foo.title, "Flushing: Something")
+
+    def test_flush_hook_all(self):
+
+        class MyFoo(Foo):
+            def __storm_pre_flush__(self):
+                other = [foo1, foo2][foo1 is self]
+                other.title = u"Changed in hook: " + other.title
+
+        foo1 = self.store.get(MyFoo, 10)
+        foo2 = self.store.get(MyFoo, 20)
+        foo1.title = u"Changed"
+        self.store.flush()
+
+        self.assertEquals(foo1.title, "Changed in hook: Changed")
+        self.assertEquals(foo2.title, "Changed in hook: Title 20")
+
     def test_flushed_hook(self):
 
         class MyFoo(Foo):
