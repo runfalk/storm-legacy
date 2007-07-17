@@ -1,21 +1,25 @@
-import unittest
 import thread
 
-from zope import component
+from tests.helper import TestHelper
 
-import transaction
+has_zope = True
+try:
+    from zope import component
 
-from storm.exceptions import OperationalError
-from storm.locals import Store, Int
-from storm.zope.interfaces import IZStorm, ZStormError
-from storm.zope.zstorm import ZStorm
+    import transaction
+
+    from storm.exceptions import OperationalError
+    from storm.locals import Store, Int
+    from storm.zope.interfaces import IZStorm, ZStormError
+    from storm.zope.zstorm import ZStorm
+except ImportError:
+    has_zope = False
 
 
-class ZStormTest(unittest.TestCase):
+class ZStormTest(TestHelper):
 
     def is_supported(self):
-        # FIXME This needs to do the right thing!
-        return True
+        return has_zope
 
     def setUp(self):
         self.zstorm = ZStorm()
