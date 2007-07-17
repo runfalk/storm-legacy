@@ -1591,6 +1591,13 @@ class StoreTest(object):
         self.store.flush()
         self.assertEquals(foo.title, "Default Title")
 
+    def test_retrieve_null_when_no_default(self):
+        bar = Bar()
+        bar.id = 400
+        self.store.add(bar)
+        self.store.flush()
+        self.assertEquals(bar.title, None)
+
     def test_wb_remove_prop_not_dirty(self):
         foo = self.store.get(Foo, 20)
         obj_info = get_obj_info(foo)

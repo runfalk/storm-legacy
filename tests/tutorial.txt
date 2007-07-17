@@ -824,6 +824,42 @@ also use class-based SQL expressions provided in Storm, or even
 not use lazy expressions at all.
 
 
+==== Aliases ====
+
+So now let's say that we want to find every pair of people that work
+for the same company.  I have no idea about why one would ''want'' to
+do that, but that's a good case for us to exercise aliases.
+
+First, we import `ClassAlias` into the local namespace (''mental note:
+this should be in storm.locals as well''), and create a reference to it.
+
+{{{#!python
+>>> from storm.info import ClassAlias
+>>> AnotherEmployee = ClassAlias(Employee)
+
+}}}
+
+Nice, isn't it?
+
+Now we can easily make the query we want, in a straightforward way:
+
+{{{#!python
+>>> result = store.find((Employee, AnotherEmployee),
+...                     Employee.company_id == AnotherEmployee.company_id,
+...                     Employee.id > AnotherEmployee.id)
+
+>>> for employee1, employee2 in result:
+...     print (employee1.name, employee2.name)
+(u'Mike Mayer', u'Ben Bill')
+
+}}}
+
+Woah!  Mike and Ben work for the same company!
+
+(Quiz for the attent reader: why is ''greater than'' being used in
+the query above?)
+
+
 ==== Much more! ====
 
 There's a lot more about Storm to be shown.  This tutorial is just a
