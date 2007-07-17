@@ -8,12 +8,13 @@ try:
 
     import transaction
 
-    from storm.exceptions import OperationalError
-    from storm.locals import Store, Int
     from storm.zope.interfaces import IZStorm, ZStormError
     from storm.zope.zstorm import ZStorm
 except ImportError:
     has_zope = False
+
+from storm.exceptions import OperationalError
+from storm.locals import Store, Int
 
 
 class ZStormTest(TestHelper):
