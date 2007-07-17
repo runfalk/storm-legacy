@@ -1,3 +1,6 @@
+- The on_remote flag of references should be infered when the
+  local property is a primary key (or part of it?).
+
 - Unicode(autoreload=True) will mark the field as autoreload by default.
 
 - Generic finds:
@@ -35,7 +38,8 @@
 
 - Implement ResultSet.reverse[d]() to invert order_by()?
 
-- Add support to cyclic references.
+- Add support to cyclic references when all of elements of the cycle are
+  flushed at the same time.
 
 - Implement support for negative caches to tell when an object
   isn't available.
@@ -46,7 +50,7 @@
 
 - Support for quoted strings.
 
-- Option to keep object in cache until explicitly removed.
+- Option to keep object in cache until explicitly removed?
 
 - Implement store.copy()
 

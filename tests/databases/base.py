@@ -27,7 +27,7 @@ import os
 
 from storm.uri import URI
 from storm.expr import Select, Column, Undef, SQLToken, SQLRaw
-from storm.variables import Variable, PickleVariable, CharsVariable
+from storm.variables import Variable, PickleVariable, RawStrVariable
 from storm.variables import DateTimeVariable, DateVariable, TimeVariable
 from storm.database import *
 from storm.exceptions import DatabaseModuleError
@@ -228,7 +228,7 @@ class DatabaseTest(object):
         self.connection.execute("INSERT INTO bin_test (b) VALUES (?)",
                                 (value,))
         result = self.connection.execute("SELECT b FROM bin_test")
-        variable = CharsVariable()
+        variable = RawStrVariable()
         result.set_variable(variable, result.get_one()[0])
         self.assertEquals(variable.get(), value)
 
@@ -236,7 +236,7 @@ class DatabaseTest(object):
         """Some databases like pysqlite2 may return unicode for strings."""
         self.connection.execute("INSERT INTO bin_test VALUES (10, 'Value')")
         result = self.connection.execute("SELECT b FROM bin_test")
-        variable = CharsVariable()
+        variable = RawStrVariable()
         # If the following doesn't raise a TypeError we're good.
         result.set_variable(variable, result.get_one()[0])
         self.assertEquals(variable.get(), "Value")

@@ -356,10 +356,10 @@ class FloatVariableTest(TestHelper):
         self.assertRaises(TypeError, variable.set, "1")
 
 
-class CharsVariableTest(TestHelper):
+class RawStrVariableTest(TestHelper):
 
     def test_set_get(self):
-        variable = CharsVariable()
+        variable = RawStrVariable()
         variable.set("str")
         self.assertEquals(variable.get(), "str")
         variable.set(buffer("buffer"))
@@ -707,7 +707,7 @@ class ListVariableTest(TestHelper):
     def test_list_events(self):
         event = EventSystem(marker)
 
-        variable = ListVariable(CharsVariable, event=event,
+        variable = ListVariable(RawStrVariable, event=event,
                                 value_factory=list)
 
         changes = []

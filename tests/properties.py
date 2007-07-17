@@ -324,7 +324,7 @@ class PropertyKindsTest(TestHelper):
         self.assertTrue(isinstance(self.obj.prop1, float))
 
     def test_str(self):
-        self.setup(Chars, default="def", allow_none=False)
+        self.setup(RawStr, default="def", allow_none=False)
 
         self.assertTrue(isinstance(self.column1, Column))
         self.assertTrue(isinstance(self.column2, Column))
@@ -332,8 +332,8 @@ class PropertyKindsTest(TestHelper):
         self.assertEquals(self.column1.table, self.SubClass)
         self.assertEquals(self.column2.name, "prop2")
         self.assertEquals(self.column2.table, self.SubClass)
-        self.assertTrue(isinstance(self.variable1, CharsVariable))
-        self.assertTrue(isinstance(self.variable2, CharsVariable))
+        self.assertTrue(isinstance(self.variable1, RawStrVariable))
+        self.assertTrue(isinstance(self.variable2, RawStrVariable))
 
         self.assertEquals(self.obj.prop1, "def")
         self.assertRaises(NoneError, setattr, self.obj, "prop1", None)
@@ -623,7 +623,7 @@ class PropertyKindsTest(TestHelper):
                                (Bool, BoolVariable, True),
                                (Int, IntVariable, 1),
                                (Float, FloatVariable, 1.1),
-                               (Chars, CharsVariable, "str"),
+                               (RawStr, RawStrVariable, "str"),
                                (Unicode, UnicodeVariable, u"unicode"),
                                (DateTime, DateTimeVariable, datetime.now()),
                                (Date, DateVariable, date.today()),
