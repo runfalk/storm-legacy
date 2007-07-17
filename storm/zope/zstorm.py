@@ -1,7 +1,6 @@
 import threading
 import weakref
 
-raise ImportError("FUCK")
 from zope.testing.cleanup import addCleanUp
 from zope.interface import implements
 
