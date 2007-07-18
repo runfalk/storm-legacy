@@ -735,6 +735,17 @@ class StoreTest(object):
         # it without touching the database. Use the title instead.
         self.assertEquals(self.store.find(Foo, title=u"Title 20").cached(), [])
 
+    def test_find_cached_with_info_alive_and_object_dead(self):
+        foo = self.store.get(Foo, 20)
+        foo.tainted = True
+        obj_info = get_obj_info(foo)
+        del foo
+        gc.collect()
+        cached = self.store.find(Foo).cached()
+        self.assertEquals(len(cached), 1)
+        foo = self.store.get(Foo, 20)
+        self.assertFalse(hasattr(foo, "tainted"))
+
     def test_using_find_join(self):
         bar = self.store.get(Bar, 100)
         bar.foo_id = None
@@ -1771,6 +1782,17 @@ class StoreTest(object):
         self.store.flush()
         self.store.reload(bar)
         self.assertEquals(bar.title, "Title 500")
+
+    def test_find_set_with_info_alive_and_object_dead(self):
+        foo = self.store.get(Foo, 20)
+        foo.tainted = True
+        obj_info = get_obj_info(foo)
+        del foo
+        gc.collect()
+        self.store.find(Foo, title=u"Title 20").set(title=u"Title 40")
+        foo = self.store.get(Foo, 20)
+        self.assertFalse(hasattr(foo, "tainted"))
+        self.assertEquals(foo.title, "Title 40")
 
     def test_reference(self):
         bar = self.store.get(Bar, 100)

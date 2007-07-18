@@ -113,10 +113,7 @@ class Store(object):
                     self._fill_missing_values(obj_info, primary_vars)
                 except LostObjectError:
                     return None
-            obj = obj_info.get_obj()
-            if obj is None:
-                obj = self._rebuild_deleted_object(obj_info)
-            return obj
+            return self._get_object(obj_info)
 
         where = compare_columns(cls_info.primary_key, primary_vars)
 
@@ -486,16 +483,9 @@ class Store(object):
             # primary key was extracted from result values.
             obj_info.pop("invalidated", None)
 
-            # We're not sure if the obj is still in memory at this point.
-            obj = obj_info.get_obj()
-            if obj is not None:
-                # Great, the object is still in memory. Nothing to do.
-                pass
-            else:
-                # Object died while obj_info was still in memory.
-                # Rebuild the object and maintain the obj_info.
-                obj = self._rebuild_deleted_object(obj_info)
-        
+            # We're not sure if the obj is still in memory at this
+            # point.  This will rebuild it if needed.
+            obj = self._get_object(obj_info)
         else:
             # Nothing found in the cache. Build everything from the ground.
             obj = cls.__new__(cls)
@@ -515,13 +505,15 @@ class Store(object):
 
         return obj
 
-    def _rebuild_deleted_object(self, obj_info):
-        """Rebuild a deleted object and maintain the obj_info."""
-        cls = obj_info.cls_info.cls
-        obj = cls.__new__(cls)
-        obj_info.set_obj(obj)
-        set_obj_info(obj, obj_info)
-        self._run_hook(obj_info, "__storm_loaded__")
+    def _get_object(self, obj_info):
+        """Return object for obj_info, rebuilding it if it's dead."""
+        obj = obj_info.get_obj()
+        if obj is None:
+            cls = obj_info.cls_info.cls
+            obj = cls.__new__(cls)
+            obj_info.set_obj(obj)
+            set_obj_info(obj, obj_info)
+            self._run_hook(obj_info, "__storm_loaded__")
         return obj
 
     @staticmethod
@@ -946,7 +938,7 @@ class ResultSet(object):
                 changes[column] = column.variable_factory(value=value)
 
         expr = Update(changes, self._where, self._cls_spec_info.table)
-        self._store._connection.execute(expr, noresult=True)
+        self._store.execute(expr, noresult=True)
 
         try:
             cached = self.cached()
@@ -988,11 +980,10 @@ class ResultSet(object):
             try:
                 if (obj_info.cls_info is self._cls_spec_info and
                     (match is None or match(get_column))):
-                    obj = obj_info.get_obj()
-                    if obj is not None:
-                        objects.append(obj)
+                    objects.append(self._store._get_object(obj_info))
             except LostObjectError:
-                pass
+                pass # This may happen when resolving lazy values
+                     # in get_column().
         return objects
 
     def _set_expr(self, expr_cls, other, all=False):
