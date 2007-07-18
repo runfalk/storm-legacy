@@ -633,21 +633,21 @@ static PyMemberDef Variable_members[] = {
 #undef OFFSETOF
 
 statichere PyTypeObject Variable_Type = {
-	PyObject_HEAD_INIT(NULL)
-	0,			/*ob_size*/
-	"storm.variables.Variable",	/*tp_name*/
-	sizeof(VariableObject), /*tp_basicsize*/
-	0,			/*tp_itemsize*/
-	(destructor)Variable_dealloc, /*tp_dealloc*/
-	0,			/*tp_print*/
-	0,			/*tp_getattr*/
-	0,			/*tp_setattr*/
-	0,			/*tp_compare*/
-	0,          /*tp_repr*/
-	0,			/*tp_as_number*/
-	0,			/*tp_as_sequence*/
-	0,			/*tp_as_mapping*/
-	(hashfunc)Variable_hash, /*tp_hash*/
+    PyObject_HEAD_INIT(NULL)
+    0,            /*ob_size*/
+    "storm.variables.Variable",    /*tp_name*/
+    sizeof(VariableObject), /*tp_basicsize*/
+    0,            /*tp_itemsize*/
+    (destructor)Variable_dealloc, /*tp_dealloc*/
+    0,            /*tp_print*/
+    0,            /*tp_getattr*/
+    0,            /*tp_setattr*/
+    0,            /*tp_compare*/
+    0,          /*tp_repr*/
+    0,            /*tp_as_number*/
+    0,            /*tp_as_sequence*/
+    0,            /*tp_as_mapping*/
+    (hashfunc)Variable_hash, /*tp_hash*/
     0,                      /*tp_call*/
     0,                      /*tp_str*/
     PyObject_GenericGetAttr,/*tp_getattro*/
@@ -879,8 +879,8 @@ ObjectInfo_clear(ObjectInfoObject *self)
 static void
 ObjectInfo_dealloc(ObjectInfoObject *self)
 {
-	if (self->__weakreflist)
-		PyObject_ClearWeakRefs((PyObject *)self);
+    if (self->__weakreflist)
+        PyObject_ClearWeakRefs((PyObject *)self);
     Py_CLEAR(self->__obj_ref);
     Py_CLEAR(self->__obj_ref_callback);
     Py_CLEAR(self->cls_info);
@@ -916,21 +916,21 @@ static PyGetSetDef ObjectInfo_getset[] = {
 };
 
 statichere PyTypeObject ObjectInfo_Type = {
-	PyObject_HEAD_INIT(NULL)
-	0,			/*ob_size*/
-	"storm.info.ObjectInfo", /*tp_name*/
-	sizeof(ObjectInfoObject), /*tp_basicsize*/
-	0,			/*tp_itemsize*/
-	(destructor)ObjectInfo_dealloc, /*tp_dealloc*/
-	0,			/*tp_print*/
-	0,			/*tp_getattr*/
-	0,			/*tp_setattr*/
-	0,			/*tp_compare*/
-	0,          /*tp_repr*/
-	0,			/*tp_as_number*/
-	0,			/*tp_as_sequence*/
-	0,			/*tp_as_mapping*/
-	(hashfunc)_Py_HashPointer, /*tp_hash*/
+    PyObject_HEAD_INIT(NULL)
+    0,            /*ob_size*/
+    "storm.info.ObjectInfo", /*tp_name*/
+    sizeof(ObjectInfoObject), /*tp_basicsize*/
+    0,            /*tp_itemsize*/
+    (destructor)ObjectInfo_dealloc, /*tp_dealloc*/
+    0,            /*tp_print*/
+    0,            /*tp_getattr*/
+    0,            /*tp_setattr*/
+    0,            /*tp_compare*/
+    0,            /*tp_repr*/
+    0,            /*tp_as_number*/
+    0,            /*tp_as_sequence*/
+    0,            /*tp_as_mapping*/
+    (hashfunc)_Py_HashPointer, /*tp_hash*/
     0,                      /*tp_call*/
     0,                      /*tp_str*/
     PyObject_GenericGetAttr, /*tp_getattro*/
