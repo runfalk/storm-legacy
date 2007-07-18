@@ -38,7 +38,6 @@ class Compile(object):
     """Compiler based on the concept of generic functions."""
 
     def __init__(self, parent=None):
-        self._current_state_version = 0
         self._local_dispatch_table = {}
         self._local_precedence = {}
         self._local_reserved_words = {}
@@ -66,6 +65,11 @@ class Compile(object):
             child._update_cache()
 
     def add_reserved_words(self, words):
+        """Include words to be considered reserved and thus escaped.
+
+        Reserved words are escaped during compilation when they're
+        seen in a SQLToken expression.
+        """
         self._local_reserved_words.update((word.lower(), True)
                                           for word in words)
         self._update_cache()
@@ -79,6 +83,11 @@ class Compile(object):
         return self._reserved_words.get(word.lower()) is not None
 
     def create_child(self):
+        """Create a new instance of L{Compile} which inherits from this one.
+
+        This is most commonly used to customize a compiler for
+        database-specific compilation strategies.
+        """
         return self.__class__(self)
 
     def when(self, *types):
@@ -126,15 +135,14 @@ class Compile(object):
         """Compile the given expression into a SQL statement.
 
         @param expr: The expression to compile.
-        @param state: If None, a state is created internally, and a tuple
-            like (statement, state.parameters) is returned.  If state is
-            given, it should be an instance of State, and only the statement
-            itself is returned.  The second format is the one used internally
-            when expressoins are compiling subexpressions.
+        @param state: An instance of State, or None, in which case it's
+            created internally (and thus can't be accessed).
         @param join: The string token to use to put between
             subexpressions. Defaults to ", ".
         @param raw: If true, any string or unicode expression or
             subexpression will not be further compiled.
+        @param token: If true, any string or unicode expression will
+            be considered as a SQLToken, and quoted properly.
         """
         # FASTPATH This method is part of the fast path.  Be careful when
         #          changing it (try to profile any changes).

@@ -1555,9 +1555,11 @@ class CompileTest(TestHelper):
         self.assertEquals(state.parameters, [])
 
     def test_union_order_by_and_select(self):
-        # When ORDER BY is present, databases usually have trouble using
-        # fully qualified column names.  Because of that, we transform
-        # pure column names into aliases, and use them in the ORDER BY.
+        """
+        When ORDER BY is present, databases usually have trouble using
+        fully qualified column names.  Because of that, we transform
+        pure column names into aliases, and use them in the ORDER BY.
+        """
         Alias.auto_counter = 0
         column1 = Column(elem1)
         column2 = Column(elem2)
@@ -1797,7 +1799,36 @@ class CompileTest(TestHelper):
         self.assertEquals(child_compile.is_reserved_word("somethING"), False)
 
     def test_sql1992_reserved_words(self):
-        self.assertEquals(compile.is_reserved_word("table"), True)
+        reserved_words = """
+            absolute action add all allocate alter and any are as asc assertion
+            at authorization avg begin between bit bit_length both by cascade
+            cascaded case cast catalog char character char_ length
+            character_length check close coalesce collate collation column
+            commit connect connection constraint constraints continue convert
+            corresponding count create cross current current_date current_time
+            current_timestamp current_ user cursor date day deallocate dec
+            decimal declare default deferrable deferred delete desc describe
+            descriptor diagnostics disconnect distinct domain double drop else
+            end end-exec escape except exception exec execute exists external
+            extract false fetch first float for foreign found from full get
+            global go goto grant group having hour identity immediate in
+            indicator initially inner input insensitive insert int integer
+            intersect interval into is isolation join key language last leading
+            left level like local lower match max min minute module month names
+            national natural nchar next no not null nullif numeric octet_length
+            of on only open option or order outer output overlaps pad partial
+            position precision prepare preserve primary prior privileges
+            procedure public read real references relative restrict revoke
+            right rollback rows schema scroll second section select session
+            session_ user set size smallint some space sql sqlcode sqlerror
+            sqlstate substring sum system_user table temporary then time
+            timestamp timezone_ hour timezone_minute to trailing transaction
+            translate translation trim true union unique unknown update upper
+            usage user using value values varchar varying view when whenever
+            where with work write year zone
+            """.split()
+        for word in reserved_words:
+            self.assertEquals(compile.is_reserved_word(word), True)
 
 
 class CompilePythonTest(TestHelper):
