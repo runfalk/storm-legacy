@@ -106,7 +106,8 @@ class Wrapper(object):
     def __init__(self, obj):
         self.obj = obj
 
-Wrapper.__object_info = property(lambda self: self.obj.__object_info)
+    __storm_object_info__ = property(lambda self:
+                                     self.obj.__storm_object_info__)
 
 
 class StoreTest(object):

@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-import weakref
+from weakref import ref
 
 from storm.exceptions import ClassInfoError
 from storm.expr import Expr, FromExpr, Column, Desc, TABLE
@@ -33,27 +33,27 @@ __all__ = ["get_obj_info", "set_obj_info", "get_cls_info", "get_info",
 
 def get_obj_info(obj):
     try:
-        return obj.__object_info
+        return obj.__storm_object_info__
     except AttributeError:
         # Instantiate ObjectInfo first, so that it breaks gracefully,
         # in case the object isn't a storm object.
         obj_info = ObjectInfo(obj)
-        return obj.__dict__.setdefault("__object_info", obj_info)
+        return obj.__dict__.setdefault("__storm_object_info__", obj_info)
 
 def set_obj_info(obj, obj_info):
-    obj.__dict__["__object_info"] = obj_info
+    obj.__dict__["__storm_object_info__"] = obj_info
 
 def get_cls_info(cls):
-    try:
+    if "__storm_class_info__" in cls.__dict__:
         # Can't use attribute access here, otherwise subclassing won't work.
-        return cls.__dict__["__class_info"]
-    except KeyError:
-        cls.__class_info = ClassInfo(cls)
-        return cls.__class_info
+        return cls.__dict__["__storm_class_info__"]
+    else:
+        cls.__storm_class_info__ = ClassInfo(cls)
+        return cls.__storm_class_info__
 
 def get_info(obj):
     try:
-        obj_info = obj.__object_info
+        obj_info = obj.__storm_object_info__
     except AttributeError:
         obj_info = get_obj_info(obj)
     return obj_info, obj_info.cls_info
@@ -159,7 +159,13 @@ class ObjectInfo(dict):
 
     __hash__ = object.__hash__
 
+    # For get_obj_info(), an ObjectInfo is its own obj_info.
+    __storm_object_info__ = property(lambda self:self)
+
     def __init__(self, obj):
+        # FASTPATH This method is part of the fast path.  Be careful when
+        #          changing it (try to profile any changes).
+
         # First thing, try to create a ClassInfo for the object's class.
         # This ensures that obj is the kind of object we expect.
         self.cls_info = get_cls_info(obj.__class__)
@@ -167,45 +173,24 @@ class ObjectInfo(dict):
         self.set_obj(obj)
 
         self.event = EventSystem(self)
-        self.variables = {}
+        self.variables = variables = {}
 
-        self._saved_self = None
-        self._saved_attrs = None
-
-        variables = self.variables
         for column in self.cls_info.columns:
             variables[column] = column.variable_factory(column=column,
                                                         event=self.event)
-        
+ 
         self.primary_vars = tuple(variables[column]
                                   for column in self.cls_info.primary_key)
 
-        self._variable_sequence = self.variables.values()
-
     def set_obj(self, obj):
-        self.get_obj = weakref.ref(obj, self._emit_object_deleted)
+        self.get_obj = ref(obj, self._emit_object_deleted)
 
     def checkpoint(self):
-        for variable in self._variable_sequence:
+        for variable in self.variables.itervalues():
             variable.checkpoint()
-
-    def _copy_object(self, obj):
-        obj_type = type(obj)
-        if obj_type is dict:
-            return dict(((self._copy_object(key), self._copy_object(value))
-                         for key, value in obj.iteritems()))
-        elif obj_type in (tuple, set, list):
-            return obj_type(self._copy_object(subobj) for subobj in obj)
-        else:
-            return obj
 
     def _emit_object_deleted(self, obj_ref):
         self.event.emit("object-deleted")
-
-
-# For get_obj_info(), an ObjectInfo is its own obj_info. Defined here
-# to prevent the name mangling on two underscores.
-ObjectInfo.__object_info = property(lambda self: self)
 
 
 class ClassAlias(FromExpr):
@@ -225,13 +210,13 @@ class ClassAlias(FromExpr):
 
 
 @compile.when(type)
-def compile_type(compile, state, expr):
+def compile_type(compile, expr, state):
     table = getattr(expr, "__storm_table__", None)
     if table is None:
         raise CompileError("Don't know how to compile %r" % expr)
     if state.context is TABLE and issubclass(expr, ClassAlias):
         cls_info = get_cls_info(expr)
-        return "%s AS %s" % (compile(state, cls_info.cls), table)
+        return "%s AS %s" % (compile(cls_info.cls, state), table)
     if isinstance(table, basestring):
         return table
-    return compile(state, table)
+    return compile(table, state)

@@ -26,7 +26,7 @@ from storm.uri import URI
 from storm.database import create_database
 from storm.variables import UnicodeVariable, DateTimeVariable
 from storm.variables import ListVariable, IntVariable, Variable
-from storm.expr import Union, Select, Alias, SQLRaw
+from storm.expr import Union, Select, Alias, SQLRaw, State
 
 from tests.databases.base import DatabaseTest, UnsupportedDatabaseTest
 from tests.helper import TestHelper, MakePath
@@ -122,10 +122,11 @@ class PostgresTest(DatabaseTest, TestHelper):
         variable = ListVariable(IntVariable)
         variable.set([1,2,3,4])
 
-        statement, params = compile(variable)
+        state = State()
+        statement = compile(variable, state)
 
         self.connection.execute("INSERT INTO array_test VALUES (1, %s)"
-                                % statement, params)
+                                % statement, state.parameters)
 
         result = self.connection.execute("SELECT a FROM array_test WHERE id=1")
 
@@ -150,10 +151,11 @@ class PostgresTest(DatabaseTest, TestHelper):
         variable = ListVariable(IntVariable)
         variable.set([])
 
-        statement, params = compile(variable)
+        state = State()
+        statement = compile(variable, state)
 
         self.connection.execute("INSERT INTO array_test VALUES (1, %s)"
-                                % statement, params)
+                                % statement, state.parameters)
 
         result = self.connection.execute("SELECT a FROM array_test WHERE id=1")
 
@@ -177,12 +179,13 @@ class PostgresTest(DatabaseTest, TestHelper):
         expr = Union(Select(alias), Select(column), order_by=alias+1,
                      limit=1, offset=1, all=True)
 
-        statement, parameters = compile(expr)
+        state = State()
+        statement = compile(expr, state)
         self.assertEquals(statement,
                           "SELECT * FROM "
                           "((SELECT 1 AS id) UNION ALL (SELECT 1)) AS _1 "
                           "ORDER BY id+? LIMIT 1 OFFSET 1")
-        self.assertEquals(parameters, [Variable(1)])
+        self.assertEquals(state.parameters, [Variable(1)])
 
         result = self.connection.execute(expr)
         self.assertEquals(result.get_one(), (1,))

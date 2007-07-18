@@ -1008,7 +1008,7 @@ class ResultSet(object):
         if self._where is Undef:
             match = None
         else:
-            match = compile_python(self._where)
+            match = compile_python.get_matcher(self._where)
             name_to_column = dict((column.name, column)
                                   for column in self._cls_spec_info.columns)
             def get_column(name, name_to_column=name_to_column):

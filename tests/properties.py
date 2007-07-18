@@ -26,7 +26,7 @@ from storm.properties import PropertyPublisherMeta
 from storm.properties import *
 from storm.variables import *
 from storm.info import get_obj_info
-from storm.expr import Undef, Column, Select, compile, SQLRaw
+from storm.expr import Undef, Column, Select, compile, State, SQLRaw
 
 from tests.helper import TestHelper
 
@@ -213,14 +213,15 @@ class PropertyTest(TestHelper):
         expr = Select(SQLRaw("*"), (prop1 == "value1") &
                                    (prop2 == "value2") &
                                    (prop3 == "value3"))
-        statement, parameters = compile(expr)
+        state = State()
+        statement = compile(expr, state)
         self.assertEquals(statement, "SELECT * FROM table WHERE "
                                      "table.column1 = ? AND "
                                      "table.prop2 = ? AND "
                                      "table.column3 = ?")
-        self.assertEquals(parameters, [CustomVariable("value1"),
-                                       CustomVariable("value2"),
-                                       CustomVariable("value3")])
+        self.assertEquals(state.parameters, [CustomVariable("value1"),
+                                             CustomVariable("value2"),
+                                             CustomVariable("value3")])
 
     def test_comparable_expr_subclass(self):
         prop1 = self.SubClass.prop1
@@ -229,14 +230,15 @@ class PropertyTest(TestHelper):
         expr = Select(SQLRaw("*"), (prop1 == "value1") &
                                    (prop2 == "value2") &
                                    (prop3 == "value3"))
-        statement, parameters = compile(expr)
+        state = State()
+        statement = compile(expr, state)
         self.assertEquals(statement, "SELECT * FROM subtable WHERE "
                                      "subtable.column1 = ? AND "
                                      "subtable.prop2 = ? AND "
                                      "subtable.column3 = ?")
-        self.assertEquals(parameters, [CustomVariable("value1"),
-                                       CustomVariable("value2"),
-                                       CustomVariable("value3")])
+        self.assertEquals(state.parameters, [CustomVariable("value1"),
+                                             CustomVariable("value2"),
+                                             CustomVariable("value3")])
 
 
 class PropertyKindsTest(TestHelper):
