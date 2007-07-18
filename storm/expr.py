@@ -590,12 +590,12 @@ def compile_select(compile, select, state):
     if select.where is not Undef:
         tokens.append(" WHERE ")
         tokens.append(compile(select.where, state, raw=True))
-    if select.order_by is not Undef:
-        tokens.append(" ORDER BY ")
-        tokens.append(compile(select.order_by, state, raw=True))
     if select.group_by is not Undef:
         tokens.append(" GROUP BY ")
         tokens.append(compile(select.group_by, state, raw=True))
+    if select.order_by is not Undef:
+        tokens.append(" ORDER BY ")
+        tokens.append(compile(select.order_by, state, raw=True))
     if select.limit is not Undef:
         tokens.append(" LIMIT %d" % select.limit)
     if select.offset is not Undef:

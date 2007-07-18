@@ -528,8 +528,8 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, 'SELECT column1, func1() '
                                      'FROM "table 1", func1() '
                                      'WHERE func1() '
-                                     'ORDER BY column2, func1() '
                                      'GROUP BY column3, func1() '
+                                     'ORDER BY column2, func1() '
                                      'LIMIT 3 OFFSET 4')
         self.assertEquals(state.parameters, [])
 
@@ -625,8 +625,8 @@ class CompileTest(TestHelper):
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, 'SELECT column1 FROM "table 1" '
-                                     'WHERE 1 = 2 ORDER BY column1 '
-                                     'GROUP BY column2')
+                                     'WHERE 1 = 2 GROUP BY column2 '
+                                     'ORDER BY column1')
         self.assertEquals(state.parameters, [])
 
     def test_select_with_unicode(self):
@@ -635,8 +635,8 @@ class CompileTest(TestHelper):
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, 'SELECT column1 FROM "table 1" '
-                                     'WHERE 1 = 2 ORDER BY column1 '
-                                     'GROUP BY column2')
+                                     'WHERE 1 = 2 GROUP BY column2 '
+                                     'ORDER BY column1')
         self.assertEquals(state.parameters, [])
 
     def test_select_contexts(self):

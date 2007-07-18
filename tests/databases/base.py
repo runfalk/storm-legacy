@@ -26,7 +26,7 @@ import sys
 import os
 
 from storm.uri import URI
-from storm.expr import Select, Column, Undef, SQLToken, SQLRaw
+from storm.expr import Select, Column, Undef, SQLToken, SQLRaw, Count
 from storm.variables import Variable, PickleVariable, RawStrVariable
 from storm.variables import DateTimeVariable, DateVariable, TimeVariable
 from storm.database import *
@@ -240,6 +240,15 @@ class DatabaseTest(object):
         # If the following doesn't raise a TypeError we're good.
         result.set_variable(variable, result.get_one()[0])
         self.assertEquals(variable.get(), "Value")
+
+    def test_order_by_group_by(self):
+        self.connection.execute("INSERT INTO test VALUES (100, 'Title 10')")
+        self.connection.execute("INSERT INTO test VALUES (101, 'Title 10')")
+        id = Column("id", "test")
+        title = Column("title", "test")
+        expr = Select(Count(id), group_by=title, order_by=Count(id))
+        result = self.connection.execute(expr)
+        self.assertEquals(result.get_all(), [(1,), (3,)])
 
 
 class UnsupportedDatabaseTest(object):
