@@ -60,21 +60,6 @@ class GetTest(TestHelper):
         set_obj_info(self.obj, obj_info2)
         self.assertEquals(get_obj_info(self.obj), obj_info2)
 
-    def test_get_info(self):
-        obj_info1, cls_info1 = get_info(self.obj)
-        obj_info2, cls_info2 = get_info(self.obj)
-        self.assertTrue(isinstance(obj_info1, ObjectInfo))
-        self.assertTrue(isinstance(cls_info1, ClassInfo))
-        self.assertTrue(obj_info1 is obj_info2)
-        self.assertTrue(cls_info1 is cls_info2)
-
-    def test_get_info_on_obj_info(self):
-        obj_info1 = get_obj_info(self.obj)
-        cls_info1 = get_cls_info(self.Class)
-        obj_info2, cls_info2 = get_info(obj_info1)
-        self.assertTrue(obj_info2 is obj_info1)
-        self.assertTrue(cls_info2 is cls_info1)
-
 
 class ClassInfoTest(TestHelper):
 
@@ -457,7 +442,7 @@ class ObjectInfoTest(TestHelper):
     def test_object_deleted_notification(self):
         obj = self.Class()
         obj_info = get_obj_info(obj)
-        obj_info.tainted = True
+        obj_info["tainted"] = True
         deleted = []
         def object_deleted(obj_info):
             deleted.append(obj_info)
@@ -465,12 +450,12 @@ class ObjectInfoTest(TestHelper):
         del obj_info
         del obj
         self.assertEquals(len(deleted), 1)
-        self.assertEquals(getattr(deleted[0], "tainted", False), True)
+        self.assertTrue("tainted" in deleted[0])
 
     def test_object_deleted_notification_after_set_obj(self):
         obj = self.Class()
         obj_info = get_obj_info(obj)
-        obj_info.tainted = True
+        obj_info["tainted"] = True
         obj = self.Class()
         obj_info.set_obj(obj)
         deleted = []
@@ -480,7 +465,7 @@ class ObjectInfoTest(TestHelper):
         del obj_info
         del obj
         self.assertEquals(len(deleted), 1)
-        self.assertEquals(getattr(deleted[0], "tainted", False), True)
+        self.assertTrue("tainted" in deleted[0])
 
 
 class ClassAliasTest(TestHelper):

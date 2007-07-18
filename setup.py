@@ -6,6 +6,9 @@ except ImportError:
     from distutils.core import setup, Extension
 
 
+BUILD_CEXTENSIONS = False
+
+
 setup(name="storm",
     version="0.9",
     description="Storm is an object-relational mapper (ORM) for Python developed at Canonical.",
@@ -16,7 +19,6 @@ setup(name="storm",
         "storm",
         "storm.databases",
     ],
-    ext_modules=[
-        Extension("storm.cextensions", ["storm/cextensions.c"])
-    ],
+    ext_modules=(BUILD_CEXTENSIONS and
+                 [Extension("storm.cextensions", ["storm/cextensions.c"])])
 )

@@ -20,7 +20,7 @@
 #
 from weakref import WeakValueDictionary, WeakKeyDictionary
 
-from storm.info import get_cls_info, get_obj_info, set_obj_info, get_info
+from storm.info import get_cls_info, get_obj_info, set_obj_info
 from storm.variables import Variable, LazyValue
 from storm.expr import (
     Expr, Select, Insert, Update, Delete, Column, JoinExpr, Count, Max, Min,

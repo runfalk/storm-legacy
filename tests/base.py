@@ -22,7 +22,7 @@ import weakref
 import gc
 
 from storm.properties import Property, PropertyPublisherMeta
-from storm.info import get_info
+from storm.info import get_obj_info
 from storm.base import *
 
 from tests.helper import TestHelper
@@ -41,7 +41,7 @@ class BaseTest(TestHelper):
             __storm_table__ = "table_name"
             prop = Property(primary=True)
         obj = Class()
-        get_info(obj) # Build all wanted meta-information.
+        get_obj_info(obj) # Build all wanted meta-information.
         obj_ref = weakref.ref(obj)
         del obj
         gc.collect()

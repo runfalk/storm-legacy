@@ -1,25 +1,27 @@
-
+/*
+#
+# Copyright (c) 2006, 2007 Canonical
+#
+# Written by Gustavo Niemeyer <gustavo@niemeyer.net>
+#
+# This file is part of Storm Object Relational Mapper.
+#
+# Storm is free software; you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License as
+# published by the Free Software Foundation; either version 2.1 of
+# the License, or (at your option) any later version.
+#
+# Storm is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+*/
 #include <Python.h>
 #include <structmember.h>
-
-#include <string.h>
-
-#ifndef Py_RETURN_NONE
-#define Py_RETURN_NONE do {Py_INCREF(Py_None); return Py_None;} while (0)
-#endif
-
-#define CALLMETHOD(obj, ...) \
-    do { \
-        PyObject *res = \
-            PyObject_CallMethod((PyObject *)(obj), __VA_ARGS__); \
-        if (!res) return NULL; \
-        Py_DECREF(res); \
-    } while (0)
-
-#define LIST_CLEAR(x) \
-    PyList_SetSlice((x), 0, PyList_GET_SIZE(x), (PyObject *)NULL);
-
-#define STR(obj) PyString_AS_STRING(obj)
 
 
 static PyObject *Undef = NULL;
@@ -27,6 +29,28 @@ static PyObject *LazyValue = NULL;
 static PyObject *raise_none_error = NULL;
 static PyObject *get_cls_info = NULL;
 static PyObject *EventSystem = NULL;
+
+
+typedef struct {
+    PyObject_HEAD
+    PyObject *_value;
+    PyObject *_lazy_value;
+    PyObject *_checkpoint_state;
+    PyObject *_allow_none;
+    PyObject *column;
+    PyObject *event;
+} VariableObject;
+
+typedef struct {
+    PyDictObject super;
+    PyObject *__weakreflist;
+    PyObject *__obj_ref;
+    PyObject *__obj_ref_callback;
+    PyObject *cls_info;
+    PyObject *event;
+    PyObject *variables;
+    PyObject *primary_vars;
+} ObjectInfoObject;
 
 
 static int
@@ -94,27 +118,6 @@ initialize_globals(void)
 
     return 1;
 }
-
-
-typedef struct {
-    PyObject_HEAD
-    PyObject *_value;
-    PyObject *_lazy_value;
-    PyObject *_checkpoint_state;
-    PyObject *_allow_none;
-    PyObject *column;
-    PyObject *event;
-} VariableObject;
-
-typedef struct {
-    PyDictObject super;
-    PyObject *__obj_ref;
-    PyObject *__obj_ref_callback;
-    PyObject *cls_info;
-    PyObject *event;
-    PyObject *variables;
-    PyObject *primary_vars;
-} ObjectInfoObject;
 
 
 static PyObject *
@@ -693,7 +696,7 @@ ObjectInfo_init(ObjectInfoObject *self, PyObject *args)
     PyObject *columns = NULL;
     PyObject *primary_key = NULL;
     PyObject *obj;
-    int i;
+    Py_ssize_t i;
 
     empty_args = PyTuple_New(0);
     if (!empty_args)
@@ -798,7 +801,6 @@ error:
     return -1;
 }
 
-
 static PyObject *
 ObjectInfo_get_obj(ObjectInfoObject *self, PyObject *args)
 {
@@ -826,10 +828,34 @@ ObjectInfo_set_obj(ObjectInfoObject *self, PyObject *args)
     return Py_None;
 }
 
+static PyObject *
+ObjectInfo_checkpoint(ObjectInfoObject *self, PyObject *args)
+{
+    PyObject *column, *variable, *result;
+    Py_ssize_t i = 0;
+
+    /* for variable in self.variables.itervalues(): */
+    while (PyDict_Next(self->variables, &i, &column, &variable)) {
+        /* variable.checkpoint() */
+        result = PyObject_CallMethod(variable, "checkpoint", NULL);
+        if (!result) return NULL;
+    }
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+static PyObject *
+ObjectInfo__storm_object_info__(PyObject *self, void *closure)
+{
+    /* __storm_object_info__ = property(lambda self:self) */
+    Py_INCREF(self);
+    return self;
+}
+
 static int
 ObjectInfo_traverse(ObjectInfoObject *self, visitproc visit, void *arg)
 {
-    /* Py_VISIT(self->__obj_ref); */
+    Py_VISIT(self->__obj_ref);
     Py_VISIT(self->__obj_ref_callback);
     Py_VISIT(self->cls_info);
     Py_VISIT(self->event);
@@ -853,6 +879,8 @@ ObjectInfo_clear(ObjectInfoObject *self)
 static void
 ObjectInfo_dealloc(ObjectInfoObject *self)
 {
+	if (self->__weakreflist)
+		PyObject_ClearWeakRefs((PyObject *)self);
     Py_CLEAR(self->__obj_ref);
     Py_CLEAR(self->__obj_ref_callback);
     Py_CLEAR(self->cls_info);
@@ -867,6 +895,7 @@ static PyMethodDef ObjectInfo_methods[] = {
         METH_O, NULL},
     {"get_obj", (PyCFunction)ObjectInfo_get_obj, METH_NOARGS, NULL},
     {"set_obj", (PyCFunction)ObjectInfo_set_obj, METH_VARARGS, NULL},
+    {"checkpoint", (PyCFunction)ObjectInfo_checkpoint, METH_VARARGS, NULL},
     {NULL, NULL}
 };
 
@@ -879,6 +908,12 @@ static PyMemberDef ObjectInfo_members[] = {
     {NULL}
 };
 #undef OFFSETOF
+
+static PyGetSetDef ObjectInfo_getset[] = {
+    {"__storm_object_info__", (getter)ObjectInfo__storm_object_info__,
+        NULL, NULL},
+    {NULL}
+};
 
 statichere PyTypeObject ObjectInfo_Type = {
 	PyObject_HEAD_INIT(NULL)
@@ -906,12 +941,12 @@ statichere PyTypeObject ObjectInfo_Type = {
     (traverseproc)ObjectInfo_traverse, /*tp_traverse*/
     (inquiry)ObjectInfo_clear, /*tp_clear*/
     0,                      /*tp_richcompare*/
-    0,                      /*tp_weaklistoffset*/
+    offsetof(ObjectInfoObject, __weakreflist), /*tp_weaklistoffset*/
     0,                      /*tp_iter*/
     0,                      /*tp_iternext*/
     ObjectInfo_methods,     /*tp_methods*/
     ObjectInfo_members,     /*tp_members*/
-    0,                      /*tp_getset*/
+    ObjectInfo_getset,      /*tp_getset*/
     0,                      /*tp_base*/
     0,                      /*tp_dict*/
     0,                      /*tp_descr_get*/
@@ -925,9 +960,46 @@ statichere PyTypeObject ObjectInfo_Type = {
 };
 
 
+static PyObject *
+get_obj_info(PyObject *self, PyObject *obj)
+{
+    PyObject *obj_info;
+
+    if (obj->ob_type == &ObjectInfo_Type) {
+        /* Much better than asking the ObjectInfo to return itself. ;-) */
+        Py_INCREF(obj);
+        return obj;
+    }
+
+    /* try:
+          return obj.__storm_object_info__ */
+    obj_info = PyObject_GetAttrString(obj, "__storm_object_info__");
+
+    /* except AttributeError: */
+    if (obj_info == NULL) {
+        PyErr_Clear();
+
+        /* obj_info = ObjectInfo(obj) */
+        obj_info = PyObject_CallFunctionObjArgs((PyObject *)&ObjectInfo_Type,
+                                                obj, NULL);
+        if (!obj_info)
+            return NULL;
+
+        /* return obj.__dict__.setdefault("__storm_object_info__", obj_info) */
+        if (PyObject_SetAttrString(obj, "__storm_object_info__",
+                                   obj_info) == -1)
+            return NULL;
+    }
+
+    return obj_info;
+}
+
+
 static PyMethodDef cextensions_methods[] = {
+    {"get_obj_info", (PyCFunction)get_obj_info, METH_O, NULL},
     {NULL, NULL}
 };
+
 
 DL_EXPORT(void)
 initcextensions(void)
