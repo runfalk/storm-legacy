@@ -43,9 +43,9 @@ def test_with_trial():
     from twisted.scripts import trial
     disable_conftest()
     if not [x for x in sys.argv[1:] if not x.startswith("-")]:
-        for dir, dirs, files in os.walk('tests'):
+        for dir, dirs, files in os.walk("tests"):
             for file in files:
-                if file.endswith('.py'):
+                if file.endswith(".py") and file != "__init__.py":
                     sys.argv.append(os.path.join(dir, file))
     trial.run()
 
