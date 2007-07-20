@@ -41,13 +41,13 @@ class MySQLTest(DatabaseTest, TestHelper):
     def create_tables(self):
         self.connection.execute("CREATE TABLE test "
                                 "(id INT AUTO_INCREMENT PRIMARY KEY,"
-                                " title VARCHAR(50))")
+                                " title VARCHAR(50)) ENGINE=InnoDB")
         self.connection.execute("CREATE TABLE datetime_test "
                                 "(id INT AUTO_INCREMENT PRIMARY KEY,"
-                                " dt TIMESTAMP, d DATE, t TIME)")
+                                " dt TIMESTAMP, d DATE, t TIME) ENGINE=InnoDB")
         self.connection.execute("CREATE TABLE bin_test "
                                 "(id INT AUTO_INCREMENT PRIMARY KEY,"
-                                " b BLOB)")
+                                " b BLOB) ENGINE=InnoDB")
 
     def test_wb_create_database(self):
         database = create_database("mysql://un:pw@ht:12/db?unix_socket=us")

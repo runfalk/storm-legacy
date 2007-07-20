@@ -18,9 +18,10 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-import sys
-
 from datetime import datetime, date, time
+from time import sleep, time as now
+import sys
+import re
 
 from storm.databases import dummy
 
@@ -84,6 +85,9 @@ class SQLiteConnection(Connection):
 
     _result_factory = SQLiteResult
     _compile = compile
+    _statement_re = re.compile("^\s*(?:select|(insert|update|delete|"
+                               "replace))\s", re.IGNORECASE)
+    _in_transaction = False
 
     @staticmethod
     def _to_database(params):
@@ -97,6 +101,92 @@ class SQLiteConnection(Connection):
             else:
                 yield param
 
+    def commit(self):
+        self._in_transaction = False
+        super(SQLiteConnection, self).commit()
+
+    def rollback(self):
+        self._in_transaction = False
+        super(SQLiteConnection, self).rollback()
+
+    def _enforce_transaction(self, statement):
+        """Make PySQLite behave slightly better regarding transactions.
+
+        PySQLite does some very dirty tricks to control the moment in
+        which transactions begin and end.  It actually *changes* the
+        transactional behavior of SQLite.
+ 
+        The real behavior of SQLite is that transactions are SERIALIZABLE
+        by default.  That is, any reads are repeatable, and changes in
+        other threads or processes won't modify data for already started
+        transactions that have issued any reading or writing statements.
+
+        PySQLite changes that in a very unpredictable way.  First, it will
+        only actually begin a transaction if a INSERT/UPDATE/DELETE/REPLACE
+        operation is executed (yes, it will parse the statement).  This
+        means that any SELECTs executed *before* one of the former mentioned
+        operations are seen, will be operating in READ COMMITTED mode.  Then,
+        if after that a INSERT/UPDATE/DELETE/REPLACE is seen, the transaction
+        actually begins, and so it moves into SERIALIZABLE mode.
+
+        Another pretty surprising behavior is that it will *commit* any
+        on-going transaction if any other statement besides
+        SELECT/INSERT/UPDATE/DELETE/REPLACE is seen.
+
+        In an ORM we're really dealing with cached data, so working on top
+        of a system like that means that cache validity is pretty random.
+
+        So what we do in this method is track the arbitrary transaction
+        starting/ending points of PySQLite, and force it to begin a real
+        transaction rather than operating in autocommit mode when it
+        promised a transaction.  Unfortunately we can't improve the
+        unrequested commits on unknown statements, so we just make sure
+        that a new transaction is started again after that's done.
+
+        References:
+            http://www.sqlite.org/lockingv3.html
+            http://docs.python.org/lib/sqlite3-Controlling-Transactions.html
+        """
+        match = self._statement_re.match(statement)
+        if not match:
+            # Something else.
+            self._in_transaction = False
+        elif not self._in_transaction:
+            self._in_transaction = True
+            if match.group(1):
+                # INSERT/UPDATE/DELETE/REPLACE, PySQLite will give us a
+                # real transaction. Thank you.
+                pass
+            else:
+                # SELECT, please give us the transaction we asked for.
+                try:
+                    self._raw_connection.execute("DELETE FROM sqlite_master "
+                                                 "WHERE NULL")
+                except sqlite.OperationalError:
+                    pass
+
+    def _raw_execute(self, statement, params=None, _started=None):
+        """Execute a raw statement with the given parameters.
+
+        This method will automatically retry on locked database errors.
+        This should be done by pysqlite, but it doesn't work with
+        versions < 2.3.4, so we make sure the timeout is respected
+        here.
+        """
+        self._enforce_transaction(statement)
+        while True:
+            try:
+                return Connection._raw_execute(self, statement, params)
+            except sqlite.OperationalError, e:
+                if str(e) != "database is locked":
+                    raise
+                if _started is None:
+                    _started = now()
+                elif now() - _started < self._database._timeout:
+                    sleep(0.1)
+                else:
+                    raise
+
 
 class SQLite(Database):
 
@@ -106,9 +196,10 @@ class SQLite(Database):
         if sqlite is dummy:
             raise DatabaseModuleError("'pysqlite2' module not found")
         self._filename = uri.database or ":memory:"
+        self._timeout = float(uri.options.get("timeout", 5))
 
     def connect(self):
-        raw_connection = sqlite.connect(self._filename)
+        raw_connection = sqlite.connect(self._filename, timeout=self._timeout)
         return self._connection_factory(self, raw_connection)
 
 

@@ -21,6 +21,7 @@
 #
 from datetime import datetime, date, time
 import cPickle as pickle
+import thread
 import shutil
 import sys
 import os
@@ -30,7 +31,7 @@ from storm.expr import Select, Column, Undef, SQLToken, SQLRaw, Count
 from storm.variables import Variable, PickleVariable, RawStrVariable
 from storm.variables import DateTimeVariable, DateVariable, TimeVariable
 from storm.database import *
-from storm.exceptions import DatabaseModuleError
+from storm.exceptions import DatabaseModuleError, OperationalError
 
 from tests.helper import MakePath
 
@@ -249,6 +250,38 @@ class DatabaseTest(object):
         expr = Select(Count(id), group_by=title, order_by=Count(id))
         result = self.connection.execute(expr)
         self.assertEquals(result.get_all(), [(1,), (3,)])
+
+    def test_concurrent_behavior(self):
+        """The default behavior should be to handle transactions in isolation.
+
+        Data committed in one transaction shouldn't be visible to another
+        running transaction before the later is committed or aborted.  If
+        this isn't the case, the caching made by Storm (or by anything
+        that works with data in memory, in fact) becomes a dangerous thing.
+ 
+        For PostgreSQL, isolation level must be SERIALIZABLE.
+        For MySQL, isolation level must be REPEATABLE READ (the default),
+        and the InnoDB engine must be in use.
+        For SQLite, the isolation level already is SERIALIZABLE when not
+        in autocommit mode.  OTOH, PySQLite is nuts regarding transactional
+        behavior, and will easily offer READ COMMITTED behavior inside a
+        "transaction" (it didn't tell SQLite to open a transaction, in fact).
+        """
+        connection1 = self.connection
+        connection2 = self.database.connect()
+        try:
+            result = connection1.execute("SELECT title FROM test WHERE id=10")
+            self.assertEquals(result.get_one(), ("Title 10",))
+            try:
+                connection2.execute("UPDATE test SET title='Title 100' "
+                                    "WHERE id=10")
+                connection2.commit()
+            except OperationalError, e:
+                self.assertEquals(str(e), "database is locked") # SQLite blocks
+            result = connection1.execute("SELECT title FROM test WHERE id=10")
+            self.assertEquals(result.get_one(), ("Title 10",))
+        finally:
+            connection1.rollback()
 
 
 class UnsupportedDatabaseTest(object):
