@@ -27,7 +27,10 @@ from storm.databases import dummy
 try:
     from pysqlite2 import dbapi2 as sqlite
 except ImportError:
-    sqlite = dummy
+    try:
+        from sqlite3 import dbapi2 as sqlite
+    except ImportError:
+        sqlite = dummy
 
 from storm.variables import Variable, RawStrVariable
 from storm.database import *
