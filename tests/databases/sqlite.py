@@ -75,5 +75,5 @@ class SQLiteUnsupportedTest(UnsupportedDatabaseTest, TestHelper):
     db_module_name = "sqlite"
 
     def is_supported(self):
-        return sys.version_info[:2] < (2.5)
+        return sys.version_info[:2] < (2, 5)
 
