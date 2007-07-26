@@ -19,6 +19,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 import os
+import sys
 
 from storm.databases.sqlite import SQLite
 from storm.database import create_database
@@ -72,4 +73,7 @@ class SQLiteUnsupportedTest(UnsupportedDatabaseTest, TestHelper):
     
     dbapi_module_name = "pysqlite2"
     db_module_name = "sqlite"
+
+    def is_supported(self):
+        return sys.version_info[:2] < (2.5)
 
