@@ -2909,7 +2909,7 @@ class StoreTest(object):
         foo = self.store.get(FooIndRefSet, 20)
         self.assertTrue(foo.bars.any().id in [100, 200])
 
-    def test_indirect_reference_set_any(self):
+    def test_indirect_reference_set_one(self):
         foo = self.store.get(FooIndRefSetOrderID, 20)
         self.assertRaises(NotOneError, foo.bars.one)
 

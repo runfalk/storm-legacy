@@ -128,10 +128,6 @@ class DatabaseTest(object):
         result = self.connection.execute(Select(SQLRaw("1")))
         self.assertTrue(result.get_one(), (1,))
 
-    def test_execute_empty_params(self):
-        result = self.connection.execute("SELECT 1", ())
-        self.assertTrue(result.get_one())
-
     def test_get_one(self):
         result = self.connection.execute("SELECT * FROM test ORDER BY id")
         self.assertEquals(result.get_one(), (10, "Title 10"))
