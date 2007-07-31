@@ -424,7 +424,7 @@ class StoreTest(object):
                           (10, "Title 30"),
                          ])
 
-    def test_find_default_order_asc(self):
+    def test_find_default_order_desc(self):
         class MyFoo(Foo):
             __storm_order__ = "-title"
 
