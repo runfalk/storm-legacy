@@ -60,5 +60,5 @@ class MySQLTest(DatabaseTest, TestHelper):
 
 class MySQLUnsupportedTest(UnsupportedDatabaseTest, TestHelper):
     
-    dbapi_module_name = "MySQLdb"
+    dbapi_module_names = ["MySQLdb"]
     db_module_name = "mysql"

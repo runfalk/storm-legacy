@@ -255,7 +255,7 @@ class UnsupportedDatabaseTest(object):
     
     helpers = [MakePath]
 
-    dbapi_module_name = None
+    dbapi_module_names = []
     db_module_name = None
 
     def test_exception_when_unsupported(self):
@@ -264,16 +264,6 @@ class UnsupportedDatabaseTest(object):
         module_dir = self.make_path()
         os.mkdir(module_dir)
         sys.path.insert(0, module_dir)
-
-        # If the real module is available, remove it from the sys.modules.
-        dbapi_module = sys.modules.get(self.dbapi_module_name)
-        if dbapi_module is not None:
-            del sys.modules[self.dbapi_module_name]
-
-        # Create a module which raises ImportError when imported, to fake
-        # a missing module.
-        self.make_path("raise ImportError",
-                       os.path.join(module_dir, self.dbapi_module_name+".py"))
 
         # Copy the real module over to a new place, since the old one is
         # already using the real module, if it's available.
@@ -284,6 +274,23 @@ class UnsupportedDatabaseTest(object):
             db_module_filename = db_module_filename[:-1]
         shutil.copyfile(db_module_filename,
                         os.path.join(module_dir, "_fake_.py"))
+
+        dbapi_modules = {}
+        for dbapi_module_name in self.dbapi_module_names:
+
+            # If the real module is available, remove it from sys.modules.
+            dbapi_module = sys.modules.pop(dbapi_module_name, None)
+            if dbapi_module is not None:
+                dbapi_modules[dbapi_module_name] = dbapi_module
+
+            # Create a module which raises ImportError when imported, to fake
+            # a missing module.
+            dirname = self.make_path(path=os.path.join(module_dir,
+                                                       dbapi_module_name))
+            os.mkdir(dirname)
+            self.make_path("raise ImportError",
+                           os.path.join(module_dir, dbapi_module_name,
+                                        "__init__.py"))
 
         # Finally, test it.
         import _fake_
@@ -297,5 +304,4 @@ class UnsupportedDatabaseTest(object):
             del sys.path[0]
             del sys.modules["_fake_"]
 
-            if dbapi_module is not None:
-                sys.modules[self.dbapi_module_name] = dbapi_module
+            sys.modules.update(dbapi_modules)

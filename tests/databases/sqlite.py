@@ -70,10 +70,6 @@ class SQLiteMemoryTest(SQLiteTest):
 
 
 class SQLiteUnsupportedTest(UnsupportedDatabaseTest, TestHelper):
-    
-    dbapi_module_name = "pysqlite2"
+ 
+    dbapi_module_names = ["pysqlite2", "sqlite3"]
     db_module_name = "sqlite"
-
-    def is_supported(self):
-        return sys.version_info[:2] < (2, 5)
-
