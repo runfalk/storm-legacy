@@ -202,5 +202,5 @@ class PostgresTest(DatabaseTest, TestHelper):
 
 class PostgresUnsupportedTest(UnsupportedDatabaseTest, TestHelper):
     
-    dbapi_module_name = "psycopg2"
+    dbapi_module_names = ["psycopg2"]
     db_module_name = "postgres"
