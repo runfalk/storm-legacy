@@ -3233,7 +3233,7 @@ class StoreTest(object):
 
     def test_default(self):
         class MyFoo(Foo):
-            title = RawStr(default="Some default value")
+            title = Unicode(default=u"Some default value")
 
         foo = MyFoo()
         self.store.add(foo)
@@ -3247,7 +3247,7 @@ class StoreTest(object):
 
     def test_default_factory(self):
         class MyFoo(Foo):
-            title = RawStr(default_factory=lambda:"Some default value")
+            title = Unicode(default_factory=lambda:u"Some default value")
 
         foo = MyFoo()
         self.store.add(foo)
