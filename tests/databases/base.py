@@ -97,6 +97,33 @@ class DatabaseTest(object):
     def test_connection(self):
         self.assertTrue(isinstance(self.connection, Connection))
 
+    def test_rollback(self):
+        self.connection.execute("INSERT INTO test VALUES (30, 'Title 30')")
+        self.connection.rollback()
+        result = self.connection.execute("SELECT id FROM test WHERE id=30")
+        self.assertFalse(result.get_one())
+
+    def test_rollback_twice(self):
+        self.connection.execute("INSERT INTO test VALUES (30, 'Title 30')")
+        self.connection.rollback()
+        self.connection.rollback()
+        result = self.connection.execute("SELECT id FROM test WHERE id=30")
+        self.assertFalse(result.get_one())
+
+    def test_commit(self):
+        self.connection.execute("INSERT INTO test VALUES (30, 'Title 30')")
+        self.connection.commit()
+        self.connection.rollback()
+        result = self.connection.execute("SELECT id FROM test WHERE id=30")
+        self.assertTrue(result.get_one())
+
+    def test_commit_twice(self):
+        self.connection.execute("INSERT INTO test VALUES (30, 'Title 30')")
+        self.connection.commit()
+        self.connection.commit()
+        result = self.connection.execute("SELECT id FROM test WHERE id=30")
+        self.assertTrue(result.get_one())
+
     def test_execute_result(self):
         result = self.connection.execute("SELECT 1")
         self.assertTrue(isinstance(result, Result))

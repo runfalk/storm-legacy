@@ -78,103 +78,14 @@ class SQLiteFileTest(SQLiteMemoryTest):
         connection1 = database.connect()
         connection2 = database.connect()
         connection1.execute("CREATE TABLE test (id INTEGER PRIMARY KEY)")
+        connection1.commit()
         connection1.execute("INSERT INTO test VALUES (1)")
         started = time.time()
         try:
             connection2.execute("INSERT INTO test VALUES (2)")
-        except OperationalError:
-            self.assertTrue(time.time()-started > 0.3)
-        else:
-            self.fail("OperationalError not raised")
-
-    def get_connection_pair(self):
-        database = create_database("sqlite:%s?timeout=0" % self.get_path())
-        connection1 = database.connect()
-        connection2 = database.connect()
-        connection1.execute("CREATE TABLE test (id INTEGER PRIMARY KEY)")
-        connection1.commit()
-        return connection1, connection2
-
-    def test_wb_begin_transaction_on_select(self):
-        connection1, connection2 = self.get_connection_pair()
-        connection1.execute("SELECT * FROM test")
-        connection2.execute("INSERT INTO test VALUES (2)")
-        self.assertEquals(connection1._in_transaction, True)
-        try:
-            connection2.commit()
-        except OperationalError:
-            pass
-        else:
-            self.fail("OperationalError not raised")
-
-    def test_wb_begin_transaction_on_insert(self):
-        connection1, connection2 = self.get_connection_pair()
-        connection1.execute("INSERT INTO test VALUES (1)")
-        self.assertEquals(connection1._in_transaction, True)
-        try:
-            connection2.execute("INSERT INTO test VALUES (2)")
-        except OperationalError:
-            pass
-        else:
-            self.fail("OperationalError not raised")
-
-    def test_wb_begin_transaction_on_update(self):
-        connection1, connection2 = self.get_connection_pair()
-        connection1.execute("UPDATE test SET id=1 WHERE NULL")
-        self.assertEquals(connection1._in_transaction, True)
-        try:
-            connection2.execute("INSERT INTO test VALUES (2)")
-        except OperationalError:
-            pass
-        else:
-            self.fail("OperationalError not raised")
-
-    def test_wb_begin_transaction_on_replace(self):
-        connection1, connection2 = self.get_connection_pair()
-        connection1.execute("REPLACE INTO test VALUES (1)")
-        self.assertEquals(connection1._in_transaction, True)
-        try:
-            connection2.execute("INSERT INTO test VALUES (2)")
-        except OperationalError:
-            pass
-        else:
-            self.fail("OperationalError not raised")
-
-    def test_wb_begin_transaction_on_delete(self):
-        connection1, connection2 = self.get_connection_pair()
-        connection1.execute("DELETE FROM test")
-        self.assertEquals(connection1._in_transaction, True)
-        try:
-            connection2.execute("INSERT INTO test VALUES (2)")
-        except OperationalError:
-            pass
-        else:
-            self.fail("OperationalError not raised")
-
-    def test_wb_end_transaction_on_commit(self):
-        self.connection.execute("SELECT * FROM test")
-        self.assertEquals(self.connection._in_transaction, True)
-        self.connection.commit()
-        self.assertEquals(self.connection._in_transaction, False)
-
-    def test_wb_end_transaction_on_rollback(self):
-        self.connection.execute("SELECT * FROM test")
-        self.assertEquals(self.connection._in_transaction, True)
-        self.connection.rollback()
-        self.assertEquals(self.connection._in_transaction, False)
-
-    def test_wb_begin_transaction_again_after_unknown_operation(self):
-        connection1, connection2 = self.get_connection_pair()
-        connection1.execute("SELECT * FROM test")
-        self.assertEquals(connection1._in_transaction, True)
-        connection1.execute("PRAGMA encoding")
-        self.assertEquals(connection1._in_transaction, False)
-        connection1.execute("SELECT * FROM test")
-        connection2.execute("INSERT INTO test VALUES (2)")
-        try:
-            connection2.commit()
-        except OperationalError:
-            pass
+        except OperationalError, exception:
+            self.assertEquals(str(exception), "database is locked")
+            self.assertTrue(time.time()-started >= 0.3)
         else:
             self.fail("OperationalError not raised")
 

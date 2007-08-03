@@ -85,8 +85,6 @@ class SQLiteConnection(Connection):
 
     _result_factory = SQLiteResult
     _compile = compile
-    _statement_re = re.compile("^\s*(?:select|(insert|update|delete|"
-                               "replace))\s", re.IGNORECASE)
     _in_transaction = False
 
     @staticmethod
@@ -102,68 +100,16 @@ class SQLiteConnection(Connection):
                 yield param
 
     def commit(self):
-        self._in_transaction = False
-        super(SQLiteConnection, self).commit()
+        # See story at the end to understand why we do COMMIT manually.
+        if self._in_transaction:
+            self._in_transaction = False
+            self._raw_connection.execute("COMMIT")
 
     def rollback(self):
-        self._in_transaction = False
-        super(SQLiteConnection, self).rollback()
-
-    def _enforce_transaction(self, statement):
-        """Make PySQLite behave slightly better regarding transactions.
-
-        PySQLite does some very dirty tricks to control the moment in
-        which transactions begin and end.  It actually *changes* the
-        transactional behavior of SQLite.
- 
-        The real behavior of SQLite is that transactions are SERIALIZABLE
-        by default.  That is, any reads are repeatable, and changes in
-        other threads or processes won't modify data for already started
-        transactions that have issued any reading or writing statements.
-
-        PySQLite changes that in a very unpredictable way.  First, it will
-        only actually begin a transaction if a INSERT/UPDATE/DELETE/REPLACE
-        operation is executed (yes, it will parse the statement).  This
-        means that any SELECTs executed *before* one of the former mentioned
-        operations are seen, will be operating in READ COMMITTED mode.  Then,
-        if after that a INSERT/UPDATE/DELETE/REPLACE is seen, the transaction
-        actually begins, and so it moves into SERIALIZABLE mode.
-
-        Another pretty surprising behavior is that it will *commit* any
-        on-going transaction if any other statement besides
-        SELECT/INSERT/UPDATE/DELETE/REPLACE is seen.
-
-        In an ORM we're really dealing with cached data, so working on top
-        of a system like that means that cache validity is pretty random.
-
-        So what we do in this method is track the arbitrary transaction
-        starting/ending points of PySQLite, and force it to begin a real
-        transaction rather than operating in autocommit mode when it
-        promised a transaction.  Unfortunately we can't improve the
-        unrequested commits on unknown statements, so we just make sure
-        that a new transaction is started again after that's done.
-
-        References:
-            http://www.sqlite.org/lockingv3.html
-            http://docs.python.org/lib/sqlite3-Controlling-Transactions.html
-        """
-        match = self._statement_re.match(statement)
-        if not match:
-            # Something else.
+        # See story at the end to understand why we do ROLLBACK manually.
+        if self._in_transaction:
             self._in_transaction = False
-        elif not self._in_transaction:
-            self._in_transaction = True
-            if match.group(1):
-                # INSERT/UPDATE/DELETE/REPLACE, PySQLite will give us a
-                # real transaction. Thank you.
-                pass
-            else:
-                # SELECT, please give us the transaction we asked for.
-                try:
-                    self._raw_connection.execute("DELETE FROM sqlite_master "
-                                                 "WHERE NULL")
-                except sqlite.OperationalError:
-                    pass
+            self._raw_connection.execute("ROLLBACK")
 
     def _raw_execute(self, statement, params=None, _started=None):
         """Execute a raw statement with the given parameters.
@@ -173,7 +119,10 @@ class SQLiteConnection(Connection):
         versions < 2.3.4, so we make sure the timeout is respected
         here.
         """
-        self._enforce_transaction(statement)
+        if not self._in_transaction:
+            # See story at the end to understand why we do BEGIN manually.
+            self._in_transaction = True
+            self._raw_connection.execute("BEGIN")
         while True:
             try:
                 return Connection._raw_execute(self, statement, params)
@@ -199,8 +148,47 @@ class SQLite(Database):
         self._timeout = float(uri.options.get("timeout", 5))
 
     def connect(self):
-        raw_connection = sqlite.connect(self._filename, timeout=self._timeout)
+        # See the story at the end to understand why we set isolation_level.
+        raw_connection = sqlite.connect(self._filename, timeout=self._timeout,
+                                        isolation_level=None)
         return self._connection_factory(self, raw_connection)
 
 
 create_from_uri = SQLite
+
+
+# Here is a sad story about PySQLite2.
+# 
+# PySQLite does some very dirty tricks to control the moment in
+# which transactions begin and end.  It actually *changes* the
+# transactional behavior of SQLite.
+# 
+# The real behavior of SQLite is that transactions are SERIALIZABLE
+# by default.  That is, any reads are repeatable, and changes in
+# other threads or processes won't modify data for already started
+# transactions that have issued any reading or writing statements.
+# 
+# PySQLite changes that in a very unpredictable way.  First, it will
+# only actually begin a transaction if a INSERT/UPDATE/DELETE/REPLACE
+# operation is executed (yes, it will parse the statement).  This
+# means that any SELECTs executed *before* one of the former mentioned
+# operations are seen, will be operating in READ COMMITTED mode.  Then,
+# if after that a INSERT/UPDATE/DELETE/REPLACE is seen, the transaction
+# actually begins, and so it moves into SERIALIZABLE mode.
+# 
+# Another pretty surprising behavior is that it will *commit* any
+# on-going transaction if any other statement besides
+# SELECT/INSERT/UPDATE/DELETE/REPLACE is seen.
+# 
+# In an ORM we're really dealing with cached data, so working on top
+# of a system like that means that cache validity is pretty random.
+# 
+# So what we do about that in this module is disabling all that hackery
+# by *pretending* to PySQLite that we'll work without transactions
+# (isolation_level=None), and then we actually take responsibility for
+# controlling the transaction.
+# 
+# References:
+#     http://www.sqlite.org/lockingv3.html
+#     http://docs.python.org/lib/sqlite3-Controlling-Transactions.html
+#
