@@ -615,21 +615,36 @@ def compile_select(compile, select, state):
 
 
 class Insert(Expr):
+    """Expression representing an insert statement.
 
-    def __init__(self, columns, values, table=Undef, default_table=Undef):
-        self.columns = columns
-        self.values = values
+    @ivar map: Dictionary mapping columns to values.
+    @ivar table: Table where the row should be inserted.
+    @ivar default_table: Table to use if no table is explicitly provided, and
+        no tables may be infered from provided columns.
+    @ivar primary_columns: Tuple of columns forming the primary key of the
+        table where the row will be inserted.  This is a hint used by backends
+        to process the insertion of rows.
+    @ivar primary_variables: Tuple of variables with values for the primary
+        key of the table where the row will be inserted.  This is a hint used
+        by backends to process the insertion of rows.
+    """
+
+    def __init__(self, map, table=Undef, default_table=Undef,
+                 primary_columns=Undef, primary_variables=Undef):
+        self.map = map
         self.table = table
         self.default_table = default_table
+        self.primary_columns = primary_columns
+        self.primary_variables = primary_variables
 
 @compile.when(Insert)
 def compile_insert(compile, insert, state):
     state.push("context", COLUMN_NAME)
-    columns = compile(insert.columns, state)
+    columns = compile(tuple(insert.map), state)
     state.context = TABLE
     table = build_tables(compile, insert.table, insert.default_table, state)
     state.context = EXPR
-    values = compile(insert.values, state)
+    values = compile(tuple(insert.map.itervalues()), state)
     state.pop()
     return "".join(["INSERT INTO ", table, " (", columns,
                     ") VALUES (", values, ")"])
@@ -637,18 +652,18 @@ def compile_insert(compile, insert, state):
 
 class Update(Expr):
 
-    def __init__(self, set, where=Undef, table=Undef, default_table=Undef):
-        self.set = set
+    def __init__(self, map, where=Undef, table=Undef, default_table=Undef):
+        self.map = map
         self.where = where
         self.table = table
         self.default_table = default_table
 
 @compile.when(Update)
 def compile_update(compile, update, state):
-    set = update.set
+    map = update.map
     state.push("context", COLUMN_NAME)
-    sets = ["%s=%s" % (compile(col, state), compile(set[col], state))
-            for col in set]
+    sets = ["%s=%s" % (compile(col, state), compile(map[col], state))
+            for col in map]
     state.context = TABLE
     tokens = ["UPDATE ", build_tables(compile, update.table,
                                       update.default_table, state),

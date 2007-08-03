@@ -78,23 +78,25 @@ class ExprTest(TestHelper):
         self.assertEquals(expr.distinct, objects[8])
 
     def test_insert_default(self):
-        expr = Insert(None, None)
-        self.assertEquals(expr.columns, None)
-        self.assertEquals(expr.values, None)
+        expr = Insert(None)
+        self.assertEquals(expr.map, None)
         self.assertEquals(expr.table, Undef)
         self.assertEquals(expr.default_table, Undef)
+        self.assertEquals(expr.primary_columns, Undef)
+        self.assertEquals(expr.primary_variables, Undef)
 
     def test_insert_constructor(self):
-        objects = [object() for i in range(4)]
+        objects = [object() for i in range(5)]
         expr = Insert(*objects)
-        self.assertEquals(expr.columns, objects[0])
-        self.assertEquals(expr.values, objects[1])
-        self.assertEquals(expr.table, objects[2])
-        self.assertEquals(expr.default_table, objects[3])
+        self.assertEquals(expr.map, objects[0])
+        self.assertEquals(expr.table, objects[1])
+        self.assertEquals(expr.default_table, objects[2])
+        self.assertEquals(expr.primary_columns, objects[3])
+        self.assertEquals(expr.primary_variables, objects[4])
 
     def test_update_default(self):
         expr = Update(None)
-        self.assertEquals(expr.set, None)
+        self.assertEquals(expr.map, None)
         self.assertEquals(expr.where, Undef)
         self.assertEquals(expr.table, Undef)
         self.assertEquals(expr.default_table, Undef)
@@ -102,7 +104,7 @@ class ExprTest(TestHelper):
     def test_update_constructor(self):
         objects = [object() for i in range(4)]
         expr = Update(*objects)
-        self.assertEquals(expr.set, objects[0])
+        self.assertEquals(expr.map, objects[0])
         self.assertEquals(expr.where, objects[1])
         self.assertEquals(expr.table, objects[2])
         self.assertEquals(expr.default_table, objects[3])
@@ -651,24 +653,30 @@ class CompileTest(TestHelper):
         self.assertEquals(group_by.context, EXPR)
 
     def test_insert(self):
-        expr = Insert([column1, Func1()], [elem1, Func1()], Func1())
+        expr = Insert({column1: elem1, Func1(): Func2()}, Func2())
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, "INSERT INTO func1() (column1, func1()) "
-                                     "VALUES (elem1, func1())")
+        self.assertTrue(statement in  (
+                        "INSERT INTO func2() (column1, func1()) "
+                        "VALUES (elem1, func2())",
+                        "INSERT INTO func2() (func1(), column1) "
+                        "VALUES (func2(), elem1)"), statement)
         self.assertEquals(state.parameters, [])
 
     def test_insert_with_columns(self):
-        expr = Insert([Column(column1, table1), Column(column2, table1)],
-                      [elem1, elem2], table2)
+        expr = Insert({Column(column1, table1): elem1,
+                       Column(column2, table1): elem2}, table2)
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, 'INSERT INTO "table 2" (column1, column2) '
-                                     'VALUES (elem1, elem2)')
+        self.assertTrue(statement in (
+                        'INSERT INTO "table 2" (column1, column2) '
+                        'VALUES (elem1, elem2)',
+                        'INSERT INTO "table 2" (column2, column1) '
+                        'VALUES (elem2, elem1)'), statement)
         self.assertEquals(state.parameters, [])
 
     def test_insert_auto_table(self):
-        expr = Insert(Column(column1, table1), elem1)
+        expr = Insert({Column(column1, table1): elem1})
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, 'INSERT INTO "table 1" (column1) '
@@ -676,7 +684,7 @@ class CompileTest(TestHelper):
         self.assertEquals(state.parameters, [])
 
     def test_insert_auto_table_default(self):
-        expr = Insert(Column(column1), elem1, default_table=table1)
+        expr = Insert({Column(column1): elem1}, default_table=table1)
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, 'INSERT INTO "table 1" (column1) '
@@ -684,12 +692,12 @@ class CompileTest(TestHelper):
         self.assertEquals(state.parameters, [])
 
     def test_insert_auto_table_unknown(self):
-        expr = Insert(Column(column1), elem1)
+        expr = Insert({Column(column1): elem1})
         self.assertRaises(NoTableError, compile, expr)
 
     def test_insert_contexts(self):
         column, value, table = track_contexts(3)
-        expr = Insert(column, value, table)
+        expr = Insert({column: value}, table)
         compile(expr)
         self.assertEquals(column.context, COLUMN_NAME)
         self.assertEquals(value.context, EXPR)

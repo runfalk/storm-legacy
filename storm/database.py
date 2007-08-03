@@ -161,6 +161,13 @@ class Connection(object):
             else:
                 yield param
 
+    def preset_primary_key(self, primary_columns, primary_variables):
+        """Process primary variables before an insert happens.
+
+        This method may be overwritten by backends to implement custom
+        changes in primary variables before an insert happens.
+        """
+
 
 class Database(object):
 

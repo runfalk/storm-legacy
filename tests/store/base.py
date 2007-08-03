@@ -998,6 +998,13 @@ class StoreTest(object):
         self.store.reload(bar)
         self.assertEquals(bar.title, "Title 500")
 
+    def test_add_completely_undefined(self):
+        foo = Foo()
+        self.store.add(foo)
+        self.store.flush()
+        self.assertEquals(type(foo.id), int)
+        self.assertEquals(foo.title, u"Default Title")
+
     def test_remove_commit(self):
         foo = self.store.get(Foo, 20)
         self.store.remove(foo)
@@ -3938,6 +3945,40 @@ class StoreTest(object):
         MyBarProxy, MyFoo = self.get_bar_proxy_with_string()
         variable = MyBarProxy.foo_title.variable_factory(value=u"Hello")
         self.assertTrue(isinstance(variable, UnicodeVariable))
+
+    def test_fill_missing_primary_key_with_lazy_value(self):
+        foo = self.store.get(Foo, 10)
+        foo.id = SQL("40")
+        self.store.flush()
+        self.assertEquals(foo.id, 40)
+        self.assertEquals(self.store.get(Foo, 10), None)
+        self.assertEquals(self.store.get(Foo, 40), foo)
+
+    def test_fill_missing_primary_key_with_lazy_value_on_creation(self):
+        foo = Foo()
+        foo.id = SQL("40")
+        self.store.add(foo)
+        self.store.flush()
+        self.assertEquals(foo.id, 40)
+        self.assertEquals(self.store.get(Foo, 40), foo)
+
+    def test_wb_preset_primary_key(self):
+        check = []
+        def preset_primary_key(primary_columns, primary_variables):
+            check.append([(variable.is_defined(), variable.get_lazy())
+                          for variable in primary_variables])
+            check.append([column.name for column in primary_columns])
+            primary_variables[0].set(SQL("40"))
+
+        connection = self.store._connection
+        connection.preset_primary_key = preset_primary_key
+
+        foo = self.store.add(Foo())
+
+        self.store.flush()
+
+        self.assertEquals(check, [[(False, None)], ["id"]])
+        self.assertEquals(foo.id, 40)
 
 
 class EmptyResultSetTest(object):

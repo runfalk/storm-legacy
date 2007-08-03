@@ -30,8 +30,8 @@ except:
     psycopg2 = dummy
 
 from storm.expr import (
-    Undef, SetExpr, Select, Alias, And, Eq, FuncExpr, SQLRaw, COLUMN_NAME,
-    compile, compile_select, compile_set_expr)
+    Undef, SetExpr, Insert, Select, Alias, And, Eq, FuncExpr, SQLRaw,
+    COLUMN_NAME, compile, compile_insert, compile_select, compile_set_expr)
 from storm.variables import Variable, ListVariable
 from storm.database import *
 from storm.exceptions import install_exceptions, DatabaseModuleError
@@ -105,6 +105,16 @@ def compile_set_expr_postgres(compile, expr, state):
         return compile_select(compile, select, state)
     else:
         return compile_set_expr(compile, expr, state)
+
+
+@compile.when(Insert)
+def compile_insert_sqlite(compile, insert, state):
+    # PostgreSQL fails with INSERT INTO table VALUES (), so we transform
+    # that to INSERT INTO table (id) VALUES (DEFAULT).
+    if not insert.map and insert.primary_columns is not Undef:
+        insert.map.update(dict.fromkeys(insert.primary_columns,
+                                        SQLRaw("DEFAULT")))
+    return compile_insert(compile, insert, state)
 
 
 class PostgresResult(Result):

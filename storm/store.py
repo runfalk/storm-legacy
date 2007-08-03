@@ -324,21 +324,16 @@ class Store(object):
             del obj_info["store"]
 
         elif pending is PENDING_ADD:
-            columns = []
-            variables = []
 
-            for column in cls_info.columns:
-                variable = obj_info.variables[column]
-                if variable.is_defined():
-                    columns.append(column)
-                    variables.append(variable)
-                else:
-                    lazy_value = variable.get_lazy()
-                    if isinstance(lazy_value, Expr):
-                        columns.append(column)
-                        variables.append(lazy_value)
+            # Give a chance to the backend to process primary variables.
+            self._connection.preset_primary_key(cls_info.primary_key,
+                                                obj_info.primary_vars)
 
-            expr = Insert(columns, variables, cls_info.table)
+            changes = self._get_changes_map(obj_info, True)
+
+            expr = Insert(changes, cls_info.table,
+                          primary_columns=cls_info.primary_key,
+                          primary_variables=obj_info.primary_vars)
 
             result = self._connection.execute(expr)
 
@@ -359,16 +354,7 @@ class Store(object):
             cached_primary_vars = obj_info["primary_vars"]
             primary_key_idx = cls_info.primary_key_idx
 
-            changes = {}
-            for column in cls_info.columns:
-                variable = obj_info.variables[column]
-                if variable.has_changed():
-                    if variable.is_defined():
-                        changes[column] = variable
-                    else:
-                        lazy_value = variable.get_lazy()
-                        if isinstance(lazy_value, Expr):
-                            changes[column] = lazy_value
+            changes = self._get_changes_map(obj_info)
 
             if changes:
                 expr = Update(changes,
@@ -388,6 +374,42 @@ class Store(object):
         self._run_hook(obj_info, "__storm_flushed__")
 
         obj_info.event.emit("flushed")
+
+    def _get_changes_map(self, obj_info, adding=False):
+        """Return a {column: variable} dictionary suitable for inserts/updates.
+
+        @param obj_info: ObjectInfo to inspect for changes.
+        @param adding: If true, any defined variables will be considered
+                       a change and included in the returned map.
+        """
+        cls_info = obj_info.cls_info
+        changes = {}
+        select_variables = []
+        for column in cls_info.columns:
+            variable = obj_info.variables[column]
+            if adding or variable.has_changed():
+                if variable.is_defined():
+                    changes[column] = variable
+                else:
+                    lazy_value = variable.get_lazy()
+                    if isinstance(lazy_value, Expr):
+                        if id(column) in cls_info.primary_key_idx:
+                            select_variables.append(variable) # See below.
+                            changes[column] = variable
+                        else:
+                            changes[column] = lazy_value
+
+        # If we have any expressions in the primary variables, we
+        # have to resolve them now so that we have the identity of
+        # the inserted object available later.
+        if select_variables:
+            resolve_expr = Select([variable.get_lazy()
+                                   for variable in select_variables])
+            result = self._connection.execute(resolve_expr)
+            for variable, value in zip(select_variables, result.get_one()):
+                result.set_variable(variable, value)
+
+        return changes
 
     def _fill_missing_values(self, obj_info, primary_vars, result=None,
                              checkpoint=True, replace_lazy=False):
