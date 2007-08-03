@@ -216,11 +216,7 @@ class ResultTest(TestHelper):
                           [("fetchall0",), ("fetchall1",)])
         self.assertEquals(self.result.get_all(), [])
 
-    def test_iter_arraysize_1(self):
-        self.assertEquals([item for item in self.result],
-                          [("fetchone0",), ("fetchone1",), ("fetchone2",),])
-
-    def test_iter_arraysize_2(self):
+    def test_iter(self):
         result = Result(None, RawCursor(2))
         self.assertEquals([item for item in result],
                           [("fetchmany0",), ("fetchmany1",), ("fetchmany2",),

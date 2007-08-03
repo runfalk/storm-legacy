@@ -63,6 +63,7 @@ class DatabaseTest(object):
         raise NotImplementedError
 
     def create_sample_data(self):
+        self.connection.execute("INSERT INTO number VALUES (1, 2, 3)")
         self.connection.execute("INSERT INTO test VALUES (10, 'Title 10')")
         self.connection.execute("INSERT INTO test VALUES (20, 'Title 20')")
         self.connection.commit()
@@ -71,6 +72,11 @@ class DatabaseTest(object):
         pass
 
     def drop_tables(self):
+        try:
+            self.connection.execute("DROP TABLE number")
+            self.connection.commit()
+        except:
+            self.connection.rollback()
         try:
             self.connection.execute("DROP TABLE test")
             self.connection.commit()
@@ -245,6 +251,24 @@ class DatabaseTest(object):
         expr = Select(Count(id), group_by=title, order_by=Count(id))
         result = self.connection.execute(expr)
         self.assertEquals(result.get_all(), [(1,), (3,)])
+
+    def from_database(self, row):
+        return [int(item)+1 for item in row]
+
+    def test_wb_result_get_one_goes_through_from_database(self):
+        result = self.connection.execute("SELECT one, two FROM number")
+        result._from_database = self.from_database
+        self.assertEquals(result.get_one(), (2, 3))
+
+    def test_wb_result_get_all_goes_through_from_database(self):
+        result = self.connection.execute("SELECT one, two FROM number")
+        result._from_database = self.from_database
+        self.assertEquals(result.get_all(), [(2, 3)])
+
+    def test_wb_result_iter_goes_through_from_database(self):
+        result = self.connection.execute("SELECT one, two FROM number")
+        result._from_database = self.from_database
+        self.assertEquals(iter(result).next(), (2, 3))
 
 
 class UnsupportedDatabaseTest(object):

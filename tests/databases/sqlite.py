@@ -36,6 +36,8 @@ class SQLiteTest(DatabaseTest, TestHelper):
         self.database = SQLite(URI("sqlite:" + self.make_path()))
 
     def create_tables(self):
+        self.connection.execute("CREATE TABLE number "
+                                "(one INTEGER, two INTEGER, three INTEGER)")
         self.connection.execute("CREATE TABLE test "
                                 "(id INTEGER PRIMARY KEY, title VARCHAR)")
         self.connection.execute("CREATE TABLE datetime_test "

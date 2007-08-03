@@ -41,6 +41,8 @@ class PostgresTest(DatabaseTest, TestHelper):
         self.database = create_database(os.environ["STORM_POSTGRES_URI"])
 
     def create_tables(self):
+        self.connection.execute("CREATE TABLE number "
+                                "(one INTEGER, two INTEGER, three INTEGER)")
         self.connection.execute("CREATE TABLE test "
                                 "(id SERIAL PRIMARY KEY, title VARCHAR)")
         self.connection.execute("CREATE TABLE datetime_test "

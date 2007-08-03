@@ -65,19 +65,13 @@ class Result(object):
         return result
 
     def __iter__(self):
-        if self._raw_cursor.arraysize == 1:
-            while True:
-                result = self._raw_cursor.fetchone()
-                if not result:
-                    break
-                yield result
-        else:
-            while True:
-                results = self._raw_cursor.fetchmany()
-                if not results:
-                    break
-                for result in results:
-                    yield result
+        self._raw_cursor.arraysize = 10 # Default of 1 is silly.
+        while True:
+            results = self._raw_cursor.fetchmany()
+            if not results:
+                break
+            for result in results:
+                yield tuple(self._from_database(result))
 
     def get_insert_identity(self, primary_columns, primary_variables):
         raise NotImplementedError
