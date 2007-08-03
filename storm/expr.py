@@ -1223,6 +1223,27 @@ def compile_sql(compile, expr, state):
 
 
 # --------------------------------------------------------------------
+# Sequences.
+
+class Sequence(Expr):
+    """Expression representing auto-incrementing support from the database.
+
+    This should be translated into the *next* value of the named
+    auto-incrementing sequence.  There's no standard way to compile a
+    sequence, since it's very database-dependent.
+
+    This may be used as follows:
+
+      class Class(object):
+          (...)
+          id = Int(default=Sequence("my_sequence_name"))
+    """
+
+    def __init__(self, name):
+        self.name = name
+
+
+# --------------------------------------------------------------------
 # Utility functions.
 
 def compare_columns(columns, values):

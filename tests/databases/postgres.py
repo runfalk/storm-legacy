@@ -26,7 +26,7 @@ from storm.uri import URI
 from storm.database import create_database
 from storm.variables import UnicodeVariable, DateTimeVariable
 from storm.variables import ListVariable, IntVariable, Variable
-from storm.expr import Union, Select, Alias, SQLRaw, State
+from storm.expr import Union, Select, Alias, SQLRaw, State, Sequence
 
 from tests.databases.base import DatabaseTest, UnsupportedDatabaseTest
 from tests.helper import TestHelper, MakePath
@@ -198,6 +198,15 @@ class PostgresTest(DatabaseTest, TestHelper):
         expr = Union(expr, expr, order_by=alias+1, all=True)
         result = self.connection.execute(expr)
         self.assertEquals(result.get_all(), [(1,), (1,)])
+
+    def test_sequence(self):
+        expr1 = Select(Sequence("test_id_seq"))
+        expr2 = "SELECT currval('test_id_seq')"
+        value1 = self.connection.execute(expr1).get_one()[0]
+        value2 = self.connection.execute(expr2).get_one()[0]
+        value3 = self.connection.execute(expr1).get_one()[0]
+        self.assertEquals(value1, value2)
+        self.assertEquals(value3-value1, 1)
 
 
 class PostgresUnsupportedTest(UnsupportedDatabaseTest, TestHelper):

@@ -294,6 +294,10 @@ class ExprTest(TestHelper):
         self.assertEquals(expr.expr, elem1)
         self.assertEquals(expr.table, elem2)
 
+    def test_sequence(self):
+        expr = Sequence(elem1)
+        self.assertEquals(expr.name, elem1)
+
 
 class StateTest(TestHelper):
 

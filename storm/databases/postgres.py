@@ -30,7 +30,7 @@ except:
     psycopg2 = dummy
 
 from storm.expr import (
-    Undef, SetExpr, Insert, Select, Alias, And, Eq, FuncExpr, SQLRaw,
+    Undef, SetExpr, Insert, Select, Alias, And, Eq, FuncExpr, SQLRaw, Sequence,
     COLUMN_NAME, compile, compile_insert, compile_select, compile_set_expr)
 from storm.variables import Variable, ListVariable
 from storm.database import *
@@ -108,13 +108,18 @@ def compile_set_expr_postgres(compile, expr, state):
 
 
 @compile.when(Insert)
-def compile_insert_sqlite(compile, insert, state):
+def compile_insert_postgres(compile, insert, state):
     # PostgreSQL fails with INSERT INTO table VALUES (), so we transform
     # that to INSERT INTO table (id) VALUES (DEFAULT).
     if not insert.map and insert.primary_columns is not Undef:
         insert.map.update(dict.fromkeys(insert.primary_columns,
                                         SQLRaw("DEFAULT")))
     return compile_insert(compile, insert, state)
+
+
+@compile.when(Sequence)
+def compile_sequence_postgres(compile, sequence, state):
+    return "nextval('%s')" % sequence.name
 
 
 class PostgresResult(Result):
