@@ -227,6 +227,12 @@ class DecimalVariable(Variable):
                             % (type(value), value))
         return value
 
+    @staticmethod
+    def _parse_get(value, to_db):
+        if to_db:
+            return str(value)
+        return value
+
 
 class CharsVariable(Variable):
 

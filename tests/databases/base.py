@@ -27,7 +27,8 @@ import os
 
 from storm.uri import URI
 from storm.expr import Select, Column, Undef, SQLToken, SQLRaw
-from storm.variables import Variable, PickleVariable, CharsVariable
+from storm.variables import (Variable, PickleVariable, CharsVariable,
+                             DecimalVariable)
 from storm.variables import DateTimeVariable, DateVariable, TimeVariable
 from storm.database import *
 from storm.exceptions import DatabaseModuleError
@@ -240,6 +241,19 @@ class DatabaseTest(object):
         # If the following doesn't raise a TypeError we're good.
         result.set_variable(variable, result.get_one()[0])
         self.assertEquals(variable.get(), "Value")
+
+    def test_set_decimal_variable_from_str_column(self):
+        self.connection.execute("INSERT INTO test VALUES (40, '40.5')")
+        variable = DecimalVariable()
+        result = self.connection.execute("SELECT title FROM test WHERE id=40")
+        result.set_variable(variable, result.get_one()[0])
+
+    def test_get_decimal_variable_to_str_column(self):
+        variable = DecimalVariable()
+        variable.set("40.5", from_db=True)
+        self.connection.execute("INSERT INTO test VALUES (40, ?)", (variable,))
+        result = self.connection.execute("SELECT title FROM test WHERE id=40")
+        self.assertEquals(result.get_one()[0], "40.5")
 
 
 class UnsupportedDatabaseTest(object):

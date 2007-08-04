@@ -18,12 +18,13 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+import decimal
 import gc
 
 from storm.references import Reference, ReferenceSet, Proxy
 from storm.database import Result
 from storm.properties import Int, Float, Chars, Unicode, Property, Pickle
-from storm.properties import PropertyPublisherMeta
+from storm.properties import PropertyPublisherMeta, Decimal
 from storm.expr import Asc, Desc, Select, Func, LeftJoin, SQL
 from storm.variables import Variable, UnicodeVariable, IntVariable
 from storm.info import get_obj_info, ClassAlias
@@ -87,6 +88,11 @@ class BarProxy(object):
     foo = Reference(foo_id, Foo.id)
     foo_title = Proxy(foo, Foo.title)
 
+class Money(object):
+    __storm_table__ = "money"
+    id = Int(primary=True)
+    value = Decimal()
+
 
 class DecorateVariable(Variable):
 
@@ -147,6 +153,8 @@ class StoreTest(object):
         connection.execute("INSERT INTO link VALUES (20, 100)")
         connection.execute("INSERT INTO link VALUES (20, 200)")
         connection.execute("INSERT INTO link VALUES (30, 300)")
+        connection.execute("INSERT INTO money VALUES (10, '12.3455')")
+
         connection.commit()
 
     def create_store(self):
@@ -163,7 +171,7 @@ class StoreTest(object):
         pass
 
     def drop_tables(self):
-        for table in ["foo", "bar", "bin", "link"]:
+        for table in ["foo", "bar", "bin", "link", "money"]:
             connection = self.database.connect()
             try:
                 connection.execute("DROP TABLE %s" % table)
@@ -3883,6 +3891,17 @@ class StoreTest(object):
         MyBarProxy, MyFoo = self.get_bar_proxy_with_string()
         variable = MyBarProxy.foo_title.variable_factory(value=u"Hello")
         self.assertTrue(isinstance(variable, UnicodeVariable))
+
+    def test_get_decimal_property(self):
+        money = self.store.get(Money, 10)
+        self.assertEquals(money.value, decimal.Decimal("12.3455"))
+
+    def test_set_decimal_property(self):
+        money = self.store.get(Money, 10)
+        money.value = decimal.Decimal("12.3456")
+        self.store.flush()
+        result = self.store.find(Money, value=decimal.Decimal("12.3456"))
+        self.assertEquals(result.one(), money)
 
 
 class EmptyResultSetTest(object):

@@ -59,6 +59,10 @@ class MySQLStoreTest(TestHelper, StoreTest):
         connection.execute("CREATE TABLE link "
                            "(foo_id INTEGER, bar_id INTEGER) "
                            "ENGINE=InnoDB")
+        connection.execute("CREATE TABLE money "
+                           "(id INT PRIMARY KEY AUTO_INCREMENT,"
+                           " value NUMERIC(6,4)) "
+                           "ENGINE=InnoDB")
         connection.commit()
 
 

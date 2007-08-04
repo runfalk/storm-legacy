@@ -370,11 +370,12 @@ class DecimalVariableTest(TestHelper):
         self.assertRaises(TypeError, variable.set, "1")
         self.assertRaises(TypeError, variable.set, 1.1)
 
-    def test_set_str_from_database(self):
-        # Accept strings from the database.
+    def test_get_set_from_database(self):
+        """Strings used to/from the database."""
         variable = DecimalVariable()
         variable.set("1.1", from_db=True)
         self.assertEquals(variable.get(), Decimal("1.1"))
+        self.assertEquals(variable.get(to_db=True), "1.1")
 
 
 class CharsVariableTest(TestHelper):
