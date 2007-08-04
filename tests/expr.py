@@ -1366,7 +1366,7 @@ class CompileTest(TestHelper):
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement[:statement.rfind("_")+1],
-                          'SELECT column1 FROM "table 1" AS _')
+                          'SELECT column1 FROM "table 1" AS "_')
         self.assertEquals(state.parameters, [])
 
     def test_alias_in_column_prefix(self):
@@ -1577,8 +1577,8 @@ class CompileTest(TestHelper):
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement,
-                          '(SELECT elem1 AS _1) UNION (SELECT elem2 AS _2) '
-                          'ORDER BY _1, _2')
+                          '(SELECT elem1 AS "_1") UNION (SELECT elem2 AS "_2") '
+                          'ORDER BY "_1", "_2"')
         self.assertEquals(state.parameters, [])
 
     def test_union_contexts(self):

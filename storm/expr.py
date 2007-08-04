@@ -23,6 +23,7 @@ from datetime import datetime, date, time, timedelta
 from weakref import WeakKeyDictionary
 from copy import copy
 import sys
+import re
 
 from storm.exceptions import CompileError, NoTableError, ExprError
 from storm.variables import (
@@ -720,9 +721,7 @@ def compile_column(compile, column, state):
             # See compile_set_expr().
             alias = state.aliases.get(column)
             if alias is not None:
-                # No need for SQLToken here. These aliases are created
-                # in compile_set_expr(), and are always automatic.
-                return alias.name
+                return compile(alias.name, state, token=True)
         return column.name
     state.push("context", COLUMN_PREFIX)
     table = compile(column.table, state, token=True)
@@ -1180,13 +1179,13 @@ class SQLToken(str):
     These strings will be quoted, when needed.
     """
 
+is_safe_token = re.compile("^[a-zA-Z][a-zA-Z0-9_]*$").match
+
 @compile.when(SQLToken)
 def compile_sql_token(compile, expr, state):
-    if '"' in expr:
-        return '"%s"' % expr.replace('"', '""')
-    elif "'" in expr or " " in expr or compile.is_reserved_word(expr):
-        return '"%s"' % expr
-    return expr
+    if is_safe_token(expr) and not compile.is_reserved_word(expr):
+        return expr
+    return '"%s"' % expr.replace('"', '""')
 
 @compile_python.when(SQLToken)
 def compile_python_sql_token(compile, expr, state):

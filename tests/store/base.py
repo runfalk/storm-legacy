@@ -3947,7 +3947,6 @@ class StoreTest(object):
         variable = MyBarProxy.foo_title.variable_factory(value=u"Hello")
         self.assertTrue(isinstance(variable, UnicodeVariable))
 
-    @run_this
     def test_get_decimal_property(self):
         money = self.store.get(Money, 10)
         self.assertEquals(money.value, decimal.Decimal("12.3455"))

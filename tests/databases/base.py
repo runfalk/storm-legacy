@@ -26,7 +26,7 @@ import sys
 import os
 
 from storm.uri import URI
-from storm.expr import Select, Column, Undef, SQLToken, SQLRaw, Count
+from storm.expr import Select, Column, Undef, SQLToken, SQLRaw, Count, Alias
 from storm.variables import (Variable, PickleVariable, RawStrVariable,
                              DecimalVariable)
 from storm.variables import DateTimeVariable, DateVariable, TimeVariable
@@ -259,6 +259,16 @@ class DatabaseTest(object):
         self.connection.execute("INSERT INTO test VALUES (40, ?)", (variable,))
         result = self.connection.execute("SELECT title FROM test WHERE id=40")
         self.assertEquals(result.get_one()[0], "40.5")
+
+    def test_quoting(self):
+        # FIXME "with'quote" should be in the list below, but it doesn't
+        #       work because it breaks the parameter mark translation.
+        for reserved_name in ["with space", 'with`"escape', "SELECT"]:
+            reserved_name = SQLToken(reserved_name)
+            expr = Select(reserved_name,
+                          tables=Alias(Select(Alias(1, reserved_name))))
+            result = self.connection.execute(expr)
+            self.assertEquals(result.get_one(), (1,))
 
 
 class UnsupportedDatabaseTest(object):
