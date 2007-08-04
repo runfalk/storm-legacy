@@ -33,7 +33,7 @@ __all__ = [
     "BoolVariable",
     "IntVariable",
     "FloatVariable",
-    "NumericVariable",
+    "DecimalVariable",
     "CharsVariable",
     "UnicodeVariable",
     "DateTimeVariable",
@@ -215,18 +215,17 @@ class FloatVariable(Variable):
         return float(value)
 
 
-class NumericVariable(Variable):
+class DecimalVariable(Variable):
 
     @staticmethod
     def _parse_set(value, from_db):
-        if not isinstance(value, (int, long, Decimal)):
+        if (from_db and isinstance(value, basestring) or
+            isinstance(value, (int, long))):
+            value = Decimal(value)
+        elif not isinstance(value, Decimal):
             raise TypeError("Expected Decimal, found %r: %r"
                             % (type(value), value))
-        return str(value)
-
-    @staticmethod
-    def _parse_get(value, from_db):
-        return Decimal(value)
+        return value
 
 
 class CharsVariable(Variable):

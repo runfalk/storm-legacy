@@ -27,7 +27,7 @@ from storm.exceptions import CompileError, NoTableError, ExprError
 from storm.variables import (
     Variable, CharsVariable, UnicodeVariable, LazyValue,
     DateTimeVariable, DateVariable, TimeVariable, TimeDeltaVariable,
-    BoolVariable, IntVariable, FloatVariable, NumericVariable)
+    BoolVariable, IntVariable, FloatVariable, DecimalVariable)
 from storm import Undef
 
 
@@ -260,7 +260,7 @@ def compile_float(compile, state, expr):
 
 @compile.when(Decimal)
 def compile_numeric(compile, state, expr):
-    state.parameters.append(NumericVariable(expr))
+    state.parameters.append(DecimalVariable(expr))
     return "?"
 
 @compile.when(bool)

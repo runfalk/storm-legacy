@@ -458,10 +458,10 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, "?")
         self.assertEquals(parameters, [FloatVariable(1.1)])
 
-    def test_numeric(self):
+    def test_decimal(self):
         statement, parameters = compile(Decimal("1.1"))
         self.assertEquals(statement, "?")
-        self.assertEquals(parameters, [NumericVariable(Decimal("1.1"))])
+        self.assertEquals(parameters, [DecimalVariable(Decimal("1.1"))])
 
     def test_datetime(self):
         dt = datetime(1977, 5, 4, 12, 34)
