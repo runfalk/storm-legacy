@@ -37,9 +37,6 @@ class SQLiteMemoryTest(DatabaseTest, TestHelper):
     def get_path(self):
         return ""
 
-    def get_path(self):
-        return self.make_path()
-
     def create_database(self):
         self.database = SQLite(URI("sqlite:%s?timeout=0" % self.get_path()))
 
@@ -60,6 +57,8 @@ class SQLiteMemoryTest(DatabaseTest, TestHelper):
         self.assertTrue(isinstance(database, SQLite))
         self.assertEquals(database._filename, ":memory:")
 
+    def test_concurrent_behavior(self):
+        pass
 
 
 class SQLiteFileTest(SQLiteMemoryTest):
