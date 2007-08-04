@@ -18,6 +18,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+from decimal import Decimal
 from datetime import datetime, date, time, timedelta
 from weakref import WeakKeyDictionary
 from copy import copy
@@ -27,7 +28,7 @@ from storm.exceptions import CompileError, NoTableError, ExprError
 from storm.variables import (
     Variable, RawStrVariable, UnicodeVariable, LazyValue,
     DateTimeVariable, DateVariable, TimeVariable, TimeDeltaVariable,
-    BoolVariable, IntVariable, FloatVariable)
+    BoolVariable, IntVariable, FloatVariable, DecimalVariable)
 from storm import Undef
 
 
@@ -293,6 +294,11 @@ def compile_int(compile, expr, state):
 @compile.when(float)
 def compile_float(compile, expr, state):
     state.parameters.append(FloatVariable(expr))
+    return "?"
+
+@compile.when(Decimal)
+def compile_decimal(compile, expr, state):
+    state.parameters.append(DecimalVariable(expr))
     return "?"
 
 @compile.when(bool)

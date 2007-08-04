@@ -18,6 +18,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+from decimal import Decimal
+
 from tests.helper import TestHelper
 
 from storm.variables import *
@@ -466,6 +468,12 @@ class CompileTest(TestHelper):
         statement = compile(1.1, state)
         self.assertEquals(statement, "?")
         self.assertEquals(state.parameters, [FloatVariable(1.1)])
+
+    def test_decimal(self):
+        state = State()
+        statement = compile(Decimal("1.1"), state)
+        self.assertEquals(statement, "?")
+        self.assertEquals(state.parameters, [DecimalVariable(Decimal("1.1"))])
 
     def test_datetime(self):
         dt = datetime(1977, 5, 4, 12, 34)
