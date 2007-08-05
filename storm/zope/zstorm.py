@@ -14,6 +14,21 @@ from storm.store import Store
 
 
 class ZStorm(object):
+    """Utility integrates Storm with Zope.
+
+    Typically, applications will register stores using ZCML similar
+    to:
+
+      <store name='main' uri='sqlite:' />
+
+    Application code can then acquire the store by name using using
+    code similar to:
+
+      from zope.component import getUtility
+      from storm.zope.interfaces import IZStorm
+
+      store = getUtility(IZStorm).get('main')
+    """
 
     implements(IZStorm)
 
@@ -54,10 +69,18 @@ class ZStorm(object):
         return database
 
     def set_default_uri(self, name, default_uri):
+        """Set C{default_uri} as the default URI for stores called C{name}."""
         self._default_databases[name] = self._get_database(default_uri)
         self._default_uris[name] = default_uri
 
     def create(self, name, uri=None):
+        """Create a new store called C{name}.
+
+        @param uri: Optionally, the URI to use.
+        @raises ZStormError: Raised if C{uri} is None and no default
+            URI exists for C{name}.  Also raised if a store with
+            C{name} already exists.
+        """
         if uri is None:
             database = self._default_databases.get(name)
             if database is None:
@@ -76,6 +99,11 @@ class ZStorm(object):
         return store
 
     def get(self, name, default_uri=None):
+        """Get the store called C{name} or None if one isn't available.
+
+        @param default_uri: Optionally, the URI to use to create a
+           store called C{name} when one doesn't already exist.
+        """
         store = self._named.get(name)
         if not store:
             return self.create(name, default_uri)
@@ -102,6 +130,7 @@ class ZStorm(object):
         transaction.manager.unregisterSynch(store.__synchronizer)
 
     def iterstores(self):
+        """Generator yields C{name, store} 2-tuples."""
         names = {}
         for name, store in self._named.items():
             names[id(store)] = name
