@@ -2,16 +2,15 @@ import thread
 
 from tests.helper import TestHelper
 
-has_zope = True
 try:
     from zope.component import provideUtility, getUtility
-
     import transaction
-
-    from storm.zope.interfaces import IZStorm, ZStormError
-    from storm.zope.zstorm import ZStorm
 except ImportError:
     has_zope = False
+else:
+    has_zope = True
+    from storm.zope.interfaces import IZStorm, ZStormError
+    from storm.zope.zstorm import ZStorm
 
 from storm.exceptions import OperationalError
 from storm.locals import Store, Int
