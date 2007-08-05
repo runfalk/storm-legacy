@@ -28,4 +28,8 @@
         <require like_class="storm.references.BoundReferenceSet" />
     </class>
 
+    <class class="storm.sqlobject.SQLObjectResultSet">
+        <allow interface=".interfaces.ISQLObjectResultSet" />
+    </class>
+
 </configure>
