@@ -2,11 +2,14 @@ from zope.interface import Interface
 
 
 class ZStormError(Exception):
-    pass
+    """
+    Raised when situations such as duplicate store creation, unknown
+    store name, etc., arise.
+    """
 
 
 class IZStorm(Interface):
-    pass
+    """Flag interface is used to lookup the ZStorm utility."""
 
 
 class ISQLObjectResultSet(Interface):
