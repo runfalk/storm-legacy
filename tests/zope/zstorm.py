@@ -4,7 +4,7 @@ from tests.helper import TestHelper
 
 has_zope = True
 try:
-    from zope import component
+    from zope.component import provideUtility, getUtility
 
     import transaction
 
@@ -31,8 +31,8 @@ class ZStormTest(TestHelper):
         transaction.manager.free(transaction.get())
 
     def test_utility(self):
-        component.provideUtility(ZStorm())
-        self.assertTrue(isinstance(component.getUtility(IZStorm), ZStorm))
+        provideUtility(ZStorm())
+        self.assertTrue(isinstance(getUtility(IZStorm), ZStorm))
 
     def test_create(self):
         store = self.zstorm.create(None, "sqlite:")

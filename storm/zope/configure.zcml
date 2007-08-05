@@ -10,13 +10,11 @@
         />
 
     <class class="storm.store.ResultSet">
-        <allow attributes="copy config __iter__ __getitem__ any first last one
-                           order_by count max min avg sum values cached" />
+        <allow interface=".interfaces.IResultSet" />
     </class>
 
     <class class="storm.store.EmptyResultSet">
-        <allow attributes="copy config __iter__ __getitem__ any first last one
-                           order_by count max min avg sum values cached" />
+        <allow interface=".interfaces.IResultSet" />
     </class>
 
     <class class="storm.references.BoundReferenceSet">
