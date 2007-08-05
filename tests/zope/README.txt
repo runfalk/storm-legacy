@@ -49,14 +49,14 @@ store in a different thread we should get a different instance.
 
   >>> import threading
 
-  >>> thread_store = None
+  >>> thread_store = []
   >>> def get_thread_store():
-  ...     thread_store = zstorm.get("test")
+  ...     thread_store.append(zstorm.get("test"))
 
   >>> thread = threading.Thread(target=get_thread_store)
   >>> thread.start()
   >>> thread.join()
-  >>> thread_store is not store
+  >>> thread_store != [store]
   True
 
 Great!  ZStorm abstracts away the process of creating and managing
