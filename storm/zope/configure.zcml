@@ -17,6 +17,10 @@
         <allow interface=".interfaces.IResultSet" />
     </class>
 
+    <class class="storm.sqlobject.SQLObjectResultSet">
+        <allow interface=".interfaces.ISQLObjectResultSet" />
+    </class>
+
     <class class="storm.references.BoundReferenceSet">
         <allow attributes="__iter__ find first last one any values order_by
                            count __contains__" />
@@ -24,10 +28,6 @@
 
     <class class="storm.references.BoundIndirectReferenceSet">
         <require like_class="storm.references.BoundReferenceSet" />
-    </class>
-
-    <class class="storm.sqlobject.SQLObjectResultSet">
-        <allow interface=".interfaces.ISQLObjectResultSet" />
     </class>
 
 </configure>
