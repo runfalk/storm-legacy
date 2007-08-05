@@ -72,26 +72,12 @@ class DatabaseTest(object):
         pass
 
     def drop_tables(self):
-        try:
-            self.connection.execute("DROP TABLE number")
-            self.connection.commit()
-        except:
-            self.connection.rollback()
-        try:
-            self.connection.execute("DROP TABLE test")
-            self.connection.commit()
-        except:
-            self.connection.rollback()
-        try:
-            self.connection.execute("DROP TABLE datetime_test")
-            self.connection.commit()
-        except:
-            self.connection.rollback()
-        try:
-            self.connection.execute("DROP TABLE bin_test")
-            self.connection.commit()
-        except:
-            self.connection.rollback()
+        for table in ["number", "test", "datetime_test", "bin_test"]:
+            try:
+                self.connection.execute("DROP TABLE " + table)
+                self.connection.commit()
+            except:
+                self.connection.rollback()
 
     def drop_database(self):
         pass
@@ -115,15 +101,15 @@ class DatabaseTest(object):
         self.assertTrue(isinstance(row[0], unicode))
 
     def test_execute_params(self):
-        result = self.connection.execute("SELECT 1 FROM (SELECT 1) AS ALIAS "
+        result = self.connection.execute("SELECT one FROM number "
                                          "WHERE 1=?", (1,))
         self.assertTrue(result.get_one())
-        result = self.connection.execute("SELECT 1 FROM (SELECT 1) AS ALIAS "
+        result = self.connection.execute("SELECT one FROM number "
                                          "WHERE 1=?", (2,))
         self.assertFalse(result.get_one())
 
     def test_execute_empty_params(self):
-        result = self.connection.execute("SELECT 1", ())
+        result = self.connection.execute("SELECT one FROM number", ())
         self.assertTrue(result.get_one())
 
     def test_execute_expression(self):
