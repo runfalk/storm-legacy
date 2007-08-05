@@ -4,6 +4,7 @@ from storm.zope.interfaces import IZStorm
 
 
 def set_default_uri(name, uri):
+    """Register C{uri} as the default URI for stores called C{name}."""
     zstorm = component.getUtility(IZStorm)
     zstorm.set_default_uri(name, uri)
 
