@@ -1,5 +1,7 @@
 from zope.interface import Interface
 
+from storm.expr import Undef
+
 
 class ZStormError(Exception):
     """

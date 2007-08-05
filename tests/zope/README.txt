@@ -102,6 +102,7 @@ Great!  Let's try it out.
 Notice that we're not using store.commit directly; we're using Zope's
 transaction system.  Let's make sure it worked.
 
+  >>> store.rollback()
   >>> same_person = store.find(Person).one()
   >>> same_person is person
   True
@@ -144,8 +145,8 @@ named store.
 
   <store name="test" uri="sqlite:" />
 
-With that in place getUtility(IZStorm).get("test") will work as
-expected.
+With that in place getUtility(IZStorm).get("test") will return the
+store named "test".
 
 
 # vim:ts=4:sw=4:et
