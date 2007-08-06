@@ -1,3 +1,9 @@
+"""ZStorm integrates Storm with Zope 3.
+
+@var global_zstorm: A global L{ZStorm} instance.  It used the
+    L{IZStorm} utility registered in C{configure.zcml}.
+"""
+
 #
 # Copyright (c) 2006, 2007 Canonical
 #
@@ -34,15 +40,15 @@ from storm.store import Store
 
 
 class ZStorm(object):
-    """Utility integrates Storm with Zope.
+    """A utility which integrates Storm with Zope.
 
     Typically, applications will register stores using ZCML similar
     to:
 
       <store name='main' uri='sqlite:' />
 
-    Application code can then acquire the store by name using using
-    code similar to:
+    Application code can then acquire the store by name using code
+    similar to:
 
       from zope.component import getUtility
       from storm.zope.interfaces import IZStorm
@@ -150,7 +156,7 @@ class ZStorm(object):
         transaction.manager.unregisterSynch(store.__synchronizer)
 
     def iterstores(self):
-        """Generator yields C{name, store} 2-tuples."""
+        """Iterate C{name, store} 2-tuples."""
         names = {}
         for name, store in self._named.items():
             names[id(store)] = name
@@ -215,6 +221,7 @@ class StoreSynchronizer(object):
 
 
 class StoreDataManager(object):
+    """An L{IDataManager} implementation for C{ZStorm}."""
 
     implements(IDataManager)
 

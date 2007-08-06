@@ -31,7 +31,7 @@ class ZStormError(Exception):
 
 
 class IZStorm(Interface):
-    """Flag interface is used to lookup the ZStorm utility."""
+    """A flag interface used to lookup the ZStorm utility."""
 
 
 class IResultSet(Interface):
@@ -54,7 +54,11 @@ class IResultSet(Interface):
         """Iterate the result set."""
 
     def __getitem__(index):
-        """Get the value at C{index} in the result set."""
+        """
+        Get the value at C{index} in the result set if C{index} is a
+        single interger.  If C{index} is a slice a new C{ResultSet}
+        will be returned.
+        """
 
     def any():
         """
