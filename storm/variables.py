@@ -103,10 +103,10 @@ class Variable(object):
         self.column = column
         self.event = event
 
-    def _parse_get(self, value, to_db):
+    def parse_get(self, value, to_db):
         return value
 
-    def _parse_set(self, value, from_db):
+    def parse_set(self, value, from_db):
         return value
 
     def get_lazy(self, default=None):
@@ -122,7 +122,7 @@ class Variable(object):
             return default
         if value is None:
             return None
-        return self._parse_get(value, to_db)
+        return self.parse_get(value, to_db)
 
     def set(self, value, from_db=False):
         # FASTPATH This method is part of the fast path.  Be careful when
@@ -138,16 +138,16 @@ class Variable(object):
                     raise_none_error(self.column)
                 new_value = None
             else:
-                new_value = self._parse_set(value, from_db)
+                new_value = self.parse_set(value, from_db)
                 if from_db:
                     # Prepare it for being used by the hook below.
-                    value = self._parse_get(new_value, False)
+                    value = self.parse_get(new_value, False)
         old_value = self._value
         self._value = new_value
         if (self.event is not None and
             (self._lazy_value is not Undef or new_value != old_value)):
             if old_value is not None and old_value is not Undef:
-                old_value = self._parse_get(old_value, False)
+                old_value = self.parse_get(old_value, False)
             self.event.emit("changed", self, old_value, value, from_db)
 
     def delete(self):
@@ -156,7 +156,7 @@ class Variable(object):
             self._value = Undef
             if self.event is not None:
                 if old_value is not None and old_value is not Undef:
-                    old_value = self._parse_get(old_value, False)
+                    old_value = self.parse_get(old_value, False)
                 self.event.emit("changed", self, old_value, Undef, False)
 
     def is_defined(self):
@@ -196,7 +196,7 @@ except ImportError, e:
 
 class BoolVariable(Variable):
 
-    def _parse_set(self, value, from_db):
+    def parse_set(self, value, from_db):
         if not isinstance(value, (int, long, float, Decimal)):
             raise TypeError("Expected bool, found %r: %r"
                             % (type(value), value))
@@ -205,7 +205,7 @@ class BoolVariable(Variable):
 
 class IntVariable(Variable):
 
-    def _parse_set(self, value, from_db):
+    def parse_set(self, value, from_db):
         if not isinstance(value, (int, long, float, Decimal)):
             raise TypeError("Expected int, found %r: %r"
                             % (type(value), value))
@@ -214,7 +214,7 @@ class IntVariable(Variable):
 
 class FloatVariable(Variable):
 
-    def _parse_set(self, value, from_db):
+    def parse_set(self, value, from_db):
         if not isinstance(value, (int, long, float, Decimal)):
             raise TypeError("Expected float, found %r: %r"
                             % (type(value), value))
@@ -223,7 +223,7 @@ class FloatVariable(Variable):
 
 class CharsVariable(Variable):
 
-    def _parse_set(self, value, from_db):
+    def parse_set(self, value, from_db):
         if isinstance(value, buffer):
             value = str(value)
         elif not isinstance(value, str):
@@ -234,7 +234,7 @@ class CharsVariable(Variable):
 
 class UnicodeVariable(Variable):
 
-    def _parse_set(self, value, from_db):
+    def parse_set(self, value, from_db):
         if not isinstance(value, unicode):
             raise TypeError("Expected unicode, found %r: %r"
                             % (type(value), value))
@@ -247,7 +247,7 @@ class DateTimeVariable(Variable):
         self._tzinfo = kwargs.pop("tzinfo", None)
         super(DateTimeVariable, self).__init__(*args, **kwargs)
 
-    def _parse_set(self, value, from_db):
+    def parse_set(self, value, from_db):
         if from_db:
             if isinstance(value, datetime):
                 pass
@@ -276,7 +276,7 @@ class DateTimeVariable(Variable):
 
 class DateVariable(Variable):
 
-    def _parse_set(self, value, from_db):
+    def parse_set(self, value, from_db):
         if from_db:
             if value is None:
                 return None
@@ -297,7 +297,7 @@ class DateVariable(Variable):
 
 class TimeVariable(Variable):
 
-    def _parse_set(self, value, from_db):
+    def parse_set(self, value, from_db):
         if from_db:
             # XXX Can None ever get here, considering that set() checks for it?
             if value is None:
@@ -319,7 +319,7 @@ class TimeVariable(Variable):
 
 class TimeDeltaVariable(Variable):
 
-    def _parse_set(self, value, from_db):
+    def parse_set(self, value, from_db):
         if from_db:
             # XXX Can None ever get here, considering that set() checks for it?
             if value is None:
@@ -350,7 +350,7 @@ class EnumVariable(Variable):
         self._set_map = set_map
         Variable.__init__(self, *args, **kwargs)
 
-    def _parse_set(self, value, from_db):
+    def parse_set(self, value, from_db):
         if from_db:
             return value
         try:
@@ -358,7 +358,7 @@ class EnumVariable(Variable):
         except KeyError:
             raise ValueError("Invalid enum value: %s" % repr(value))
 
-    def _parse_get(self, value, to_db):
+    def parse_get(self, value, to_db):
         if to_db:
             return value
         try:
@@ -379,7 +379,7 @@ class PickleVariable(Variable):
         if self.get_state() != self._checkpoint_state:
             self.event.emit("changed", self, None, self._value, False)
 
-    def _parse_set(self, value, from_db):
+    def parse_set(self, value, from_db):
         if from_db:
             if isinstance(value, buffer):
                 value = str(value)
@@ -387,7 +387,7 @@ class PickleVariable(Variable):
         else:
             return value
 
-    def _parse_get(self, value, to_db):
+    def parse_get(self, value, to_db):
         if to_db:
             return pickle.dumps(value, -1)
         else:
@@ -420,7 +420,7 @@ class ListVariable(Variable):
         if self.get_state() != self._checkpoint_state:
             self.event.emit("changed", self, None, self._value, False)
 
-    def _parse_set(self, value, from_db):
+    def parse_set(self, value, from_db):
         if from_db:
             item_factory = self._item_factory
             return [item_factory(value=val, from_db=from_db).get()
@@ -428,7 +428,7 @@ class ListVariable(Variable):
         else:
             return value
 
-    def _parse_get(self, value, to_db):
+    def parse_get(self, value, to_db):
         if to_db:
             item_factory = self._item_factory
             # XXX This from_db=to_db is dubious. What to do here?

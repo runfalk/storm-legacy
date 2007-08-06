@@ -256,22 +256,22 @@ Variable_richcompare(VariableObject *self, VariableObject *other, int op)
 }
 
 static PyObject *
-Variable__parse_get(VariableObject *self, PyObject *args)
+Variable_parse_get(VariableObject *self, PyObject *args)
 {
     /* return value */
     PyObject *value, *to_db;
-    if (!PyArg_ParseTuple(args, "OO:_parse_get", &value, &to_db))
+    if (!PyArg_ParseTuple(args, "OO:parse_get", &value, &to_db))
         return NULL;
     Py_INCREF(value);
     return value;
 }
 
 static PyObject *
-Variable__parse_set(VariableObject *self, PyObject *args)
+Variable_parse_set(VariableObject *self, PyObject *args)
 {
     /* return value */
     PyObject *value, *from_db;
-    if (!PyArg_ParseTuple(args, "OO:_parse_set", &value, &from_db))
+    if (!PyArg_ParseTuple(args, "OO:parse_set", &value, &from_db))
         return NULL;
     Py_INCREF(value);
     return value;
@@ -340,8 +340,8 @@ Variable_get(VariableObject *self, PyObject *args, PyObject *kwargs)
         return Py_None;
     }
 
-    /* return self._parse_get(value, to_db) */
-    return PyObject_CallMethod((PyObject *)self, "_parse_get",
+    /* return self.parse_get(value, to_db) */
+    return PyObject_CallMethod((PyObject *)self, "parse_get",
                                "OO", self->_value, to_db);
 }
 
@@ -397,17 +397,17 @@ Variable_set(VariableObject *self, PyObject *args, PyObject *kwargs)
         }
         /* else: */
         else {
-            /* new_value = self._parse_set(value, from_db) */
-            new_value = PyObject_CallMethod((PyObject *)self, "_parse_set",
+            /* new_value = self.parse_set(value, from_db) */
+            new_value = PyObject_CallMethod((PyObject *)self, "parse_set",
                                             "OO", value, from_db);
             if (!new_value)
                 goto error;
 
             /* if from_db: */
             if (PyObject_IsTrue(from_db)) {
-                /* value = self._parse_get(new_value, False) */
+                /* value = self.parse_get(new_value, False) */
                 Py_DECREF(value);
-                value = PyObject_CallMethod((PyObject *)self, "_parse_get",
+                value = PyObject_CallMethod((PyObject *)self, "parse_get",
                                             "OO", new_value, Py_False);
                 if (!value)
                     goto error;
@@ -431,8 +431,8 @@ Variable_set(VariableObject *self, PyObject *args, PyObject *kwargs)
 
         /* if old_value is not None and old_value is not Undef: */
         if (old_value != Py_None && old_value != Undef) {
-            /* old_value = self._parse_get(old_value, False) */
-            result = PyObject_CallMethod((PyObject *)self, "_parse_get",
+            /* old_value = self.parse_get(old_value, False) */
+            result = PyObject_CallMethod((PyObject *)self, "parse_get",
                                          "OO", old_value, Py_False);
             if (!result)
                 goto error;
@@ -480,8 +480,8 @@ Variable_delete(VariableObject *self, PyObject *args)
         if (self->event != Py_None) {
             /* if old_value is not None and old_value is not Undef: */
             if (old_value != Py_None && old_value != Undef) {
-                /* old_value = self._parse_get(old_value, False) */
-                result = PyObject_CallMethod((PyObject *)self, "_parse_get",
+                /* old_value = self.parse_get(old_value, False) */
+                result = PyObject_CallMethod((PyObject *)self, "parse_get",
                                              "OO", old_value, Py_False);
                 if (!result)
                     return NULL;
@@ -603,8 +603,8 @@ Variable_copy(VariableObject *self, PyObject *args)
 }
 
 static PyMethodDef Variable_methods[] = {
-    {"_parse_get", (PyCFunction)Variable__parse_get, METH_VARARGS, NULL},
-    {"_parse_set", (PyCFunction)Variable__parse_set, METH_VARARGS, NULL},
+    {"parse_get", (PyCFunction)Variable_parse_get, METH_VARARGS, NULL},
+    {"parse_set", (PyCFunction)Variable_parse_set, METH_VARARGS, NULL},
     {"get_lazy", (PyCFunction)Variable_get_lazy,
         METH_VARARGS | METH_KEYWORDS, NULL},
     {"get", (PyCFunction)Variable_get, METH_VARARGS | METH_KEYWORDS, NULL},

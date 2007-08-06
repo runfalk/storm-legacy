@@ -45,11 +45,11 @@ class CustomVariable(Variable):
         self.sets = []
         Variable.__init__(self, *args, **kwargs)
 
-    def _parse_get(self, variable, to_db):
+    def parse_get(self, variable, to_db):
         self.gets.append((variable, to_db))
         return "g", variable
 
-    def _parse_set(self, variable, from_db):
+    def parse_set(self, variable, from_db):
         self.sets.append((variable, from_db))
         return "s", variable
 

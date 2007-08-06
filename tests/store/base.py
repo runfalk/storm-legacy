@@ -90,10 +90,10 @@ class BarProxy(object):
 
 class DecorateVariable(Variable):
 
-    def _parse_get(self, value, to_db):
+    def parse_get(self, value, to_db):
         return u"to_%s(%s)" % (to_db and "db" or "py", value)
 
-    def _parse_set(self, value, from_db):
+    def parse_set(self, value, from_db):
         return u"from_%s(%s)" % (from_db and "db" or "py", value)
 
 
