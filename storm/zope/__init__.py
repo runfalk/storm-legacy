@@ -18,13 +18,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-has_zope = True
-try:
-    from zope.interface import classImplements
-    from zope.security.checker import (
-        NoProxy, BasicTypes, _available_by_default)
-except ImportError:
-    has_zope = False
+from zope.interface import classImplements
+from zope.security.checker import NoProxy, BasicTypes, _available_by_default
 
 from storm.info import ObjectInfo
 from storm.zope.interfaces import ISQLObjectResultSet
@@ -35,7 +30,6 @@ from storm import sqlobject as storm_sqlobject
 # the object info set already).  With this, Storm is able to
 # gracefully handle situations when a proxied object is passed to a
 # Store.
-if has_zope:
-    _available_by_default.append("__object_info")
-    BasicTypes[ObjectInfo] = NoProxy
-    classImplements(storm_sqlobject.SQLObjectResultSet, ISQLObjectResultSet)
+_available_by_default.append("__object_info")
+BasicTypes[ObjectInfo] = NoProxy
+classImplements(storm_sqlobject.SQLObjectResultSet, ISQLObjectResultSet)
