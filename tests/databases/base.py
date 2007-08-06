@@ -26,8 +26,9 @@ import sys
 import os
 
 from storm.uri import URI
-from storm.expr import Select, Column, Undef, SQLToken, SQLRaw
-from storm.variables import Variable, PickleVariable, CharsVariable
+from storm.expr import Select, Column, Undef, SQLToken, SQLRaw, Count, Alias
+from storm.variables import (Variable, PickleVariable, RawStrVariable,
+                             DecimalVariable)
 from storm.variables import DateTimeVariable, DateVariable, TimeVariable
 from storm.database import *
 from storm.exceptions import DatabaseModuleError
@@ -128,10 +129,6 @@ class DatabaseTest(object):
         result = self.connection.execute(Select(SQLRaw("1")))
         self.assertTrue(result.get_one(), (1,))
 
-    def test_execute_empty_params(self):
-        result = self.connection.execute("SELECT 1", ())
-        self.assertTrue(result.get_one())
-
     def test_get_one(self):
         result = self.connection.execute("SELECT * FROM test ORDER BY id")
         self.assertEquals(result.get_one(), (10, "Title 10"))
@@ -228,7 +225,7 @@ class DatabaseTest(object):
         self.connection.execute("INSERT INTO bin_test (b) VALUES (?)",
                                 (value,))
         result = self.connection.execute("SELECT b FROM bin_test")
-        variable = CharsVariable()
+        variable = RawStrVariable()
         result.set_variable(variable, result.get_one()[0])
         self.assertEquals(variable.get(), value)
 
@@ -236,17 +233,49 @@ class DatabaseTest(object):
         """Some databases like pysqlite2 may return unicode for strings."""
         self.connection.execute("INSERT INTO bin_test VALUES (10, 'Value')")
         result = self.connection.execute("SELECT b FROM bin_test")
-        variable = CharsVariable()
+        variable = RawStrVariable()
         # If the following doesn't raise a TypeError we're good.
         result.set_variable(variable, result.get_one()[0])
         self.assertEquals(variable.get(), "Value")
+
+    def test_order_by_group_by(self):
+        self.connection.execute("INSERT INTO test VALUES (100, 'Title 10')")
+        self.connection.execute("INSERT INTO test VALUES (101, 'Title 10')")
+        id = Column("id", "test")
+        title = Column("title", "test")
+        expr = Select(Count(id), group_by=title, order_by=Count(id))
+        result = self.connection.execute(expr)
+        self.assertEquals(result.get_all(), [(1,), (3,)])
+
+    def test_set_decimal_variable_from_str_column(self):
+        self.connection.execute("INSERT INTO test VALUES (40, '40.5')")
+        variable = DecimalVariable()
+        result = self.connection.execute("SELECT title FROM test WHERE id=40")
+        result.set_variable(variable, result.get_one()[0])
+
+    def test_get_decimal_variable_to_str_column(self):
+        variable = DecimalVariable()
+        variable.set("40.5", from_db=True)
+        self.connection.execute("INSERT INTO test VALUES (40, ?)", (variable,))
+        result = self.connection.execute("SELECT title FROM test WHERE id=40")
+        self.assertEquals(result.get_one()[0], "40.5")
+
+    def test_quoting(self):
+        # FIXME "with'quote" should be in the list below, but it doesn't
+        #       work because it breaks the parameter mark translation.
+        for reserved_name in ["with space", 'with`"escape', "SELECT"]:
+            reserved_name = SQLToken(reserved_name)
+            expr = Select(reserved_name,
+                          tables=Alias(Select(Alias(1, reserved_name))))
+            result = self.connection.execute(expr)
+            self.assertEquals(result.get_one(), (1,))
 
 
 class UnsupportedDatabaseTest(object):
     
     helpers = [MakePath]
 
-    dbapi_module_name = None
+    dbapi_module_names = []
     db_module_name = None
 
     def test_exception_when_unsupported(self):
@@ -255,16 +284,6 @@ class UnsupportedDatabaseTest(object):
         module_dir = self.make_path()
         os.mkdir(module_dir)
         sys.path.insert(0, module_dir)
-
-        # If the real module is available, remove it from the sys.modules.
-        dbapi_module = sys.modules.get(self.dbapi_module_name)
-        if dbapi_module is not None:
-            del sys.modules[self.dbapi_module_name]
-
-        # Create a module which raises ImportError when imported, to fake
-        # a missing module.
-        self.make_path("raise ImportError",
-                       os.path.join(module_dir, self.dbapi_module_name+".py"))
 
         # Copy the real module over to a new place, since the old one is
         # already using the real module, if it's available.
@@ -275,6 +294,23 @@ class UnsupportedDatabaseTest(object):
             db_module_filename = db_module_filename[:-1]
         shutil.copyfile(db_module_filename,
                         os.path.join(module_dir, "_fake_.py"))
+
+        dbapi_modules = {}
+        for dbapi_module_name in self.dbapi_module_names:
+
+            # If the real module is available, remove it from sys.modules.
+            dbapi_module = sys.modules.pop(dbapi_module_name, None)
+            if dbapi_module is not None:
+                dbapi_modules[dbapi_module_name] = dbapi_module
+
+            # Create a module which raises ImportError when imported, to fake
+            # a missing module.
+            dirname = self.make_path(path=os.path.join(module_dir,
+                                                       dbapi_module_name))
+            os.mkdir(dirname)
+            self.make_path("raise ImportError",
+                           os.path.join(module_dir, dbapi_module_name,
+                                        "__init__.py"))
 
         # Finally, test it.
         import _fake_
@@ -288,5 +324,4 @@ class UnsupportedDatabaseTest(object):
             del sys.path[0]
             del sys.modules["_fake_"]
 
-            if dbapi_module is not None:
-                sys.modules[self.dbapi_module_name] = dbapi_module
+            sys.modules.update(dbapi_modules)

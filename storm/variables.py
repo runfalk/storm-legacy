@@ -33,7 +33,8 @@ __all__ = [
     "BoolVariable",
     "IntVariable",
     "FloatVariable",
-    "CharsVariable",
+    "DecimalVariable",
+    "RawStrVariable",
     "UnicodeVariable",
     "DateTimeVariable",
     "DateVariable",
@@ -49,7 +50,7 @@ def VariableFactory(cls, **old_kwargs):
     """Build cls with kwargs of constructor updated by kwargs of call.
 
     This is really an implementation of partial/curry functions, and
-    should be replaced by 'partial' once 2.5 is in use.
+    is replaced by 'partial' when 2.5+ is in use.
     """
     def variable_factory(**new_kwargs):
         kwargs = old_kwargs.copy()
@@ -57,6 +58,10 @@ def VariableFactory(cls, **old_kwargs):
         return cls(**kwargs)
     return variable_factory
 
+try:
+    from functools import partial as VariableFactory
+except ImportError:
+    pass
 
 class Variable(object):
 
@@ -104,6 +109,9 @@ class Variable(object):
         return self._parse_get(value, to_db)
 
     def set(self, value, from_db=False):
+        # FASTPATH This method is part of the fast path.  Be careful when
+        #          changing it (try to profile any changes).
+
         if isinstance(value, LazyValue):
             self._lazy_value = value
             new_value = Undef
@@ -172,7 +180,7 @@ class Variable(object):
             column = self.column.name
             if self.column.table is not Undef:
                 try:
-                    table, parameters = compile(self.column.table)
+                    table = compile(self.column.table)
                     column = "%s.%s" % (table, column)
                 except CompileError:
                     pass
@@ -214,7 +222,26 @@ class FloatVariable(Variable):
         return float(value)
 
 
-class CharsVariable(Variable):
+class DecimalVariable(Variable):
+
+    @staticmethod
+    def _parse_set(value, from_db):
+        if (from_db and isinstance(value, basestring) or
+            isinstance(value, (int, long))):
+            value = Decimal(value)
+        elif not isinstance(value, Decimal):
+            raise TypeError("Expected Decimal, found %r: %r"
+                            % (type(value), value))
+        return value
+
+    @staticmethod
+    def _parse_get(value, to_db):
+        if to_db:
+            return str(value)
+        return value
+
+
+class RawStrVariable(Variable):
 
     @staticmethod
     def _parse_set(value, from_db):

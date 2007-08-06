@@ -312,7 +312,7 @@ class Proxy(ComparableExpr):
         return self._remote_prop.variable_factory
 
 @compile.when(Proxy)
-def compile_proxy(compile, state, proxy):
+def compile_proxy(compile, proxy, state):
     # References build the relation lazily so that they don't immediately
     # try to resolve string properties. Unfortunately we have to check that
     # here as well and make sure that at this point it's actually there.
@@ -327,7 +327,7 @@ def compile_proxy(compile, state, proxy):
     state.auto_tables.append(left_join)
 
     # And compile the remote property normally.
-    return compile(state, proxy._remote_prop)
+    return compile(proxy._remote_prop, state)
 
 
 class Relation(object):

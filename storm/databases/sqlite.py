@@ -27,9 +27,12 @@ from storm.databases import dummy
 try:
     from pysqlite2 import dbapi2 as sqlite
 except ImportError:
-    sqlite = dummy
+    try:
+        from sqlite3 import dbapi2 as sqlite
+    except ImportError:
+        sqlite = dummy
 
-from storm.variables import Variable, CharsVariable
+from storm.variables import Variable, RawStrVariable
 from storm.database import *
 from storm.exceptions import install_exceptions, DatabaseModuleError
 from storm.expr import (
@@ -40,13 +43,13 @@ from storm.expr import (
 install_exceptions(sqlite)
 
 
-compile = compile.fork()
+compile = compile.create_child()
 
 @compile.when(Select)
-def compile_select_sqlite(compile, state, select):
+def compile_select_sqlite(compile, select, state):
     if select.offset is not Undef and select.limit is Undef:
         select.limit = sys.maxint
-    statement = compile_select(compile, state, select)
+    statement = compile_select(compile, select, state)
     if state.context is SELECT:
         # SQLite breaks with (SELECT ...) UNION (SELECT ...), so we
         # do SELECT * FROM (SELECT ...) instead.  This is important
@@ -59,7 +62,6 @@ def compile_select_sqlite(compile, state, select):
 compile.set_precedence(5, Union, Except, Intersect)
 
 
-
 class SQLiteResult(Result):
 
     def get_insert_identity(self, primary_key, primary_variables):
@@ -67,7 +69,7 @@ class SQLiteResult(Result):
 
     @staticmethod
     def set_variable(variable, value):
-        if isinstance(variable, CharsVariable):
+        if isinstance(variable, RawStrVariable):
             # pysqlite2 may return unicode.
             value = str(value)
         variable.set(value, from_db=True)

@@ -38,7 +38,7 @@ from storm.exceptions import install_exceptions, DatabaseModuleError
 
 
 install_exceptions(psycopg2)
-compile = compile.fork()
+compile = compile.create_child()
 
 
 class currval(FuncExpr):
@@ -49,12 +49,12 @@ class currval(FuncExpr):
         self.column = column
 
 @compile.when(currval)
-def compile_currval(compile, state, expr):
-    return "currval('%s_%s_seq')" % (compile(state, expr.column.table),
+def compile_currval(compile, expr, state):
+    return "currval('%s_%s_seq')" % (compile(expr.column.table, state),
                                      expr.column.name)
 
 @compile.when(ListVariable)
-def compile_list_variable(compile, state, list_variable):
+def compile_list_variable(compile, list_variable, state):
     elements = []
     variables = list_variable.get(to_db=True)
     if variables is None:
@@ -62,11 +62,11 @@ def compile_list_variable(compile, state, list_variable):
     if not variables:
         return "'{}'"
     for variable in variables:
-        elements.append(compile(state, variable))
+        elements.append(compile(variable, state))
     return "ARRAY[%s]" % ",".join(elements)
 
 @compile.when(SetExpr)
-def compile_set_expr_postgres(compile, state, expr):
+def compile_set_expr_postgres(compile, expr, state):
     if expr.order_by is not Undef:
         # The following statement breaks in postgres:
         #     SELECT 1 AS id UNION SELECT 1 ORDER BY id+1
@@ -88,11 +88,11 @@ def compile_set_expr_postgres(compile, state, expr):
             state.push("aliases", {})
 
         # Build set expression, collecting aliases.
-        set_stmt = SQLRaw("(%s)" % compile_set_expr(compile, state, new_expr))
+        set_stmt = SQLRaw("(%s)" % compile_set_expr(compile, new_expr, state))
 
         # Build order_by statement, using aliases.
         state.push("context", COLUMN_NAME)
-        order_by_stmt = SQLRaw(compile(state, expr.order_by))
+        order_by_stmt = SQLRaw(compile(expr.order_by, state))
         state.pop()
 
         # Discard aliases, if they were not being collected previously.
@@ -102,9 +102,9 @@ def compile_set_expr_postgres(compile, state, expr):
         # Build wrapping select statement.
         select = Select(SQLRaw("*"), tables=Alias(set_stmt), limit=expr.limit,
                         offset=expr.offset, order_by=order_by_stmt)
-        return compile_select(compile, state, select)
+        return compile_select(compile, select, state)
     else:
-        return compile_set_expr(compile, state, expr)
+        return compile_set_expr(compile, expr, state)
 
 
 class PostgresResult(Result):

@@ -502,13 +502,13 @@ class ClassAliasTest(TestHelper):
         self.assertEquals(self.ClassAlias.prop1.table, self.ClassAlias)
 
     def test_compile(self):
-        statement, parameters = compile(self.ClassAlias)
+        statement = compile(self.ClassAlias)
         self.assertEquals(statement, "alias")
 
     def test_compile_in_select(self):
         expr = Select(self.ClassAlias.prop1, self.ClassAlias.prop1 == 1,
                       self.ClassAlias)
-        statement, parameters = compile(expr)
+        statement = compile(expr)
         self.assertEquals(statement,
                           "SELECT alias.column1 FROM table AS alias "
                           "WHERE alias.column1 = ?")
@@ -524,8 +524,8 @@ class TypeCompilerTest(TestHelper):
         class Class2(object):
             __storm_table__ = Class1
             id = Property(primary=True)
-        statement, parameters = compile(Class2)
+        statement = compile(Class2)
         self.assertEquals(statement, "class1")
         alias = ClassAlias(Class2, "alias")
-        statement, parameters = compile(Select(alias.id))
+        statement = compile(Select(alias.id))
         self.assertEquals(statement, "SELECT alias.id FROM class1 AS alias")

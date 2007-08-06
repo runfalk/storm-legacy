@@ -18,12 +18,13 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+import decimal
 import gc
 
 from storm.references import Reference, ReferenceSet, Proxy
 from storm.database import Result
-from storm.properties import Int, Float, Chars, Unicode, Property, Pickle
-from storm.properties import PropertyPublisherMeta
+from storm.properties import Int, Float, RawStr, Unicode, Property, Pickle
+from storm.properties import PropertyPublisherMeta, Decimal
 from storm.expr import Asc, Desc, Select, Func, LeftJoin, SQL
 from storm.variables import Variable, UnicodeVariable, IntVariable
 from storm.info import get_obj_info, ClassAlias
@@ -48,7 +49,7 @@ class Bar(object):
 class Blob(object):
     __storm_table__ = "bin"
     id = Int(primary=True)
-    bin = Chars()
+    bin = RawStr()
 
 class Link(object):
     __storm_table__ = "link"
@@ -87,6 +88,11 @@ class BarProxy(object):
     foo = Reference(foo_id, Foo.id)
     foo_title = Proxy(foo, Foo.title)
 
+class Money(object):
+    __storm_table__ = "money"
+    id = Int(primary=True)
+    value = Decimal()
+
 
 class DecorateVariable(Variable):
 
@@ -106,7 +112,8 @@ class Wrapper(object):
     def __init__(self, obj):
         self.obj = obj
 
-Wrapper.__object_info = property(lambda self: self.obj.__object_info)
+    __storm_object_info__ = property(lambda self:
+                                     self.obj.__storm_object_info__)
 
 
 class StoreTest(object):
@@ -147,6 +154,8 @@ class StoreTest(object):
         connection.execute("INSERT INTO link VALUES (20, 100)")
         connection.execute("INSERT INTO link VALUES (20, 200)")
         connection.execute("INSERT INTO link VALUES (30, 300)")
+        connection.execute("INSERT INTO money VALUES (10, '12.3455')")
+
         connection.commit()
 
     def create_store(self):
@@ -163,7 +172,7 @@ class StoreTest(object):
         pass
 
     def drop_tables(self):
-        for table in ["foo", "bar", "bin", "link"]:
+        for table in ["foo", "bar", "bin", "link", "money"]:
             connection = self.database.connect()
             try:
                 connection.execute("DROP TABLE %s" % table)
@@ -423,7 +432,7 @@ class StoreTest(object):
                           (10, "Title 30"),
                          ])
 
-    def test_find_default_order_asc(self):
+    def test_find_default_order_desc(self):
         class MyFoo(Foo):
             __storm_order__ = "-title"
 
@@ -1544,6 +1553,53 @@ class StoreTest(object):
         self.assertEquals(foo.title, "Title 20")
         self.assertEquals(foo.some_attribute, 2)
 
+    def test_flush_hook(self):
+
+        class MyFoo(Foo):
+            counter = 0
+            def __storm_pre_flush__(self):
+                if self.counter == 0:
+                    self.title = u"Flushing: %s" % self.title
+                self.counter += 1
+
+        foo = self.store.get(MyFoo, 20)
+
+        self.assertEquals(foo.title, "Title 20")
+        self.store.flush()
+        self.assertEquals(foo.title, "Title 20") # It wasn't dirty.
+        foo.title = u"Something"
+        self.store.flush()
+        self.assertEquals(foo.title, "Flushing: Something")
+
+        # It got in the database, because it was flushed *twice* (the
+        # title was changed after flushed, and thus the object got dirty
+        # again).
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "Flushing: Something"),
+                          (30, "Title 10"),
+                         ])
+
+        # This shouldn't do anything, because the object is clean again.
+        foo.counter = 0
+        self.store.flush()
+        self.assertEquals(foo.title, "Flushing: Something")
+
+    def test_flush_hook_all(self):
+
+        class MyFoo(Foo):
+            def __storm_pre_flush__(self):
+                other = [foo1, foo2][foo1 is self]
+                other.title = u"Changed in hook: " + other.title
+
+        foo1 = self.store.get(MyFoo, 10)
+        foo2 = self.store.get(MyFoo, 20)
+        foo1.title = u"Changed"
+        self.store.flush()
+
+        self.assertEquals(foo1.title, "Changed in hook: Changed")
+        self.assertEquals(foo2.title, "Changed in hook: Title 20")
+
     def test_flushed_hook(self):
 
         class MyFoo(Foo):
@@ -1590,6 +1646,13 @@ class StoreTest(object):
         self.store.add(foo)
         self.store.flush()
         self.assertEquals(foo.title, "Default Title")
+
+    def test_retrieve_null_when_no_default(self):
+        bar = Bar()
+        bar.id = 400
+        self.store.add(bar)
+        self.store.flush()
+        self.assertEquals(bar.title, None)
 
     def test_wb_remove_prop_not_dirty(self):
         foo = self.store.get(Foo, 20)
@@ -2854,7 +2917,7 @@ class StoreTest(object):
         foo = self.store.get(FooIndRefSet, 20)
         self.assertTrue(foo.bars.any().id in [100, 200])
 
-    def test_indirect_reference_set_any(self):
+    def test_indirect_reference_set_one(self):
         foo = self.store.get(FooIndRefSetOrderID, 20)
         self.assertRaises(NotOneError, foo.bars.one)
 
@@ -3178,7 +3241,7 @@ class StoreTest(object):
 
     def test_default(self):
         class MyFoo(Foo):
-            title = Chars(default="Some default value")
+            title = Unicode(default=u"Some default value")
 
         foo = MyFoo()
         self.store.add(foo)
@@ -3192,7 +3255,7 @@ class StoreTest(object):
 
     def test_default_factory(self):
         class MyFoo(Foo):
-            title = Chars(default_factory=lambda:"Some default value")
+            title = Unicode(default_factory=lambda:u"Some default value")
 
         foo = MyFoo()
         self.store.add(foo)
@@ -3883,6 +3946,17 @@ class StoreTest(object):
         MyBarProxy, MyFoo = self.get_bar_proxy_with_string()
         variable = MyBarProxy.foo_title.variable_factory(value=u"Hello")
         self.assertTrue(isinstance(variable, UnicodeVariable))
+
+    def test_get_decimal_property(self):
+        money = self.store.get(Money, 10)
+        self.assertEquals(money.value, decimal.Decimal("12.3455"))
+
+    def test_set_decimal_property(self):
+        money = self.store.get(Money, 10)
+        money.value = decimal.Decimal("12.3456")
+        self.store.flush()
+        result = self.store.find(Money, value=decimal.Decimal("12.3456"))
+        self.assertEquals(result.one(), money)
 
 
 class EmptyResultSetTest(object):
