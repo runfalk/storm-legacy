@@ -87,9 +87,8 @@ class Variable(object):
     """
     Basic representation of a database value in Python.
 
-    @type column: C{str}
-    @ivar column: The name of the column in the table that this
-    Variable represents.
+    @type column: L{storm.expr.Column}
+    @ivar column: The column this variable represents.
     @type event: L{storm.event.EventSystem}
     @ivar event: The event system on which to broadcast events. If
         None, no events will be emitted.
