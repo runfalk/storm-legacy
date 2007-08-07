@@ -252,6 +252,19 @@ class ResultTest(TestHelper):
         self.result._raw_cursor = None
         self.result.__del__()
 
+    def test_set_arraysize(self):
+        """When the arraysize is 1, change it to a better value."""
+        raw_cursor = RawCursor()
+        self.assertEquals(raw_cursor.arraysize, 1)
+        result = Result(None, raw_cursor)
+        self.assertEquals(raw_cursor.arraysize, 10)
+
+    def test_preserve_arraysize(self):
+        """When the arraysize is not 1, preserve it."""
+        raw_cursor = RawCursor(arraysize=123)
+        result = Result(None, raw_cursor)
+        self.assertEquals(raw_cursor.arraysize, 123)
+
 
 class CreateDatabaseTest(TestHelper):
 

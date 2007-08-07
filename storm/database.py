@@ -39,6 +39,9 @@ class Result(object):
     def __init__(self, connection, raw_cursor):
         self._connection = connection # Ensures deallocation order.
         self._raw_cursor = raw_cursor
+        if raw_cursor.arraysize == 1:
+            # Default of 1 is silly.
+            self._raw_cursor.arraysize = 10
 
     def __del__(self):
         try:
@@ -65,7 +68,6 @@ class Result(object):
         return result
 
     def __iter__(self):
-        self._raw_cursor.arraysize = 10 # Default of 1 is silly.
         while True:
             results = self._raw_cursor.fetchmany()
             if not results:
