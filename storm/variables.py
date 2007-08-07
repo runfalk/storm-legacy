@@ -105,8 +105,9 @@ class Variable(object):
     def __init__(self, value=Undef, value_factory=Undef, from_db=False,
                  allow_none=True, column=None, event=None):
         """
-        @param value: The initial value of this variable. Default is
-            undefined.
+        @param value: The initial value of this variable. The default
+            behavior is for the value to stay undefined until it is
+            set with L{set}.
         @param value_factory: If specified, this will immediately be
             called to get the initial value.
         @param from_db: A boolean value indicating where the initial
@@ -158,7 +159,7 @@ class Variable(object):
 
     def get_lazy(self, default=None):
         """
-        Get the L{LazyValue} previously specified with L{set} without
+        Get the L{LazyValue}, previously specified with L{set}, without
         resolving its value.
 
         @param default: If no L{LazyValue} was previously specified,
