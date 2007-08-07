@@ -130,34 +130,6 @@ class Variable(object):
         self.column = column
         self.event = event
 
-    def parse_get(self, value, to_db):
-        """Convert the internal value to an external value.
-
-        Get a representation of this value either for Python or for
-        the database. This method is only intended to be overridden
-        in subclasses, not called from external code.
-
-        @param value: The value to be converted.
-        @param to_db: Whether or not this value is destined for the
-            database.
-        """
-        return value
-
-    def parse_set(self, value, from_db):
-        """Convert an external value to an internal value.
-
-        A value is being set either from Python code or from the
-        database. Parse it into its internal representation.  This
-        method is only intended to be overridden in subclasses, not
-        called from external code.
-
-        @param value: The value, either from Python code setting an
-            attribute or from a column in a database.
-        @param from_db: A boolean flag indicating whether this value
-            is from the database.
-        """
-        return value
-
     def get_lazy(self, default=None):
         """
         Get the L{LazyValue}, previously specified with L{set}, without
@@ -302,6 +274,34 @@ class Variable(object):
         """Hash based on current value, not identity.
         """
         return hash(self._value)
+
+    def parse_get(self, value, to_db):
+        """Convert the internal value to an external value.
+
+        Get a representation of this value either for Python or for
+        the database. This method is only intended to be overridden
+        in subclasses, not called from external code.
+
+        @param value: The value to be converted.
+        @param to_db: Whether or not this value is destined for the
+            database.
+        """
+        return value
+
+    def parse_set(self, value, from_db):
+        """Convert an external value to an internal value.
+
+        A value is being set either from Python code or from the
+        database. Parse it into its internal representation.  This
+        method is only intended to be overridden in subclasses, not
+        called from external code.
+
+        @param value: The value, either from Python code setting an
+            attribute or from a column in a database.
+        @param from_db: A boolean flag indicating whether this value
+            is from the database.
+        """
+        return value
 
 
 try:
