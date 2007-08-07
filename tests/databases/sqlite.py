@@ -58,7 +58,8 @@ class SQLiteMemoryTest(DatabaseTest, TestHelper):
         self.assertEquals(database._filename, ":memory:")
 
     def test_concurrent_behavior(self):
-        pass
+        pass # We can't connect to the in-memory database twice, so we can't
+             # exercise the concurrency behavior (nor it makes sense).
 
 
 class SQLiteFileTest(SQLiteMemoryTest):
