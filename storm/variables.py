@@ -84,8 +84,7 @@ except ImportError:
 
 
 class Variable(object):
-    """
-    Basic representation of a database value in Python.
+    """Basic representation of a database value in Python.
 
     @type column: L{storm.expr.Column}
     @ivar column: The column this variable represents.
@@ -132,7 +131,8 @@ class Variable(object):
         self.event = event
 
     def parse_get(self, value, to_db):
-        """
+        """Convert the internal value to an external value.
+
         Get a representation of this value either for Python or for
         the database. This method is only intended to be overridden
         in subclasses, not called from external code.
@@ -144,7 +144,8 @@ class Variable(object):
         return value
 
     def parse_set(self, value, from_db):
-        """
+        """Convert an external value to an internal value.
+
         A value is being set either from Python code or from the
         database. Parse it into its internal representation.  This
         method is only intended to be overridden in subclasses, not
@@ -170,8 +171,7 @@ class Variable(object):
         return self._lazy_value
 
     def get(self, default=None, to_db=False):
-        """
-        Get the value. If the value is a L{LazyValue}, resolve it.
+        """Get the value, resolving it from a L{LazyValue} if necessary.
 
         @param default: Returned if no value has been set.
         @param to_db: A boolean flag indicating whether this value is
@@ -191,9 +191,10 @@ class Variable(object):
         return self.parse_get(value, to_db)
 
     def set(self, value, from_db=False):
-        """
-        Set a new value in response to an attribute being set in
-        Python or from data being loaded from the database.
+        """Set a new value.
+
+        Generally this will be called when an attribute was set in
+        Python, or data is being loaded from the database.
 
         @param value: The value to set. If this is an instance of
             L{LazyValue}, then later calls to L{get} will try to
@@ -230,9 +231,9 @@ class Variable(object):
             self.event.emit("changed", self, old_value, value, from_db)
 
     def delete(self):
-        """
-        Delete the internal value. If there was a value set, then emit
-        the C{changed} event.
+        """Delete the internal value.
+
+        If there was a value set, then emit the C{changed} event.
         """
         old_value = self._value
         if old_value is not Undef:
@@ -243,8 +244,7 @@ class Variable(object):
                 self.event.emit("changed", self, old_value, Undef, False)
 
     def is_defined(self):
-        """
-        Check whether there is currently a value.
+        """Check whether there is currently a value.
 
         @return: boolean indicating whether there is currently a value
             for this variable. Note that if a L{LazyValue} was
@@ -254,8 +254,7 @@ class Variable(object):
         return self._value is not Undef
 
     def has_changed(self):
-        """
-        Check whether the value has changed.
+        """Check whether the value has changed.
 
         @return: boolean indicating whether the value has changed
             since the last call to L{checkpoint}.
@@ -264,46 +263,43 @@ class Variable(object):
                 self.get_state() != self._checkpoint_state)
 
     def get_state(self):
-        """
-        Get the internal state of this object.
+        """Get the internal state of this object.
 
-        @return: two-tuple including the current lazy value and real value.
+        @return: A value which can later be passed to L{set_state}.
         """
         return (self._lazy_value, self._value)
 
     def set_state(self, state):
-        """
-        Set the internal state of this object.
+        """Set the internal state of this object.
 
-        @param state: A sequence of two items, which will be set as
-            the lazy value and real value on this variable.
+        @param state: A result from a previous call to
+            L{get_state}. The internal state of this variable will be set
+            to the state of the variable which get_state was called on.
         """
         self._lazy_value, self._value = state
 
     def checkpoint(self):
-        """
-        "Checkpoint" the internal state. See L{has_changed}.
+        """"Checkpoint" the internal state.
+
+        See L{has_changed}.
         """
         self._checkpoint_state = self.get_state()
 
     def copy(self):
-        """
-        Make a new copy of this Variable with the same internal state.
+        """Make a new copy of this Variable with the same internal state.
         """
         variable = self.__class__.__new__(self.__class__)
         variable.set_state(self.get_state())
         return variable
 
     def __eq__(self, other):
-        """
-        Equality based on current value, not identity.
+        """Equality based on current value, not identity.
         """
         return (self.__class__ is other.__class__ and
                 self._value == other._value)
 
     def __hash__(self):
-        """
-        Hash based on current value, not identity.
+        """Hash based on current value, not identity.
         """
         return hash(self._value)
 
