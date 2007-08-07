@@ -620,7 +620,7 @@ class Insert(Expr):
     @ivar map: Dictionary mapping columns to values.
     @ivar table: Table where the row should be inserted.
     @ivar default_table: Table to use if no table is explicitly provided, and
-        no tables may be infered from provided columns.
+        no tables may be inferred from provided columns.
     @ivar primary_columns: Tuple of columns forming the primary key of the
         table where the row will be inserted.  This is a hint used by backends
         to process the insertion of rows.
