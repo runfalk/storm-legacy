@@ -124,7 +124,7 @@ class SQLiteConnection(Connection):
             self._in_transaction = False
             self._raw_connection.execute("ROLLBACK")
 
-    def _raw_execute(self, statement, params=None, _started=None):
+    def raw_execute(self, statement, params=None, _started=None):
         """Execute a raw statement with the given parameters.
 
         This method will automatically retry on locked database errors.
@@ -138,7 +138,7 @@ class SQLiteConnection(Connection):
             self._raw_connection.execute("BEGIN")
         while True:
             try:
-                return Connection._raw_execute(self, statement, params)
+                return Connection.raw_execute(self, statement, params)
             except sqlite.OperationalError, e:
                 if str(e) != "database is locked":
                     raise

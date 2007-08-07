@@ -130,7 +130,15 @@ class Connection(object):
     def _build_raw_cursor(self):
         return self._raw_connection.cursor()
 
-    def _raw_execute(self, statement, params=None):
+    def raw_execute(self, statement, params=None):
+        """Execute a raw statement with the given parameters.
+
+        It's acceptable to override this method in subclasses, but it
+        is not intended to be called externally.
+
+        If the global C{DEBUG} is True, the statement will be printed
+        to standard out.
+        """
         raw_cursor = self._build_raw_cursor()
         if not params:
             if DEBUG:
@@ -153,7 +161,7 @@ class Connection(object):
             statement = self.compile(statement, state)
             params = state.parameters
         statement = convert_param_marks(statement, "?", self.param_mark)
-        raw_cursor = self._raw_execute(statement, params)
+        raw_cursor = self.raw_execute(statement, params)
         if noresult:
             raw_cursor.close()
             return None
