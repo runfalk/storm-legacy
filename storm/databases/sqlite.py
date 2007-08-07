@@ -91,8 +91,8 @@ class SQLiteResult(Result):
 
 class SQLiteConnection(Connection):
 
-    _result_factory = SQLiteResult
-    _compile = compile
+    result_factory = SQLiteResult
+    compile = compile
     _in_transaction = False
 
     @staticmethod

@@ -101,10 +101,19 @@ class Result(object):
 
 
 class Connection(object):
+    """A connection to a database.
 
-    _result_factory = Result
-    _param_mark = "?"
-    _compile = compile
+    @cvar result_factory: A callable which takes this L{Connection}
+        and the backend cursor and returns an instance of L{Result}.
+    @type param_mark: C{str}
+    @cvar param_mark: The dbapi paramstyle that the database backend expects.
+    @type compile: L{storm.expr.Compile}
+    @cvar compile: The compiler to use for connections of this type.
+    """
+
+    result_factory = Result
+    param_mark = "?"
+    compile = compile
 
     _closed = False
 
@@ -125,7 +134,7 @@ class Connection(object):
         raw_cursor = self._build_raw_cursor()
         if not params:
             if DEBUG:
-                print statement, () 
+                print statement, ()
             raw_cursor.execute(statement)
         else:
             params = tuple(self._to_database(params))
@@ -141,14 +150,14 @@ class Connection(object):
             if params is not None:
                 raise ValueError("Can't pass parameters with expressions")
             state = State()
-            statement = self._compile(statement, state)
+            statement = self.compile(statement, state)
             params = state.parameters
-        statement = convert_param_marks(statement, "?", self._param_mark)
+        statement = convert_param_marks(statement, "?", self.param_mark)
         raw_cursor = self._raw_execute(statement, params)
         if noresult:
             raw_cursor.close()
             return None
-        return self._result_factory(self, raw_cursor)
+        return self.result_factory(self, raw_cursor)
 
     def close(self):
         if not self._closed:

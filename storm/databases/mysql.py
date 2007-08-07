@@ -81,9 +81,9 @@ class MySQLResult(Result):
 
 class MySQLConnection(Connection):
 
-    _result_factory = MySQLResult
-    _param_mark = "%s"
-    _compile = compile
+    result_factory = MySQLResult
+    param_mark = "%s"
+    compile = compile
 
 
 class MySQL(Database):

@@ -130,7 +130,7 @@ class ConnectionTest(TestHelper):
 
     def test_execute_convert_param_style(self):
         class MyConnection(Connection):
-            _param_mark = "%s"
+            param_mark = "%s"
         connection = MyConnection(self.database, RawConnection(self.executed))
         result = connection.execute("'?' ? '?' ? '?'")
         self.assertEquals(self.executed, [("'?' %s '?' %s '?'", marker)])

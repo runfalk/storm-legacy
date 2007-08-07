@@ -3248,7 +3248,7 @@ class StoreTest(object):
                          ])
 
     def test_wb_result_set_variable(self):
-        Result = self.store._connection._result_factory
+        Result = self.store._connection.result_factory
 
         class MyResult(Result):
             def set_variable(self, variable, value):
@@ -3259,11 +3259,11 @@ class StoreTest(object):
                 else:
                     variable.set(value)
 
-        self.store._connection._result_factory = MyResult
+        self.store._connection.result_factory = MyResult
         try:
             foo = self.store.get(Foo, 20)
         finally:
-            self.store._connection._result_factory = Result
+            self.store._connection.result_factory = Result
 
         self.assertEquals(foo.id, 21)
         self.assertEquals(foo.title, "set_variable(Title 20)")

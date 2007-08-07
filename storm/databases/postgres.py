@@ -120,9 +120,9 @@ class PostgresResult(Result):
 
 class PostgresConnection(Connection):
 
-    _result_factory = PostgresResult
-    _param_mark = "%s"
-    _compile = compile
+    result_factory = PostgresResult
+    param_mark = "%s"
+    compile = compile
 
     def _raw_execute(self, statement, params):
         if type(statement) is unicode:
