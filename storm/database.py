@@ -33,6 +33,7 @@ DEBUG = False
 
 
 class Result(object):
+    """A representation of the results from a single SQL statement."""
 
     _closed = False
 
@@ -41,30 +42,48 @@ class Result(object):
         self._raw_cursor = raw_cursor
 
     def __del__(self):
+        """Close the cursor."""
         try:
             self.close()
         except:
             pass
 
     def close(self):
+        """Close the underlying raw cursor, if it hasn't already been closed.
+        """
         if not self._closed:
             self._closed = True
             self._raw_cursor.close()
             self._raw_cursor = None
 
     def get_one(self):
+        """Fetch one result from the cursor.
+
+        The result will be converted to an appropriate format via
+        L{from_database}.
+        """
         row = self._raw_cursor.fetchone()
         if row is not None:
             return tuple(self.from_database(row))
         return None
 
     def get_all(self):
+        """Fetch all results from the cursor.
+
+        The results will be converted to an appropriate format via
+        L{from_database}.
+        """
         result = self._raw_cursor.fetchall()
         if result:
             return [tuple(self.from_database(row)) for row in result]
         return result
 
     def __iter__(self):
+        """Yield all results, one at a time.
+
+        The results are *not* passed through L{from_database}.
+        XXX This will change very very soon :-)
+        """
         if self._raw_cursor.arraysize == 1:
             while True:
                 result = self._raw_cursor.fetchone()
@@ -80,10 +99,18 @@ class Result(object):
                     yield result
 
     def get_insert_identity(self, primary_columns, primary_variables):
+        """Get a query which will return the row that was just inserted.
+
+        This must be overridden in database-specific subclasses.
+
+        @rtype: L{storm.expr.Expr}
+        """
         raise NotImplementedError
 
     @staticmethod
     def set_variable(variable, value):
+        """Set the given variable's value from the database.
+        """
         variable.set(value, from_db=True)
 
     @staticmethod
@@ -219,8 +246,26 @@ class Connection(object):
 
 
 class Database(object):
+    """A database that can be connected to.
+
+    This should be subclassed for individual database backends.
+
+    @cvar connection_factory: A callable which will take this database
+        and a raw connection and should return an instance of
+        L{Connection}.
+    """
+
+    connection_factory = Connection
 
     def connect(self):
+        """Create a connection to the database.
+
+        This should be overrided in subclasses to do any
+        database-specific connection setup. It should call
+        C{self.connection_factory} to allow for ease of customization.
+
+        @return: An instance of L{Connection}.
+        """
         raise NotImplementedError
 
 

@@ -88,7 +88,7 @@ class MySQLConnection(Connection):
 
 class MySQL(Database):
 
-    _connection_factory = MySQLConnection
+    connection_factory = MySQLConnection
     _converters = None
 
     def __init__(self, uri):
@@ -120,7 +120,7 @@ class MySQL(Database):
 
     def connect(self):
         raw_connection = MySQLdb.connect(**self._connect_kwargs)
-        return self._connection_factory(self, raw_connection)
+        return self.connection_factory(self, raw_connection)
 
 
 create_from_uri = MySQL

@@ -152,7 +152,7 @@ class SQLiteConnection(Connection):
 
 class SQLite(Database):
 
-    _connection_factory = SQLiteConnection
+    connection_factory = SQLiteConnection
 
     def __init__(self, uri):
         if sqlite is dummy:
@@ -164,7 +164,7 @@ class SQLite(Database):
         # See the story at the end to understand why we set isolation_level.
         raw_connection = sqlite.connect(self._filename, timeout=self._timeout,
                                         isolation_level=None)
-        return self._connection_factory(self, raw_connection)
+        return self.connection_factory(self, raw_connection)
 
 
 create_from_uri = SQLite

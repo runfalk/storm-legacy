@@ -155,7 +155,7 @@ class PostgresConnection(Connection):
 
 class Postgres(Database):
 
-    _connection_factory = PostgresConnection
+    connection_factory = PostgresConnection
 
     def __init__(self, uri):
         if psycopg2 is dummy:
@@ -167,7 +167,7 @@ class Postgres(Database):
         raw_connection.set_client_encoding("UTF8")
         raw_connection.set_isolation_level(
             psycopg2.extensions.ISOLATION_LEVEL_SERIALIZABLE)
-        return self._connection_factory(self, raw_connection)
+        return self.connection_factory(self, raw_connection)
 
 
 create_from_uri = Postgres
