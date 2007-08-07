@@ -18,6 +18,13 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+
+"""Basic database interfacing mechanisms for Storm.
+
+This is the common code for database support; specific databases are
+supported in modules in L{storm.databases}.
+"""
+
 from storm.expr import Expr, State, compile
 from storm.variables import Variable
 from storm.exceptions import ClosedError
@@ -294,13 +301,13 @@ def create_database(uri):
     """Create a database instance.
 
     @param uri: An URI instance, or a string describing the URI. Some examples:
-        "sqlite:" An in memory sqlite database.
-        "sqlite:example.db" A SQLite database called example.db
-        "postgres:test" The database 'test' from the local postgres server.
-        "postgres://user:password@host/test" The database test on machine host
-            with supplied user credentials, using postgres.
-        "anything:..." Where 'anything' has previously been registered
-            with L{register_scheme}.
+        - "sqlite:" An in memory sqlite database.
+        - "sqlite:example.db" A SQLite database called example.db
+        - "postgres:test" The database 'test' from the local postgres server.
+        - "postgres://user:password@host/test" The database test on machine host
+          with supplied user credentials, using postgres.
+        - "anything:..." Where 'anything' has previously been registered
+          with L{register_scheme}.
     """
     if isinstance(uri, basestring):
         uri = URI(uri)
