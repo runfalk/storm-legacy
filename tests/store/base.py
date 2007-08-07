@@ -649,6 +649,9 @@ class StoreTest(object):
     def test_find_max(self):
         self.assertEquals(self.store.find(Foo).max(Foo.id), 30)
 
+    def test_find_max_expr(self):
+        self.assertEquals(self.store.find(Foo).max(Foo.id + 1), 31)
+
     def test_find_max_unicode(self):
         title = self.store.find(Foo).max(Foo.title)
         self.assertEquals(title, "Title 30")
@@ -657,6 +660,9 @@ class StoreTest(object):
     def test_find_min(self):
         self.assertEquals(self.store.find(Foo).min(Foo.id), 10)
 
+    def test_find_min_expr(self):
+        self.assertEquals(self.store.find(Foo).min(Foo.id - 1), 9)
+
     def test_find_min_unicode(self):
         title = self.store.find(Foo).min(Foo.title)
         self.assertEquals(title, "Title 10")
@@ -664,6 +670,9 @@ class StoreTest(object):
 
     def test_find_avg(self):
         self.assertEquals(self.store.find(Foo).avg(Foo.id), 20)
+
+    def test_find_avg_expr(self):
+        self.assertEquals(self.store.find(Foo).avg(Foo.id + 10), 30)
 
     def test_find_avg_float(self):
         foo = Foo()
@@ -674,6 +683,9 @@ class StoreTest(object):
 
     def test_find_sum(self):
         self.assertEquals(self.store.find(Foo).sum(Foo.id), 60)
+
+    def test_find_sum_expr(self):
+        self.assertEquals(self.store.find(Foo).sum(Foo.id * 2), 120)
 
     def test_find_max_order_by(self):
         """Interaction between order by and aggregation shouldn't break."""

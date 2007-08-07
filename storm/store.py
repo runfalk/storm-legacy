@@ -878,30 +878,30 @@ class ResultSet(object):
             select = Select(expr, tables=Alias(self._select))
         result = self._store._connection.execute(select)
         value = result.get_one()[0]
-        if column is None:
-            return value
-        else:
-            variable = column.variable_factory()
+        variable_factory = getattr(column, "variable_factory", None)
+        if variable_factory:
+            variable = variable_factory()
             result.set_variable(variable, value)
             return variable.get()
+        return value
 
-    def count(self, column=Undef, distinct=False):
-        return int(self._aggregate(Count(column, distinct)))
+    def count(self, expr=Undef, distinct=False):
+        return int(self._aggregate(Count(expr, distinct)))
 
-    def max(self, column):
-        return self._aggregate(Max(column), column)
+    def max(self, expr):
+        return self._aggregate(Max(expr), expr)
 
-    def min(self, column):
-        return self._aggregate(Min(column), column)
+    def min(self, expr):
+        return self._aggregate(Min(expr), expr)
 
-    def avg(self, column):
-        value = self._aggregate(Avg(column))
+    def avg(self, expr):
+        value = self._aggregate(Avg(expr))
         if value is None:
             return value
         return float(value)
 
-    def sum(self, column):
-        return self._aggregate(Sum(column), column)
+    def sum(self, expr):
+        return self._aggregate(Sum(expr), expr)
 
     def values(self, *columns):
         if not columns:
