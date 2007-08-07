@@ -84,6 +84,16 @@ except ImportError:
 
 
 class Variable(object):
+    """
+    Basic representation of a database value in Python.
+
+    @type column: C{str}
+    @ivar column: The name of the column in the table that this
+    Variable represents.
+    @type event: L{storm.event.EventSystem}
+    @ivar event: The event system on which to broadcast events. If
+        None, no events will be emitted.
+    """
 
     _value = Undef
     _lazy_value = Undef
@@ -95,6 +105,23 @@ class Variable(object):
 
     def __init__(self, value=Undef, value_factory=Undef, from_db=False,
                  allow_none=True, column=None, event=None):
+        """
+        @param value: The initial value of this variable. Default is
+            undefined.
+        @param value_factory: If specified, this will immediately be
+            called to get the initial value.
+        @param from_db: A boolean value indicating where the initial
+            value comes from, if C{value} or C{value_factory} are
+            specified.
+        @param allow_none: A boolean indicating whether None should be
+            allowed to be set as the value of this variable.
+        @type column: L{storm.expr.Column}
+        @param column: The column that this variable represents. It's
+            used for reporting better error messages.
+        @type event: L{EventSystem}
+        @param event: The event system to broadcast messages with. If
+            not specified, then no events will be broadcast.
+        """
         if not allow_none:
             self._allow_none = False
         if value is not Undef:
@@ -105,17 +132,55 @@ class Variable(object):
         self.event = event
 
     def parse_get(self, value, to_db):
+        """
+        Get a representation of this value either for Python or for
+        the database. This method is only intended to be overridden
+        in subclasses, not called from external code.
+
+        @param value: The value to be converted.
+        @param to_db: Whether or not this value is destined for the
+            database.
+        """
         return value
 
     def parse_set(self, value, from_db):
+        """
+        A value is being set either from Python code or from the
+        database. Parse it into its internal representation.  This
+        method is only intended to be overridden in subclasses, not
+        called from external code.
+
+        @param value: The value, either from Python code setting an
+            attribute or from a column in a database.
+        @param from_db: A boolean flag indicating whether this value
+            is from the database.
+        """
         return value
 
     def get_lazy(self, default=None):
+        """
+        Get the L{LazyValue} previously specified with L{set} without
+        resolving its value.
+
+        @param default: If no L{LazyValue} was previously specified,
+            return this value. Defaults to None.
+        """
         if self._lazy_value is Undef:
             return default
         return self._lazy_value
 
     def get(self, default=None, to_db=False):
+        """
+        Get the value. If the value is a L{LazyValue}, resolve it.
+
+        @param default: Returned if no value has been set.
+        @param to_db: A boolean flag indicating whether this value is
+            destined for the database.
+
+        If the current value is an instance of L{LazyValue}, then the
+        C{resolve-lazy-value} event will be emitted, to give third
+        parties the chance to resolve the lazy value to a real value.
+        """
         if self._lazy_value is not Undef and self.event is not None:
             self.event.emit("resolve-lazy-value", self, self._lazy_value)
         value = self._value
@@ -126,6 +191,19 @@ class Variable(object):
         return self.parse_get(value, to_db)
 
     def set(self, value, from_db=False):
+        """
+        Set a new value in response to an attribute being set in
+        Python or from data being loaded from the database.
+
+        @param value: The value to set. If this is an instance of
+            L{LazyValue}, then later calls to L{get} will try to
+            resolve the value.
+        @param from_db: A boolean indicating whether this value has
+            come from the database.
+
+        If the value is different from the previous value (or it is a
+        L{LazyValue}), then the C{changed} event will be emitted.
+        """
         # FASTPATH This method is part of the fast path.  Be careful when
         #          changing it (try to profile any changes).
 
@@ -152,6 +230,10 @@ class Variable(object):
             self.event.emit("changed", self, old_value, value, from_db)
 
     def delete(self):
+        """
+        Delete the internal value. If there was a value set, then emit
+        the C{changed} event.
+        """
         old_value = self._value
         if old_value is not Undef:
             self._value = Undef
@@ -161,31 +243,68 @@ class Variable(object):
                 self.event.emit("changed", self, old_value, Undef, False)
 
     def is_defined(self):
+        """
+        Check whether there is currently a value.
+
+        @return: boolean indicating whether there is currently a value
+            for this variable. Note that if a L{LazyValue} was
+            previosly set, this returns False; it only returns True if
+            there is currently a real value set.
+        """
         return self._value is not Undef
 
     def has_changed(self):
+        """
+        Check whether the value has changed.
+
+        @return: boolean indicating whether the value has changed
+            since the last call to L{checkpoint}.
+        """
         return (self._lazy_value is not Undef or
                 self.get_state() != self._checkpoint_state)
 
     def get_state(self):
+        """
+        Get the internal state of this object.
+
+        @return: two-tuple including the current lazy value and real value.
+        """
         return (self._lazy_value, self._value)
 
     def set_state(self, state):
+        """
+        Set the internal state of this object.
+
+        @param state: A sequence of two items, which will be set as
+            the lazy value and real value on this variable.
+        """
         self._lazy_value, self._value = state
 
     def checkpoint(self):
+        """
+        "Checkpoint" the internal state. See L{has_changed}.
+        """
         self._checkpoint_state = self.get_state()
 
     def copy(self):
+        """
+        Make a new copy of this Variable with the same internal state.
+        """
         variable = self.__class__.__new__(self.__class__)
         variable.set_state(self.get_state())
         return variable
 
     def __eq__(self, other):
+        """
+        Equality based on current value, not identity.
+        """
         return (self.__class__ is other.__class__ and
                 self._value == other._value)
 
     def __hash__(self):
+        """
+        Hash based on current value, not identity.
+        """
         return hash(self._value)
 
 
@@ -226,7 +345,7 @@ class FloatVariable(Variable):
 class DecimalVariable(Variable):
 
     @staticmethod
-    def _parse_set(value, from_db):
+    def parse_set(value, from_db):
         if (from_db and isinstance(value, basestring) or
             isinstance(value, (int, long))):
             value = Decimal(value)
@@ -236,7 +355,7 @@ class DecimalVariable(Variable):
         return value
 
     @staticmethod
-    def _parse_get(value, to_db):
+    def parse_get(value, to_db):
         if to_db:
             return str(value)
         return value
