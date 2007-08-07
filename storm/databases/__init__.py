@@ -36,4 +36,7 @@ class Dummy(object):
     def __add__(self, other):
         return self
 
+    def __nonzero__(self):
+        return False
+
 dummy = Dummy()
