@@ -128,30 +128,6 @@ class Connection(object):
         except:
             pass
 
-    def _build_raw_cursor(self):
-        return self._raw_connection.cursor()
-
-    def raw_execute(self, statement, params=None):
-        """Execute a raw statement with the given parameters.
-
-        It's acceptable to override this method in subclasses, but it
-        is not intended to be called externally.
-
-        If the global C{DEBUG} is True, the statement will be printed
-        to standard out.
-        """
-        raw_cursor = self._build_raw_cursor()
-        if not params:
-            if DEBUG:
-                print statement, ()
-            raw_cursor.execute(statement)
-        else:
-            params = tuple(self.to_database(params))
-            if DEBUG:
-                print statement, params
-            raw_cursor.execute(statement, params)
-        return raw_cursor
-
     def execute(self, statement, params=None, noresult=False):
         """Execute a statement with the given parameters.
 
@@ -209,6 +185,37 @@ class Connection(object):
                 yield param.get(to_db=True)
             else:
                 yield param
+
+    def build_raw_cursor(self):
+        """Get a new dbapi cursor object.
+
+        It is acceptable to override this method in subclasses, but it
+        is not intended to be called externally.
+        """
+        return self._raw_connection.cursor()
+
+    def raw_execute(self, statement, params=None):
+        """Execute a raw statement with the given parameters.
+
+        It's acceptable to override this method in subclasses, but it
+        is not intended to be called externally.
+
+        If the global C{DEBUG} is True, the statement will be printed
+        to standard out.
+
+        @return: The dbapi cursor object, as fetched from L{build_raw_cursor}.
+        """
+        raw_cursor = self.build_raw_cursor()
+        if not params:
+            if DEBUG:
+                print statement, ()
+            raw_cursor.execute(statement)
+        else:
+            params = tuple(self.to_database(params))
+            if DEBUG:
+                print statement, params
+            raw_cursor.execute(statement, params)
+        return raw_cursor
 
 
 class Database(object):
