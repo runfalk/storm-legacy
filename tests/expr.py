@@ -660,7 +660,7 @@ class CompileTest(TestHelper):
         expr = Insert({column1: elem1, Func1(): Func2()}, Func2())
         state = State()
         statement = compile(expr, state)
-        self.assertTrue(statement in  (
+        self.assertTrue(statement in (
                         "INSERT INTO func2() (column1, func1()) "
                         "VALUES (elem1, func2())",
                         "INSERT INTO func2() (func1(), column1) "
@@ -711,9 +711,10 @@ class CompileTest(TestHelper):
         expr = Update({column1: elem1, Func1(): Func2()}, table=Func1())
         state = State()
         statement = compile(expr, state)
-        self.assertTrue(statement in
-                        ["UPDATE func1() SET column1=elem1, func1()=func2()",
-                         "UPDATE func1() SET func1()=func2(), column1=elem1"])
+        self.assertTrue(statement in (
+                        "UPDATE func1() SET column1=elem1, func1()=func2()",
+                        "UPDATE func1() SET func1()=func2(), column1=elem1"
+                        ), statement)
         self.assertEquals(state.parameters, [])
 
     def test_update_with_columns(self):
