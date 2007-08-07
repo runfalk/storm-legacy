@@ -3962,7 +3962,7 @@ class StoreTest(object):
         self.assertEquals(foo.id, 40)
         self.assertEquals(self.store.get(Foo, 40), foo)
 
-    def test_wb_preset_primary_key(self):
+    def test_preset_primary_key(self):
         check = []
         def preset_primary_key(primary_columns, primary_variables):
             check.append([(variable.is_defined(), variable.get_lazy())
@@ -3970,15 +3970,27 @@ class StoreTest(object):
             check.append([column.name for column in primary_columns])
             primary_variables[0].set(SQL("40"))
 
-        connection = self.store._connection
-        connection.preset_primary_key = preset_primary_key
+        class DatabaseWrapper(object):
+            """Wrapper to inject our custom preset_primary_key hook."""
 
-        foo = self.store.add(Foo())
+            def __init__(self, database):
+                self.database = database
 
-        self.store.flush()
+            def connect(self):
+                connection = self.database.connect()
+                connection.preset_primary_key = preset_primary_key
+                return connection
 
-        self.assertEquals(check, [[(False, None)], ["id"]])
-        self.assertEquals(foo.id, 40)
+        store = Store(DatabaseWrapper(self.database))
+
+        foo = store.add(Foo())
+
+        store.flush()
+        try:
+            self.assertEquals(check, [[(False, None)], ["id"]])
+            self.assertEquals(foo.id, 40)
+        finally:
+            store.close()
 
 
 class EmptyResultSetTest(object):
