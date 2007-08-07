@@ -137,7 +137,7 @@ class Connection(object):
                 print statement, ()
             raw_cursor.execute(statement)
         else:
-            params = tuple(self._to_database(params))
+            params = tuple(self.to_database(params))
             if DEBUG:
                 print statement, params
             raw_cursor.execute(statement, params)
@@ -172,7 +172,15 @@ class Connection(object):
         self._raw_connection.rollback()
 
     @staticmethod
-    def _to_database(params):
+    def to_database(params):
+        """Convert some parameters into values acceptable to a database backend.
+
+        It is acceptable to override this method in subclasses, but it
+        is not intended to be used externally.
+
+        This delegates conversion to any L{Variable}s in the parameter
+        list, and pass through all other values untouched.
+        """
         for param in params:
             if isinstance(param, Variable):
                 yield param.get(to_db=True)

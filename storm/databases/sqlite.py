@@ -96,7 +96,12 @@ class SQLiteConnection(Connection):
     _in_transaction = False
 
     @staticmethod
-    def _to_database(params):
+    def to_database(params):
+        """
+        Like L{Connection.to_database}, but this also converts
+        instances of L{datetime} types to strings, and strings
+        instances to C{buffer} instances.
+        """
         for param in params:
             if isinstance(param, Variable):
                 param = param.get(to_db=True)

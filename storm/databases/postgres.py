@@ -130,7 +130,12 @@ class PostgresConnection(Connection):
             statement = statement.encode("UTF-8")
         return Connection._raw_execute(self, statement, params)
 
-    def _to_database(self, params):
+    def to_database(self, params):
+        """
+        Like L{Connection.to_database}, but this converts datetime
+        types to strings, unicode to UTF-8 encoded strings, and
+        strings to L{psycopg2.Binary} instances.
+        """
         for param in params:
             if isinstance(param, Variable):
                 param = param.get(to_db=True)
