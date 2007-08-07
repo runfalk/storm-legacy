@@ -22,7 +22,6 @@ from decimal import Decimal
 from datetime import datetime, date, time, timedelta
 from weakref import WeakKeyDictionary
 from copy import copy
-import sys
 import re
 
 from storm.exceptions import CompileError, NoTableError, ExprError

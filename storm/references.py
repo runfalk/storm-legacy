@@ -21,9 +21,9 @@
 from storm.exceptions import WrongStoreError, NoStoreError, ClassInfoError
 from storm.store import Store, get_where_for_args
 from storm.expr import (
-    Select, Column, Exists, ComparableExpr, LeftJoin, Undef, SQLRaw,
+    Select, Column, Exists, ComparableExpr, LeftJoin, SQLRaw,
     compare_columns, compile)
-from storm.info import *
+from storm.info import get_cls_info, get_obj_info
 
 
 __all__ = ["Reference", "ReferenceSet", "Proxy"]

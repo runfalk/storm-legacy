@@ -19,7 +19,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 from datetime import datetime, date, time
-from time import strptime
 
 from storm.databases import dummy
 
@@ -33,7 +32,7 @@ from storm.expr import (
     Undef, SetExpr, Select, Alias, And, Eq, FuncExpr, SQLRaw, COLUMN_NAME,
     compile, compile_select, compile_set_expr)
 from storm.variables import Variable, ListVariable
-from storm.database import *
+from storm.database import Database, Connection, Result
 from storm.exceptions import install_exceptions, DatabaseModuleError
 
 

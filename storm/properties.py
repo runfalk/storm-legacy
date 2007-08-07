@@ -19,16 +19,18 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 from bisect import insort_left, bisect_left
-from datetime import datetime
-from types import ClassType
 import weakref
 import sys
 
 from storm.exceptions import PropertyPathError
 from storm.info import get_obj_info, get_cls_info
 from storm.expr import Column, Undef
-from storm.variables import *
-from storm import Undef
+from storm.variables import (
+    Variable, VariableFactory, BoolVariable, IntVariable, FloatVariable,
+    DecimalVariable, RawStrVariable, UnicodeVariable, DateTimeVariable,
+    DateVariable, TimeVariable, TimeDeltaVariable, PickleVariable,
+    ListVariable, EnumVariable)
+
 
 
 __all__ = ["Property", "SimpleProperty",

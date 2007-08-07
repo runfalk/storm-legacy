@@ -21,7 +21,6 @@
 from datetime import datetime, date, time
 from time import sleep, time as now
 import sys
-import re
 
 from storm.databases import dummy
 
@@ -34,11 +33,11 @@ except ImportError:
         sqlite = dummy
 
 from storm.variables import Variable, RawStrVariable
-from storm.database import *
+from storm.database import Database, Connection, Result
 from storm.exceptions import install_exceptions, DatabaseModuleError
 from storm.expr import (
-    Select, SELECT, Undef, SQLRaw, SetExpr, Union, Except, Intersect,
-    compile, compile_select, compile_set_expr)
+    Select, SELECT, Undef, SQLRaw, Union, Except, Intersect,
+    compile, compile_select)
 
 
 install_exceptions(sqlite)
