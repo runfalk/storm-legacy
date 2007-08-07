@@ -556,8 +556,7 @@ class Relation(object):
                 if not self.many or not relations:
                     local_info.event.unhook("added", self._add_all, local_info)
                 remote_info.event.unhook("added", self._add_all, local_info)
-
-            if local_store is not None:
+            else:
                 if self.on_remote:
                     local_store.remove_flush_order(local_info, remote_info)
                 else:

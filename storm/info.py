@@ -27,7 +27,7 @@ from storm.event import EventSystem
 from storm import Undef
 
 
-__all__ = ["get_obj_info", "set_obj_info", "get_cls_info", "get_info",
+__all__ = ["get_obj_info", "set_obj_info", "get_cls_info",
            "ClassInfo", "ObjectInfo", "ClassAlias"]
 
 
@@ -50,14 +50,6 @@ def get_cls_info(cls):
     else:
         cls.__storm_class_info__ = ClassInfo(cls)
         return cls.__storm_class_info__
-
-def get_info(obj):
-    try:
-        obj_info = obj.__storm_object_info__
-    except AttributeError:
-        obj_info = get_obj_info(obj)
-    return obj_info, obj_info.cls_info
-
 
 class ClassInfo(dict):
     """Persistent storm-related information of a class.
@@ -168,16 +160,16 @@ class ObjectInfo(dict):
 
         # First thing, try to create a ClassInfo for the object's class.
         # This ensures that obj is the kind of object we expect.
-        self.cls_info = get_cls_info(obj.__class__)
+        self.cls_info = get_cls_info(type(obj))
 
         self.set_obj(obj)
 
-        self.event = EventSystem(self)
+        self.event = event = EventSystem(self)
         self.variables = variables = {}
 
         for column in self.cls_info.columns:
             variables[column] = column.variable_factory(column=column,
-                                                        event=self.event)
+                                                        event=event)
  
         self.primary_vars = tuple(variables[column]
                                   for column in self.cls_info.primary_key)
@@ -185,12 +177,18 @@ class ObjectInfo(dict):
     def set_obj(self, obj):
         self.get_obj = ref(obj, self._emit_object_deleted)
 
+    def _emit_object_deleted(self, obj_ref):
+        self.event.emit("object-deleted")
+
     def checkpoint(self):
         for variable in self.variables.itervalues():
             variable.checkpoint()
 
-    def _emit_object_deleted(self, obj_ref):
-        self.event.emit("object-deleted")
+try:
+    from storm.cextensions import ObjectInfo, get_obj_info
+except ImportError, e:
+    if "cextensions" not in str(e):
+        raise
 
 
 class ClassAlias(FromExpr):

@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 
 try:
-    from setuptools import setup
+    from setuptools import setup, Extension
 except ImportError:
-    from distutils.core import setup
+    from distutils.core import setup, Extension
+
+
+BUILD_CEXTENSIONS = False
 
 
 setup(
@@ -26,4 +29,6 @@ setup(
         "Topic :: Database :: Front-Ends",
         "Topic :: Software Development :: Libraries :: Python Modules",
     ],
+    ext_modules=(BUILD_CEXTENSIONS and
+                 [Extension("storm.cextensions", ["storm/cextensions.c"])])
 )

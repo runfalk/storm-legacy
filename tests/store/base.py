@@ -743,6 +743,17 @@ class StoreTest(object):
         # it without touching the database. Use the title instead.
         self.assertEquals(self.store.find(Foo, title=u"Title 20").cached(), [])
 
+    def test_find_cached_with_info_alive_and_object_dead(self):
+        foo = self.store.get(Foo, 20)
+        foo.tainted = True
+        obj_info = get_obj_info(foo)
+        del foo
+        gc.collect()
+        cached = self.store.find(Foo).cached()
+        self.assertEquals(len(cached), 1)
+        foo = self.store.get(Foo, 20)
+        self.assertFalse(hasattr(foo, "tainted"))
+
     def test_using_find_join(self):
         bar = self.store.get(Bar, 100)
         bar.foo_id = None
@@ -1834,6 +1845,17 @@ class StoreTest(object):
         self.store.reload(bar)
         self.assertEquals(bar.title, "Title 500")
 
+    def test_find_set_with_info_alive_and_object_dead(self):
+        foo = self.store.get(Foo, 20)
+        foo.tainted = True
+        obj_info = get_obj_info(foo)
+        del foo
+        gc.collect()
+        self.store.find(Foo, title=u"Title 20").set(title=u"Title 40")
+        foo = self.store.get(Foo, 20)
+        self.assertFalse(hasattr(foo, "tainted"))
+        self.assertEquals(foo.title, "Title 40")
+
     def test_reference(self):
         bar = self.store.get(Bar, 100)
         self.assertTrue(bar.foo)
@@ -1857,10 +1879,17 @@ class StoreTest(object):
         self.assertEquals(bar.foo.id, 20)
 
     def test_reference_break_on_remote_diverged_by_lazy(self):
-        bar = self.store.get(Bar, 100)
+        class MyBar(Bar):
+            pass
+        MyBar.foo = Reference(MyBar.title, Foo.title)
+        bar = self.store.get(MyBar, 100)
+        bar.title = u"Title 30"
+        self.store.flush()
         self.assertEquals(bar.foo.id, 10)
-        bar.foo.id = SQL("40")
+        bar.foo.title = SQL("'Title 40'")
         self.assertEquals(bar.foo, None)
+        self.assertEquals(self.store.find(Foo, title=u"Title 30").one(), None)
+        self.assertEquals(self.store.get(Foo, 10).title, u"Title 40")
 
     def test_reference_on_non_primary_key(self):
         self.store.execute("INSERT INTO bar VALUES (400, 40, 'Title 30')")
@@ -3957,6 +3986,15 @@ class StoreTest(object):
         self.store.flush()
         result = self.store.find(Money, value=decimal.Decimal("12.3456"))
         self.assertEquals(result.one(), money)
+
+    # XXX Lazy expressions not supported on primary keys yet.
+    #def test_fill_missing_primary_key_with_lazy_value(self):
+    #    foo = self.store.get(Foo, 10)
+    #    foo.id = SQL("40")
+    #    self.store.flush()
+    #    self.assertEquals(foo.id, 40)
+    #    self.assertEquals(self.store.get(Foo, 10), None)
+    #    self.assertEquals(self.store.get(Foo, 40), foo)
 
 
 class EmptyResultSetTest(object):
