@@ -191,7 +191,8 @@ class Variable(object):
 try:
     from storm.cextensions import Variable
 except ImportError, e:
-    assert "cextensions" in str(e)
+    if "cextensions" not in str(e):
+        raise
 
 
 class BoolVariable(Variable):

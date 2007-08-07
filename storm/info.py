@@ -187,7 +187,8 @@ class ObjectInfo(dict):
 try:
     from storm.cextensions import ObjectInfo, get_obj_info
 except ImportError, e:
-    assert "cextensions" in str(e)
+    if "cextensions" not in str(e):
+        raise
 
 
 class ClassAlias(FromExpr):
