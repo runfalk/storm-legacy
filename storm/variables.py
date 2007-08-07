@@ -145,13 +145,13 @@ class Variable(object):
     def get(self, default=None, to_db=False):
         """Get the value, resolving it from a L{LazyValue} if necessary.
 
-        @param default: Returned if no value has been set.
-        @param to_db: A boolean flag indicating whether this value is
-            destined for the database.
-
         If the current value is an instance of L{LazyValue}, then the
         C{resolve-lazy-value} event will be emitted, to give third
         parties the chance to resolve the lazy value to a real value.
+
+        @param default: Returned if no value has been set.
+        @param to_db: A boolean flag indicating whether this value is
+            destined for the database.
         """
         if self._lazy_value is not Undef and self.event is not None:
             self.event.emit("resolve-lazy-value", self, self._lazy_value)
@@ -168,14 +168,14 @@ class Variable(object):
         Generally this will be called when an attribute was set in
         Python, or data is being loaded from the database.
 
+        If the value is different from the previous value (or it is a
+        L{LazyValue}), then the C{changed} event will be emitted.
+
         @param value: The value to set. If this is an instance of
             L{LazyValue}, then later calls to L{get} will try to
             resolve the value.
         @param from_db: A boolean indicating whether this value has
             come from the database.
-
-        If the value is different from the previous value (or it is a
-        L{LazyValue}), then the C{changed} event will be emitted.
         """
         # FASTPATH This method is part of the fast path.  Be careful when
         #          changing it (try to profile any changes).
@@ -609,7 +609,7 @@ def _parse_interval(interval_str):
     """Parses PostgreSQL interval notation and returns a tuple (years, months,
     days, hours, minutes, seconds).
 
-    Values accepted:
+    Values accepted::
         interval  ::= date
                    |  time
                    |  date time

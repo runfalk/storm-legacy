@@ -183,7 +183,7 @@ class List(SimpleProperty):
 class Enum(SimpleProperty):
     """Enumeration property, allowing used values to differ from stored ones.
 
-    For instance:
+    For instance::
 
         class Class(Storm):
             prop = Enum(map={"one": 1, "two": 2})
@@ -193,7 +193,7 @@ class Enum(SimpleProperty):
 
         obj.prop = 1 # Raises error.
 
-    Another example:
+    Another example::
 
         class Class(Storm):
             prop = Enum(map={"one": 1, "two": 2}, set_map={"um": 1})
