@@ -122,7 +122,7 @@ class Connection(object):
         self._raw_connection = raw_connection
 
     def __del__(self):
-        """Close the database."""
+        """Close the connection."""
         try:
             self.close()
         except:
