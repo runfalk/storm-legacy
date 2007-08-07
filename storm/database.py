@@ -213,8 +213,6 @@ class Connection(object):
 
 class Database(object):
 
-    _connection_factory = Connection
-
     def connect(self):
         raise NotImplementedError
 
