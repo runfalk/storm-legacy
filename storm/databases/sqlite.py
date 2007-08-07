@@ -76,7 +76,12 @@ class SQLiteResult(Result):
         variable.set(value, from_db=True)
 
     @staticmethod
-    def _from_database(row):
+    def from_database(row):
+        """Convert MySQL-specific datatypes to "normal" Python types.
+
+        If there are anny C{buffer} instances in the row, convert them
+        to strings.
+        """
         for value in row:
             if isinstance(value, buffer):
                 yield str(value)

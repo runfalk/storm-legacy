@@ -66,7 +66,12 @@ class MySQLResult(Result):
         return And(*equals)
 
     @staticmethod
-    def _from_database(row):
+    def from_database(row):
+        """Convert MySQL-specific datatypes to "normal" Python types.
+
+        If there are any C{array} instances in the row, convert them
+        to strings.
+        """
         for value in row:
             if isinstance(value, array):
                 yield value.tostring()

@@ -55,13 +55,13 @@ class Result(object):
     def get_one(self):
         row = self._raw_cursor.fetchone()
         if row is not None:
-            return tuple(self._from_database(row))
+            return tuple(self.from_database(row))
         return None
 
     def get_all(self):
         result = self._raw_cursor.fetchall()
         if result:
-            return [tuple(self._from_database(row)) for row in result]
+            return [tuple(self.from_database(row)) for row in result]
         return result
 
     def __iter__(self):
@@ -87,7 +87,16 @@ class Result(object):
         variable.set(value, from_db=True)
 
     @staticmethod
-    def _from_database(row):
+    def from_database(row):
+        """Convert a row fetched from the database to an agnostic format.
+
+        This method is intended to be overridden in subclasses, but
+        not called externally.
+
+        If there are any peculiarities in the datatypes returned from
+        a database backend, this method should be overridden in the
+        backend subclass to convert them.
+        """
         return row
 
 
