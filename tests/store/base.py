@@ -1029,6 +1029,13 @@ class StoreTest(object):
         self.store.reload(bar)
         self.assertEquals(bar.title, "Title 500")
 
+    def test_add_completely_undefined(self):
+        foo = Foo()
+        self.store.add(foo)
+        self.store.flush()
+        self.assertEquals(type(foo.id), int)
+        self.assertEquals(foo.title, u"Default Title")
+
     def test_remove_commit(self):
         foo = self.store.get(Foo, 20)
         self.store.remove(foo)
@@ -3999,14 +4006,51 @@ class StoreTest(object):
         result = self.store.find(Money, value=decimal.Decimal("12.3456"))
         self.assertEquals(result.one(), money)
 
-    # XXX Lazy expressions not supported on primary keys yet.
-    #def test_fill_missing_primary_key_with_lazy_value(self):
-    #    foo = self.store.get(Foo, 10)
-    #    foo.id = SQL("40")
-    #    self.store.flush()
-    #    self.assertEquals(foo.id, 40)
-    #    self.assertEquals(self.store.get(Foo, 10), None)
-    #    self.assertEquals(self.store.get(Foo, 40), foo)
+    def test_fill_missing_primary_key_with_lazy_value(self):
+        foo = self.store.get(Foo, 10)
+        foo.id = SQL("40")
+        self.store.flush()
+        self.assertEquals(foo.id, 40)
+        self.assertEquals(self.store.get(Foo, 10), None)
+        self.assertEquals(self.store.get(Foo, 40), foo)
+
+    def test_fill_missing_primary_key_with_lazy_value_on_creation(self):
+        foo = Foo()
+        foo.id = SQL("40")
+        self.store.add(foo)
+        self.store.flush()
+        self.assertEquals(foo.id, 40)
+        self.assertEquals(self.store.get(Foo, 40), foo)
+
+    def test_preset_primary_key(self):
+        check = []
+        def preset_primary_key(primary_columns, primary_variables):
+            check.append([(variable.is_defined(), variable.get_lazy())
+                          for variable in primary_variables])
+            check.append([column.name for column in primary_columns])
+            primary_variables[0].set(SQL("40"))
+
+        class DatabaseWrapper(object):
+            """Wrapper to inject our custom preset_primary_key hook."""
+
+            def __init__(self, database):
+                self.database = database
+
+            def connect(self):
+                connection = self.database.connect()
+                connection.preset_primary_key = preset_primary_key
+                return connection
+
+        store = Store(DatabaseWrapper(self.database))
+
+        foo = store.add(Foo())
+
+        store.flush()
+        try:
+            self.assertEquals(check, [[(False, None)], ["id"]])
+            self.assertEquals(foo.id, 40)
+        finally:
+            store.close()
 
 
 class EmptyResultSetTest(object):

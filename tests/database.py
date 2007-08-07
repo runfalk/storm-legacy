@@ -216,11 +216,7 @@ class ResultTest(TestHelper):
                           [("fetchall0",), ("fetchall1",)])
         self.assertEquals(self.result.get_all(), [])
 
-    def test_iter_arraysize_1(self):
-        self.assertEquals([item for item in self.result],
-                          [("fetchone0",), ("fetchone1",), ("fetchone2",),])
-
-    def test_iter_arraysize_2(self):
+    def test_iter(self):
         result = Result(None, RawCursor(2))
         self.assertEquals([item for item in result],
                           [("fetchmany0",), ("fetchmany1",), ("fetchmany2",),
@@ -255,6 +251,19 @@ class ResultTest(TestHelper):
     def test_wb_del_with_previously_deallocated_cursor(self):
         self.result._raw_cursor = None
         self.result.__del__()
+
+    def test_set_arraysize(self):
+        """When the arraysize is 1, change it to a better value."""
+        raw_cursor = RawCursor()
+        self.assertEquals(raw_cursor.arraysize, 1)
+        result = Result(None, raw_cursor)
+        self.assertEquals(raw_cursor.arraysize, 10)
+
+    def test_preserve_arraysize(self):
+        """When the arraysize is not 1, preserve it."""
+        raw_cursor = RawCursor(arraysize=123)
+        result = Result(None, raw_cursor)
+        self.assertEquals(raw_cursor.arraysize, 123)
 
 
 class CreateDatabaseTest(TestHelper):

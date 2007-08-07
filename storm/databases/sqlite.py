@@ -36,8 +36,8 @@ from storm.variables import Variable, RawStrVariable
 from storm.database import Database, Connection, Result
 from storm.exceptions import install_exceptions, DatabaseModuleError
 from storm.expr import (
-    Select, SELECT, Undef, SQLRaw, Union, Except, Intersect,
-    compile, compile_select)
+    Insert, Select, SELECT, Undef, SQLRaw, Union, Except, Intersect,
+    compile, compile_insert, compile_select)
 
 
 install_exceptions(sqlite)
@@ -60,6 +60,14 @@ def compile_select_sqlite(compile, select, state):
 
 # Considering the above, selects have a greater precedence.
 compile.set_precedence(5, Union, Except, Intersect)
+
+@compile.when(Insert)
+def compile_insert_sqlite(compile, insert, state):
+    # SQLite fails with INSERT INTO table VALUES (), so we transform
+    # that to INSERT INTO table (id) VALUES (NULL).
+    if not insert.map and insert.primary_columns is not Undef:
+        insert.map.update(dict.fromkeys(insert.primary_columns, None))
+    return compile_insert(compile, insert, state)
 
 
 class SQLiteResult(Result):

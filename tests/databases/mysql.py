@@ -39,6 +39,8 @@ class MySQLTest(DatabaseTest, TestHelper):
         self.database = create_database(os.environ["STORM_MYSQL_URI"])
 
     def create_tables(self):
+        self.connection.execute("CREATE TABLE number "
+                                "(one INTEGER, two INTEGER, three INTEGER)")
         self.connection.execute("CREATE TABLE test "
                                 "(id INT AUTO_INCREMENT PRIMARY KEY,"
                                 " title VARCHAR(50)) ENGINE=InnoDB")

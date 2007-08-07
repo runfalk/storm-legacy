@@ -65,6 +65,7 @@ class DatabaseTest(object):
         raise NotImplementedError
 
     def create_sample_data(self):
+        self.connection.execute("INSERT INTO number VALUES (1, 2, 3)")
         self.connection.execute("INSERT INTO test VALUES (10, 'Title 10')")
         self.connection.execute("INSERT INTO test VALUES (20, 'Title 20')")
         self.connection.commit()
@@ -73,21 +74,12 @@ class DatabaseTest(object):
         pass
 
     def drop_tables(self):
-        try:
-            self.connection.execute("DROP TABLE test")
-            self.connection.commit()
-        except:
-            self.connection.rollback()
-        try:
-            self.connection.execute("DROP TABLE datetime_test")
-            self.connection.commit()
-        except:
-            self.connection.rollback()
-        try:
-            self.connection.execute("DROP TABLE bin_test")
-            self.connection.commit()
-        except:
-            self.connection.rollback()
+        for table in ["number", "test", "datetime_test", "bin_test"]:
+            try:
+                self.connection.execute("DROP TABLE " + table)
+                self.connection.commit()
+            except:
+                self.connection.rollback()
 
     def drop_database(self):
         pass
@@ -138,15 +130,15 @@ class DatabaseTest(object):
         self.assertTrue(isinstance(row[0], unicode))
 
     def test_execute_params(self):
-        result = self.connection.execute("SELECT 1 FROM (SELECT 1) AS ALIAS "
+        result = self.connection.execute("SELECT one FROM number "
                                          "WHERE 1=?", (1,))
         self.assertTrue(result.get_one())
-        result = self.connection.execute("SELECT 1 FROM (SELECT 1) AS ALIAS "
+        result = self.connection.execute("SELECT one FROM number "
                                          "WHERE 1=?", (2,))
         self.assertFalse(result.get_one())
 
     def test_execute_empty_params(self):
-        result = self.connection.execute("SELECT 1", ())
+        result = self.connection.execute("SELECT one FROM number", ())
         self.assertTrue(result.get_one())
 
     def test_execute_expression(self):
@@ -329,6 +321,24 @@ class DatabaseTest(object):
             self.assertEquals(result.get_one(), ("Title 10",))
         finally:
             connection1.rollback()
+
+    def from_database(self, row):
+        return [int(item)+1 for item in row]
+
+    def test_wb_result_get_one_goes_through_from_database(self):
+        result = self.connection.execute("SELECT one, two FROM number")
+        result._from_database = self.from_database
+        self.assertEquals(result.get_one(), (2, 3))
+
+    def test_wb_result_get_all_goes_through_from_database(self):
+        result = self.connection.execute("SELECT one, two FROM number")
+        result._from_database = self.from_database
+        self.assertEquals(result.get_all(), [(2, 3)])
+
+    def test_wb_result_iter_goes_through_from_database(self):
+        result = self.connection.execute("SELECT one, two FROM number")
+        result._from_database = self.from_database
+        self.assertEquals(iter(result).next(), (2, 3))
 
 
 class UnsupportedDatabaseTest(object):
