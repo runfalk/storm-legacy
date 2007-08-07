@@ -122,6 +122,7 @@ class Connection(object):
         self._raw_connection = raw_connection
 
     def __del__(self):
+        """Close the database."""
         try:
             self.close()
         except:
@@ -152,6 +153,16 @@ class Connection(object):
         return raw_cursor
 
     def execute(self, statement, params=None, noresult=False):
+        """Execute a statement with the given parameters.
+
+        @type statament: L{Expr} or C{str}
+        @param statement: The statement to execute. It will be
+            compiled if necessary.
+        @param noresult: If True, no result will be returned.
+
+        @return: The result of C{self.result_factory}, or None if
+            C{noresult} is True.
+        """
         if self._closed:
             raise ClosedError("Connection is closed")
         if isinstance(statement, Expr):
@@ -168,15 +179,19 @@ class Connection(object):
         return self.result_factory(self, raw_cursor)
 
     def close(self):
+        """Close the connection if it is not already closed.
+        """
         if not self._closed:
             self._closed = True
             self._raw_connection.close()
             self._raw_connection = None
 
     def commit(self):
+        """Commit the connection."""
         self._raw_connection.commit()
 
     def rollback(self):
+        """Rollback the connection."""
         self._raw_connection.rollback()
 
     @staticmethod
