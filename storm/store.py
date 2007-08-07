@@ -1125,7 +1125,7 @@ class EmptyResultSet(object):
 
 
 class TableSet(object):
-    
+
     def __init__(self, store, tables):
         self._store = store
         self._tables = tables

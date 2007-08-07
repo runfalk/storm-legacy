@@ -116,7 +116,7 @@ class Connection(object):
         raw_cursor = self._build_raw_cursor()
         if not params:
             if DEBUG:
-                print statement, () 
+                print statement, ()
             raw_cursor.execute(statement)
         else:
             params = tuple(self._to_database(params))

@@ -96,7 +96,7 @@ class SQLObjectStyle(object):
         if name.startswith('_'):
             return name[1:]
         return name
-    
+
     def _mixed_to_under_sub(self, match):
         m = match.group(0).lower()
         if len(m) > 1:
@@ -115,7 +115,7 @@ class SQLObjectStyle(object):
     @staticmethod
     def _capword(s):
         return s[0].upper() + s[1:]
-    
+
     @staticmethod
     def _lowerword(s):
         return s[0].lower() + s[1:]

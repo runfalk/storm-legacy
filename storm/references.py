@@ -534,7 +534,7 @@ class Relation(object):
                 unhook = True
         elif local_info.pop(self, None) is not None:
             unhook = True
-        
+
         if unhook:
             local_store = Store.of(local_info)
 

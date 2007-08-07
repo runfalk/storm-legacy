@@ -52,7 +52,7 @@ class ClosedError(StormError):
 
 class FeatureError(StormError):
     pass
-    
+
 class DatabaseModuleError(StormError):
     pass
 
@@ -114,7 +114,7 @@ class NotSupportedError(DatabaseError):
 
 
 def install_exceptions(module):
-    for exception in (Error, Warning, DatabaseError, InternalError, 
+    for exception in (Error, Warning, DatabaseError, InternalError,
                       OperationalError, ProgrammingError, IntegrityError,
                       DataError, NotSupportedError):
         module_exception = getattr(module, exception.__name__, None)

@@ -431,7 +431,7 @@ class Comparable(object):
         if not isinstance(other, (Expr, Variable)):
             other = getattr(self, "variable_factory", Variable)(value=other)
         return Div(self, other)
-    
+
     def __mod__(self, other):
         if not isinstance(other, (Expr, Variable)):
             other = getattr(self, "variable_factory", Variable)(value=other)
@@ -1236,7 +1236,7 @@ def compare_columns(columns, values):
 
 class AutoTable(Expr):
     """This class will inject an entry in state.auto_tables.
-    
+
     If the constructor is passed replace=True, it will also discard any
     auto_table entries injected by compiling the given expression.
     """
