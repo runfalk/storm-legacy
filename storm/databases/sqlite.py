@@ -18,18 +18,22 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-import sys
-
 from datetime import datetime, date, time
+from time import sleep, time as now
+import sys
+import re
 
 from storm.databases import dummy
 
 try:
     from pysqlite2 import dbapi2 as sqlite
 except ImportError:
-    sqlite = dummy
+    try:
+        from sqlite3 import dbapi2 as sqlite
+    except ImportError:
+        sqlite = dummy
 
-from storm.variables import Variable, CharsVariable
+from storm.variables import Variable, RawStrVariable
 from storm.database import *
 from storm.exceptions import install_exceptions, DatabaseModuleError
 from storm.expr import (
@@ -66,7 +70,7 @@ class SQLiteResult(Result):
 
     @staticmethod
     def set_variable(variable, value):
-        if isinstance(variable, CharsVariable):
+        if isinstance(variable, RawStrVariable):
             # pysqlite2 may return unicode.
             value = str(value)
         variable.set(value, from_db=True)
@@ -84,6 +88,7 @@ class SQLiteConnection(Connection):
 
     _result_factory = SQLiteResult
     _compile = compile
+    _in_transaction = False
 
     @staticmethod
     def _to_database(params):
@@ -97,6 +102,43 @@ class SQLiteConnection(Connection):
             else:
                 yield param
 
+    def commit(self):
+        # See story at the end to understand why we do COMMIT manually.
+        if self._in_transaction:
+            self._in_transaction = False
+            self._raw_connection.execute("COMMIT")
+
+    def rollback(self):
+        # See story at the end to understand why we do ROLLBACK manually.
+        if self._in_transaction:
+            self._in_transaction = False
+            self._raw_connection.execute("ROLLBACK")
+
+    def _raw_execute(self, statement, params=None, _started=None):
+        """Execute a raw statement with the given parameters.
+
+        This method will automatically retry on locked database errors.
+        This should be done by pysqlite, but it doesn't work with
+        versions < 2.3.4, so we make sure the timeout is respected
+        here.
+        """
+        if not self._in_transaction:
+            # See story at the end to understand why we do BEGIN manually.
+            self._in_transaction = True
+            self._raw_connection.execute("BEGIN")
+        while True:
+            try:
+                return Connection._raw_execute(self, statement, params)
+            except sqlite.OperationalError, e:
+                if str(e) != "database is locked":
+                    raise
+                if _started is None:
+                    _started = now()
+                elif now() - _started < self._database._timeout:
+                    sleep(0.1)
+                else:
+                    raise
+
 
 class SQLite(Database):
 
@@ -106,10 +148,50 @@ class SQLite(Database):
         if sqlite is dummy:
             raise DatabaseModuleError("'pysqlite2' module not found")
         self._filename = uri.database or ":memory:"
+        self._timeout = float(uri.options.get("timeout", 5))
 
     def connect(self):
-        raw_connection = sqlite.connect(self._filename)
+        # See the story at the end to understand why we set isolation_level.
+        raw_connection = sqlite.connect(self._filename, timeout=self._timeout,
+                                        isolation_level=None)
         return self._connection_factory(self, raw_connection)
 
 
 create_from_uri = SQLite
+
+
+# Here is a sad story about PySQLite2.
+# 
+# PySQLite does some very dirty tricks to control the moment in
+# which transactions begin and end.  It actually *changes* the
+# transactional behavior of SQLite.
+# 
+# The real behavior of SQLite is that transactions are SERIALIZABLE
+# by default.  That is, any reads are repeatable, and changes in
+# other threads or processes won't modify data for already started
+# transactions that have issued any reading or writing statements.
+# 
+# PySQLite changes that in a very unpredictable way.  First, it will
+# only actually begin a transaction if a INSERT/UPDATE/DELETE/REPLACE
+# operation is executed (yes, it will parse the statement).  This
+# means that any SELECTs executed *before* one of the former mentioned
+# operations are seen, will be operating in READ COMMITTED mode.  Then,
+# if after that a INSERT/UPDATE/DELETE/REPLACE is seen, the transaction
+# actually begins, and so it moves into SERIALIZABLE mode.
+# 
+# Another pretty surprising behavior is that it will *commit* any
+# on-going transaction if any other statement besides
+# SELECT/INSERT/UPDATE/DELETE/REPLACE is seen.
+# 
+# In an ORM we're really dealing with cached data, so working on top
+# of a system like that means that cache validity is pretty random.
+# 
+# So what we do about that in this module is disabling all that hackery
+# by *pretending* to PySQLite that we'll work without transactions
+# (isolation_level=None), and then we actually take responsibility for
+# controlling the transaction.
+# 
+# References:
+#     http://www.sqlite.org/lockingv3.html
+#     http://docs.python.org/lib/sqlite3-Controlling-Transactions.html
+#

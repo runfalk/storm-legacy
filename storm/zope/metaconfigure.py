@@ -18,25 +18,19 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+from zope import component
+
+from storm.zope.interfaces import IZStorm
 
 
-class Dummy(object):
-    """Magic "infectious" class.
-    
-    This class simplifies nice errors on the creation of
-    unsupported databases.
-    """
+def set_default_uri(name, uri):
+    """Register C{uri} as the default URI for stores called C{name}."""
+    zstorm = component.getUtility(IZStorm)
+    zstorm.set_default_uri(name, uri)
 
-    def __getattr__(self, name):
-        return self
 
-    def __call__(self, *args, **kwargs):
-        return self
+def store(_context, name, uri):
+    _context.action(discriminator=("store", name),
+                    callable=set_default_uri,
+                    args=(name, uri))
 
-    def __add__(self, other):
-        return self
-
-    def __nonzero__(self):
-        return False
-
-dummy = Dummy()

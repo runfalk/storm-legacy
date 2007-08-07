@@ -33,7 +33,8 @@ __all__ = [
     "BoolVariable",
     "IntVariable",
     "FloatVariable",
-    "CharsVariable",
+    "DecimalVariable",
+    "RawStrVariable",
     "UnicodeVariable",
     "DateTimeVariable",
     "DateVariable",
@@ -191,7 +192,8 @@ class Variable(object):
 try:
     from storm.cextensions import Variable
 except ImportError, e:
-    assert "cextensions" in str(e)
+    if "cextensions" not in str(e):
+        raise
 
 
 class BoolVariable(Variable):
@@ -221,7 +223,26 @@ class FloatVariable(Variable):
         return float(value)
 
 
-class CharsVariable(Variable):
+class DecimalVariable(Variable):
+
+    @staticmethod
+    def _parse_set(value, from_db):
+        if (from_db and isinstance(value, basestring) or
+            isinstance(value, (int, long))):
+            value = Decimal(value)
+        elif not isinstance(value, Decimal):
+            raise TypeError("Expected Decimal, found %r: %r"
+                            % (type(value), value))
+        return value
+
+    @staticmethod
+    def _parse_get(value, to_db):
+        if to_db:
+            return str(value)
+        return value
+
+
+class RawStrVariable(Variable):
 
     def parse_set(self, value, from_db):
         if isinstance(value, buffer):

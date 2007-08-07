@@ -18,16 +18,18 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+from decimal import Decimal
 from datetime import datetime, date, time, timedelta
 from weakref import WeakKeyDictionary
 from copy import copy
 import sys
+import re
 
 from storm.exceptions import CompileError, NoTableError, ExprError
 from storm.variables import (
-    Variable, CharsVariable, UnicodeVariable, LazyValue,
+    Variable, RawStrVariable, UnicodeVariable, LazyValue,
     DateTimeVariable, DateVariable, TimeVariable, TimeDeltaVariable,
-    BoolVariable, IntVariable, FloatVariable)
+    BoolVariable, IntVariable, FloatVariable, DecimalVariable)
 from storm import Undef
 
 
@@ -38,7 +40,6 @@ class Compile(object):
     """Compiler based on the concept of generic functions."""
 
     def __init__(self, parent=None):
-        self._current_state_version = 0
         self._local_dispatch_table = {}
         self._local_precedence = {}
         self._local_reserved_words = {}
@@ -66,6 +67,11 @@ class Compile(object):
             child._update_cache()
 
     def add_reserved_words(self, words):
+        """Include words to be considered reserved and thus escaped.
+
+        Reserved words are escaped during compilation when they're
+        seen in a SQLToken expression.
+        """
         self._local_reserved_words.update((word.lower(), True)
                                           for word in words)
         self._update_cache()
@@ -79,6 +85,11 @@ class Compile(object):
         return self._reserved_words.get(word.lower()) is not None
 
     def create_child(self):
+        """Create a new instance of L{Compile} which inherits from this one.
+
+        This is most commonly used to customize a compiler for
+        database-specific compilation strategies.
+        """
         return self.__class__(self)
 
     def when(self, *types):
@@ -122,27 +133,30 @@ class Compile(object):
             return "(%s)" % statement
         return statement
 
-    def __call__(self, expr, state=None, join=", ", raw=False):
+    def __call__(self, expr, state=None, join=", ", raw=False, token=False):
         """Compile the given expression into a SQL statement.
 
         @param expr: The expression to compile.
-        @param state: If None, a state is created internally, and a tuple
-            like (statement, state.parameters) is returned.  If state is
-            given, it should be an instance of State, and only the statement
-            itself is returned.  The second format is the one used internally
-            when expressoins are compiling subexpressions.
+        @param state: An instance of State, or None, in which case it's
+            created internally (and thus can't be accessed).
         @param join: The string token to use to put between
             subexpressions. Defaults to ", ".
         @param raw: If true, any string or unicode expression or
             subexpression will not be further compiled.
+        @param token: If true, any string or unicode expression will
+            be considered as a SQLToken, and quoted properly.
         """
         # FASTPATH This method is part of the fast path.  Be careful when
         #          changing it (try to profile any changes).
 
         expr_type = type(expr)
+
         if (expr_type is SQLRaw or
             raw and (expr_type is str or expr_type is unicode)):
             return expr
+
+        if token and (expr_type is str or expr_type is unicode):
+            expr = SQLToken(expr)
 
         if state is None:
             state = State()
@@ -152,13 +166,16 @@ class Compile(object):
             compiled = []
             for subexpr in expr:
                 subexpr_type = type(subexpr)
-                if (subexpr_type is SQLRaw or
-                    raw and (subexpr_type is str or subexpr_type is unicode)):
+                if subexpr_type is SQLRaw or raw and (subexpr_type is str or
+                                                      subexpr_type is unicode):
                     statement = subexpr
                 elif subexpr_type is tuple or subexpr_type is list:
                     state.precedence = outer_precedence
                     statement = self(subexpr, state, join, raw)
                 else:
+                    if token and (subexpr_type is unicode or
+                                  subexpr_type is str):
+                        subexpr = SQLToken(subexpr)
                     statement = self._compile_single(subexpr, state,
                                                      outer_precedence)
                 compiled.append(statement)
@@ -262,7 +279,7 @@ SELECT = Context("SELECT")
 
 @compile.when(str)
 def compile_str(compile, expr, state):
-    state.parameters.append(CharsVariable(expr))
+    state.parameters.append(RawStrVariable(expr))
     return "?"
 
 @compile.when(unicode)
@@ -278,6 +295,11 @@ def compile_int(compile, expr, state):
 @compile.when(float)
 def compile_float(compile, expr, state):
     state.parameters.append(FloatVariable(expr))
+    return "?"
+
+@compile.when(Decimal)
+def compile_decimal(compile, expr, state):
+    state.parameters.append(DecimalVariable(expr))
     return "?"
 
 @compile.when(bool)
@@ -486,18 +508,18 @@ def build_tables(compile, tables, default_tables, state):
 
     # If it's a single element, it's trivial.
     if type(tables) not in (list, tuple) or len(tables) == 1:
-        return compile(tables, state, raw=True)
-    
+        return compile(tables, state, token=True)
+ 
     # If we have no joins, it's trivial as well.
     for elem in tables:
         if isinstance(elem, JoinExpr):
             break
     else:
         if tables is state.auto_tables:
-            tables = set(compile(table, state, raw=True) for table in tables)
+            tables = set(compile(table, state, token=True) for table in tables)
             return ", ".join(sorted(tables))
         else:
-            return compile(tables, state, raw=True)
+            return compile(tables, state, token=True)
 
     # Ok, now we have to be careful.
 
@@ -513,7 +535,7 @@ def build_tables(compile, tables, default_tables, state):
         state.push("join_tables", set())
 
         for elem in tables:
-            statement = compile(elem, state, raw=True)
+            statement = compile(elem, state, token=True)
             if isinstance(elem, JoinExpr):
                 if elem.left is Undef:
                     half_join_stmts.add(statement)
@@ -541,7 +563,7 @@ def build_tables(compile, tables, default_tables, state):
                 result.append(" ")
             else:
                 result.append(", ")
-        result.append(compile(elem, state, raw=True))
+        result.append(compile(elem, state, token=True))
     return "".join(result)
 
 
@@ -575,12 +597,12 @@ def compile_select(compile, select, state):
     if select.where is not Undef:
         tokens.append(" WHERE ")
         tokens.append(compile(select.where, state, raw=True))
-    if select.order_by is not Undef:
-        tokens.append(" ORDER BY ")
-        tokens.append(compile(select.order_by, state, raw=True))
     if select.group_by is not Undef:
         tokens.append(" GROUP BY ")
         tokens.append(compile(select.group_by, state, raw=True))
+    if select.order_by is not Undef:
+        tokens.append(" ORDER BY ")
+        tokens.append(compile(select.order_by, state, raw=True))
     if select.limit is not Undef:
         tokens.append(" LIMIT %d" % select.limit)
     if select.offset is not Undef:
@@ -699,12 +721,12 @@ def compile_column(compile, column, state):
             # See compile_set_expr().
             alias = state.aliases.get(column)
             if alias is not None:
-                return alias.name
+                return compile(alias.name, state, token=True)
         return column.name
     state.push("context", COLUMN_PREFIX)
-    table = compile(column.table, state, raw=True)
+    table = compile(column.table, state, token=True)
     state.pop()
-    return "%s.%s" % (table, column.name)
+    return "%s.%s" % (table, compile(column.name, state, token=True))
 
 @compile_python.when(Column)
 def compile_python_column(compile, column, state):
@@ -733,10 +755,11 @@ class Alias(ComparableExpr):
         self.name = name
 
 @compile.when(Alias)
-def compile_expr(compile, alias, state):
+def compile_alias(compile, alias, state):
+    name = compile(alias.name, state, token=True)
     if state.context is COLUMN or state.context is TABLE:
-        return "%s AS %s" % (compile(alias.expr, state), alias.name)
-    return alias.name
+        return "%s AS %s" % (compile(alias.expr, state), name)
+    return name
 
 
 # --------------------------------------------------------------------
@@ -753,7 +776,7 @@ class Table(FromExpr):
 
 @compile.when(Table)
 def compile_table(compile, table, state):
-    return table.name
+    return compile(table.name, state, token=True)
 
 
 class JoinExpr(FromExpr):
@@ -785,12 +808,12 @@ def compile_join(compile, join, state):
     # Ensure that nested JOINs get parentheses.
     state.precedence += 0.5
     if join.left is not Undef:
-        statement = compile(join.left, state, raw=True)
+        statement = compile(join.left, state, token=True)
         result.append(statement)
         if state.join_tables is not None:
             state.join_tables.add(statement)
     result.append(join.oper)
-    statement = compile(join.right, state, raw=True)
+    statement = compile(join.right, state, token=True)
     result.append(statement)
     if state.join_tables is not None:
         state.join_tables.add(statement)
@@ -1156,10 +1179,16 @@ class SQLToken(str):
     These strings will be quoted, when needed.
     """
 
+is_safe_token = re.compile("^[a-zA-Z][a-zA-Z0-9_]*$").match
+
 @compile.when(SQLToken)
 def compile_sql_token(compile, expr, state):
-    if compile.is_reserved_word(expr):
-        return '"%s"' % expr
+    if is_safe_token(expr) and not compile.is_reserved_word(expr):
+        return expr
+    return '"%s"' % expr.replace('"', '""')
+
+@compile_python.when(SQLToken)
+def compile_python_sql_token(compile, expr, state):
     return expr
 
 

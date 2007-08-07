@@ -182,9 +182,9 @@ class PostgresTest(DatabaseTest, TestHelper):
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement,
-                          "SELECT * FROM "
-                          "((SELECT 1 AS id) UNION ALL (SELECT 1)) AS _1 "
-                          "ORDER BY id+? LIMIT 1 OFFSET 1")
+                          'SELECT * FROM '
+                          '((SELECT 1 AS id) UNION ALL (SELECT 1)) AS "_1" '
+                          'ORDER BY id+? LIMIT 1 OFFSET 1')
         self.assertEquals(state.parameters, [Variable(1)])
 
         result = self.connection.execute(expr)
@@ -202,5 +202,5 @@ class PostgresTest(DatabaseTest, TestHelper):
 
 class PostgresUnsupportedTest(UnsupportedDatabaseTest, TestHelper):
     
-    dbapi_module_name = "psycopg2"
+    dbapi_module_names = ["psycopg2"]
     db_module_name = "postgres"

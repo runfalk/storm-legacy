@@ -18,25 +18,18 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+from zope.interface import classImplements
+from zope.security.checker import NoProxy, BasicTypes, _available_by_default
 
+from storm.info import ObjectInfo
+from storm.zope.interfaces import ISQLObjectResultSet
+from storm import sqlobject as storm_sqlobject
 
-class Dummy(object):
-    """Magic "infectious" class.
-    
-    This class simplifies nice errors on the creation of
-    unsupported databases.
-    """
-
-    def __getattr__(self, name):
-        return self
-
-    def __call__(self, *args, **kwargs):
-        return self
-
-    def __add__(self, other):
-        return self
-
-    def __nonzero__(self):
-        return False
-
-dummy = Dummy()
+# The following is required for storm.info.get_obj_info() to have
+# access to a proxied object which is already in the store (IOW, has
+# the object info set already).  With this, Storm is able to
+# gracefully handle situations when a proxied object is passed to a
+# Store.
+_available_by_default.append("__object_info")
+BasicTypes[ObjectInfo] = NoProxy
+classImplements(storm_sqlobject.SQLObjectResultSet, ISQLObjectResultSet)

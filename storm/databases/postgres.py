@@ -156,6 +156,8 @@ class Postgres(Database):
     def connect(self):
         raw_connection = psycopg2.connect(self._dsn)
         raw_connection.set_client_encoding("UTF8")
+        raw_connection.set_isolation_level(
+            psycopg2.extensions.ISOLATION_LEVEL_SERIALIZABLE)
         return self._connection_factory(self, raw_connection)
 
 

@@ -1,4 +1,3 @@
-#
 # Copyright (c) 2006, 2007 Canonical
 #
 # Written by Gustavo Niemeyer <gustavo@niemeyer.net>
@@ -18,25 +17,3 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-
-
-class Dummy(object):
-    """Magic "infectious" class.
-    
-    This class simplifies nice errors on the creation of
-    unsupported databases.
-    """
-
-    def __getattr__(self, name):
-        return self
-
-    def __call__(self, *args, **kwargs):
-        return self
-
-    def __add__(self, other):
-        return self
-
-    def __nonzero__(self):
-        return False
-
-dummy = Dummy()

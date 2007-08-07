@@ -356,10 +356,32 @@ class FloatVariableTest(TestHelper):
         self.assertRaises(TypeError, variable.set, "1")
 
 
-class CharsVariableTest(TestHelper):
+class DecimalVariableTest(TestHelper):
 
     def test_set_get(self):
-        variable = CharsVariable()
+        variable = DecimalVariable()
+        variable.set(Decimal("1.1"))
+        self.assertEquals(variable.get(), Decimal("1.1"))
+        variable.set(1)
+        self.assertEquals(variable.get(), 1)
+        self.assertEquals(type(variable.get()), Decimal)
+        variable.set(Decimal("1.1"))
+        self.assertEquals(variable.get(), Decimal("1.1"))
+        self.assertRaises(TypeError, variable.set, "1")
+        self.assertRaises(TypeError, variable.set, 1.1)
+
+    def test_get_set_from_database(self):
+        """Strings used to/from the database."""
+        variable = DecimalVariable()
+        variable.set("1.1", from_db=True)
+        self.assertEquals(variable.get(), Decimal("1.1"))
+        self.assertEquals(variable.get(to_db=True), "1.1")
+
+
+class RawStrVariableTest(TestHelper):
+
+    def test_set_get(self):
+        variable = RawStrVariable()
         variable.set("str")
         self.assertEquals(variable.get(), "str")
         variable.set(buffer("buffer"))
@@ -707,7 +729,7 @@ class ListVariableTest(TestHelper):
     def test_list_events(self):
         event = EventSystem(marker)
 
-        variable = ListVariable(CharsVariable, event=event,
+        variable = ListVariable(RawStrVariable, event=event,
                                 value_factory=list)
 
         changes = []

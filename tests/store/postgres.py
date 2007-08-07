@@ -69,6 +69,8 @@ class PostgresStoreTest(TestHelper, StoreTest):
                            "(id SERIAL PRIMARY KEY, bin BYTEA)")
         connection.execute("CREATE TABLE link "
                            "(foo_id INTEGER, bar_id INTEGER)")
+        connection.execute("CREATE TABLE money "
+                           "(id SERIAL PRIMARY KEY, value NUMERIC(6,4))")
         connection.execute("CREATE TABLE lst1 "
                            "(id SERIAL PRIMARY KEY, ints INTEGER[])")
         connection.execute("CREATE TABLE lst2 "

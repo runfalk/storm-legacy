@@ -18,8 +18,10 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+import time
 import os
 
+from storm.exceptions import OperationalError
 from storm.databases.sqlite import SQLite
 from storm.database import create_database
 from storm.uri import URI
@@ -28,12 +30,15 @@ from tests.databases.base import DatabaseTest, UnsupportedDatabaseTest
 from tests.helper import TestHelper, MakePath
 
 
-class SQLiteTest(DatabaseTest, TestHelper):
+class SQLiteMemoryTest(DatabaseTest, TestHelper):
 
     helpers = [MakePath]
+    
+    def get_path(self):
+        return ""
 
     def create_database(self):
-        self.database = SQLite(URI("sqlite:" + self.make_path()))
+        self.database = SQLite(URI("sqlite:%s?timeout=0" % self.get_path()))
 
     def create_tables(self):
         self.connection.execute("CREATE TABLE test "
@@ -48,28 +53,44 @@ class SQLiteTest(DatabaseTest, TestHelper):
         pass
 
     def test_wb_create_database(self):
-        filename = self.make_path()
-        sqlite = create_database("sqlite:%s" % filename)
-        self.assertTrue(isinstance(sqlite, SQLite))
-        self.assertEquals(sqlite._filename, filename)
+        database = create_database("sqlite:")
+        self.assertTrue(isinstance(database, SQLite))
+        self.assertEquals(database._filename, ":memory:")
+
+    def test_concurrent_behavior(self):
+        pass # We can't connect to the in-memory database twice, so we can't
+             # exercise the concurrency behavior (nor it makes sense).
 
 
-class SQLiteMemoryTest(SQLiteTest):
-    
-    def create_database(self):
-        self.database = SQLite(URI("sqlite:"))
+class SQLiteFileTest(SQLiteMemoryTest):
 
-    def test_simultaneous_iter(self):
-        pass
+    def get_path(self):
+        return self.make_path()
 
     def test_wb_create_database(self):
-        sqlite = create_database("sqlite:")
-        self.assertTrue(isinstance(sqlite, SQLite))
-        self.assertEquals(sqlite._filename, ":memory:")
+        filename = self.make_path()
+        database = create_database("sqlite:%s" % filename)
+        self.assertTrue(isinstance(database, SQLite))
+        self.assertEquals(database._filename, filename)
+
+    def test_timeout(self):
+        database = create_database("sqlite:%s?timeout=0.3" % self.get_path())
+        connection1 = database.connect()
+        connection2 = database.connect()
+        connection1.execute("CREATE TABLE test (id INTEGER PRIMARY KEY)")
+        connection1.commit()
+        connection1.execute("INSERT INTO test VALUES (1)")
+        started = time.time()
+        try:
+            connection2.execute("INSERT INTO test VALUES (2)")
+        except OperationalError, exception:
+            self.assertEquals(str(exception), "database is locked")
+            self.assertTrue(time.time()-started >= 0.3)
+        else:
+            self.fail("OperationalError not raised")
 
 
 class SQLiteUnsupportedTest(UnsupportedDatabaseTest, TestHelper):
-    
-    dbapi_module_name = "pysqlite2"
+ 
+    dbapi_module_names = ["pysqlite2", "sqlite3"]
     db_module_name = "sqlite"
-

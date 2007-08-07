@@ -18,25 +18,11 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+from zope.interface import Interface
+from zope.schema import TextLine
 
 
-class Dummy(object):
-    """Magic "infectious" class.
-    
-    This class simplifies nice errors on the creation of
-    unsupported databases.
-    """
+class IStoreDirective(Interface):
 
-    def __getattr__(self, name):
-        return self
-
-    def __call__(self, *args, **kwargs):
-        return self
-
-    def __add__(self, other):
-        return self
-
-    def __nonzero__(self):
-        return False
-
-dummy = Dummy()
+    name = TextLine(title=u"Name", description=u"Store name")
+    uri = TextLine(title=u"URI", description=u"Database URI")

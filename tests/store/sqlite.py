@@ -52,6 +52,10 @@ class SQLiteStoreTest(TestHelper, StoreTest):
                            "(id INTEGER PRIMARY KEY, bin BLOB)")
         connection.execute("CREATE TABLE link "
                            "(foo_id INTEGER, bar_id INTEGER)")
+        # We have to use TEXT here, since NUMERIC would cause SQLite
+        # to interpret values as float, and thus lose precision.
+        connection.execute("CREATE TABLE money "
+                           "(id INTEGER PRIMARY KEY, value TEXT)")
         connection.commit()
 
     def drop_tables(self):

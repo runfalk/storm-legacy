@@ -30,7 +30,8 @@ try:
 except ImportError:
     MySQLdb = dummy
 
-from storm.expr import compile, Select, compile_select, Undef, And, Eq, SQLRaw
+from storm.expr import (compile, Select, compile_select, Undef, And, Eq,
+                        SQLRaw, SQLToken, is_safe_token)
 from storm.database import *
 from storm.exceptions import install_exceptions, DatabaseModuleError
 
@@ -45,6 +46,13 @@ def compile_select_mysql(compile, select, state):
     if select.offset is not Undef and select.limit is Undef:
         select.limit = sys.maxint
     return compile_select(compile, select, state)
+
+@compile.when(SQLToken)
+def compile_sql_token_mysql(compile, expr, state):
+    """MySQL uses ` as the escape character by default."""
+    if is_safe_token(expr) and not compile.is_reserved_word(expr):
+        return expr
+    return '`%s`' % expr.replace('`', '``')
 
 
 class MySQLResult(Result):

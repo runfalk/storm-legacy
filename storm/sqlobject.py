@@ -26,7 +26,7 @@ L{SQLObjectBase} is the central point of compatibility.
 import re
 
 from storm.properties import (
-    Unicode, Chars, Int, Bool, Float, DateTime, Date, TimeDelta)
+    Unicode, RawStr, Int, Bool, Float, DateTime, Date, TimeDelta)
 from storm.references import Reference, ReferenceSet
 from storm.properties import SimpleProperty, PropertyPublisherMeta
 from storm.variables import Variable
@@ -182,7 +182,7 @@ class SQLObjectMeta(PropertyPublisherMeta):
 
 
         id_type = dict.get("_idType", int)
-        id_cls = {int: Int, str: Chars, unicode: AutoUnicode}[id_type]
+        id_cls = {int: Int, str: RawStr, unicode: AutoUnicode}[id_type]
         dict[id_name] = id_cls(primary=True)
 
         # Notice that obj is the class since this is the metaclass.

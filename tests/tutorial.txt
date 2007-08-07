@@ -641,6 +641,50 @@ were named Ben, that'd have been easier.
 }}}
 
 
+==== Ordering and limiting results ====
+
+Ordering and limiting results obtained are certainly among the
+simplest and yet most wanted features for such tools, so we want
+to make them very easy to understand and use, of course.
+
+A code of line is worth a thousand words, so here are a few examples
+that demonstrate how it works:
+
+{{{
+>>> garry = store.add(Employee(u"Garry Glare"))
+
+>>> result = store.find(Employee)
+
+>>> [employee.name for employee in result.order_by(Employee.name)]
+[u'Ben Bill', u'Garry Glare', u'Mike Mayer']
+
+>>> [employee.name for employee in result.order_by(Desc(Employee.name))]
+[u'Mike Mayer', u'Garry Glare', u'Ben Bill']
+
+>>> [employee.name for employee in result.order_by(Employee.name)[:2]]
+[u'Ben Bill', u'Garry Glare']
+
+}}}
+
+
+==== Multiple types with one query ====
+
+Sometimes, it may be interesting to retrieve more than one object involved
+in a given query.  Imagine, for instance, that besides knowing which
+companies have an employee named Ben, we also want to know who is the
+employee.  This may be achieved with a query like follows:
+
+{{{#!python
+>>> result = store.find((Company, Employee),
+...                     Employee.company_id == Company.id,
+...                     Employee.name.like(u"Ben %"))
+
+>>> [(company.name, employee.name) for company, employee in result]
+[(u'Sweets Inc.', u'Ben Bill')]
+
+}}}
+
+
 ==== The Storm base class ====
 
 So far we've been defining our references and reference sets using
@@ -784,8 +828,12 @@ object be automatically flushed if necessary.
 
 ==== Expression values ====
 
-Besides auto-reloading, it's also possible to assign a value that
-will run an arbitrary SQL expression to update a value.  For instance:
+Besides auto-reloading, it's also possible to assign what we call
+a "lazy expression" to an attribute.  Such expressions are flushed
+to the database when the attribute is accessed, or when the object
+is flushed to the database (INSERT/UPDATE time).
+
+For instance:
 
 {{{#!python
 from storm.locals import SQL
@@ -800,6 +848,42 @@ Notice that this is just an example of what '''may''' be done.  There's
 no need to write SQL statements this way, if you don't want to.  You may
 also use class-based SQL expressions provided in Storm, or even
 not use lazy expressions at all.
+
+
+==== Aliases ====
+
+So now let's say that we want to find every pair of people that work
+for the same company.  I have no idea about why one would ''want'' to
+do that, but that's a good case for us to exercise aliases.
+
+First, we import `ClassAlias` into the local namespace (''mental note:
+this should be in storm.locals as well''), and create a reference to it.
+
+{{{#!python
+>>> from storm.info import ClassAlias
+>>> AnotherEmployee = ClassAlias(Employee)
+
+}}}
+
+Nice, isn't it?
+
+Now we can easily make the query we want, in a straightforward way:
+
+{{{#!python
+>>> result = store.find((Employee, AnotherEmployee),
+...                     Employee.company_id == AnotherEmployee.company_id,
+...                     Employee.id > AnotherEmployee.id)
+
+>>> for employee1, employee2 in result:
+...     print (employee1.name, employee2.name)
+(u'Mike Mayer', u'Ben Bill')
+
+}}}
+
+Woah!  Mike and Ben work for the same company!
+
+(Quiz for the attent reader: why is ''greater than'' being used in
+the query above?)
 
 
 ==== Much more! ====
