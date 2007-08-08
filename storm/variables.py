@@ -131,9 +131,7 @@ class Variable(object):
         self.event = event
 
     def get_lazy(self, default=None):
-        """
-        Get the L{LazyValue}, previously specified with L{set}, without
-        resolving its value.
+        """Get the current L{LazyValue} without resolving its value.
 
         @param default: If no L{LazyValue} was previously specified,
             return this value. Defaults to None.
@@ -220,7 +218,7 @@ class Variable(object):
 
         @return: boolean indicating whether there is currently a value
             for this variable. Note that if a L{LazyValue} was
-            previosly set, this returns False; it only returns True if
+            previously set, this returns False; it only returns True if
             there is currently a real value set.
         """
         return self._value is not Undef
@@ -258,21 +256,18 @@ class Variable(object):
         self._checkpoint_state = self.get_state()
 
     def copy(self):
-        """Make a new copy of this Variable with the same internal state.
-        """
+        """Make a new copy of this Variable with the same internal state."""
         variable = self.__class__.__new__(self.__class__)
         variable.set_state(self.get_state())
         return variable
 
     def __eq__(self, other):
-        """Equality based on current value, not identity.
-        """
+        """Equality based on current value, not identity."""
         return (self.__class__ is other.__class__ and
                 self._value == other._value)
 
     def __hash__(self):
-        """Hash based on current value, not identity.
-        """
+        """Hash based on current value, not identity."""
         return hash(self._value)
 
     def parse_get(self, value, to_db):

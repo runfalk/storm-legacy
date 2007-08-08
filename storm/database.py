@@ -71,6 +71,8 @@ class Result(object):
 
         The result will be converted to an appropriate format via
         L{from_database}.
+
+        @return: A converted row or None, if no data is left.
         """
         row = self._raw_cursor.fetchone()
         if row is not None:
@@ -112,8 +114,7 @@ class Result(object):
 
     @staticmethod
     def set_variable(variable, value):
-        """Set the given variable's value from the database.
-        """
+        """Set the given variable's value from the database."""
         variable.set(value, from_db=True)
 
     @staticmethod
@@ -161,7 +162,7 @@ class Connection(object):
     def execute(self, statement, params=None, noresult=False):
         """Execute a statement with the given parameters.
 
-        @type statament: L{Expr} or C{str}
+        @type statement: L{Expr} or C{str}
         @param statement: The statement to execute. It will be
             compiled if necessary.
         @param noresult: If True, no result will be returned.
@@ -185,8 +186,7 @@ class Connection(object):
         return self.result_factory(self, raw_cursor)
 
     def close(self):
-        """Close the connection if it is not already closed.
-        """
+        """Close the connection if it is not already closed."""
         if not self._closed:
             self._closed = True
             self._raw_connection.close()
@@ -208,7 +208,7 @@ class Connection(object):
         is not intended to be used externally.
 
         This delegates conversion to any L{Variable}s in the parameter
-        list, and pass through all other values untouched.
+        list, and passes through all other values untouched.
         """
         for param in params:
             if isinstance(param, Variable):
@@ -270,7 +270,7 @@ class Database(object):
     def connect(self):
         """Create a connection to the database.
 
-        This should be overrided in subclasses to do any
+        This should be overriden in subclasses to do any
         database-specific connection setup. It should call
         C{self.connection_factory} to allow for ease of customization.
 
