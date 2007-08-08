@@ -1,0 +1,53 @@
+0.10 (2007-08-08)
+=================
+
+Improvements
+------------
+ - Improvements were made to the tutorial.
+ - There is now a setup.py script for installing Storm.
+ - Count and ClassAlias is now available through the storm.locals
+   module.
+ - A new hook, __storm_pre_flush__, can be implemented on objects in a
+   Store. It is called before an object is flushed to the
+   database.
+ - Storm can now use the built-in sqlite support in Python 2.5 and
+   above.
+ - There is now a storm.properties.Decimal, which allows you to store
+   Decimal (as opposed to binary) floating point values.
+ - storm.zope was added, which offers a simple integration mechanism
+   with the Zope transaction machinery.
+ - Complex expressions other than simple Columns can now be passed to
+   the aggregation methods of ResultSet (avg,max,min,sum).
+ - Backend implementors can now override preset_primary_key on their
+   Database object to come up with primary key values before an
+   Insert.
+ - A large amount of API documentation was added.
+
+Bug fixes
+---------
+ - SQL reserved words are now properly escaped in SQL
+   statements.
+ - GROUP BY and ORDER BY statements are now ordered correctly.
+ - Running the tests with trial now works.
+ - All backends are now initialized such that their transactions are
+   truly SERIALIZABLE. Psycopg2 and Pysqlite2 both did not previously
+   have serializable transactions by default, but this has been fixed.
+ - A bug in ResultSet.cached which could occasionally cause
+   inconsistencies in ResultSet.set was fixed.
+
+API Changes
+-----------
+
+Most changes are backwards compatible. There were some incompatible
+changes which may affect alternative database backends.
+
+ - Chars was renamed to RawStr. Chars still exists, but is
+   deprecated. All raw 8-bit data in your database should be
+   represented with RawStr.
+ - compiler handlers have had their arguments reordered.
+ - The Compile.__call__ method now returns only the Statement.
+ - Compile.fork was renamed to Compile.create_child.
+ - Many methods which previously had underscores were renamed to get
+   rid of the underscores to reflect their status as things which can
+   be safely touched in subclasses. Documentation was added clarifying
+   their intended use.
