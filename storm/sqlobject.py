@@ -26,7 +26,7 @@ L{SQLObjectBase} is the central point of compatibility.
 import re
 
 from storm.properties import (
-    Unicode, RawStr, Int, Bool, Float, DateTime, Date, TimeDelta)
+    RawStr, Int, Bool, Float, DateTime, Date, TimeDelta)
 from storm.references import Reference, ReferenceSet
 from storm.properties import SimpleProperty, PropertyPublisherMeta
 from storm.variables import Variable
@@ -96,7 +96,7 @@ class SQLObjectStyle(object):
         if name.startswith('_'):
             return name[1:]
         return name
-    
+
     def _mixed_to_under_sub(self, match):
         m = match.group(0).lower()
         if len(m) > 1:
@@ -115,7 +115,7 @@ class SQLObjectStyle(object):
     @staticmethod
     def _capword(s):
         return s[0].upper() + s[1:]
-    
+
     @staticmethod
     def _lowerword(s):
         return s[0].lower() + s[1:]

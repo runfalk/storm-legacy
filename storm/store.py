@@ -18,12 +18,12 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from weakref import WeakValueDictionary, WeakKeyDictionary
+from weakref import WeakValueDictionary
 
 from storm.info import get_cls_info, get_obj_info, set_obj_info
 from storm.variables import Variable, LazyValue
 from storm.expr import (
-    Expr, Select, Insert, Update, Delete, Column, JoinExpr, Count, Max, Min,
+    Expr, Select, Insert, Update, Delete, Column, Count, Max, Min,
     Avg, Sum, Eq, And, Asc, Desc, compile_python, compare_columns, SQLRaw,
     Union, Except, Intersect, Alias)
 from storm.exceptions import (
@@ -321,21 +321,16 @@ class Store(object):
             del obj_info["store"]
 
         elif pending is PENDING_ADD:
-            columns = []
-            variables = []
 
-            for column in cls_info.columns:
-                variable = obj_info.variables[column]
-                if variable.is_defined():
-                    columns.append(column)
-                    variables.append(variable)
-                else:
-                    lazy_value = variable.get_lazy()
-                    if isinstance(lazy_value, Expr):
-                        columns.append(column)
-                        variables.append(lazy_value)
+            # Give a chance to the backend to process primary variables.
+            self._connection.preset_primary_key(cls_info.primary_key,
+                                                obj_info.primary_vars)
 
-            expr = Insert(columns, variables, cls_info.table)
+            changes = self._get_changes_map(obj_info, True)
+
+            expr = Insert(changes, cls_info.table,
+                          primary_columns=cls_info.primary_key,
+                          primary_variables=obj_info.primary_vars)
 
             result = self._connection.execute(expr)
 
@@ -356,16 +351,7 @@ class Store(object):
             cached_primary_vars = obj_info["primary_vars"]
             primary_key_idx = cls_info.primary_key_idx
 
-            changes = {}
-            for column in cls_info.columns:
-                variable = obj_info.variables[column]
-                if variable.has_changed():
-                    if variable.is_defined():
-                        changes[column] = variable
-                    else:
-                        lazy_value = variable.get_lazy()
-                        if isinstance(lazy_value, Expr):
-                            changes[column] = lazy_value
+            changes = self._get_changes_map(obj_info)
 
             if changes:
                 expr = Update(changes,
@@ -385,6 +371,42 @@ class Store(object):
         self._run_hook(obj_info, "__storm_flushed__")
 
         obj_info.event.emit("flushed")
+
+    def _get_changes_map(self, obj_info, adding=False):
+        """Return a {column: variable} dictionary suitable for inserts/updates.
+
+        @param obj_info: ObjectInfo to inspect for changes.
+        @param adding: If true, any defined variables will be considered
+                       a change and included in the returned map.
+        """
+        cls_info = obj_info.cls_info
+        changes = {}
+        select_variables = []
+        for column in cls_info.columns:
+            variable = obj_info.variables[column]
+            if adding or variable.has_changed():
+                if variable.is_defined():
+                    changes[column] = variable
+                else:
+                    lazy_value = variable.get_lazy()
+                    if isinstance(lazy_value, Expr):
+                        if id(column) in cls_info.primary_key_idx:
+                            select_variables.append(variable) # See below.
+                            changes[column] = variable
+                        else:
+                            changes[column] = lazy_value
+
+        # If we have any expressions in the primary variables, we
+        # have to resolve them now so that we have the identity of
+        # the inserted object available later.
+        if select_variables:
+            resolve_expr = Select([variable.get_lazy()
+                                   for variable in select_variables])
+            result = self._connection.execute(resolve_expr)
+            for variable, value in zip(select_variables, result.get_one()):
+                result.set_variable(variable, value)
+
+        return changes
 
     def _fill_missing_values(self, obj_info, primary_vars, result=None,
                              checkpoint=True, replace_lazy=False):
@@ -878,30 +900,30 @@ class ResultSet(object):
             select = Select(expr, tables=Alias(self._select))
         result = self._store._connection.execute(select)
         value = result.get_one()[0]
-        if column is None:
-            return value
-        else:
-            variable = column.variable_factory()
+        variable_factory = getattr(column, "variable_factory", None)
+        if variable_factory:
+            variable = variable_factory()
             result.set_variable(variable, value)
             return variable.get()
+        return value
 
-    def count(self, column=Undef, distinct=False):
-        return int(self._aggregate(Count(column, distinct)))
+    def count(self, expr=Undef, distinct=False):
+        return int(self._aggregate(Count(expr, distinct)))
 
-    def max(self, column):
-        return self._aggregate(Max(column), column)
+    def max(self, expr):
+        return self._aggregate(Max(expr), expr)
 
-    def min(self, column):
-        return self._aggregate(Min(column), column)
+    def min(self, expr):
+        return self._aggregate(Min(expr), expr)
 
-    def avg(self, column):
-        value = self._aggregate(Avg(column))
+    def avg(self, expr):
+        value = self._aggregate(Avg(expr))
         if value is None:
             return value
         return float(value)
 
-    def sum(self, column):
-        return self._aggregate(Sum(column), column)
+    def sum(self, expr):
+        return self._aggregate(Sum(expr), expr)
 
     def values(self, *columns):
         if not columns:
@@ -1125,7 +1147,7 @@ class EmptyResultSet(object):
 
 
 class TableSet(object):
-    
+
     def __init__(self, store, tables):
         self._store = store
         self._tables = tables

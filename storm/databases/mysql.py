@@ -32,7 +32,7 @@ except ImportError:
 
 from storm.expr import (compile, Select, compile_select, Undef, And, Eq,
                         SQLRaw, SQLToken, is_safe_token)
-from storm.database import *
+from storm.database import Database, Connection, Result
 from storm.exceptions import install_exceptions, DatabaseModuleError
 
 

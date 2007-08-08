@@ -22,7 +22,6 @@ from decimal import Decimal
 from datetime import datetime, date, time, timedelta
 from weakref import WeakKeyDictionary
 from copy import copy
-import sys
 import re
 
 from storm.exceptions import CompileError, NoTableError, ExprError
@@ -432,7 +431,7 @@ class Comparable(object):
         if not isinstance(other, (Expr, Variable)):
             other = getattr(self, "variable_factory", Variable)(value=other)
         return Div(self, other)
-    
+
     def __mod__(self, other):
         if not isinstance(other, (Expr, Variable)):
             other = getattr(self, "variable_factory", Variable)(value=other)
@@ -622,21 +621,36 @@ def compile_select(compile, select, state):
 
 
 class Insert(Expr):
+    """Expression representing an insert statement.
 
-    def __init__(self, columns, values, table=Undef, default_table=Undef):
-        self.columns = columns
-        self.values = values
+    @ivar map: Dictionary mapping columns to values.
+    @ivar table: Table where the row should be inserted.
+    @ivar default_table: Table to use if no table is explicitly provided, and
+        no tables may be inferred from provided columns.
+    @ivar primary_columns: Tuple of columns forming the primary key of the
+        table where the row will be inserted.  This is a hint used by backends
+        to process the insertion of rows.
+    @ivar primary_variables: Tuple of variables with values for the primary
+        key of the table where the row will be inserted.  This is a hint used
+        by backends to process the insertion of rows.
+    """
+
+    def __init__(self, map, table=Undef, default_table=Undef,
+                 primary_columns=Undef, primary_variables=Undef):
+        self.map = map
         self.table = table
         self.default_table = default_table
+        self.primary_columns = primary_columns
+        self.primary_variables = primary_variables
 
 @compile.when(Insert)
 def compile_insert(compile, insert, state):
     state.push("context", COLUMN_NAME)
-    columns = compile(insert.columns, state)
+    columns = compile(tuple(insert.map), state)
     state.context = TABLE
     table = build_tables(compile, insert.table, insert.default_table, state)
     state.context = EXPR
-    values = compile(insert.values, state)
+    values = compile(tuple(insert.map.itervalues()), state)
     state.pop()
     return "".join(["INSERT INTO ", table, " (", columns,
                     ") VALUES (", values, ")"])
@@ -644,18 +658,18 @@ def compile_insert(compile, insert, state):
 
 class Update(Expr):
 
-    def __init__(self, set, where=Undef, table=Undef, default_table=Undef):
-        self.set = set
+    def __init__(self, map, where=Undef, table=Undef, default_table=Undef):
+        self.map = map
         self.where = where
         self.table = table
         self.default_table = default_table
 
 @compile.when(Update)
 def compile_update(compile, update, state):
-    set = update.set
+    map = update.map
     state.push("context", COLUMN_NAME)
-    sets = ["%s=%s" % (compile(col, state), compile(set[col], state))
-            for col in set]
+    sets = ["%s=%s" % (compile(col, state), compile(map[col], state))
+            for col in map]
     state.context = TABLE
     tokens = ["UPDATE ", build_tables(compile, update.table,
                                       update.default_table, state),
@@ -1213,6 +1227,27 @@ def compile_sql(compile, expr, state):
 
 
 # --------------------------------------------------------------------
+# Sequences.
+
+class Sequence(Expr):
+    """Expression representing auto-incrementing support from the database.
+
+    This should be translated into the *next* value of the named
+    auto-incrementing sequence.  There's no standard way to compile a
+    sequence, since it's very database-dependent.
+
+    This may be used as follows:
+
+      class Class(object):
+          (...)
+          id = Int(default=Sequence("my_sequence_name"))
+    """
+
+    def __init__(self, name):
+        self.name = name
+
+
+# --------------------------------------------------------------------
 # Utility functions.
 
 def compare_columns(columns, values):
@@ -1237,7 +1272,7 @@ def compare_columns(columns, values):
 
 class AutoTable(Expr):
     """This class will inject an entry in state.auto_tables.
-    
+
     If the constructor is passed replace=True, it will also discard any
     auto_table entries injected by compiling the given expression.
     """

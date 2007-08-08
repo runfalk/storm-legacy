@@ -47,6 +47,9 @@ class Result(object):
     def __init__(self, connection, raw_cursor):
         self._connection = connection # Ensures deallocation order.
         self._raw_cursor = raw_cursor
+        if raw_cursor.arraysize == 1:
+            # Default of 1 is silly.
+            self._raw_cursor.arraysize = 10
 
     def __del__(self):
         """Close the cursor."""
@@ -88,22 +91,15 @@ class Result(object):
     def __iter__(self):
         """Yield all results, one at a time.
 
-        The results are *not* passed through L{from_database}.
-        XXX This will change very very soon :-)
+        The results will be converted to an appropriate format via
+        L{from_database}.
         """
-        if self._raw_cursor.arraysize == 1:
-            while True:
-                result = self._raw_cursor.fetchone()
-                if not result:
-                    break
-                yield result
-        else:
-            while True:
-                results = self._raw_cursor.fetchmany()
-                if not results:
-                    break
-                for result in results:
-                    yield result
+        while True:
+            results = self._raw_cursor.fetchmany()
+            if not results:
+                break
+            for result in results:
+                yield tuple(self.from_database(result))
 
     def get_insert_identity(self, primary_columns, primary_variables):
         """Get a query which will return the row that was just inserted.
@@ -250,6 +246,13 @@ class Connection(object):
                 print statement, params
             raw_cursor.execute(statement, params)
         return raw_cursor
+
+    def preset_primary_key(self, primary_columns, primary_variables):
+        """Process primary variables before an insert happens.
+
+        This method may be overwritten by backends to implement custom
+        changes in primary variables before an insert happens.
+        """
 
 
 class Database(object):

@@ -22,7 +22,7 @@
 
 class Dummy(object):
     """Magic "infectious" class.
-    
+
     This class simplifies nice errors on the creation of
     unsupported databases.
     """
