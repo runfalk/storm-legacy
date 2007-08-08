@@ -1022,6 +1022,9 @@ class ResultSet(object):
 
         The query will be modified appropriately with an ORDER BY clause.
 
+        Ascending and descending order can be specified by wrapping
+        the columns in L{Asc} and L{Desc}.
+
         @param args: One or more L{storm.expr.Column} objects.
         """
         if self._offset is not Undef or self._limit is not Undef:
