@@ -134,17 +134,26 @@ class PostgresResult(Result):
 
 class PostgresConnection(Connection):
 
-    _result_factory = PostgresResult
-    _param_mark = "%s"
-    _compile = compile
+    result_factory = PostgresResult
+    param_mark = "%s"
+    compile = compile
 
-    def _raw_execute(self, statement, params):
+    def raw_execute(self, statement, params):
+        """
+        Like L{Connection.raw_execute}, but encode the statement to
+        UTF-8 if it is unicode.
+        """
         if type(statement) is unicode:
             # psycopg breaks with unicode statements.
             statement = statement.encode("UTF-8")
-        return Connection._raw_execute(self, statement, params)
+        return Connection.raw_execute(self, statement, params)
 
-    def _to_database(self, params):
+    def to_database(self, params):
+        """
+        Like L{Connection.to_database}, but this converts datetime
+        types to strings, unicode to UTF-8 encoded strings, and
+        strings to L{psycopg2.Binary} instances.
+        """
         for param in params:
             if isinstance(param, Variable):
                 param = param.get(to_db=True)
@@ -160,7 +169,7 @@ class PostgresConnection(Connection):
 
 class Postgres(Database):
 
-    _connection_factory = PostgresConnection
+    connection_factory = PostgresConnection
 
     def __init__(self, uri):
         if psycopg2 is dummy:
@@ -172,7 +181,7 @@ class Postgres(Database):
         raw_connection.set_client_encoding("UTF8")
         raw_connection.set_isolation_level(
             psycopg2.extensions.ISOLATION_LEVEL_SERIALIZABLE)
-        return self._connection_factory(self, raw_connection)
+        return self.connection_factory(self, raw_connection)
 
 
 create_from_uri = Postgres

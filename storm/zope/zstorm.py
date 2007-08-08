@@ -43,12 +43,12 @@ class ZStorm(object):
     """A utility which integrates Storm with Zope.
 
     Typically, applications will register stores using ZCML similar
-    to:
+    to::
 
       <store name='main' uri='sqlite:' />
 
     Application code can then acquire the store by name using code
-    similar to:
+    similar to::
 
       from zope.component import getUtility
       from storm.zope.interfaces import IZStorm

@@ -56,12 +56,11 @@ class ClassInfo(dict):
 
     The following attributes are defined:
 
-              table - Expression from where columns will be looked up.
-                cls - Class which should be used to build objects.
-            columns - Tuple of column properties found in the class.
-        primary_key - Tuple of column properties used to form the primary key
-    primary_key_pos - Position of primary_key items in the columns tuple.
-
+    @ivar table: Expression from where columns will be looked up.
+    @ivar cls: Class which should be used to build objects.
+    @ivar columns: Tuple of column properties found in the class.
+    @ivar primary_key: Tuple of column properties used to form the primary key
+    @ivar primary_key_pos: Position of primary_key items in the columns tuple.
     """
 
     def __init__(self, cls):

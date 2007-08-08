@@ -267,12 +267,12 @@ class BoundIndirectReferenceSet(BoundReferenceSetBase):
 class Proxy(ComparableExpr):
     """Proxy exposes a referred object's column as a local column.
 
-    For example:
+    For example::
 
-    class Foo(object):
-        bar_id = Int()
-        bar = Reference(bar_id, Bar.id)
-        bar_title = Proxy(bar, Bar.title)
+      class Foo(object):
+          bar_id = Int()
+          bar = Reference(bar_id, Bar.id)
+          bar_title = Proxy(bar, Bar.title)
 
     For most uses, Foo.bar_title should behave as if it were
     a native property of Foo.
@@ -382,7 +382,7 @@ class Relation(object):
         The returned expression may be used to find objects of the I{local}
         type referring to C{other}.
 
-        It handles the following cases:
+        It handles the following cases::
 
             Class.reference == obj
             Class.reference == obj.id

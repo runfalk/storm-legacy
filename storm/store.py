@@ -18,6 +18,13 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+
+"""The Store interface to a database.
+
+This module contains the highest-level ORM interface in Storm.
+"""
+
+
 from weakref import WeakValueDictionary
 
 from storm.info import get_cls_info, get_obj_info, set_obj_info
@@ -39,10 +46,23 @@ PENDING_REMOVE = 2
 
 
 class Store(object):
+    """The Storm Store.
+
+    This is the highest-level interface to a database. It manages
+    transactions with L{commit} and L{rollback}, caching, high-level
+    querying with L{find}, and more.
+
+    Note that Store objects are not threadsafe. You should create one
+    Store per thread in your application, passing them the same
+    backend L{Database<storm.store.Database>} object.
+    """
 
     _result_set_factory = None
 
     def __init__(self, database):
+        """
+        @param database: The L{storm.database.Database} instance to use.
+        """
         self._connection = database.connect()
         self._cache = WeakValueDictionary()
         self._dirty = {}
@@ -50,24 +70,41 @@ class Store(object):
 
     @staticmethod
     def of(obj):
+        """Get the Store that the object is associated with.
+
+        If the given object has not yet been associated with a store,
+        return None.
+        """
         try:
             return get_obj_info(obj).get("store")
         except (AttributeError, ClassInfoError):
             return None
 
     def execute(self, statement, params=None, noresult=False):
+        """Execute a basic query.
+
+        This is just like L{storm.database.Database.execute}, except
+        that a flush is performed first.
+        """
         self.flush()
         return self._connection.execute(statement, params, noresult)
 
     def close(self):
+        """Close the connection."""
         self._connection.close()
 
     def commit(self):
+        """Commit all changes to the database.
+
+        This invalidates the cache, so all live objects will have data
+        reloaded next time they are touched.
+        """
         self.flush()
         self.invalidate()
         self._connection.commit()
 
     def rollback(self):
+        """Roll back all outstanding changes, reverting to database state."""
         for obj_info in self._dirty:
             pending = obj_info.pop("pending", None)
             if pending is PENDING_ADD:
@@ -127,6 +164,25 @@ class Store(object):
         return self._load_object(cls_info, result, values)
 
     def find(self, cls_spec, *args, **kwargs):
+        """Perform a query.
+
+        Some examples::
+
+            store.find(Person, Person.name == u"Joe") --> all Persons named Joe
+            store.find(Person, name=u"Joe") --> same
+            store.find((Company, Person), Person.company_id == Company.id) -->
+                iterator of tuples of Company and Person instances which are
+                associated via the company_id -> Company relation.
+
+        @param cls_spec: The class or tuple of classes whose
+            associated tables will be queried.
+        @param args: Instances of L{Expr}.
+        @param kwargs: Mapping of simple column names to values or
+            expressions to query for.
+
+        @return: A L{ResultSet} of instances C{cls_spec}. If C{cls_spec}
+            was a tuple, then an iterator of tuples of such instances.
+        """
         self.flush()
         if type(cls_spec) is tuple:
             cls_spec_info = tuple(get_cls_info(cls) for cls in cls_spec)
@@ -137,9 +193,38 @@ class Store(object):
         return self._result_set_factory(self, cls_spec_info, where)
 
     def using(self, *tables):
+        """Specify tables to use explicitly.
+
+        The L{find} method generally does a good job at figuring out
+        the tables to query by itself, but in some cases it's useful
+        to specify them explicitly.
+
+        This is most often necessary when an explicit SQL join is
+        required. An example follows::
+
+            join = LeftJoin(Person, Person.id == Company.person_id)
+            print list(store.using(Company, join).find((Company, Person)))
+
+        The previous code snippet will produce an SQL statement
+        somewhat similar to this, depending on your backend::
+
+            SELECT company.id, employee.company_id, employee.id
+            FROM company
+            LEFT JOIN employee ON employee.company_id = company.id;
+
+        @return: A L{TableSet}, which has a C{find} method similar to
+            L{Store.find}.
+        """
         return self._table_set(self, tables)
 
     def add(self, obj):
+        """Add the given object to the store.
+
+        The object will be inserted into the database if it has not
+        yet been added.
+
+        The C{added} event will be fired on the object info's event system.
+        """
         obj_info = get_obj_info(obj)
 
         store = obj_info.get("store")
@@ -164,6 +249,10 @@ class Store(object):
         return obj
 
     def remove(self, obj):
+        """Remove the given object from the store.
+
+        The associated row will be deleted from the database.
+        """
         obj_info = get_obj_info(obj)
 
         if obj_info.get("store") is not self:
@@ -184,6 +273,11 @@ class Store(object):
             self._disable_lazy_resolving(obj_info)
 
     def reload(self, obj):
+        """Reload the given object.
+
+        The object will immediately have all of its data reset from
+        the database. Any pending changes will be thrown away.
+        """
         obj_info = get_obj_info(obj)
         cls_info = obj_info.cls_info
         if obj_info.get("store") is not self:
@@ -201,9 +295,32 @@ class Store(object):
         self._set_clean(obj_info)
 
     def autoreload(self, obj=None):
+        """Set an object or all objects to be reloaded automatically on access.
+
+        When a database-backed attribute of one of the objects is
+        accessed, the object will be reloaded entirely from the database.
+
+        @param obj: If passed, only mark the given object for
+            autoreload. Otherwise, all cached objects will be marked for
+            autoreload.
+        """
         self._mark_autoreload(obj, False)
 
     def invalidate(self, obj=None):
+        """Set an object or all objects to be invalidated.
+
+        This prevents Storm from returning the cached object without
+        first verifying that the object is still available in the
+        database.
+
+        This should almost never be called by application code; it is
+        only necessary if it is possible that an object has
+        disappeared through some mechanism that Storm was unable to
+        detect, like direct SQL statements within the current
+        transaction that bypassed the ORM layer. The Store
+        automatically invalidates all cached objects on transaction
+        boundaries.
+        """
         self._mark_autoreload(obj, True)
 
     def _mark_autoreload(self, obj=None, invalidate=False):
@@ -232,6 +349,14 @@ class Store(object):
                 self._run_hook(obj_info, "__storm_invalidated__")
 
     def add_flush_order(self, before, after):
+        """Explicitly specify the order of flushing two objects.
+
+        When the next database flush occurs, the order of data
+        modification statements will be ensured.
+
+        @param before: The object to flush first.
+        @param after: The object to flush after C{before}.
+        """
         pair = (get_obj_info(before), get_obj_info(after))
         try:
             self._order[pair] += 1
@@ -239,6 +364,13 @@ class Store(object):
             self._order[pair] = 1
 
     def remove_flush_order(self, before, after):
+        """Cancel an explicit flush order specified with L{add_flush_order}.
+
+        @param before: The C{before} object previously specified in a
+            call to L{add_flush_order}.
+        @param after: The C{after} object previously specified in a
+            call to L{add_flush_order}.
+        """
         pair = (get_obj_info(before), get_obj_info(after))
         try:
             self._order[pair] -= 1
@@ -263,7 +395,7 @@ class Store(object):
         only need to call this method explicitly in very rare cases where
         normal flushing times are insufficient, such as when you want to
         make sure a database trigger gets run at a particular time.
-        """ 
+        """
         for obj_info in self._iter_cached():
             obj_info.event.emit("flush")
 
@@ -686,7 +818,15 @@ class Store(object):
 
 
 class ResultSet(object):
+    """The representation of the results of a query.
 
+    Note that having an instance of this class does not indicate that
+    a database query has necessarily been made. Database queries are
+    put off until absolutely necessary.
+
+    Generally these should not be constructed directly, but instead
+    retrieved from calls to L{Store.find}.
+    """
     def __init__(self, store, cls_spec_info,
                  where=Undef, tables=Undef, select=Undef):
         self._store = store
@@ -700,7 +840,7 @@ class ResultSet(object):
         self._distinct = False
 
     def copy(self):
-        """Return a copy of this resultset object, with the same configuration.
+        """Return a copy of this ResultSet object, with the same configuration.
         """
         result_set = object.__new__(self.__class__)
         result_set.__dict__.update(self.__dict__)
@@ -753,11 +893,18 @@ class ResultSet(object):
         return self._store._load_objects(self._cls_spec_info, result, values)
 
     def __iter__(self):
+        """Iterate the results of the query.
+        """
         result = self._store._connection.execute(self._get_select())
         for values in result:
             yield self._load_objects(result, values)
 
     def __getitem__(self, index):
+        """Get an individual item by offset, or a range of items by slice.
+
+        If a slice is used, a new L{ResultSet} will be return
+        appropriately modified with OFFSET and LIMIT clauses.
+        """
         if isinstance(index, (int, long)):
             if index == 0:
                 result_set = self
@@ -871,12 +1018,26 @@ class ResultSet(object):
         return None
 
     def order_by(self, *args):
+        """Specify the ordering of the results.
+
+        The query will be modified appropriately with an ORDER BY clause.
+
+        Ascending and descending order can be specified by wrapping
+        the columns in L{Asc} and L{Desc}.
+
+        @param args: One or more L{storm.expr.Column} objects.
+        """
         if self._offset is not Undef or self._limit is not Undef:
             raise FeatureError("Can't reorder a sliced result set")
         self._order_by = args or Undef
         return self
 
     def remove(self):
+        """Remove all rows represented by this ResultSet from the database.
+
+        This is done efficiently with a DELETE statement, so objects
+        are not actually loaded into Python.
+        """
         if self._offset is not Undef or self._limit is not Undef:
             raise FeatureError("Can't remove a sliced result set")
         if type(self._cls_spec_info) is tuple:
@@ -908,24 +1069,38 @@ class ResultSet(object):
         return value
 
     def count(self, expr=Undef, distinct=False):
+        """Get the number of objects represented by this ResultSet."""
         return int(self._aggregate(Count(expr, distinct)))
 
     def max(self, expr):
+        """Get the highest value from an expression."""
         return self._aggregate(Max(expr), expr)
 
     def min(self, expr):
+        """Get the lowest value from an expression."""
         return self._aggregate(Min(expr), expr)
 
     def avg(self, expr):
+        """Get the average value from an expression."""
         value = self._aggregate(Avg(expr))
         if value is None:
             return value
         return float(value)
 
     def sum(self, expr):
+        """Get the sum of all values in an expression."""
         return self._aggregate(Sum(expr), expr)
 
     def values(self, *columns):
+        """Retrieve only the specified columns.
+
+        This does not load full objects from the database into Python.
+
+        @param columns: One or more L{storm.expr.Column} objects whose
+            values will be fetched.
+        @return: An iterator of tuples of the values for each column
+            from each matching row in the database.
+        """
         if not columns:
             raise FeatureError("values() takes at least one column "
                                "as argument")
@@ -1046,22 +1221,49 @@ class ResultSet(object):
         return ResultSet(self._store, self._cls_spec_info, select=expr)
 
     def union(self, other, all=False):
+        """Get the L{Union} of this result set and another.
+
+        @param all: If True, include duplicates.
+        """
         if isinstance(other, EmptyResultSet):
             return self
         return self._set_expr(Union, other, all)
 
     def difference(self, other, all=False):
+        """Get the difference, using L{Except}, of this result set and another.
+
+        @param all: If True, include duplicates.
+        """
         if isinstance(other, EmptyResultSet):
             return self
         return self._set_expr(Except, other, all)
 
     def intersection(self, other, all=False):
+        """Get the L{Intersection} of this result set and another.
+
+        @param all: If True, include duplicates.
+        """
         if isinstance(other, EmptyResultSet):
             return other
         return self._set_expr(Intersect, other, all)
 
 
 class EmptyResultSet(object):
+    """An object that looks like a L{ResultSet} but represents no rows.
+
+    This is convenient for application developers who want to provide
+    a method which is guaranteed to return a L{ResultSet}-like object
+    but which, in certain cases, knows there is no point in querying
+    the database. For example::
+
+        def get_people(self, ids):
+            if not ids:
+                return EmptyResultSet()
+            return store.find(People, People.id.is_in(ids))
+
+    The methods on EmptyResultSet (L{one}, L{config}, L{union}, etc)
+    are meant to emulate a L{ResultSet} which has matched no rows.
+    """
 
     def __init__(self, ordered=False):
         self._order_by = ordered
@@ -1147,12 +1349,23 @@ class EmptyResultSet(object):
 
 
 class TableSet(object):
+    """The representation of a set of tables which can be queried at once.
+
+    This will typically be constructed by a call to L{Store.using}.
+    """
 
     def __init__(self, store, tables):
         self._store = store
         self._tables = tables
 
     def find(self, cls_spec, *args, **kwargs):
+        """Perform a query on the previously specified tables.
+
+        This is identical to L{Store.find} except that the tables are
+        explicitly specified instead of relying on inference.
+
+        @return: A L{ResultSet}.
+        """
         self._store.flush()
         if type(cls_spec) is tuple:
             cls_spec_info = tuple(get_cls_info(cls) for cls in cls_spec)
@@ -1182,6 +1395,25 @@ def get_where_for_args(args, kwargs, cls=None):
 
 
 class AutoReload(LazyValue):
+    """A marker for reloading a single value.
+
+    Often this will be used to specify that a specific attribute
+    should be loaded from the database on the next access, like so::
+
+        storm_object.property = AutoReload
+
+    On the next access to C{storm_object.property}, the value will be
+    loaded from the database.
+
+    It is also often used as a default value for a property::
+
+        class Person(object):
+            __storm_table__ = "person"
+            id = Int(allow_none=False, default=AutoReload)
+
+        person = store.add(Person)
+        person.id # gets the attribute from the database.
+    """
     pass
 
 AutoReload = AutoReload()

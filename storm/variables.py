@@ -84,6 +84,14 @@ except ImportError:
 
 
 class Variable(object):
+    """Basic representation of a database value in Python.
+
+    @type column: L{storm.expr.Column}
+    @ivar column: The column this variable represents.
+    @type event: L{storm.event.EventSystem}
+    @ivar event: The event system on which to broadcast events. If
+        None, no events will be emitted.
+    """
 
     _value = Undef
     _lazy_value = Undef
@@ -95,6 +103,24 @@ class Variable(object):
 
     def __init__(self, value=Undef, value_factory=Undef, from_db=False,
                  allow_none=True, column=None, event=None):
+        """
+        @param value: The initial value of this variable. The default
+            behavior is for the value to stay undefined until it is
+            set with L{set}.
+        @param value_factory: If specified, this will immediately be
+            called to get the initial value.
+        @param from_db: A boolean value indicating where the initial
+            value comes from, if C{value} or C{value_factory} are
+            specified.
+        @param allow_none: A boolean indicating whether None should be
+            allowed to be set as the value of this variable.
+        @type column: L{storm.expr.Column}
+        @param column: The column that this variable represents. It's
+            used for reporting better error messages.
+        @type event: L{EventSystem}
+        @param event: The event system to broadcast messages with. If
+            not specified, then no events will be broadcast.
+        """
         if not allow_none:
             self._allow_none = False
         if value is not Undef:
@@ -104,18 +130,27 @@ class Variable(object):
         self.column = column
         self.event = event
 
-    def _parse_get(self, value, to_db):
-        return value
-
-    def _parse_set(self, value, from_db):
-        return value
-
     def get_lazy(self, default=None):
+        """Get the current L{LazyValue} without resolving its value.
+
+        @param default: If no L{LazyValue} was previously specified,
+            return this value. Defaults to None.
+        """
         if self._lazy_value is Undef:
             return default
         return self._lazy_value
 
     def get(self, default=None, to_db=False):
+        """Get the value, resolving it from a L{LazyValue} if necessary.
+
+        If the current value is an instance of L{LazyValue}, then the
+        C{resolve-lazy-value} event will be emitted, to give third
+        parties the chance to resolve the lazy value to a real value.
+
+        @param default: Returned if no value has been set.
+        @param to_db: A boolean flag indicating whether this value is
+            destined for the database.
+        """
         if self._lazy_value is not Undef and self.event is not None:
             self.event.emit("resolve-lazy-value", self, self._lazy_value)
         value = self._value
@@ -123,9 +158,23 @@ class Variable(object):
             return default
         if value is None:
             return None
-        return self._parse_get(value, to_db)
+        return self.parse_get(value, to_db)
 
     def set(self, value, from_db=False):
+        """Set a new value.
+
+        Generally this will be called when an attribute was set in
+        Python, or data is being loaded from the database.
+
+        If the value is different from the previous value (or it is a
+        L{LazyValue}), then the C{changed} event will be emitted.
+
+        @param value: The value to set. If this is an instance of
+            L{LazyValue}, then later calls to L{get} will try to
+            resolve the value.
+        @param from_db: A boolean indicating whether this value has
+            come from the database.
+        """
         # FASTPATH This method is part of the fast path.  Be careful when
         #          changing it (try to profile any changes).
 
@@ -139,54 +188,115 @@ class Variable(object):
                     raise_none_error(self.column)
                 new_value = None
             else:
-                new_value = self._parse_set(value, from_db)
+                new_value = self.parse_set(value, from_db)
                 if from_db:
                     # Prepare it for being used by the hook below.
-                    value = self._parse_get(new_value, False)
+                    value = self.parse_get(new_value, False)
         old_value = self._value
         self._value = new_value
         if (self.event is not None and
             (self._lazy_value is not Undef or new_value != old_value)):
             if old_value is not None and old_value is not Undef:
-                old_value = self._parse_get(old_value, False)
+                old_value = self.parse_get(old_value, False)
             self.event.emit("changed", self, old_value, value, from_db)
 
     def delete(self):
+        """Delete the internal value.
+
+        If there was a value set, then emit the C{changed} event.
+        """
         old_value = self._value
         if old_value is not Undef:
             self._value = Undef
             if self.event is not None:
                 if old_value is not None and old_value is not Undef:
-                    old_value = self._parse_get(old_value, False)
+                    old_value = self.parse_get(old_value, False)
                 self.event.emit("changed", self, old_value, Undef, False)
 
     def is_defined(self):
+        """Check whether there is currently a value.
+
+        @return: boolean indicating whether there is currently a value
+            for this variable. Note that if a L{LazyValue} was
+            previously set, this returns False; it only returns True if
+            there is currently a real value set.
+        """
         return self._value is not Undef
 
     def has_changed(self):
+        """Check whether the value has changed.
+
+        @return: boolean indicating whether the value has changed
+            since the last call to L{checkpoint}.
+        """
         return (self._lazy_value is not Undef or
                 self.get_state() != self._checkpoint_state)
 
     def get_state(self):
+        """Get the internal state of this object.
+
+        @return: A value which can later be passed to L{set_state}.
+        """
         return (self._lazy_value, self._value)
 
     def set_state(self, state):
+        """Set the internal state of this object.
+
+        @param state: A result from a previous call to
+            L{get_state}. The internal state of this variable will be set
+            to the state of the variable which get_state was called on.
+        """
         self._lazy_value, self._value = state
 
     def checkpoint(self):
+        """"Checkpoint" the internal state.
+
+        See L{has_changed}.
+        """
         self._checkpoint_state = self.get_state()
 
     def copy(self):
+        """Make a new copy of this Variable with the same internal state."""
         variable = self.__class__.__new__(self.__class__)
         variable.set_state(self.get_state())
         return variable
 
     def __eq__(self, other):
+        """Equality based on current value, not identity."""
         return (self.__class__ is other.__class__ and
                 self._value == other._value)
 
     def __hash__(self):
+        """Hash based on current value, not identity."""
         return hash(self._value)
+
+    def parse_get(self, value, to_db):
+        """Convert the internal value to an external value.
+
+        Get a representation of this value either for Python or for
+        the database. This method is only intended to be overridden
+        in subclasses, not called from external code.
+
+        @param value: The value to be converted.
+        @param to_db: Whether or not this value is destined for the
+            database.
+        """
+        return value
+
+    def parse_set(self, value, from_db):
+        """Convert an external value to an internal value.
+
+        A value is being set either from Python code or from the
+        database. Parse it into its internal representation.  This
+        method is only intended to be overridden in subclasses, not
+        called from external code.
+
+        @param value: The value, either from Python code setting an
+            attribute or from a column in a database.
+        @param from_db: A boolean flag indicating whether this value
+            is from the database.
+        """
+        return value
 
 
 try:
@@ -198,7 +308,7 @@ except ImportError, e:
 
 class BoolVariable(Variable):
 
-    def _parse_set(self, value, from_db):
+    def parse_set(self, value, from_db):
         if not isinstance(value, (int, long, float, Decimal)):
             raise TypeError("Expected bool, found %r: %r"
                             % (type(value), value))
@@ -207,7 +317,7 @@ class BoolVariable(Variable):
 
 class IntVariable(Variable):
 
-    def _parse_set(self, value, from_db):
+    def parse_set(self, value, from_db):
         if not isinstance(value, (int, long, float, Decimal)):
             raise TypeError("Expected int, found %r: %r"
                             % (type(value), value))
@@ -216,7 +326,7 @@ class IntVariable(Variable):
 
 class FloatVariable(Variable):
 
-    def _parse_set(self, value, from_db):
+    def parse_set(self, value, from_db):
         if not isinstance(value, (int, long, float, Decimal)):
             raise TypeError("Expected float, found %r: %r"
                             % (type(value), value))
@@ -226,7 +336,7 @@ class FloatVariable(Variable):
 class DecimalVariable(Variable):
 
     @staticmethod
-    def _parse_set(value, from_db):
+    def parse_set(value, from_db):
         if (from_db and isinstance(value, basestring) or
             isinstance(value, (int, long))):
             value = Decimal(value)
@@ -236,7 +346,7 @@ class DecimalVariable(Variable):
         return value
 
     @staticmethod
-    def _parse_get(value, to_db):
+    def parse_get(value, to_db):
         if to_db:
             return str(value)
         return value
@@ -244,7 +354,7 @@ class DecimalVariable(Variable):
 
 class RawStrVariable(Variable):
 
-    def _parse_set(self, value, from_db):
+    def parse_set(self, value, from_db):
         if isinstance(value, buffer):
             value = str(value)
         elif not isinstance(value, str):
@@ -255,7 +365,7 @@ class RawStrVariable(Variable):
 
 class UnicodeVariable(Variable):
 
-    def _parse_set(self, value, from_db):
+    def parse_set(self, value, from_db):
         if not isinstance(value, unicode):
             raise TypeError("Expected unicode, found %r: %r"
                             % (type(value), value))
@@ -268,7 +378,7 @@ class DateTimeVariable(Variable):
         self._tzinfo = kwargs.pop("tzinfo", None)
         super(DateTimeVariable, self).__init__(*args, **kwargs)
 
-    def _parse_set(self, value, from_db):
+    def parse_set(self, value, from_db):
         if from_db:
             if isinstance(value, datetime):
                 pass
@@ -297,7 +407,7 @@ class DateTimeVariable(Variable):
 
 class DateVariable(Variable):
 
-    def _parse_set(self, value, from_db):
+    def parse_set(self, value, from_db):
         if from_db:
             if value is None:
                 return None
@@ -318,7 +428,7 @@ class DateVariable(Variable):
 
 class TimeVariable(Variable):
 
-    def _parse_set(self, value, from_db):
+    def parse_set(self, value, from_db):
         if from_db:
             # XXX Can None ever get here, considering that set() checks for it?
             if value is None:
@@ -340,7 +450,7 @@ class TimeVariable(Variable):
 
 class TimeDeltaVariable(Variable):
 
-    def _parse_set(self, value, from_db):
+    def parse_set(self, value, from_db):
         if from_db:
             # XXX Can None ever get here, considering that set() checks for it?
             if value is None:
@@ -371,7 +481,7 @@ class EnumVariable(Variable):
         self._set_map = set_map
         Variable.__init__(self, *args, **kwargs)
 
-    def _parse_set(self, value, from_db):
+    def parse_set(self, value, from_db):
         if from_db:
             return value
         try:
@@ -379,7 +489,7 @@ class EnumVariable(Variable):
         except KeyError:
             raise ValueError("Invalid enum value: %s" % repr(value))
 
-    def _parse_get(self, value, to_db):
+    def parse_get(self, value, to_db):
         if to_db:
             return value
         try:
@@ -400,7 +510,7 @@ class PickleVariable(Variable):
         if self.get_state() != self._checkpoint_state:
             self.event.emit("changed", self, None, self._value, False)
 
-    def _parse_set(self, value, from_db):
+    def parse_set(self, value, from_db):
         if from_db:
             if isinstance(value, buffer):
                 value = str(value)
@@ -408,7 +518,7 @@ class PickleVariable(Variable):
         else:
             return value
 
-    def _parse_get(self, value, to_db):
+    def parse_get(self, value, to_db):
         if to_db:
             return pickle.dumps(value, -1)
         else:
@@ -441,7 +551,7 @@ class ListVariable(Variable):
         if self.get_state() != self._checkpoint_state:
             self.event.emit("changed", self, None, self._value, False)
 
-    def _parse_set(self, value, from_db):
+    def parse_set(self, value, from_db):
         if from_db:
             item_factory = self._item_factory
             return [item_factory(value=val, from_db=from_db).get()
@@ -449,7 +559,7 @@ class ListVariable(Variable):
         else:
             return value
 
-    def _parse_get(self, value, to_db):
+    def parse_get(self, value, to_db):
         if to_db:
             item_factory = self._item_factory
             # XXX This from_db=to_db is dubious. What to do here?
@@ -494,7 +604,7 @@ def _parse_interval(interval_str):
     """Parses PostgreSQL interval notation and returns a tuple (years, months,
     days, hours, minutes, seconds).
 
-    Values accepted:
+    Values accepted::
         interval  ::= date
                    |  time
                    |  date time

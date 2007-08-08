@@ -66,7 +66,12 @@ class MySQLResult(Result):
         return And(*equals)
 
     @staticmethod
-    def _from_database(row):
+    def from_database(row):
+        """Convert MySQL-specific datatypes to "normal" Python types.
+
+        If there are any C{array} instances in the row, convert them
+        to strings.
+        """
         for value in row:
             if isinstance(value, array):
                 yield value.tostring()
@@ -76,14 +81,14 @@ class MySQLResult(Result):
 
 class MySQLConnection(Connection):
 
-    _result_factory = MySQLResult
-    _param_mark = "%s"
-    _compile = compile
+    result_factory = MySQLResult
+    param_mark = "%s"
+    compile = compile
 
 
 class MySQL(Database):
 
-    _connection_factory = MySQLConnection
+    connection_factory = MySQLConnection
     _converters = None
 
     def __init__(self, uri):
@@ -115,7 +120,7 @@ class MySQL(Database):
 
     def connect(self):
         raw_connection = MySQLdb.connect(**self._connect_kwargs)
-        return self._connection_factory(self, raw_connection)
+        return self.connection_factory(self, raw_connection)
 
 
 create_from_uri = MySQL

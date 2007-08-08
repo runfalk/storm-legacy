@@ -327,17 +327,17 @@ class DatabaseTest(object):
 
     def test_wb_result_get_one_goes_through_from_database(self):
         result = self.connection.execute("SELECT one, two FROM number")
-        result._from_database = self.from_database
+        result.from_database = self.from_database
         self.assertEquals(result.get_one(), (2, 3))
 
     def test_wb_result_get_all_goes_through_from_database(self):
         result = self.connection.execute("SELECT one, two FROM number")
-        result._from_database = self.from_database
+        result.from_database = self.from_database
         self.assertEquals(result.get_all(), [(2, 3)])
 
     def test_wb_result_iter_goes_through_from_database(self):
         result = self.connection.execute("SELECT one, two FROM number")
-        result._from_database = self.from_database
+        result.from_database = self.from_database
         self.assertEquals(iter(result).next(), (2, 3))
 
 

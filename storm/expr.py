@@ -1236,7 +1236,7 @@ class Sequence(Expr):
     auto-incrementing sequence.  There's no standard way to compile a
     sequence, since it's very database-dependent.
 
-    This may be used as follows:
+    This may be used as follows::
 
       class Class(object):
           (...)

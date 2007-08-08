@@ -83,7 +83,12 @@ class SQLiteResult(Result):
         variable.set(value, from_db=True)
 
     @staticmethod
-    def _from_database(row):
+    def from_database(row):
+        """Convert MySQL-specific datatypes to "normal" Python types.
+
+        If there are anny C{buffer} instances in the row, convert them
+        to strings.
+        """
         for value in row:
             if isinstance(value, buffer):
                 yield str(value)
@@ -93,12 +98,17 @@ class SQLiteResult(Result):
 
 class SQLiteConnection(Connection):
 
-    _result_factory = SQLiteResult
-    _compile = compile
+    result_factory = SQLiteResult
+    compile = compile
     _in_transaction = False
 
     @staticmethod
-    def _to_database(params):
+    def to_database(params):
+        """
+        Like L{Connection.to_database}, but this also converts
+        instances of L{datetime} types to strings, and strings
+        instances to C{buffer} instances.
+        """
         for param in params:
             if isinstance(param, Variable):
                 param = param.get(to_db=True)
@@ -121,7 +131,7 @@ class SQLiteConnection(Connection):
             self._in_transaction = False
             self._raw_connection.execute("ROLLBACK")
 
-    def _raw_execute(self, statement, params=None, _started=None):
+    def raw_execute(self, statement, params=None, _started=None):
         """Execute a raw statement with the given parameters.
 
         This method will automatically retry on locked database errors.
@@ -135,7 +145,7 @@ class SQLiteConnection(Connection):
             self._raw_connection.execute("BEGIN")
         while True:
             try:
-                return Connection._raw_execute(self, statement, params)
+                return Connection.raw_execute(self, statement, params)
             except sqlite.OperationalError, e:
                 if str(e) != "database is locked":
                     raise
@@ -149,7 +159,7 @@ class SQLiteConnection(Connection):
 
 class SQLite(Database):
 
-    _connection_factory = SQLiteConnection
+    connection_factory = SQLiteConnection
 
     def __init__(self, uri):
         if sqlite is dummy:
@@ -161,7 +171,7 @@ class SQLite(Database):
         # See the story at the end to understand why we set isolation_level.
         raw_connection = sqlite.connect(self._filename, timeout=self._timeout,
                                         isolation_level=None)
-        return self._connection_factory(self, raw_connection)
+        return self.connection_factory(self, raw_connection)
 
 
 create_from_uri = SQLite
