@@ -193,9 +193,27 @@ class Store(object):
         return self._result_set_factory(self, cls_spec_info, where)
 
     def using(self, *tables):
-        """Specify tables or joins to use ...? XXX
+        """Specify tables to use explicitly.
 
-        @return: A L{TableSet}.
+        The L{find} method generally does a good job at figuring out
+        the tables to query by itself, but in some cases it's useful
+        to specify them explicitly.
+
+        This is most often necessary when an explicit SQL join is
+        required. An example follows::
+
+            join = LeftJoin(Person, Person.id == Company.person_id)
+            print list(store.using(Company, join).find((Company, Person)))
+
+        The previous code snippet will produce an SQL statement
+        somewhat similar to this, depending on your backend::
+
+            SELECT company.id, employee.company_id, employee.id
+            FROM company
+            LEFT JOIN employee ON employee.company_id = company.id;
+
+        @return: A L{TableSet}, which has a C{find} method similar to
+            L{Store.find}.
         """
         return self._table_set(self, tables)
 
@@ -279,10 +297,8 @@ class Store(object):
     def autoreload(self, obj=None):
         """Set an object or all objects to be reloaded automatically on access.
 
-        XXX this sounds pretty wrong
-
-        When one of the objects has a database-backed attribute
-        accessed, it will automatically be reloaded from the database.
+        When a database-backed attribute of one of the objects is
+        accessed, the object will be reloaded entirely from the database.
 
         @param obj: If passed, only mark the given object for
             autoreload. Otherwise, all cached objects will be marked for
@@ -291,15 +307,19 @@ class Store(object):
         self._mark_autoreload(obj, False)
 
     def invalidate(self, obj=None):
-        """Set an object or all objects to be reloaded and invalidated.
+        """Set an object or all objects to be invalidated.
 
-        XXX this sounds pretty wrong
+        This prevents Storm from returning the cached object without
+        first verifying that the object is still available in the
+        database.
 
-        This is very similar to L{autoreload}, but the object is also
-        marked as 'invalidated', meaning that even if the object is
-        retrieved from the cache, further access will reload the
-        object entirely, which may fail if the object has disappeared
-        from the database.
+        This should almost never be called by application code; it is
+        only necessary if it is possible that an object has
+        disappeared through some mechanism that Storm was unable to
+        detect, like direct SQL statements within the current
+        transaction that bypassed the ORM layer. The Store
+        automatically invalidates all cached objects on transaction
+        boundaries.
         """
         self._mark_autoreload(obj, True)
 
@@ -1329,8 +1349,6 @@ class TableSet(object):
     """The representation of a set of tables which can be queried at once.
 
     This will typically be constructed by a call to L{Store.using}.
-
-    XXX: doc is crap
     """
 
     def __init__(self, store, tables):
@@ -1340,7 +1358,8 @@ class TableSet(object):
     def find(self, cls_spec, *args, **kwargs):
         """Perform a query on the previously specified tables.
 
-        XXX: doc is crap
+        This is identical to L{Store.find} except that the tables are
+        explicitly specified instead of relying on inference.
 
         @return: A L{ResultSet}.
         """
