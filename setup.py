@@ -15,7 +15,11 @@ setup(
     description="Storm is an object-relational mapper (ORM) for Python developed at Canonical.",
     author="Gustavo Niemeyer",
     author_email="gustavo@niemeyer.net",
+    maintainer="Storm Developers",
+    maintainer_email="storm@lists.canonical.com",
+    license="LGPL",
     url="https://storm.canonical.com",
+    download_url="https://launchpad.net/storm/+download",
     packages=[
         "storm",
         "storm.databases",
