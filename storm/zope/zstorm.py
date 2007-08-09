@@ -158,9 +158,9 @@ class ZStorm(object):
         link back to it in future transactions.
         """
         del self._stores[id(store)]
-        for name, named_store in self._named.items():
-            if store == named_store:
-                del self._named[name]
+        name = self._name_index[store]
+        del self._name_index[store]
+        del self._named[name]
         transaction.manager.unregisterSynch(store.__synchronizer)
 
     def iterstores(self):

@@ -134,6 +134,12 @@ class ZStormTest(TestHelper):
         store = self.zstorm.create("name", "sqlite:")
         self.assertEquals(self.zstorm.get_name(store), "name")
 
+    def test_get_name_with_removed_store(self):
+        store = self.zstorm.create("name", "sqlite:")
+        self.assertEquals(self.zstorm.get_name(store), "name")
+        self.zstorm.remove(store)
+        self.assertEquals(self.zstorm.get_name(store), None)
+
     def test_default_databases(self):
         self.zstorm.set_default_uri("name1", "sqlite:1")
         self.zstorm.set_default_uri("name2", "sqlite:2")
