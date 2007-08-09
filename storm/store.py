@@ -59,17 +59,14 @@ class Store(object):
 
     _result_set_factory = None
 
-    def __init__(self, database, name=None):
+    def __init__(self, database):
         """
         @param database: The L{storm.database.Database} instance to use.
-        @param name: Optionally, the name of the store.  The name is
-                     None by default.
         """
         self._connection = database.connect()
         self._cache = WeakValueDictionary()
         self._dirty = {}
         self._order = {} # (info, info) = count
-        self.name = name
 
     @staticmethod
     def of(obj):

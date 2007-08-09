@@ -88,6 +88,13 @@ class ZStorm(object):
         except AttributeError:
             return self._local.__dict__.setdefault("named", {})
 
+    @property
+    def _name_index(self):
+        try:
+            return self._local.name_index
+        except AttributeError:
+            return self._local.__dict__.setdefault("name_index", {})
+
     def _get_database(self, uri):
         database = self._databases.get(uri)
         if database is None:
@@ -113,7 +120,7 @@ class ZStorm(object):
                 raise ZStormError("Store named '%s' not found" % name)
         else:
             database = self._get_database(uri)
-        store = Store(database, name=name)
+        store = Store(database)
         store.__synchronizer = StoreSynchronizer(store)
 
         self._stores[id(store)] = store
@@ -122,6 +129,7 @@ class ZStorm(object):
             old_store = self._named.setdefault(name, store)
             if old_store is not store:
                 raise ZStormError("Store named '%s' already exists" % name)
+            self._name_index[store] = name
         return store
 
     def get(self, name, default_uri=None):
@@ -162,6 +170,10 @@ class ZStorm(object):
             names[id(store)] = name
         for store in self._stores.values():
             yield names.get(id(store)), store
+
+    def get_name(self, store):
+        """Returns the name for C{store} or None if one isn't available."""
+        return self._name_index.get(store)
 
     def get_default_uris(self):
         """

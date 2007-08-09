@@ -72,7 +72,6 @@ class ZStormTest(TestHelper):
 
     def test_create_and_get_named(self):
         store = self.zstorm.create("name", "sqlite:")
-        self.assertEquals(store.name, "name")
         self.assertTrue(self.zstorm.get("name") is store)
 
     def test_create_and_get_named_another_thread(self):
@@ -130,6 +129,10 @@ class ZStormTest(TestHelper):
         self.assertEquals(set(stores),
                           set([(None, store1), (None, store2),
                                ("name", store3)]))
+
+    def test_get_name(self):
+        store = self.zstorm.create("name", "sqlite:")
+        self.assertEquals(self.zstorm.get_name(store), "name")
 
     def test_default_databases(self):
         self.zstorm.set_default_uri("name1", "sqlite:1")
