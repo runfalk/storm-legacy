@@ -113,7 +113,7 @@ class ZStorm(object):
                 raise ZStormError("Store named '%s' not found" % name)
         else:
             database = self._get_database(uri)
-        store = Store(database)
+        store = Store(database, name=name)
         store.__synchronizer = StoreSynchronizer(store)
 
         self._stores[id(store)] = store

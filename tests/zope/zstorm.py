@@ -72,6 +72,7 @@ class ZStormTest(TestHelper):
 
     def test_create_and_get_named(self):
         store = self.zstorm.create("name", "sqlite:")
+        self.assertEquals(store.name, "name")
         self.assertTrue(self.zstorm.get("name") is store)
 
     def test_create_and_get_named_another_thread(self):
