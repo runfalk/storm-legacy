@@ -129,7 +129,7 @@ class ZStorm(object):
             old_store = self._named.setdefault(name, store)
             if old_store is not store:
                 raise ZStormError("Store named '%s' already exists" % name)
-            self._name_index[store] = name
+        self._name_index[store] = name
         return store
 
     def get(self, name, default_uri=None):
@@ -165,11 +165,8 @@ class ZStorm(object):
 
     def iterstores(self):
         """Iterate C{name, store} 2-tuples."""
-        names = {}
-        for name, store in self._named.items():
-            names[id(store)] = name
-        for store in self._stores.values():
-            yield names.get(id(store)), store
+        for store, name in self._name_index.iteritems():
+            yield name, store
 
     def get_name(self, store):
         """Returns the name for C{store} or None if one isn't available."""
