@@ -94,7 +94,8 @@ class ZStorm(object):
         try:
             return self._local.name_index
         except AttributeError:
-            return self._local.__dict__.setdefault("name_index", {})
+            return self._local.__dict__.setdefault(
+                "name_index", weakref.WeakKeyDictionary())
 
     def _get_database(self, uri):
         database = self._databases.get(uri)
