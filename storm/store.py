@@ -126,6 +126,9 @@ class Store(object):
 
         @param cls: Class of the object to be retrieved.
         @param key: Primary key of object. May be a tuple for composed keys.
+
+        @return: The object found with the given primary key, or None
+            if no object is found.
         """
 
         self.flush()
