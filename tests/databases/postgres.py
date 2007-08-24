@@ -1,12 +1,12 @@
 from datetime import datetime, date, time
-import os
+import os, storm
 
 from storm.databases.postgres import Postgres, compile, parse_array
 from storm.uri import URI
 from storm.database import create_database
 from storm.variables import UnicodeVariable, DateTimeVariable
 from storm.variables import ListVariable, IntVariable, Variable
-from storm.expr import Union, Select, Alias, SQLRaw
+from storm.expr import Union, Select, Alias, SQLRaw, Like, Table
 
 from tests.databases.base import DatabaseTest, UnsupportedDatabaseTest
 from tests.helper import TestHelper, MakePath
@@ -189,6 +189,57 @@ class PostgresTest(TestHelper, DatabaseTest):
         result = self.connection.execute(expr)
         self.assertEquals(result.get_all(), [(1,), (1,)])
 
+    def test_case_sensitive_like(self):
+        try:
+            self.connection.execute("DROP TABLE like_case_insensitive_test")
+            self.connection.commit()
+        except:
+            self.connection.rollback()
+
+        self.connection.execute("CREATE TABLE like_case_insensitive_test "
+                                "(id SERIAL PRIMARY KEY, description TEXT)")
+
+        self.connection.execute("INSERT INTO like_case_insensitive_test "
+                                "(description) VALUES ('hullah')")
+        self.connection.execute("INSERT INTO like_case_insensitive_test "
+                                "(description) VALUES ('HULLAH')")
+        self.connection.commit()
+
+        like = Like(SQLRaw("description"), "%hullah%")
+        expr = Select(SQLRaw("id"), like, tables=["like_case_insensitive_test"])
+        result = self.connection.execute(expr)
+        self.assertEquals(result.get_all(), [(1,)])
+
+        like = Like(SQLRaw("description"), "%HULLAH%")
+        expr = Select(SQLRaw("id"), like, tables=["like_case_insensitive_test"])
+        result = self.connection.execute(expr)
+        self.assertEquals(result.get_all(), [(2,)])
+
+    def test_case_insensitive_like(self):
+        try:
+            self.connection.execute("DROP TABLE like_case_insensitive_test")
+            self.connection.commit()
+        except:
+            self.connection.rollback()
+
+        self.connection.execute("CREATE TABLE like_case_insensitive_test "
+                                "(id SERIAL PRIMARY KEY, description TEXT)")
+
+        self.connection.execute("INSERT INTO like_case_insensitive_test "
+                                "(description) VALUES ('HULLAH')")
+
+        self.connection.execute("INSERT INTO like_case_insensitive_test "
+                                "(description) VALUES ('hullah')")
+        self.connection.commit()
+
+        like = Like(SQLRaw("description"), "%hullah%", case_sensitive=False)
+        expr = Select(SQLRaw("id"), like, tables=["like_case_insensitive_test"])
+        result = self.connection.execute(expr)
+        self.assertEquals(result.get_all(), [(1,), (2,)])
+        like = Like(SQLRaw("description"), "%HULLAH%", case_sensitive=False)
+        expr = Select(SQLRaw("id"), like, tables=["like_case_insensitive_test"])
+        result = self.connection.execute(expr)
+        self.assertEquals(result.get_all(), [(1,), (2,)])
 
 class ParseArrayTest(TestHelper):
 

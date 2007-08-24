@@ -146,7 +146,7 @@ class ExprTest(TestHelper):
         self.assertEquals(expr.expr1, elem1)
         self.assertEquals(expr.expr2, elem2)
 
-    def test_like(self):
+    def test_like_escape(self):
         expr = Like(elem1, elem2, elem3)
         self.assertEquals(expr.expr1, elem1)
         self.assertEquals(expr.expr2, elem2)

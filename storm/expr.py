@@ -881,10 +881,11 @@ class LShift(BinaryOper):
 class Like(BinaryOper):
     oper = " LIKE "
 
-    def __init__(self, expr1, expr2, escape=Undef):
+    def __init__(self, expr1, expr2, escape=Undef, case_sensitive=None):
         self.expr1 = expr1
         self.expr2 = expr2
         self.escape = escape
+        self.case_sensitive = case_sensitive
 
 @compile.when(Like)
 def compile_binary_oper(compile, state, like):
