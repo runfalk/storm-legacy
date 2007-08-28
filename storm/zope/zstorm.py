@@ -86,7 +86,16 @@ class ZStorm(object):
         try:
             return self._local.named
         except AttributeError:
-            return self._local.__dict__.setdefault("named", {})
+            return self._local.__dict__.setdefault(
+                "named", weakref.WeakValueDictionary())
+
+    @property
+    def _name_index(self):
+        try:
+            return self._local.name_index
+        except AttributeError:
+            return self._local.__dict__.setdefault(
+                "name_index", weakref.WeakKeyDictionary())
 
     def _get_database(self, uri):
         database = self._databases.get(uri)
@@ -122,6 +131,7 @@ class ZStorm(object):
             old_store = self._named.setdefault(name, store)
             if old_store is not store:
                 raise ZStormError("Store named '%s' already exists" % name)
+        self._name_index[store] = name
         return store
 
     def get(self, name, default_uri=None):
@@ -150,18 +160,19 @@ class ZStorm(object):
         link back to it in future transactions.
         """
         del self._stores[id(store)]
-        for name, named_store in self._named.items():
-            if store == named_store:
-                del self._named[name]
+        name = self._name_index[store]
+        del self._name_index[store]
+        del self._named[name]
         transaction.manager.unregisterSynch(store.__synchronizer)
 
     def iterstores(self):
         """Iterate C{name, store} 2-tuples."""
-        names = {}
-        for name, store in self._named.items():
-            names[id(store)] = name
-        for store in self._stores.values():
-            yield names.get(id(store)), store
+        for store, name in self._name_index.iteritems():
+            yield name, store
+
+    def get_name(self, store):
+        """Returns the name for C{store} or None if one isn't available."""
+        return self._name_index.get(store)
 
     def get_default_uris(self):
         """
