@@ -1,0 +1,15 @@
+Storm is an Object Relational Mapper for Python.
+
+API docs, a manual, and a tutorial are available from
+http://storm.canonical.com/
+
+To run the tests, execute "./test" in the toplevel directory.  You
+will need to set the environment variables STORM_MYSQL_URI and
+STORM_POSTGRES_URI in order to run the full suite, including
+backend-specific tests. For example::
+
+  $ export STORM_MYSQL_URI=mysql:storm_tests
+  $ export STORM_POSTGRES_URI=postgres:storm_tests
+  $ ./test
+  Running unittests...
+
