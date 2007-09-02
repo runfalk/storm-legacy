@@ -135,14 +135,23 @@ class SQLiteConnection(Connection):
     def commit(self):
         # See story at the end to understand why we do COMMIT manually.
         if self._in_transaction:
-            self._retry_until_timeout(self._raw_connection.execute, "COMMIT")
             self._in_transaction = False
+            try:
+                self._retry_until_timeout(self._raw_connection.execute, "COMMIT")
+            except sqlite.OperationalError, e:
+                if str(e) == "database is locked":
+                    # The transaction failed due to being unable to get a lock
+                    # on the database.  In this case (and only this case),
+                    # sqlite doesn't automatically rollback the transaction, so
+                    # COMMIT can be retried once the lock is cleared.
+                    self._in_transaction = True
+                raise
 
     def rollback(self):
         # See story at the end to understand why we do ROLLBACK manually.
         if self._in_transaction:
-            self._raw_connection.execute("ROLLBACK")
             self._in_transaction = False
+            self._raw_connection.execute("ROLLBACK")
 
     def raw_execute(self, statement, params=None):
         """Execute a raw statement with the given parameters.
