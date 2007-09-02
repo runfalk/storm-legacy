@@ -135,14 +135,14 @@ class SQLiteConnection(Connection):
     def commit(self):
         # See story at the end to understand why we do COMMIT manually.
         if self._in_transaction:
-            self._in_transaction = False
             self._retry_until_timeout(self._raw_connection.execute, "COMMIT")
+            self._in_transaction = False
 
     def rollback(self):
         # See story at the end to understand why we do ROLLBACK manually.
         if self._in_transaction:
-            self._in_transaction = False
             self._raw_connection.execute("ROLLBACK")
+            self._in_transaction = False
 
     def raw_execute(self, statement, params=None):
         """Execute a raw statement with the given parameters.
