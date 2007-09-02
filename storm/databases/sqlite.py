@@ -119,11 +119,24 @@ class SQLiteConnection(Connection):
             else:
                 yield param
 
+    def _retry_until_timeout(self, callable, *args):
+        started = now()
+        while True:
+            try:
+                return callable(*args)
+            except sqlite.OperationalError, e:
+                if str(e) != "database is locked":
+                    raise
+                if now() - started < self._database._timeout:
+                    sleep(0.1)
+                else:
+                    raise
+
     def commit(self):
         # See story at the end to understand why we do COMMIT manually.
         if self._in_transaction:
             self._in_transaction = False
-            self._raw_connection.execute("COMMIT")
+            self._retry_until_timeout(self._raw_connection.execute, "COMMIT")
 
     def rollback(self):
         # See story at the end to understand why we do ROLLBACK manually.
@@ -131,7 +144,7 @@ class SQLiteConnection(Connection):
             self._in_transaction = False
             self._raw_connection.execute("ROLLBACK")
 
-    def raw_execute(self, statement, params=None, _started=None):
+    def raw_execute(self, statement, params=None):
         """Execute a raw statement with the given parameters.
 
         This method will automatically retry on locked database errors.
@@ -143,18 +156,8 @@ class SQLiteConnection(Connection):
             # See story at the end to understand why we do BEGIN manually.
             self._in_transaction = True
             self._raw_connection.execute("BEGIN")
-        while True:
-            try:
-                return Connection.raw_execute(self, statement, params)
-            except sqlite.OperationalError, e:
-                if str(e) != "database is locked":
-                    raise
-                if _started is None:
-                    _started = now()
-                elif now() - _started < self._database._timeout:
-                    sleep(0.1)
-                else:
-                    raise
+        return self._retry_until_timeout(Connection.raw_execute,
+                                         self, statement, params)
 
 
 class SQLite(Database):
