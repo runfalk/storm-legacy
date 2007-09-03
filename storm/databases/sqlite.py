@@ -141,9 +141,8 @@ class SQLiteConnection(Connection):
             except sqlite.OperationalError, e:
                 if str(e) == "database is locked":
                     # The transaction failed due to being unable to get a lock
-                    # on the database.  In this case (and only this case),
-                    # sqlite doesn't automatically rollback the transaction, so
-                    # COMMIT can be retried once the lock is cleared.
+                    # on the database.  In this case, we are still in a
+                    # transaction.
                     self._in_transaction = True
                 raise
 
