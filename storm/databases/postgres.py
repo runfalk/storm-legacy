@@ -176,12 +176,12 @@ class Postgres(Database):
             raise DatabaseModuleError("'psycopg2' module not found")
         self._dsn = make_dsn(uri)
 
-    def connect(self):
+    def _connect(self):
         raw_connection = psycopg2.connect(self._dsn)
         raw_connection.set_client_encoding("UTF8")
         raw_connection.set_isolation_level(
             psycopg2.extensions.ISOLATION_LEVEL_SERIALIZABLE)
-        return self.connection_factory(self, raw_connection)
+        return raw_connection
 
 
 create_from_uri = Postgres

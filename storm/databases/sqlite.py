@@ -167,11 +167,11 @@ class SQLite(Database):
         self._filename = uri.database or ":memory:"
         self._timeout = float(uri.options.get("timeout", 5))
 
-    def connect(self):
+    def _connect(self):
         # See the story at the end to understand why we set isolation_level.
         raw_connection = sqlite.connect(self._filename, timeout=self._timeout,
                                         isolation_level=None)
-        return self.connection_factory(self, raw_connection)
+        return raw_connection
 
 
 create_from_uri = SQLite

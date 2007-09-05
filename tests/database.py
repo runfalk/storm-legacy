@@ -107,7 +107,8 @@ class ConnectionTest(TestHelper):
         self.executed = []
         self.database = Database()
         self.raw_connection = RawConnection(self.executed)
-        self.connection = Connection(self.database, self.raw_connection)
+        self.database._connect = lambda: self.raw_connection
+        self.connection = Connection(self.database)
 
     def test_execute(self):
         result = self.connection.execute("something")
@@ -131,7 +132,7 @@ class ConnectionTest(TestHelper):
     def test_execute_convert_param_style(self):
         class MyConnection(Connection):
             param_mark = "%s"
-        connection = MyConnection(self.database, RawConnection(self.executed))
+        connection = MyConnection(self.database)
         result = connection.execute("'?' ? '?' ? '?'")
         self.assertEquals(self.executed, [("'?' %s '?' %s '?'", marker)])
 

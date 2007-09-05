@@ -148,9 +148,9 @@ class Connection(object):
 
     _closed = False
 
-    def __init__(self, database, raw_connection):
+    def __init__(self, database):
         self._database = database # Ensures deallocation order.
-        self._raw_connection = raw_connection
+        self._raw_connection = self._database._connect()
 
     def __del__(self):
         """Close the connection."""
@@ -261,8 +261,7 @@ class Database(object):
     This should be subclassed for individual database backends.
 
     @cvar connection_factory: A callable which will take this database
-        and a raw connection and should return an instance of
-        L{Connection}.
+        and should return an instance of L{Connection}.
     """
 
     connection_factory = Connection
@@ -270,11 +269,21 @@ class Database(object):
     def connect(self):
         """Create a connection to the database.
 
-        This should be overriden in subclasses to do any
-        database-specific connection setup. It should call
-        C{self.connection_factory} to allow for ease of customization.
+        It calls C{self.connection_factory} to allow for ease of
+        customization.
 
         @return: An instance of L{Connection}.
+        """
+        return self.connection_factory(self)
+
+    def _connect(self):
+        """Create a raw database connection.
+
+        This is used by L{Connection} objects to connect to the
+        database.  It should be overriden in subclasses to do any
+        database-specific connection setup.
+
+        @return: A DB-API connection object.
         """
         raise NotImplementedError
 
