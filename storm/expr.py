@@ -404,10 +404,10 @@ class Comparable(object):
                     others[i] = variable_factory(value=other)
         return In(self, others)
 
-    def like(self, other, escape=Undef):
+    def like(self, other, escape=Undef, case_sensitive=None):
         if not isinstance(other, (Expr, Variable)):
             other = getattr(self, "variable_factory", Variable)(value=other)
-        return Like(self, other, escape)
+        return Like(self, other, escape, case_sensitive)
 
     def lower(self):
         return Lower(self)
@@ -888,8 +888,8 @@ class Like(BinaryOper):
         self.case_sensitive = case_sensitive
 
 @compile.when(Like)
-def compile_binary_oper(compile, state, like):
-    statement = "%s%s%s" % (compile(state, like.expr1), like.oper,
+def compile_like(compile, state, like, oper=None):
+    statement = "%s%s%s" % (compile(state, like.expr1), oper or like.oper,
                             compile(state, like.expr2))
     if like.escape is not Undef:
         statement = "%s ESCAPE %s" % (statement, compile(state, like.escape))

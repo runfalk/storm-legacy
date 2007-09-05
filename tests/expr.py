@@ -152,6 +152,14 @@ class ExprTest(TestHelper):
         self.assertEquals(expr.expr2, elem2)
         self.assertEquals(expr.escape, elem3)
 
+    def test_like_case(self):
+        expr = Like(elem1, elem2, elem3)
+        self.assertEquals(expr.case_sensitive, None)
+        expr = Like(elem1, elem2, elem3, True)
+        self.assertEquals(expr.case_sensitive, True)
+        expr = Like(elem1, elem2, elem3, False)
+        self.assertEquals(expr.case_sensitive, False)
+
     def test_eq(self):
         expr = Eq(elem1, elem2)
         self.assertEquals(expr.expr1, elem1)

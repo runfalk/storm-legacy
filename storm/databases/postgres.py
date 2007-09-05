@@ -19,7 +19,7 @@ except:
 
 from storm.expr import (
     Undef, SetExpr, Select, Alias, And, Eq, FuncExpr, SQLRaw, COLUMN_NAME,
-    compile, compile_select, compile_set_expr, Like)
+    compile, compile_select, compile_set_expr, compile_like, Like)
 from storm.variables import (
     Variable, UnicodeVariable, StrVariable, ListVariable)
 from storm.database import *
@@ -96,16 +96,10 @@ def compile_set_expr_postgres(compile, state, expr):
         return compile_set_expr(compile, state, expr)
 
 @compile.when(Like)
-def compile_binary_oper(compile, state, like):
+def compile_like_postgres(compile, state, like):
     if like.case_sensitive is False:
-        oper = " ILIKE "
-    else:
-        oper = like.oper
-    statement = "%s%s%s" % (compile(state, like.expr1), oper,
-                            compile(state, like.expr2))
-    if like.escape is not Undef:
-        statement = "%s ESCAPE %s" % (statement, compile(state, like.escape))
-    return statement
+        return compile_like(compile, state, like, oper=" ILIKE ")
+    return compile_like(compile, state, like)
 
 def compile_str_variable_with_E(compile, state, variable):
     """Include an E just before the placeholder of string variables.

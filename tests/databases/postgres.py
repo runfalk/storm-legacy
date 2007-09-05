@@ -6,7 +6,7 @@ from storm.uri import URI
 from storm.database import create_database
 from storm.variables import UnicodeVariable, DateTimeVariable
 from storm.variables import ListVariable, IntVariable, Variable
-from storm.expr import Union, Select, Alias, SQLRaw, Like, Table
+from storm.expr import Union, Select, Alias, SQLRaw, Like
 
 from tests.databases.base import DatabaseTest, UnsupportedDatabaseTest
 from tests.helper import TestHelper, MakePath
@@ -36,6 +36,24 @@ class PostgresTest(TestHelper, DatabaseTest):
                                 " dt TIMESTAMP, d DATE, t TIME)")
         self.connection.execute("CREATE TABLE bin_test "
                                 "(id SERIAL PRIMARY KEY, b BYTEA)")
+        self.connection.execute("CREATE TABLE like_case_insensitive_test "
+                                "(id SERIAL PRIMARY KEY, description TEXT)")
+
+    def drop_tables(self):
+        super(PostgresTest, self).drop_tables()
+        try:
+            self.connection.execute("DROP TABLE like_case_insensitive_test")
+            self.connection.commit()
+        except:
+            self.connection.rollback()
+
+    def create_sample_data(self):
+        super(PostgresTest, self).create_sample_data()
+        self.connection.execute("INSERT INTO like_case_insensitive_test "
+                                "(description) VALUES ('hullah')")
+        self.connection.execute("INSERT INTO like_case_insensitive_test "
+                                "(description) VALUES ('HULLAH')")
+        self.connection.commit()
 
     def test_wb_create_database(self):
         database = create_database("postgres://un:pw@ht:12/db?encoding=en")
@@ -189,21 +207,18 @@ class PostgresTest(TestHelper, DatabaseTest):
         result = self.connection.execute(expr)
         self.assertEquals(result.get_all(), [(1,), (1,)])
 
+    def test_like_case(self):
+        expr = Like("name", "value")
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "? LIKE ?")
+        expr = Like("name", "value", case_sensitive=True)
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "? LIKE ?")
+        expr = Like("name", "value", case_sensitive=False)
+        statement, parameters = compile(expr)
+        self.assertEquals(statement, "? ILIKE ?")
+
     def test_case_default_like(self):
-        try:
-            self.connection.execute("DROP TABLE like_case_insensitive_test")
-            self.connection.commit()
-        except:
-            self.connection.rollback()
-
-        self.connection.execute("CREATE TABLE like_case_insensitive_test "
-                                "(id SERIAL PRIMARY KEY, description TEXT)")
-
-        self.connection.execute("INSERT INTO like_case_insensitive_test "
-                                "(description) VALUES ('hullah')")
-        self.connection.execute("INSERT INTO like_case_insensitive_test "
-                                "(description) VALUES ('HULLAH')")
-        self.connection.commit()
 
         like = Like(SQLRaw("description"), "%hullah%")
         expr = Select(SQLRaw("id"), like, tables=["like_case_insensitive_test"])
@@ -216,20 +231,6 @@ class PostgresTest(TestHelper, DatabaseTest):
         self.assertEquals(result.get_all(), [(2,)])
 
     def test_case_sensitive_like(self):
-        try:
-            self.connection.execute("DROP TABLE like_case_insensitive_test")
-            self.connection.commit()
-        except:
-            self.connection.rollback()
-
-        self.connection.execute("CREATE TABLE like_case_insensitive_test "
-                                "(id SERIAL PRIMARY KEY, description TEXT)")
-
-        self.connection.execute("INSERT INTO like_case_insensitive_test "
-                                "(description) VALUES ('hullah')")
-        self.connection.execute("INSERT INTO like_case_insensitive_test "
-                                "(description) VALUES ('HULLAH')")
-        self.connection.commit()
 
         like = Like(SQLRaw("description"), "%hullah%", case_sensitive=True)
         expr = Select(SQLRaw("id"), like, tables=["like_case_insensitive_test"])
@@ -242,21 +243,6 @@ class PostgresTest(TestHelper, DatabaseTest):
         self.assertEquals(result.get_all(), [(2,)])
 
     def test_case_insensitive_like(self):
-        try:
-            self.connection.execute("DROP TABLE like_case_insensitive_test")
-            self.connection.commit()
-        except:
-            self.connection.rollback()
-
-        self.connection.execute("CREATE TABLE like_case_insensitive_test "
-                                "(id SERIAL PRIMARY KEY, description TEXT)")
-
-        self.connection.execute("INSERT INTO like_case_insensitive_test "
-                                "(description) VALUES ('HULLAH')")
-
-        self.connection.execute("INSERT INTO like_case_insensitive_test "
-                                "(description) VALUES ('hullah')")
-        self.connection.commit()
 
         like = Like(SQLRaw("description"), "%hullah%", case_sensitive=False)
         expr = Select(SQLRaw("id"), like, tables=["like_case_insensitive_test"])
