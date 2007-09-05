@@ -1,5 +1,5 @@
 from datetime import datetime, date, time
-import os, storm
+import os
 
 from storm.databases.postgres import Postgres, compile, parse_array
 from storm.uri import URI
