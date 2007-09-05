@@ -404,7 +404,6 @@ class CompileTest(TestHelper):
         statement, parameters = compile_child(expr)
         self.assertEquals(statement, "elem1 AND (elem2 OR elem3)")
 
-
     def test_compile_sequence(self):
         expr = [elem1, Func1(), (Func2(), None)]
         statement, parameters = compile(expr)
@@ -915,6 +914,14 @@ class CompileTest(TestHelper):
         statement, parameters = compile(expr)
         self.assertEquals(statement, "func1() LIKE ? ESCAPE ?")
         self.assertEquals(parameters, [Variable("Hello"), StrVariable("!")])
+
+    def test_like_compareable_case(self):
+        expr = Func1().like("Hello")
+        self.assertEquals(expr.case_sensitive, None)
+        expr = Func1().like("Hello", case_sensitive=True)
+        self.assertEquals(expr.case_sensitive, True)
+        expr = Func1().like("Hello", case_sensitive=False)
+        self.assertEquals(expr.case_sensitive, False)
 
     def test_in(self):
         expr = In(Func1(), "value")
