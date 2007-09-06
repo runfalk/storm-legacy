@@ -19,7 +19,7 @@ except:
 
 from storm.expr import (
     Undef, SetExpr, Select, Alias, And, Eq, FuncExpr, SQLRaw, COLUMN_NAME,
-    compile, compile_select, compile_set_expr)
+    compile, compile_select, compile_set_expr, compile_like, Like)
 from storm.variables import (
     Variable, UnicodeVariable, StrVariable, ListVariable)
 from storm.database import *
@@ -94,6 +94,12 @@ def compile_set_expr_postgres(compile, state, expr):
         return compile_select(compile, state, select)
     else:
         return compile_set_expr(compile, state, expr)
+
+@compile.when(Like)
+def compile_like_postgres(compile, state, like):
+    if like.case_sensitive is False:
+        return compile_like(compile, state, like, oper=" ILIKE ")
+    return compile_like(compile, state, like)
 
 def compile_str_variable_with_E(compile, state, variable):
     """Include an E just before the placeholder of string variables.
