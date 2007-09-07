@@ -75,7 +75,8 @@ class Result(object):
 
         @return: A converted row or None, if no data is left.
         """
-        row = self._raw_cursor.fetchone()
+        assert self._generation == self._connection._generation
+        row = self._connection._check_disconnect(self._raw_cursor.fetchone)
         if row is not None:
             return tuple(self.from_database(row))
         return None
@@ -86,7 +87,8 @@ class Result(object):
         The results will be converted to an appropriate format via
         L{from_database}.
         """
-        result = self._raw_cursor.fetchall()
+        assert self._generation == self._connection._generation
+        row = self._connection._check_disconnect(self._raw_cursor.fetchall)
         if result:
             return [tuple(self.from_database(row)) for row in result]
         return result
@@ -98,7 +100,8 @@ class Result(object):
         L{from_database}.
         """
         while True:
-            results = self._raw_cursor.fetchmany()
+            results = self._connection._check_disconnect(
+                self._raw_cursor.fetchmany)
             if not results:
                 break
             for result in results:
@@ -204,12 +207,12 @@ class Connection(object):
 
     def rollback(self):
         """Rollback the connection."""
-        if self._connection is not None:
+        if self._raw_connection is not None:
             try:
                 self._raw_connection.rollback()
             except DatabaseError, exc:
                 if self._is_disconnection(exc):
-                    self._connection = None
+                    self._raw_connection = None
                 else:
                     raise
         self._is_dead = False
