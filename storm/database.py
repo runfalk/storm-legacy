@@ -27,7 +27,7 @@ supported in modules in L{storm.databases}.
 
 from storm.expr import Expr, State, compile
 from storm.variables import Variable
-from storm.exceptions import ClosedError
+from storm.exceptions import ClosedError, DatabaseError, DisconnectionError
 from storm.uri import URI
 import storm
 
@@ -47,6 +47,7 @@ class Result(object):
     def __init__(self, connection, raw_cursor):
         self._connection = connection # Ensures deallocation order.
         self._raw_cursor = raw_cursor
+        self._generation = connection._generation
         if raw_cursor.arraysize == 1:
             # Default of 1 is silly.
             self._raw_cursor.arraysize = 10
@@ -147,6 +148,8 @@ class Connection(object):
     compile = compile
 
     _closed = False
+    _is_dead = False
+    _generation = 0
 
     def __init__(self, database):
         self._database = database # Ensures deallocation order.
@@ -172,6 +175,7 @@ class Connection(object):
         """
         if self._closed:
             raise ClosedError("Connection is closed")
+        self._ensure_connected()
         if isinstance(statement, Expr):
             if params is not None:
                 raise ValueError("Can't pass parameters with expressions")
@@ -179,9 +183,10 @@ class Connection(object):
             statement = self.compile(statement, state)
             params = state.parameters
         statement = convert_param_marks(statement, "?", self.param_mark)
-        raw_cursor = self.raw_execute(statement, params)
+        raw_cursor = self._check_disconnect(
+            self.raw_execute, statement, params)
         if noresult:
-            raw_cursor.close()
+            self._check_disconnect(raw_cursor.close)
             return None
         return self.result_factory(self, raw_cursor)
 
@@ -194,11 +199,20 @@ class Connection(object):
 
     def commit(self):
         """Commit the connection."""
-        self._raw_connection.commit()
+        self._ensure_connected()
+        self._check_disconnect(self._raw_connection.commit)
 
     def rollback(self):
         """Rollback the connection."""
-        self._raw_connection.rollback()
+        if self._connection is not None:
+            try:
+                self._raw_connection.rollback()
+            except DatabaseError, exc:
+                if self._is_disconnection(exc):
+                    self._connection = None
+                else:
+                    raise
+        self._is_dead = False
 
     @staticmethod
     def to_database(params):
@@ -246,6 +260,48 @@ class Connection(object):
                 print statement, params
             raw_cursor.execute(statement, params)
         return raw_cursor
+
+    def _ensure_connected(self):
+        """Ensure that we are connected to the database.
+
+        If the connection is marked as dead, or if we can't reconnect,
+        then raise DisconnectionError.
+
+        If we need to reconnect, the connection generation number is
+        incremented.
+        """
+        if self._is_dead:
+            raise DisconnectionError('Already disconnected')
+        if self._raw_connection is not None:
+            return
+        try:
+            self._raw_connection = self._database._connect()
+            self._generation += 1
+        except DatabaseError, exc:
+            self._is_dead = True
+            self._raw_connection = None
+            raise DisconnectionError(str(exc))
+
+    def _is_disconnection(self, exc):
+        """Check whether the given exception value represents a
+        database disconnection.
+
+        This should be overridden by backends to detect whichever
+        exception values are used to represent this condition.
+        """
+        return False
+
+    def _check_disconnect(self, function, *args, **kwargs):
+        """Run the given function, checking for database disconnections."""
+        try:
+            return function(*args, **kwargs)
+        except DatabaseError, exc:
+            if self._is_disconnection(exc):
+                self._is_dead = True
+                self._raw_connection = None
+                raise DisconnectionError(str(exc))
+            else:
+                raise
 
     def preset_primary_key(self, primary_columns, primary_variables):
         """Process primary variables before an insert happens.

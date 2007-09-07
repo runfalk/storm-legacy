@@ -166,6 +166,13 @@ class PostgresConnection(Connection):
             else:
                 yield param
 
+    def _is_disconnection(self, exc):
+        msg = exc.args[0]
+        return (msg.startswith('server closed the connection unexpectedly') or
+                msg.startswith('could not connect to server') or
+                msg.startswith('no connection to the server') or
+                msg.startswith('connection not open'))
+
 
 class Postgres(Database):
 
