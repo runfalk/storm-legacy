@@ -41,7 +41,7 @@ class Property(object):
         obj_info = get_obj_info(obj)
         if cls is None:
             # Don't get obj.__class__ because we don't trust it
-            # (might be proxied or whatever). # XXX UNTESTED!
+            # (might be proxied or whatever).
             cls = obj_info.cls_info.cls
         column = self._get_column(cls)
         return obj_info.variables[column].get()
@@ -49,14 +49,14 @@ class Property(object):
     def __set__(self, obj, value):
         obj_info = get_obj_info(obj)
         # Don't get obj.__class__ because we don't trust it
-        # (might be proxied or whatever). # XXX UNTESTED!
+        # (might be proxied or whatever).
         column = self._get_column(obj_info.cls_info.cls)
         obj_info.variables[column].set(value)
 
     def __delete__(self, obj):
         obj_info = get_obj_info(obj)
         # Don't get obj.__class__ because we don't trust it
-        # (might be proxied or whatever). # XXX UNTESTED!
+        # (might be proxied or whatever).
         column = self._get_column(obj_info.cls_info.cls)
         obj_info.variables[column].delete()
 

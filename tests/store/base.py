@@ -10,6 +10,7 @@ from storm.info import get_obj_info, ClassAlias
 from storm.exceptions import *
 from storm.store import *
 
+from tests.info import Wrapper
 from tests.helper import run_this
 
 
@@ -87,14 +88,6 @@ class DecorateVariable(Variable):
 
 class FooVariable(Foo):
     title = Property(variable_class=DecorateVariable)
-
-
-class Wrapper(object):
-
-    def __init__(self, obj):
-        self.obj = obj
-
-Wrapper.__object_info = property(lambda self: self.obj.__object_info)
 
 
 class StoreTest(object):
@@ -1767,6 +1760,12 @@ class StoreTest(object):
         self.assertTrue(bar.foo)
         self.assertEquals(bar.foo.title, "Title 30")
 
+    def test_reference_explicitly_with_wrapper(self):
+        bar = self.store.get(Bar, 100)
+        foo = Bar.foo.__get__(Wrapper(bar))
+        self.assertTrue(foo)
+        self.assertEquals(foo.title, "Title 30")
+
     def test_reference_break_on_local_diverged(self):
         bar = self.store.get(Bar, 100)
         self.assertTrue(bar.foo)
@@ -1823,6 +1822,15 @@ class StoreTest(object):
         self.assertEquals(bar.foo.id, 10)
         foo = self.store.get(Foo, 30)
         bar.foo = foo
+        self.assertEquals(bar.foo.id, 30)
+        result = self.store.execute("SELECT foo_id FROM bar WHERE id=100")
+        self.assertEquals(result.get_one(), (30,))
+
+    def test_set_reference_explicitly_with_wrapper(self):
+        bar = self.store.get(Bar, 100)
+        self.assertEquals(bar.foo.id, 10)
+        foo = self.store.get(Foo, 30)
+        Bar.foo.__set__(Wrapper(bar), Wrapper(foo))
         self.assertEquals(bar.foo.id, 30)
         result = self.store.execute("SELECT foo_id FROM bar WHERE id=100")
         self.assertEquals(result.get_one(), (30,))
@@ -2162,6 +2170,13 @@ class StoreTest(object):
                                  myself=(link.foo_id, link.bar_id)).one()
         self.assertEquals(link, myself)
 
+    def test_reference_equals_with_wrapped(self):
+        foo = self.store.get(Foo, 10)
+
+        bar = self.store.find(Bar, foo=Wrapper(foo)).one()
+        self.assertTrue(bar)
+        self.assertEquals(bar.foo, foo)
+
     def test_reference_self(self):
         class Bar(object):
             __storm_table__ = "bar"
@@ -2291,6 +2306,21 @@ class StoreTest(object):
 
         items = []
         for bar in foo.bars:
+            items.append((bar.id, bar.foo_id, bar.title))
+        items.sort()
+
+        self.assertEquals(items, [
+                          (200, 20, "Title 200"),
+                          (400, 20, "Title 100"),
+                         ])
+
+    def test_reference_set_explicitly_with_wrapper(self):
+        self.add_reference_set_bar_400()
+
+        foo = self.store.get(FooRefSet, 20)
+
+        items = []
+        for bar in FooRefSet.bars.__get__(Wrapper(foo)):
             items.append((bar.id, bar.foo_id, bar.title))
         items.sort()
 
@@ -2899,6 +2929,23 @@ class StoreTest(object):
 
         foo.bars.add(bar)
         foo.bars.remove(bar)
+
+        items = []
+        for bar in foo.bars:
+            items.append((bar.id, bar.title))
+        items.sort()
+
+        self.assertEquals(items, [
+                          (100, "Title 300"),
+                          (200, "Title 200"),
+                         ])
+
+    def test_indirect_reference_set_add_remove_with_wrapper(self):
+        foo = self.store.get(FooIndRefSet, 20)
+        bar = self.store.get(Bar, 300)
+
+        foo.bars.add(Wrapper(bar))
+        foo.bars.remove(Wrapper(bar))
 
         items = []
         for bar in foo.bars:

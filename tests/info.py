@@ -9,6 +9,14 @@ from storm.info import *
 from tests.helper import TestHelper
 
 
+class Wrapper(object):
+
+    def __init__(self, obj):
+        self.obj = obj
+
+Wrapper.__object_info = property(lambda self: self.obj.__object_info)
+
+
 class GetTest(TestHelper):
 
     def setUp(self):
