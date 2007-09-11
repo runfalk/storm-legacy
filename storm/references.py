@@ -83,7 +83,10 @@ class Reference(object):
         else:
             # Don't use remote here, as it might be
             # security proxied or something.
-            remote = get_obj_info(remote).get_obj()
+            try:
+                remote = get_obj_info(remote).get_obj()
+            except ClassInfoError:
+                pass # It might fail when remote is a tuple or a raw value.
             self._relation.link(local, remote, True)
 
     def _build_relation(self, used_cls=None):
@@ -99,8 +102,6 @@ class Reference(object):
     def __eq__(self, other):
         if self._relation is None:
             self._build_relation()
-        # Don't use other here, as it might be security proxied or something.
-        other = get_obj_info(other).get_obj()
         return self._relation.get_where_for_local(other)
 
 
@@ -409,6 +410,9 @@ class Relation(object):
             else:
                 remote_variables = other
         else:
+            # Don't use other here, as it might be
+            # security proxied or something.
+            other = get_obj_info(other).get_obj()
             remote_variables = self.get_remote_variables(other)
         return compare_columns(self.local_key, remote_variables)
 
