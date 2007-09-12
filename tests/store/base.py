@@ -2942,10 +2942,11 @@ class StoreTest(object):
 
     def test_indirect_reference_set_add_remove_with_wrapper(self):
         foo = self.store.get(FooIndRefSet, 20)
-        bar = self.store.get(Bar, 300)
+        bar300 = self.store.get(Bar, 300)
+        bar200 = self.store.get(Bar, 200)
 
-        foo.bars.add(Wrapper(bar))
-        foo.bars.remove(Wrapper(bar))
+        foo.bars.add(Wrapper(bar300))
+        foo.bars.remove(Wrapper(bar200))
 
         items = []
         for bar in foo.bars:
@@ -2954,7 +2955,7 @@ class StoreTest(object):
 
         self.assertEquals(items, [
                           (100, "Title 300"),
-                          (200, "Title 200"),
+                          (300, "Title 100"),
                          ])
 
     def test_indirect_reference_set_add_remove_with_added(self):
