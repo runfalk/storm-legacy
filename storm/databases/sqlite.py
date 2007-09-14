@@ -126,6 +126,10 @@ class SQLiteConnection(Connection):
                 return callable(*args)
             except sqlite.OperationalError, e:
                 if str(e) != "database is locked":
+                    # The operation failed due to being unable to get a lock on
+                    # the database.  In this case, we are still in a
+                    # transaction.
+                    self._in_transaction = True
                     raise
                 if now() - started < self._database._timeout:
                     sleep(0.1)
@@ -136,15 +140,7 @@ class SQLiteConnection(Connection):
         # See story at the end to understand why we do COMMIT manually.
         if self._in_transaction:
             self._in_transaction = False
-            try:
-                self._retry_until_timeout(self._raw_connection.execute, "COMMIT")
-            except sqlite.OperationalError, e:
-                if str(e) == "database is locked":
-                    # The transaction failed due to being unable to get a lock
-                    # on the database.  In this case, we are still in a
-                    # transaction.
-                    self._in_transaction = True
-                raise
+            self._retry_until_timeout(self._raw_connection.execute, "COMMIT")
 
     def rollback(self):
         # See story at the end to understand why we do ROLLBACK manually.
