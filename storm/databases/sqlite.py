@@ -120,6 +120,9 @@ class SQLiteConnection(Connection):
                 yield param
 
     def _retry_until_timeout(self, callable, *args):
+        # Remember the time at which we started the operation.  If pysqlite
+        # handles the timeout correctly, we won't retry the operation, because
+        # the timeout will have expired when the callable returns.
         started = now()
         while True:
             try:
@@ -132,6 +135,8 @@ class SQLiteConnection(Connection):
                     self._in_transaction = True
                     raise
                 if now() - started < self._database._timeout:
+                    # pysqlite didn't handle the timeout correctly, so we sleep
+                    # a little and then retry.
                     sleep(0.1)
                 else:
                     raise
