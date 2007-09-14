@@ -129,16 +129,16 @@ class SQLiteConnection(Connection):
                 return callable(*args)
             except sqlite.OperationalError, e:
                 if str(e) != "database is locked":
-                    # The operation failed due to being unable to get a lock on
-                    # the database.  In this case, we are still in a
-                    # transaction.
-                    self._in_transaction = True
                     raise
                 if now() - started < self._database._timeout:
                     # pysqlite didn't handle the timeout correctly, so we sleep
                     # a little and then retry.
                     sleep(0.1)
                 else:
+                    # The operation failed due to being unable to get a lock on
+                    # the database.  In this case, we are still in a
+                    # transaction.
+                    self._in_transaction = True
                     raise
 
     def commit(self):
