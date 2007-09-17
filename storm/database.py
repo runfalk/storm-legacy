@@ -88,7 +88,7 @@ class Result(object):
         L{from_database}.
         """
         assert self._generation == self._connection._generation
-        row = self._connection._check_disconnect(self._raw_cursor.fetchall)
+        result = self._connection._check_disconnect(self._raw_cursor.fetchall)
         if result:
             return [tuple(self.from_database(row)) for row in result]
         return result

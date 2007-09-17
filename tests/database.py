@@ -90,6 +90,15 @@ class RawCursor(object):
         return result
 
 
+class FakeConnection(object):
+
+    def __init__(self):
+        self._generation = 0
+
+    def _check_disconnect(self, _function, *args, **kwargs):
+        return _function(*args, **kwargs)
+
+
 class DatabaseTest(TestHelper):
 
     def setUp(self):
@@ -204,7 +213,7 @@ class ResultTest(TestHelper):
         TestHelper.setUp(self)
         self.executed = []
         self.raw_cursor = RawCursor(executed=self.executed)
-        self.result = Result(None, self.raw_cursor)
+        self.result = Result(FakeConnection(), self.raw_cursor)
 
     def test_get_one(self):
         self.assertEquals(self.result.get_one(), ("fetchone0",))
@@ -218,7 +227,7 @@ class ResultTest(TestHelper):
         self.assertEquals(self.result.get_all(), [])
 
     def test_iter(self):
-        result = Result(None, RawCursor(2))
+        result = Result(FakeConnection(), RawCursor(2))
         self.assertEquals([item for item in result],
                           [("fetchmany0",), ("fetchmany1",), ("fetchmany2",),
                            ("fetchmany3",), ("fetchmany4",)])
@@ -257,13 +266,13 @@ class ResultTest(TestHelper):
         """When the arraysize is 1, change it to a better value."""
         raw_cursor = RawCursor()
         self.assertEquals(raw_cursor.arraysize, 1)
-        result = Result(None, raw_cursor)
+        result = Result(FakeConnection(), raw_cursor)
         self.assertEquals(raw_cursor.arraysize, 10)
 
     def test_preserve_arraysize(self):
         """When the arraysize is not 1, preserve it."""
         raw_cursor = RawCursor(arraysize=123)
-        result = Result(None, raw_cursor)
+        result = Result(FakeConnection(), raw_cursor)
         self.assertEquals(raw_cursor.arraysize, 123)
 
 
