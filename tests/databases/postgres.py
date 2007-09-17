@@ -28,7 +28,9 @@ from storm.variables import UnicodeVariable, DateTimeVariable
 from storm.variables import ListVariable, IntVariable, Variable
 from storm.expr import Union, Select, Alias, SQLRaw, State, Sequence
 
-from tests.databases.base import DatabaseTest, UnsupportedDatabaseTest
+from tests.databases.base import (
+    DatabaseTest, DatabaseDisconnectionTest, UnsupportedDatabaseTest)
+from tests.databases.proxy import ProxyTCPServer
 from tests.helper import TestHelper, MakePath
 
 
@@ -215,3 +217,16 @@ class PostgresUnsupportedTest(UnsupportedDatabaseTest, TestHelper):
     
     dbapi_module_names = ["psycopg2"]
     db_module_name = "postgres"
+
+
+class PostgresDisconnectionTest(DatabaseDisconnectionTest, TestHelper):
+
+    def is_supported(self):
+        return bool(os.environ.get("STORM_POSTGRES_URI"))
+
+    def create_database_and_proxy(self):
+        uri = URI(os.environ["STORM_POSTGRES_URI"])
+        self.proxy = ProxyTCPServer((uri.host or '127.0.0.1',
+                                     uri.port or 5432))
+        uri.host, uri.port = self.proxy.server_address
+        self.database = create_database(uri)
