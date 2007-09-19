@@ -168,4 +168,27 @@ With that in place getUtility(IZStorm).get("test") will return the
 store named "test".
 
 
+Security Wrappers
+-----------------
+
+Storm knows how to deal with "wrapped" objects -- the identity of any
+Storm-managed object does not need to be the same as the original
+object, by way of the "object info" system. As long as the object info
+can be retrieved from the wrapped objects, things work fine.
+
+To interoperate with the Zope security wrapper system, storm.zope
+tells Zope to exposes certain Storm-internal attributes which appear
+on Storm-managed objects.
+
+  >>> from storm.info import get_obj_info
+  >>> from zope.security.checker import ProxyFactory
+  >>> from pprint import pprint
+
+  >>> person = store.find(Person).one()
+  >>> get_obj_info(person)
+  {'store': <...Store object at ...>, 'primary_vars': ...}
+  >>> get_obj_info(ProxyFactory(person))
+  {'store': <...Store object at ...>, 'primary_vars': ...}
+
+
 # vim:ts=4:sw=4:et
