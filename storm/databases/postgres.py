@@ -29,8 +29,9 @@ except:
     psycopg2 = dummy
 
 from storm.expr import (
-    Undef, SetExpr, Insert, Select, Alias, And, Eq, FuncExpr, SQLRaw, Sequence,
-    COLUMN_NAME, compile, compile_insert, compile_select, compile_set_expr)
+    Undef, SetExpr, Select, Insert, Alias, And, Eq, FuncExpr, SQLRaw, Sequence,
+    Like, COLUMN_NAME, compile, compile_select, compile_insert,
+    compile_set_expr, compile_like)
 from storm.variables import Variable, ListVariable
 from storm.database import Database, Connection, Result
 from storm.exceptions import install_exceptions, DatabaseModuleError
@@ -63,6 +64,7 @@ def compile_list_variable(compile, list_variable, state):
     for variable in variables:
         elements.append(compile(variable, state))
     return "ARRAY[%s]" % ",".join(elements)
+
 
 @compile.when(SetExpr)
 def compile_set_expr_postgres(compile, expr, state):
@@ -119,6 +121,14 @@ def compile_insert_postgres(compile, insert, state):
 @compile.when(Sequence)
 def compile_sequence_postgres(compile, sequence, state):
     return "nextval('%s')" % sequence.name
+
+
+@compile.when(Like)
+def compile_like_postgres(compile, like, state):
+    if like.case_sensitive is False:
+        return compile_like(compile, like, state, oper=" ILIKE ")
+    return compile_like(compile, like, state)
+
 
 
 class PostgresResult(Result):

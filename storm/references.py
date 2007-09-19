@@ -48,10 +48,11 @@ class Reference(object):
                 self._cls = _find_descriptor_class(cls, self)
             return self
 
+        # Don't use local here, as it might be security proxied or something.
+        local = get_obj_info(local).get_obj()
+
         if self._relation is None:
-            # Don't use local.__class__ here, as it might be security
-            # proxied or something. # XXX UNTESTED!
-            self._build_relation(get_obj_info(local).cls_info.cls)
+            self._build_relation(local.__class__)
 
         remote = self._relation.get_remote(local)
         if remote is not None:
@@ -75,10 +76,11 @@ class Reference(object):
         return remote
 
     def __set__(self, local, remote):
+        # Don't use local here, as it might be security proxied or something.
+        local = get_obj_info(local).get_obj()
+
         if self._relation is None:
-            # Don't use local.__class__ here, as it might be security
-            # proxied or something. # XXX UNTESTED!
-            self._build_relation(get_obj_info(local).cls_info.cls)
+            self._build_relation(local.__class__)
 
         if remote is None:
             remote = self._relation.get_remote(local)
@@ -86,6 +88,12 @@ class Reference(object):
                 self._relation.unlink(get_obj_info(local),
                                       get_obj_info(remote), True)
         else:
+            # Don't use remote here, as it might be
+            # security proxied or something.
+            try:
+                remote = get_obj_info(remote).get_obj()
+            except ClassInfoError:
+                pass # It might fail when remote is a tuple or a raw value.
             self._relation.link(local, remote, True)
 
     def _build_relation(self, used_cls=None):
@@ -120,10 +128,11 @@ class ReferenceSet(object):
         if local is None:
             return self
 
+        # Don't use local here, as it might be security proxied or something.
+        local = get_obj_info(local).get_obj()
+
         if self._relation1 is None:
-            # Don't use local.__class__ here, as it might be security
-            # proxied or something. # XXX UNTESTED!
-            self._build_relations(get_obj_info(local).cls_info.cls)
+            self._build_relations(local.__class__)
 
         #store = Store.of(local)
         #if store is None:
@@ -251,14 +260,16 @@ class BoundIndirectReferenceSet(BoundReferenceSetBase):
     def add(self, remote):
         link = self._link_cls()
         self._relation1.link(self._local, link, True)
-        # Don't use remote here, as it might be security
-        # proxied or something. # XXX UNTESTED!
-        self._relation2.link(get_obj_info(remote).get_obj(), link, True)
+        # Don't use remote here, as it might be security proxied or something.
+        remote = get_obj_info(remote).get_obj()
+        self._relation2.link(remote, link, True)
 
     def remove(self, remote):
         store = Store.of(self._local)
         if store is None:
             raise NoStoreError("Can't perform operation without a store")
+        # Don't use remote here, as it might be security proxied or something.
+        remote = get_obj_info(remote).get_obj()
         where = (self._relation1.get_where_for_remote(self._local) &
                  self._relation2.get_where_for_remote(remote))
         store.find(self._link_cls, where).remove()
@@ -398,9 +409,9 @@ class Relation(object):
             else:
                 remote_variables = other
         else:
-            # Object may be security proxied or something, so
-            # we get the real object here. # XXX UNTESTED!
-            other = obj_info.get_obj()
+            # Don't use other here, as it might be
+            # security proxied or something.
+            other = get_obj_info(other).get_obj()
             remote_variables = self.get_remote_variables(other)
         return compare_columns(self.local_key, remote_variables)
 
