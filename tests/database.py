@@ -22,7 +22,7 @@ import sys
 import new
 import gc
 
-from storm.exceptions import ClosedError
+from storm.exceptions import ClosedError, DatabaseError, DisconnectionError
 from storm.variables import Variable
 import storm.database
 from storm.database import *
@@ -207,6 +207,76 @@ class ConnectionTest(TestHelper):
         self.assertRaises(NotImplementedError,
                           result.get_insert_identity, None, None)
 
+    def test_ensure_connected_noop(self):
+        # Check that _ensure_connected() does nothing if the
+        # connection is okay.
+        self.assertEqual(self.connection._generation, 0)
+        self.connection._ensure_connected()
+        self.assertEqual(self.connection._generation, 0)
+
+    def test_ensure_connected_dead_connection(self):
+        # Check that _ensure_connected() raises DisconnectionError if
+        # the connection is marked dead.
+        self.connection._is_dead = True
+        self.assertRaises(DisconnectionError,
+                          self.connection._ensure_connected)
+
+    def test_ensure_connected_reconnects(self):
+        # Check that _ensure_connected() will reconnect the connection
+        # if it is not dead and there is no current connection.
+        self.connection._raw_connection = None
+
+        self.assertEqual(self.connection._is_dead, False)
+        self.assertEqual(self.connection._generation, 0)
+
+        self.connection._ensure_connected()
+        self.assertNotEqual(self.connection._raw_connection, None)
+        self.assertEqual(self.connection._is_dead, False)
+        self.assertEqual(self.connection._generation, 1)
+
+    def test_ensure_connected_connect_failure(self):
+        # Check that _ensure_connected() marks the connection as dead
+        # on a failed reconnect:
+        self.connection._raw_connection = None
+        def _fail_to_connect():
+            raise DatabaseError('could not connect')
+        self.database._connect = _fail_to_connect
+
+        self.assertEqual(self.connection._is_dead, False)
+        self.assertEqual(self.connection._generation, 0)
+
+        self.assertRaises(DisconnectionError,
+                          self.connection._ensure_connected)
+        self.assertEqual(self.connection._is_dead, True)
+        self.assertEqual(self.connection._raw_connection, None)
+
+    def test_check_disconnection(self):
+        # Ensure that _check_disconnect() catches disconnections and
+        # marks the connection as dead.
+        class FakeException(DatabaseError):
+            """A fake database exception that indicates a disconnection."""
+        self.connection._is_disconnection = (
+            lambda exc: isinstance(exc, FakeException))
+
+        self.assertEqual(self.connection._is_dead, False)
+        # Error is converted to DisconnectionError:
+        def raise_exception():
+            raise FakeException
+        self.assertRaises(DisconnectionError,
+                          self.connection._check_disconnect, raise_exception)
+        self.assertEqual(self.connection._is_dead, True)
+        self.assertEqual(self.connection._raw_connection, None)
+
+    def test_rollback_clears_dead_connection(self):
+        # Check that rollback clears the _is_dead flag
+        self.connection._is_dead = True
+        self.connection._raw_connection = None
+
+        self.connection.rollback()
+        self.assertEqual(self.executed, [])
+        self.assertEqual(self.connection._is_dead, False)
+
+
 class ResultTest(TestHelper):
 
     def setUp(self):
@@ -318,7 +388,7 @@ class RegisterSchemeTest(TestHelper):
         if 'factory' in storm.database._database_schemes:
             del storm.database._database_schemes['factory']
         TestHelper.tearDown(self)
-    
+
     def test_register_scheme(self):
         def factory(uri):
             self.uri = uri

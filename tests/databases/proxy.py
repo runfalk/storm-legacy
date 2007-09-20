@@ -50,6 +50,11 @@ class ProxyTCPServer(SocketServer.ThreadingTCPServer):
     def __init__(self, proxy_dest):
         SocketServer.ThreadingTCPServer.__init__(
             self, ('127.0.0.1', 0), ProxyRequestHandler)
+        # Python 2.4 doesn't retrieve the socket details, so record
+        # them here.  We need to do this so we can recreate the socket
+        # with the same address later.
+        self.server_address = self.socket.getsockname()
+
         self.proxy_dest = proxy_dest
         self._start_lock = threading.Lock()
         self._thread = None
