@@ -23,7 +23,7 @@ import os
 
 from storm.databases.postgres import Postgres, compile
 from storm.database import create_database
-from storm.variables import DateTimeVariable
+from storm.variables import DateTimeVariable, RawStrVariable
 from storm.variables import ListVariable, IntVariable, Variable
 from storm.expr import Union, Select, Alias, SQLRaw, State, Sequence, Like
 
@@ -272,6 +272,15 @@ class PostgresTest(DatabaseTest, TestHelper):
         expr = Select(SQLRaw("id"), like, tables=["like_case_insensitive_test"])
         result = self.connection.execute(expr)
         self.assertEquals(result.get_all(), [(1,), (2,)])
+
+    def test_none_on_string_variable(self):
+        """
+        Verify that the logic to enforce fix E''-styled strings isn't
+        breaking on NULL values.
+        """
+        variable = RawStrVariable(value=None)
+        result = self.connection.execute(Select(variable))
+        self.assertEquals(result.get_one(), (None,))
 
 
 class PostgresUnsupportedTest(UnsupportedDatabaseTest, TestHelper):

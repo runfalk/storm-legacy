@@ -130,7 +130,9 @@ def compile_str_variable_with_E(compile, variable, state):
 
     """
     state.parameters.append(variable)
-    return "E?"
+    if type(variable.get(to_db=True)) is str:
+        return "E?"
+    return "?"
 
 psycopg_needs_E = None
 
