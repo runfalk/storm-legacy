@@ -32,7 +32,7 @@ from zope.interface import implements
 
 import transaction
 from transaction.interfaces import IDataManager, ISynchronizer
-from transaction._transaction import TransactionFailedError
+from ZODB.POSException import TransactionFailedError
 
 from storm.zope.interfaces import IZStorm, ZStormError
 from storm.database import create_database
