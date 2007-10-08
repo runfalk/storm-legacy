@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import os
+
 try:
     from setuptools import setup, Extension
 except ImportError:
@@ -8,6 +10,15 @@ except ImportError:
 
 BUILD_CEXTENSIONS = False
 
+
+def find_packages():
+    # implement a simple find_packages so we don't have to depend on
+    # setuptools
+    packages = []
+    for directory, subdirectories, files in os.walk("storm"):
+        if '__init__.py' in files:
+            packages.append(directory.replace(os.sep, '.'))
+    return packages
 
 setup(
     name="storm",
@@ -20,10 +31,10 @@ setup(
     license="LGPL",
     url="https://storm.canonical.com",
     download_url="https://launchpad.net/storm/+download",
-    packages=[
-        "storm",
-        "storm.databases",
-    ],
+    packages=find_packages(),
+    zip_safe=False,
+    include_package_data=True,
+    package_data={"": ["*.zcml"]},
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
