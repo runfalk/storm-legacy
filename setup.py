@@ -1,11 +1,14 @@
 #!/usr/bin/env python
-
 import os
 
 try:
     from setuptools import setup, Extension
 except ImportError:
     from distutils.core import setup, Extension
+
+
+if os.path.isfile("MANIFEST"):
+    os.unlink("MANIFEST")
 
 
 BUILD_CEXTENSIONS = False
