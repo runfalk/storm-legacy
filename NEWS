@@ -10,7 +10,8 @@ Improvements
 Bug fixes
 ---------
  - storm.zope wasn't included on the tarball due to an error in setup.py.
- - Binary strings are now properly quoted with the E'' formatting.
+ - Binary strings are now properly quoted with the E'' formatting if
+   needed, in the postgres backend.
 
 
 0.10 (2007-08-08)
