@@ -22,7 +22,7 @@ def find_packages():
 
 setup(
     name="storm",
-    version="0.10",
+    version="0.11",
     description="Storm is an object-relational mapper (ORM) for Python developed at Canonical.",
     author="Gustavo Niemeyer",
     author_email="gustavo@niemeyer.net",
