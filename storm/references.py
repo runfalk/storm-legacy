@@ -30,9 +30,59 @@ __all__ = ["Reference", "ReferenceSet", "Proxy"]
 
 
 class Reference(object):
-    """Descriptor for one-to-one relationships."""
+    """Descriptor for one-to-one relationships.
+
+    This is typically used when the class that it is being defined on
+    has a foreign key onto another table::
+
+        class OtherGuy(object):
+            ...
+            id = Int()
+
+        class MyGuy(object):
+            ...
+            other_guy_id = Int()
+            other_guy = Reference(other_guy_id, OtherGuy.id)
+
+    but can also be used for backwards references, where OtherGuy's
+    table has a foreign key onto the class that you want this property
+    on::
+
+        class OtherGuy(object):
+            ...
+            my_guy_id = Int() # in the database, a foreign key to my_guy.id
+
+        class MyGuy(object):
+            ...
+            id = Int()
+            other_guy = Reference(id, OtherGuy.my_guy_id, on_remote=True)
+
+    In both cases, C{MyGuy().other_guy} will resolve to the
+    C{OtherGuy} instance which is linked to it. In the first case, it
+    will be the C{OtherGuy} instance whose C{id} is equivalent to the
+    C{MyGuy}'s C{other_guy_id}; in the second, it'll be the
+    C{OtherGuy} instance whose C{my_guy_id} is equivalent to the
+    C{MyGuy}'s C{id}.
+
+    Assigning to the property, for example with C{MyGuy().other_guy =
+    OtherGuy()}, will link the objects and update either
+    C{MyGuy.other_guy_id} or C{OtherGuy.my_guy_id} accordingly.
+    """
 
     def __init__(self, local_key, remote_key, on_remote=False):
+        """
+        Create a Reference property.
+
+        @param local_key: The sibling column which is the foreign key
+            onto C{remote_key}. (unless C{on_remote} is passed; see
+            below).
+        @param remote_key: The column on the referred-to object which
+            will have the same value as that for C{local_key} when
+            resolved on an instance.
+        @param on_remote: If specified, then the reference is
+            backwards: It is the C{remote_key} which is a foreign key
+            onto C{local_key}.
+        """
         # Reference internals are public to the Proxy.
         self._local_key = local_key
         self._remote_key = remote_key

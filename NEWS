@@ -1,3 +1,19 @@
+0.11 (2007-10-08)
+=================
+
+Improvements
+------------
+ - Added case-insensitive support to the Like expression and
+   Class.attr.like() constructions.
+ - ZStorm.get_name() for obtaining the the name of the given store.
+
+Bug fixes
+---------
+ - storm.zope wasn't included on the tarball due to an error in setup.py.
+ - Binary strings are now properly quoted with the E'' formatting if
+   needed, in the postgres backend.
+
+
 0.10 (2007-08-08)
 =================
 
