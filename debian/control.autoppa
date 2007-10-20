@@ -7,7 +7,7 @@ AUTOPPA_INCLUDE(edgy,feisty,gutsy):Build-Depends: debhelper, python-central, lsb
 Standards-Version: 3.7.2
 XS-Python-Version: current
 
-Package: storm
+Package: python-storm
 Architecture: any
 Depends: ${python:Depends}, ${shlibs:Depends}
 Provides: ${python:Provides}
