@@ -5,7 +5,7 @@ ifneq ($(dist_release),dapper)
   use_pycentral = yes
 endif
 
-package = storm
+package = python-storm
 root_dir = debian/$(package)
 
 build: build-stamp
