@@ -448,10 +448,10 @@ class Comparable(object):
                     others[i] = variable_factory(value=other)
         return In(self, others)
 
-    def like(self, other, escape=Undef):
+    def like(self, other, escape=Undef, case_sensitive=None):
         if not isinstance(other, (Expr, Variable)):
             other = getattr(self, "variable_factory", Variable)(value=other)
-        return Like(self, other, escape)
+        return Like(self, other, escape, case_sensitive)
 
     def lower(self):
         return Lower(self)
@@ -941,14 +941,15 @@ class LShift(BinaryOper):
 class Like(BinaryOper):
     oper = " LIKE "
 
-    def __init__(self, expr1, expr2, escape=Undef):
+    def __init__(self, expr1, expr2, escape=Undef, case_sensitive=None):
         self.expr1 = expr1
         self.expr2 = expr2
         self.escape = escape
+        self.case_sensitive = case_sensitive
 
 @compile.when(Like)
-def compile_binary_oper(compile, like, state):
-    statement = "%s%s%s" % (compile(like.expr1, state), like.oper,
+def compile_like(compile, like, state, oper=None):
+    statement = "%s%s%s" % (compile(like.expr1, state), oper or like.oper,
                             compile(like.expr2, state))
     if like.escape is not Undef:
         statement = "%s ESCAPE %s" % (statement, compile(like.escape, state))

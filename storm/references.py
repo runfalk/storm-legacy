@@ -30,9 +30,59 @@ __all__ = ["Reference", "ReferenceSet", "Proxy"]
 
 
 class Reference(object):
-    """Descriptor for one-to-one relationships."""
+    """Descriptor for one-to-one relationships.
+
+    This is typically used when the class that it is being defined on
+    has a foreign key onto another table::
+
+        class OtherGuy(object):
+            ...
+            id = Int()
+
+        class MyGuy(object):
+            ...
+            other_guy_id = Int()
+            other_guy = Reference(other_guy_id, OtherGuy.id)
+
+    but can also be used for backwards references, where OtherGuy's
+    table has a foreign key onto the class that you want this property
+    on::
+
+        class OtherGuy(object):
+            ...
+            my_guy_id = Int() # in the database, a foreign key to my_guy.id
+
+        class MyGuy(object):
+            ...
+            id = Int()
+            other_guy = Reference(id, OtherGuy.my_guy_id, on_remote=True)
+
+    In both cases, C{MyGuy().other_guy} will resolve to the
+    C{OtherGuy} instance which is linked to it. In the first case, it
+    will be the C{OtherGuy} instance whose C{id} is equivalent to the
+    C{MyGuy}'s C{other_guy_id}; in the second, it'll be the
+    C{OtherGuy} instance whose C{my_guy_id} is equivalent to the
+    C{MyGuy}'s C{id}.
+
+    Assigning to the property, for example with C{MyGuy().other_guy =
+    OtherGuy()}, will link the objects and update either
+    C{MyGuy.other_guy_id} or C{OtherGuy.my_guy_id} accordingly.
+    """
 
     def __init__(self, local_key, remote_key, on_remote=False):
+        """
+        Create a Reference property.
+
+        @param local_key: The sibling column which is the foreign key
+            onto C{remote_key}. (unless C{on_remote} is passed; see
+            below).
+        @param remote_key: The column on the referred-to object which
+            will have the same value as that for C{local_key} when
+            resolved on an instance.
+        @param on_remote: If specified, then the reference is
+            backwards: It is the C{remote_key} which is a foreign key
+            onto C{local_key}.
+        """
         # Reference internals are public to the Proxy.
         self._local_key = local_key
         self._remote_key = remote_key
@@ -48,10 +98,11 @@ class Reference(object):
                 self._cls = _find_descriptor_class(cls, self)
             return self
 
+        # Don't use local here, as it might be security proxied or something.
+        local = get_obj_info(local).get_obj()
+
         if self._relation is None:
-            # Don't use local.__class__ here, as it might be security
-            # proxied or something. # XXX UNTESTED!
-            self._build_relation(get_obj_info(local).cls_info.cls)
+            self._build_relation(local.__class__)
 
         remote = self._relation.get_remote(local)
         if remote is not None:
@@ -75,10 +126,11 @@ class Reference(object):
         return remote
 
     def __set__(self, local, remote):
+        # Don't use local here, as it might be security proxied or something.
+        local = get_obj_info(local).get_obj()
+
         if self._relation is None:
-            # Don't use local.__class__ here, as it might be security
-            # proxied or something. # XXX UNTESTED!
-            self._build_relation(get_obj_info(local).cls_info.cls)
+            self._build_relation(local.__class__)
 
         if remote is None:
             remote = self._relation.get_remote(local)
@@ -86,6 +138,12 @@ class Reference(object):
                 self._relation.unlink(get_obj_info(local),
                                       get_obj_info(remote), True)
         else:
+            # Don't use remote here, as it might be
+            # security proxied or something.
+            try:
+                remote = get_obj_info(remote).get_obj()
+            except ClassInfoError:
+                pass # It might fail when remote is a tuple or a raw value.
             self._relation.link(local, remote, True)
 
     def _build_relation(self, used_cls=None):
@@ -120,10 +178,11 @@ class ReferenceSet(object):
         if local is None:
             return self
 
+        # Don't use local here, as it might be security proxied or something.
+        local = get_obj_info(local).get_obj()
+
         if self._relation1 is None:
-            # Don't use local.__class__ here, as it might be security
-            # proxied or something. # XXX UNTESTED!
-            self._build_relations(get_obj_info(local).cls_info.cls)
+            self._build_relations(local.__class__)
 
         #store = Store.of(local)
         #if store is None:
@@ -251,14 +310,16 @@ class BoundIndirectReferenceSet(BoundReferenceSetBase):
     def add(self, remote):
         link = self._link_cls()
         self._relation1.link(self._local, link, True)
-        # Don't use remote here, as it might be security
-        # proxied or something. # XXX UNTESTED!
-        self._relation2.link(get_obj_info(remote).get_obj(), link, True)
+        # Don't use remote here, as it might be security proxied or something.
+        remote = get_obj_info(remote).get_obj()
+        self._relation2.link(remote, link, True)
 
     def remove(self, remote):
         store = Store.of(self._local)
         if store is None:
             raise NoStoreError("Can't perform operation without a store")
+        # Don't use remote here, as it might be security proxied or something.
+        remote = get_obj_info(remote).get_obj()
         where = (self._relation1.get_where_for_remote(self._local) &
                  self._relation2.get_where_for_remote(remote))
         store.find(self._link_cls, where).remove()
@@ -398,9 +459,9 @@ class Relation(object):
             else:
                 remote_variables = other
         else:
-            # Object may be security proxied or something, so
-            # we get the real object here. # XXX UNTESTED!
-            other = obj_info.get_obj()
+            # Don't use other here, as it might be
+            # security proxied or something.
+            other = get_obj_info(other).get_obj()
             remote_variables = self.get_remote_variables(other)
         return compare_columns(self.local_key, remote_variables)
 

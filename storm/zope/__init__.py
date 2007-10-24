@@ -30,6 +30,6 @@ from storm import sqlobject as storm_sqlobject
 # the object info set already).  With this, Storm is able to
 # gracefully handle situations when a proxied object is passed to a
 # Store.
-_available_by_default.append("__object_info")
+_available_by_default.append("__storm_object_info__")
 BasicTypes[ObjectInfo] = NoProxy
 classImplements(storm_sqlobject.SQLObjectResultSet, ISQLObjectResultSet)

@@ -29,6 +29,7 @@ from storm.variables import *
 from storm.info import get_obj_info
 from storm.expr import Undef, Column, Select, compile, State, SQLRaw
 
+from tests.info import Wrapper
 from tests.helper import TestHelper
 
 
@@ -240,6 +241,15 @@ class PropertyTest(TestHelper):
         self.assertEquals(state.parameters, [CustomVariable("value1"),
                                              CustomVariable("value2"),
                                              CustomVariable("value3")])
+
+    def test_set_get_delete_with_wrapper(self):
+        obj = self.Class()
+        get_obj_info(obj) # Ensure the obj_info exists for obj.
+        self.Class.prop1.__set__(Wrapper(obj), 10)
+        self.assertEquals(self.Class.prop1.__get__(Wrapper(obj)), 10)
+        self.Class.prop1.__delete__(Wrapper(obj))
+        self.assertEquals(self.Class.prop1.__get__(Wrapper(obj)), None)
+
 
 
 class PropertyKindsTest(TestHelper):

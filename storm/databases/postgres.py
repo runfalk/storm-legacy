@@ -29,9 +29,10 @@ except:
     psycopg2 = dummy
 
 from storm.expr import (
-    Undef, SetExpr, Insert, Select, Alias, And, Eq, FuncExpr, SQLRaw, Sequence,
-    COLUMN_NAME, compile, compile_insert, compile_select, compile_set_expr)
-from storm.variables import Variable, ListVariable
+    Undef, SetExpr, Select, Insert, Alias, And, Eq, FuncExpr, SQLRaw, Sequence,
+    Like, COLUMN_NAME, compile, compile_select, compile_insert,
+    compile_set_expr, compile_like)
+from storm.variables import Variable, ListVariable, RawStrVariable
 from storm.database import Database, Connection, Result
 from storm.exceptions import install_exceptions, DatabaseModuleError
 
@@ -105,7 +106,6 @@ def compile_set_expr_postgres(compile, expr, state):
     else:
         return compile_set_expr(compile, expr, state)
 
-
 @compile.when(Insert)
 def compile_insert_postgres(compile, insert, state):
     # PostgreSQL fails with INSERT INTO table VALUES (), so we transform
@@ -115,10 +115,34 @@ def compile_insert_postgres(compile, insert, state):
                                         SQLRaw("DEFAULT")))
     return compile_insert(compile, insert, state)
 
-
 @compile.when(Sequence)
 def compile_sequence_postgres(compile, sequence, state):
     return "nextval('%s')" % sequence.name
+
+def compile_str_variable_with_E(compile, variable, state):
+    """Include an E just before the placeholder of string variables.
+
+    PostgreSQL 8.2 will issue a warning without it, and psycopg
+    will use the plain '' rather than E''.  The problem is being
+    tracked at the following URL:
+
+        http://www.initd.org/tracker/psycopg/ticket/202
+
+    """
+    state.parameters.append(variable)
+    if type(variable.get(to_db=True)) is str:
+        return "E?"
+    return "?"
+
+psycopg_needs_E = None
+
+
+@compile.when(Like)
+def compile_like_postgres(compile, like, state):
+    if like.case_sensitive is False:
+        return compile_like(compile, like, state, oper=" ILIKE ")
+    return compile_like(compile, like, state)
+
 
 
 class PostgresResult(Result):
@@ -188,7 +212,28 @@ class Postgres(Database):
         self._dsn = make_dsn(uri)
 
     def _connect(self):
+        global psycopg_needs_E
         raw_connection = psycopg2.connect(self._dsn)
+        if psycopg_needs_E is None:
+            # This will conditionally change the compilation of binary
+            # variables (RawStrVariable) to preceed the placeholder with an
+            # 'E', if psycopg isn't doing it by itself.
+            #
+            # The "failing" code path isn't unittested because that
+            # would depend on a working psycopg version, or in an older
+            # postgresql version.  Both branches were manually tested
+            # for correctness at some point.
+            cursor = raw_connection.cursor()
+            try:
+                # If psycopg behaves correctly, this will break trying
+                # to run a query with EE''.
+                cursor.execute("SELECT E%s", (psycopg2.Binary(""),))
+            except psycopg2.ProgrammingError:
+                psycopg_needs_E = False
+            else:
+                psycopg_needs_E = True
+                compile.when(RawStrVariable)(compile_str_variable_with_E)
+            raw_connection.rollback()
         raw_connection.set_client_encoding("UTF8")
         raw_connection.set_isolation_level(
             psycopg2.extensions.ISOLATION_LEVEL_SERIALIZABLE)
