@@ -424,12 +424,12 @@ class DatabaseDisconnectionTest(object):
         pass
 
     def test_proxy_works(self):
-        # Ensure that we can talk to the database through the proxy.
+        """Ensure that we can talk to the database through the proxy."""
         result = self.connection.execute("SELECT 1")
         self.assertEqual(result.get_one(), (1,))
 
     def test_catch_disconnect_on_execute(self):
-        # Test that database disconnections get caught on execute().
+        """Test that database disconnections get caught on execute()."""
         result = self.connection.execute("SELECT 1")
         self.assertTrue(result.get_one())
         self.proxy.restart()
@@ -437,15 +437,14 @@ class DatabaseDisconnectionTest(object):
                           self.connection.execute, "SELECT 1")
 
     def test_catch_disconnect_on_commit(self):
-        # Test that database disconnections get caught on commit().
+        """Test that database disconnections get caught on commit()."""
         result = self.connection.execute("SELECT 1")
         self.assertTrue(result.get_one())
         self.proxy.restart()
         self.assertRaises(DisconnectionError, self.connection.commit)
 
     def test_connection_stays_disconnected_in_transaction(self):
-        # Test that subsequent operations in the transaction also
-        # raise DisconnectionError.
+        """Test that connection does not immediately reconnect."""
         result = self.connection.execute("SELECT 1")
         self.assertTrue(result.get_one())
         self.proxy.restart()
@@ -455,7 +454,7 @@ class DatabaseDisconnectionTest(object):
                           self.connection.execute, "SELECT 1")
 
     def test_reconnect_after_rollback(self):
-        # Test that we reconnect after rolling back the connection.
+        """Test that we reconnect after rolling back the connection."""
         result = self.connection.execute("SELECT 1")
         self.assertTrue(result.get_one())
         self.proxy.restart()
@@ -466,8 +465,7 @@ class DatabaseDisconnectionTest(object):
         self.assertTrue(result.get_one())
 
     def test_catch_disconnect_on_reconnect(self):
-        # Test that we raise DisconnectionError if unable to reconnect
-        # on a new transaction.
+        """Test that reconnection failures result in DisconnectionError."""
         result = self.connection.execute("SELECT 1")
         self.assertTrue(result.get_one())
         self.proxy.stop()

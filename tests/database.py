@@ -207,23 +207,20 @@ class ConnectionTest(TestHelper):
         self.assertRaises(NotImplementedError,
                           result.get_insert_identity, None, None)
 
-    def test_ensure_connected_noop(self):
-        # Check that _ensure_connected() does nothing if the
-        # connection is okay.
+    def test_wb_ensure_connected_noop(self):
+        """Check that _ensure_connected() is a no-op in normal operation."""
         self.assertEqual(self.connection._generation, 0)
         self.connection._ensure_connected()
         self.assertEqual(self.connection._generation, 0)
 
-    def test_ensure_connected_dead_connection(self):
-        # Check that _ensure_connected() raises DisconnectionError if
-        # the connection is marked dead.
+    def test_wb_ensure_connected_dead_connection(self):
+        """Check that DisconnectionError is raised for dead connections."""
         self.connection._is_dead = True
         self.assertRaises(DisconnectionError,
                           self.connection._ensure_connected)
 
-    def test_ensure_connected_reconnects(self):
-        # Check that _ensure_connected() will reconnect the connection
-        # if it is not dead and there is no current connection.
+    def test_wb_ensure_connected_reconnects(self):
+        """Check that _ensure_connected() reconnects non-dead connections."""
         self.connection._raw_connection = None
 
         self.assertEqual(self.connection._is_dead, False)
@@ -234,9 +231,8 @@ class ConnectionTest(TestHelper):
         self.assertEqual(self.connection._is_dead, False)
         self.assertEqual(self.connection._generation, 1)
 
-    def test_ensure_connected_connect_failure(self):
-        # Check that _ensure_connected() marks the connection as dead
-        # on a failed reconnect:
+    def test_wb_ensure_connected_connect_failure(self):
+        """Check that the connection is marked dead on reconnect failures."""
         self.connection._raw_connection = None
         def _fail_to_connect():
             raise DatabaseError('could not connect')
@@ -250,9 +246,8 @@ class ConnectionTest(TestHelper):
         self.assertEqual(self.connection._is_dead, True)
         self.assertEqual(self.connection._raw_connection, None)
 
-    def test_check_disconnection(self):
-        # Ensure that _check_disconnect() catches disconnections and
-        # marks the connection as dead.
+    def test_wb_check_disconnection(self):
+        """Ensure that _check_disconnect() marks the connection as dead."""
         class FakeException(DatabaseError):
             """A fake database exception that indicates a disconnection."""
         self.connection._is_disconnection = (
@@ -267,8 +262,8 @@ class ConnectionTest(TestHelper):
         self.assertEqual(self.connection._is_dead, True)
         self.assertEqual(self.connection._raw_connection, None)
 
-    def test_rollback_clears_dead_connection(self):
-        # Check that rollback clears the _is_dead flag
+    def test_wb_rollback_clears_dead_connection(self):
+        """Check that rollback clears the _is_dead flag."""
         self.connection._is_dead = True
         self.connection._raw_connection = None
 

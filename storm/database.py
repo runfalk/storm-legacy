@@ -286,8 +286,7 @@ class Connection(object):
             raise DisconnectionError(str(exc))
 
     def _is_disconnection(self, exc):
-        """Check whether the given exception value represents a
-        database disconnection.
+        """Check whether an exception represents a database disconnection.
 
         This should be overridden by backends to detect whichever
         exception values are used to represent this condition.

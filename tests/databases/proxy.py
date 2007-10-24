@@ -1,9 +1,31 @@
+# -*- encoding: utf-8 -*-
+#
+# Copyright (c) 2006, 2007 Canonical
+#
+# Written by Gustavo Niemeyer <gustavo@niemeyer.net>
+#
+# This file is part of Storm Object Relational Mapper.
+#
+# Storm is free software; you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License as
+# published by the Free Software Foundation; either version 2.1 of
+# the License, or (at your option) any later version.
+#
+# Storm is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
 
 import os
 import select
 import socket
 import SocketServer
 import threading
+
 
 TIMEOUT = 0.1
 
@@ -32,16 +54,17 @@ class ProxyRequestHandler(SocketServer.BaseRequestHandler):
             if self.request in rlist:
                 chunk = os.read(self.request.fileno(), 1024)
                 dst.send(chunk)
-                if chunk == '':
+                if chunk == "":
                     readers.remove(self.request)
                     dst.shutdown(socket.SHUT_WR)
 
             if dst in rlist:
                 chunk = os.read(dst.fileno(), 1024)
                 self.request.send(chunk)
-                if chunk == '':
+                if chunk == "":
                     readers.remove(dst)
                     self.request.shutdown(socket.SHUT_WR)
+
 
 class ProxyTCPServer(SocketServer.ThreadingTCPServer):
 
@@ -49,7 +72,7 @@ class ProxyTCPServer(SocketServer.ThreadingTCPServer):
 
     def __init__(self, proxy_dest):
         SocketServer.ThreadingTCPServer.__init__(
-            self, ('127.0.0.1', 0), ProxyRequestHandler)
+            self, ("127.0.0.1", 0), ProxyRequestHandler)
         # Python 2.4 doesn't retrieve the socket details, so record
         # them here.  We need to do this so we can recreate the socket
         # with the same address later.
@@ -70,7 +93,7 @@ class ProxyTCPServer(SocketServer.ThreadingTCPServer):
             self.stop()
 
     def start(self):
-        assert not self._running, 'Server should not be running'
+        assert not self._running, "Server should not be running"
         self._thread = threading.Thread(target=self._run)
         self._thread.setDaemon(True)
 
@@ -92,7 +115,7 @@ class ProxyTCPServer(SocketServer.ThreadingTCPServer):
                 pass
 
     def stop(self):
-        assert self._running, 'Server should be running'
+        assert self._running, "Server should be running"
         # Increment server generation, and wait for thread to stop.
         self._generation += 1
         self._running = False
