@@ -506,19 +506,20 @@ class Relation(object):
         local_store = Store.of(local)
         remote_store = Store.of(remote)
 
-        if local_store is None:
-            if remote_store is None:
-                local_info.event.hook("added", self._add_all, local_info)
-                remote_info.event.hook("added", self._add_all, local_info)
-            else:
-                remote_store.add(local)
-                local_store = remote_store
-        elif remote_store is None:
-            local_store.add(remote)
-        elif local_store is not remote_store:
-            raise WrongStoreError("%r and %r cannot be linked because they "
-                                  "are in different stores." %
-                                  (local, remote))
+        if setting:
+            if local_store is None:
+                if remote_store is None:
+                    local_info.event.hook("added", self._add_all, local_info)
+                    remote_info.event.hook("added", self._add_all, local_info)
+                else:
+                    remote_store.add(local)
+                    local_store = remote_store
+            elif remote_store is None:
+                local_store.add(remote)
+            elif local_store is not remote_store:
+                raise WrongStoreError("%r and %r cannot be linked because they "
+                                      "are in different stores." %
+                                      (local, remote))
 
         # In cases below, we maintain a reference to the remote object
         # to make sure it won't get deallocated while the link is active.

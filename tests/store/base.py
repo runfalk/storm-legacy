@@ -2264,6 +2264,18 @@ class StoreTest(object):
         self.assertEquals(Store.of(bar), self.store)
         self.assertEquals(Store.of(foo1), store)
 
+    def test_reference_on_removed_wont_add_back(self):
+        bar = self.store.get(Bar, 200)
+        foo = self.store.get(Foo, bar.foo_id)
+
+        self.store.remove(bar)
+
+        self.assertEquals(bar.foo, foo)
+        self.store.flush()
+
+        self.assertEquals(Store.of(bar), None)
+        self.assertEquals(Store.of(foo), self.store)
+
     def test_reference_equals(self):
         foo = self.store.get(Foo, 10)
 
