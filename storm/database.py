@@ -38,6 +38,10 @@ __all__ = ["Database", "Connection", "Result",
 
 DEBUG = False
 
+STATE_CONNECTED = 1
+STATE_DISCONNECTED = 2
+STATE_RECONNECT = 3
+
 
 class Result(object):
     """A representation of the results from a single SQL statement."""
@@ -47,7 +51,6 @@ class Result(object):
     def __init__(self, connection, raw_cursor):
         self._connection = connection # Ensures deallocation order.
         self._raw_cursor = raw_cursor
-        self._generation = connection._generation
         if raw_cursor.arraysize == 1:
             # Default of 1 is silly.
             self._raw_cursor.arraysize = 10
@@ -75,7 +78,6 @@ class Result(object):
 
         @return: A converted row or None, if no data is left.
         """
-        assert self._generation == self._connection._generation
         row = self._connection._check_disconnect(self._raw_cursor.fetchone)
         if row is not None:
             return tuple(self.from_database(row))
@@ -87,7 +89,6 @@ class Result(object):
         The results will be converted to an appropriate format via
         L{from_database}.
         """
-        assert self._generation == self._connection._generation
         result = self._connection._check_disconnect(self._raw_cursor.fetchall)
         if result:
             return [tuple(self.from_database(row)) for row in result]
@@ -151,8 +152,7 @@ class Connection(object):
     compile = compile
 
     _closed = False
-    _is_dead = False
-    _generation = 0
+    _state = STATE_CONNECTED
 
     def __init__(self, database):
         self._database = database # Ensures deallocation order.
@@ -207,15 +207,17 @@ class Connection(object):
 
     def rollback(self):
         """Rollback the connection."""
-        if self._raw_connection is not None:
+        if self._state == STATE_CONNECTED:
             try:
                 self._raw_connection.rollback()
             except DatabaseError, exc:
                 if self._is_disconnection(exc):
                     self._raw_connection = None
+                    self._state = STATE_RECONNECT
                 else:
                     raise
-        self._is_dead = False
+        else:
+            self._state = STATE_RECONNECT
 
     @staticmethod
     def to_database(params):
@@ -269,21 +271,20 @@ class Connection(object):
 
         If the connection is marked as dead, or if we can't reconnect,
         then raise DisconnectionError.
-
-        If we need to reconnect, the connection generation number is
-        incremented.
         """
-        if self._is_dead:
-            raise DisconnectionError('Already disconnected')
-        if self._raw_connection is not None:
+        if self._state == STATE_CONNECTED:
             return
-        try:
-            self._raw_connection = self._database._connect()
-            self._generation += 1
-        except DatabaseError, exc:
-            self._is_dead = True
-            self._raw_connection = None
-            raise DisconnectionError(str(exc))
+        elif self._state == STATE_DISCONNECTED:
+            raise DisconnectionError('Already disconnected')
+        elif self._state == STATE_RECONNECT:
+            try:
+                self._raw_connection = self._database._connect()
+            except DatabaseError, exc:
+                self._state = STATE_DISCONNECTED
+                self._raw_connection = None
+                raise DisconnectionError(str(exc))
+            else:
+                self._state = STATE_CONNECTED
 
     def _is_disconnection(self, exc):
         """Check whether an exception represents a database disconnection.
@@ -299,7 +300,7 @@ class Connection(object):
             return function(*args, **kwargs)
         except DatabaseError, exc:
             if self._is_disconnection(exc):
-                self._is_dead = True
+                self._state = STATE_DISCONNECTED
                 self._raw_connection = None
                 raise DisconnectionError(str(exc))
             else:

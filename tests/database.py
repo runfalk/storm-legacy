@@ -92,9 +92,6 @@ class RawCursor(object):
 
 class FakeConnection(object):
 
-    def __init__(self):
-        self._generation = 0
-
     def _check_disconnect(self, _function, *args, **kwargs):
         return _function(*args, **kwargs)
 
@@ -208,68 +205,70 @@ class ConnectionTest(TestHelper):
                           result.get_insert_identity, None, None)
 
     def test_wb_ensure_connected_noop(self):
-        """Check that _ensure_connected() is a no-op in normal operation."""
-        self.assertEqual(self.connection._generation, 0)
+        """Check that _ensure_connected() is a no-op for STATE_CONNECTED."""
+        self.assertEqual(self.connection._state, storm.database.STATE_CONNECTED)
+        def connect():
+            raise DatabaseError('_ensure_connected() tried to connect')
+        self.database._connect = connect
         self.connection._ensure_connected()
-        self.assertEqual(self.connection._generation, 0)
 
     def test_wb_ensure_connected_dead_connection(self):
-        """Check that DisconnectionError is raised for dead connections."""
-        self.connection._is_dead = True
+        """Check that DisconnectionError is raised for STATE_DISCONNECTED."""
+        self.connection._state = storm.database.STATE_DISCONNECTED
         self.assertRaises(DisconnectionError,
                           self.connection._ensure_connected)
 
     def test_wb_ensure_connected_reconnects(self):
-        """Check that _ensure_connected() reconnects non-dead connections."""
+        """Check that _ensure_connected() reconnects for STATE_RECONNECT."""
+        self.connection._state = storm.database.STATE_RECONNECT
         self.connection._raw_connection = None
-
-        self.assertEqual(self.connection._is_dead, False)
-        self.assertEqual(self.connection._generation, 0)
 
         self.connection._ensure_connected()
         self.assertNotEqual(self.connection._raw_connection, None)
-        self.assertEqual(self.connection._is_dead, False)
-        self.assertEqual(self.connection._generation, 1)
+        self.assertEqual(self.connection._state,
+                         storm.database.STATE_CONNECTED)
 
     def test_wb_ensure_connected_connect_failure(self):
-        """Check that the connection is marked dead on reconnect failures."""
+        """Check that the connection is flagged on reconnect failures."""
+        self.connection._state = storm.database.STATE_RECONNECT
         self.connection._raw_connection = None
         def _fail_to_connect():
             raise DatabaseError('could not connect')
         self.database._connect = _fail_to_connect
 
-        self.assertEqual(self.connection._is_dead, False)
-        self.assertEqual(self.connection._generation, 0)
-
         self.assertRaises(DisconnectionError,
                           self.connection._ensure_connected)
-        self.assertEqual(self.connection._is_dead, True)
+        self.assertEqual(self.connection._state,
+                         storm.database.STATE_DISCONNECTED)
         self.assertEqual(self.connection._raw_connection, None)
 
     def test_wb_check_disconnection(self):
-        """Ensure that _check_disconnect() marks the connection as dead."""
+        """Ensure that _check_disconnect() detects disconnections."""
         class FakeException(DatabaseError):
             """A fake database exception that indicates a disconnection."""
         self.connection._is_disconnection = (
             lambda exc: isinstance(exc, FakeException))
 
-        self.assertEqual(self.connection._is_dead, False)
+        self.assertEqual(self.connection._state,
+                         storm.database.STATE_CONNECTED)
         # Error is converted to DisconnectionError:
         def raise_exception():
             raise FakeException
         self.assertRaises(DisconnectionError,
                           self.connection._check_disconnect, raise_exception)
-        self.assertEqual(self.connection._is_dead, True)
+        self.assertEqual(self.connection._state,
+                         storm.database.STATE_DISCONNECTED)
         self.assertEqual(self.connection._raw_connection, None)
 
-    def test_wb_rollback_clears_dead_connection(self):
-        """Check that rollback clears the _is_dead flag."""
-        self.connection._is_dead = True
+    def test_wb_rollback_clears_disconnected_connection(self):
+        """Check that rollback clears the DISCONNECTED state."""
+        self.connection._state = storm.database.STATE_DISCONNECTED
         self.connection._raw_connection = None
 
         self.connection.rollback()
         self.assertEqual(self.executed, [])
-        self.assertEqual(self.connection._is_dead, False)
+        self.assertEqual(self.connection._state,
+                         storm.database.STATE_RECONNECT)
 
 
 class ResultTest(TestHelper):

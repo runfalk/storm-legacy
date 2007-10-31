@@ -50,9 +50,6 @@ class URIError(StormError):
 class ClosedError(StormError):
     pass
 
-class DisconnectionError(StormError):
-    pass
-
 class FeatureError(StormError):
     pass
 
@@ -113,6 +110,10 @@ class DataError(DatabaseError):
     pass
 
 class NotSupportedError(DatabaseError):
+    pass
+
+
+class DisconnectionError(OperationalError):
     pass
 
 
