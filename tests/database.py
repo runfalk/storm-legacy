@@ -113,7 +113,7 @@ class ConnectionTest(TestHelper):
         self.executed = []
         self.database = Database()
         self.raw_connection = RawConnection(self.executed)
-        self.database._connect = lambda: self.raw_connection
+        self.database.raw_connect = lambda: self.raw_connection
         self.connection = Connection(self.database)
 
     def test_execute(self):
@@ -209,7 +209,7 @@ class ConnectionTest(TestHelper):
         self.assertEqual(self.connection._state, storm.database.STATE_CONNECTED)
         def connect():
             raise DatabaseError('_ensure_connected() tried to connect')
-        self.database._connect = connect
+        self.database.raw_connect = connect
         self.connection._ensure_connected()
 
     def test_wb_ensure_connected_dead_connection(self):
@@ -234,7 +234,7 @@ class ConnectionTest(TestHelper):
         self.connection._raw_connection = None
         def _fail_to_connect():
             raise DatabaseError('could not connect')
-        self.database._connect = _fail_to_connect
+        self.database.raw_connect = _fail_to_connect
 
         self.assertRaises(DisconnectionError,
                           self.connection._ensure_connected)
@@ -246,7 +246,7 @@ class ConnectionTest(TestHelper):
         """Ensure that _check_disconnect() detects disconnections."""
         class FakeException(DatabaseError):
             """A fake database exception that indicates a disconnection."""
-        self.connection._is_disconnection = (
+        self.connection.is_disconnection_error = (
             lambda exc: isinstance(exc, FakeException))
 
         self.assertEqual(self.connection._state,

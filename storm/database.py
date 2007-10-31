@@ -156,7 +156,7 @@ class Connection(object):
 
     def __init__(self, database):
         self._database = database # Ensures deallocation order.
-        self._raw_connection = self._database._connect()
+        self._raw_connection = self._database.raw_connect()
 
     def __del__(self):
         """Close the connection."""
@@ -211,7 +211,7 @@ class Connection(object):
             try:
                 self._raw_connection.rollback()
             except DatabaseError, exc:
-                if self._is_disconnection(exc):
+                if self.is_disconnection_error(exc):
                     self._raw_connection = None
                     self._state = STATE_RECONNECT
                 else:
@@ -278,7 +278,7 @@ class Connection(object):
             raise DisconnectionError('Already disconnected')
         elif self._state == STATE_RECONNECT:
             try:
-                self._raw_connection = self._database._connect()
+                self._raw_connection = self._database.raw_connect()
             except DatabaseError, exc:
                 self._state = STATE_DISCONNECTED
                 self._raw_connection = None
@@ -286,7 +286,7 @@ class Connection(object):
             else:
                 self._state = STATE_CONNECTED
 
-    def _is_disconnection(self, exc):
+    def is_disconnection_error(self, exc):
         """Check whether an exception represents a database disconnection.
 
         This should be overridden by backends to detect whichever
@@ -299,7 +299,7 @@ class Connection(object):
         try:
             return function(*args, **kwargs)
         except DatabaseError, exc:
-            if self._is_disconnection(exc):
+            if self.is_disconnection_error(exc):
                 self._state = STATE_DISCONNECTED
                 self._raw_connection = None
                 raise DisconnectionError(str(exc))
@@ -335,7 +335,7 @@ class Database(object):
         """
         return self.connection_factory(self)
 
-    def _connect(self):
+    def raw_connect(self):
         """Create a raw database connection.
 
         This is used by L{Connection} objects to connect to the

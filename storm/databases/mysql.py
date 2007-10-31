@@ -118,7 +118,7 @@ class MySQL(Database):
         self._connect_kwargs["conv"] = self._converters
         self._connect_kwargs["use_unicode"] = True
 
-    def _connect(self):
+    def raw_connect(self):
         raw_connection = MySQLdb.connect(**self._connect_kwargs)
         return raw_connection
 

@@ -190,7 +190,7 @@ class PostgresConnection(Connection):
             else:
                 yield param
 
-    def _is_disconnection(self, exc):
+    def is_disconnection_error(self, exc):
         msg = exc.args[0]
         # XXX: 2007-09-17 jamesh
         # I have no idea why I am seeing the last exception message
@@ -211,7 +211,7 @@ class Postgres(Database):
             raise DatabaseModuleError("'psycopg2' module not found")
         self._dsn = make_dsn(uri)
 
-    def _connect(self):
+    def raw_connect(self):
         global psycopg_needs_E
         raw_connection = psycopg2.connect(self._dsn)
         if psycopg_needs_E is None:
