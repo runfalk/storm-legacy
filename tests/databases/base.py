@@ -21,7 +21,6 @@
 #
 from datetime import datetime, date, time
 import cPickle as pickle
-import thread
 import shutil
 import sys
 import os
@@ -32,7 +31,8 @@ from storm.variables import (Variable, PickleVariable, RawStrVariable,
                              DecimalVariable)
 from storm.variables import DateTimeVariable, DateVariable, TimeVariable
 from storm.database import *
-from storm.exceptions import DatabaseModuleError, OperationalError
+from storm.exceptions import (
+    DatabaseModuleError, DisconnectionError, OperationalError)
 
 from tests.helper import MakePath
 
@@ -395,3 +395,84 @@ class UnsupportedDatabaseTest(object):
             del sys.modules["_fake_"]
 
             sys.modules.update(dbapi_modules)
+
+
+class DatabaseDisconnectionTest(object):
+
+    def setUp(self):
+        super(DatabaseDisconnectionTest, self).setUp()
+        self.create_database_and_proxy()
+        self.create_connection()
+
+    def tearDown(self):
+        self.drop_database()
+        self.proxy.close()
+        super(DatabaseDisconnectionTest, self).tearDown()
+
+    def create_database_and_proxy(self):
+        """Set up the TCP proxy and database object.
+
+        The TCP proxy should forward requests on to the database.  The
+        database object should point at the TCP proxy.
+        """
+        raise NotImplementedError
+
+    def create_connection(self):
+        self.connection = self.database.connect()
+
+    def drop_database(self):
+        pass
+
+    def test_proxy_works(self):
+        """Ensure that we can talk to the database through the proxy."""
+        result = self.connection.execute("SELECT 1")
+        self.assertEqual(result.get_one(), (1,))
+
+    def test_catch_disconnect_on_execute(self):
+        """Test that database disconnections get caught on execute()."""
+        result = self.connection.execute("SELECT 1")
+        self.assertTrue(result.get_one())
+        self.proxy.restart()
+        self.assertRaises(DisconnectionError,
+                          self.connection.execute, "SELECT 1")
+
+    def test_catch_disconnect_on_commit(self):
+        """Test that database disconnections get caught on commit()."""
+        result = self.connection.execute("SELECT 1")
+        self.assertTrue(result.get_one())
+        self.proxy.restart()
+        self.assertRaises(DisconnectionError, self.connection.commit)
+
+    def test_connection_stays_disconnected_in_transaction(self):
+        """Test that connection does not immediately reconnect."""
+        result = self.connection.execute("SELECT 1")
+        self.assertTrue(result.get_one())
+        self.proxy.restart()
+        self.assertRaises(DisconnectionError,
+                          self.connection.execute, "SELECT 1")
+        self.assertRaises(DisconnectionError,
+                          self.connection.execute, "SELECT 1")
+
+    def test_reconnect_after_rollback(self):
+        """Test that we reconnect after rolling back the connection."""
+        result = self.connection.execute("SELECT 1")
+        self.assertTrue(result.get_one())
+        self.proxy.restart()
+        self.assertRaises(DisconnectionError,
+                          self.connection.execute, "SELECT 1")
+        self.connection.rollback()
+        result = self.connection.execute("SELECT 1")
+        self.assertTrue(result.get_one())
+
+    def test_catch_disconnect_on_reconnect(self):
+        """Test that reconnection failures result in DisconnectionError."""
+        result = self.connection.execute("SELECT 1")
+        self.assertTrue(result.get_one())
+        self.proxy.stop()
+        self.assertRaises(DisconnectionError,
+                          self.connection.execute, "SELECT 1")
+        # Rollback the connection, but because the proxy is still
+        # down, we get a DisconnectionError again.
+        self.connection.rollback()
+        self.assertRaises(DisconnectionError,
+                          self.connection.execute, "SELECT 1")

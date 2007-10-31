@@ -190,6 +190,17 @@ class PostgresConnection(Connection):
             else:
                 yield param
 
+    def is_disconnection_error(self, exc):
+        msg = exc.args[0]
+        # XXX: 2007-09-17 jamesh
+        # I have no idea why I am seeing the last exception message
+        # after upgrading to Gutsy.
+        return (msg.startswith('server closed the connection unexpectedly') or
+                msg.startswith('could not connect to server') or
+                msg.startswith('no connection to the server') or
+                msg.startswith('connection not open') or
+                msg.startswith('losed the connection unexpectedly'))
+
 
 class Postgres(Database):
 
@@ -200,7 +211,7 @@ class Postgres(Database):
             raise DatabaseModuleError("'psycopg2' module not found")
         self._dsn = make_dsn(uri)
 
-    def connect(self):
+    def raw_connect(self):
         global psycopg_needs_E
         raw_connection = psycopg2.connect(self._dsn)
         if psycopg_needs_E is None:
@@ -226,7 +237,7 @@ class Postgres(Database):
         raw_connection.set_client_encoding("UTF8")
         raw_connection.set_isolation_level(
             psycopg2.extensions.ISOLATION_LEVEL_SERIALIZABLE)
-        return self.connection_factory(self, raw_connection)
+        return raw_connection
 
 
 create_from_uri = Postgres

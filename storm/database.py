@@ -27,7 +27,7 @@ supported in modules in L{storm.databases}.
 
 from storm.expr import Expr, State, compile
 from storm.variables import Variable
-from storm.exceptions import ClosedError
+from storm.exceptions import ClosedError, DatabaseError, DisconnectionError
 from storm.uri import URI
 import storm
 
@@ -37,6 +37,10 @@ __all__ = ["Database", "Connection", "Result",
 
 
 DEBUG = False
+
+STATE_CONNECTED = 1
+STATE_DISCONNECTED = 2
+STATE_RECONNECT = 3
 
 
 class Result(object):
@@ -74,7 +78,7 @@ class Result(object):
 
         @return: A converted row or None, if no data is left.
         """
-        row = self._raw_cursor.fetchone()
+        row = self._connection._check_disconnect(self._raw_cursor.fetchone)
         if row is not None:
             return tuple(self.from_database(row))
         return None
@@ -85,7 +89,7 @@ class Result(object):
         The results will be converted to an appropriate format via
         L{from_database}.
         """
-        result = self._raw_cursor.fetchall()
+        result = self._connection._check_disconnect(self._raw_cursor.fetchall)
         if result:
             return [tuple(self.from_database(row)) for row in result]
         return result
@@ -97,7 +101,8 @@ class Result(object):
         L{from_database}.
         """
         while True:
-            results = self._raw_cursor.fetchmany()
+            results = self._connection._check_disconnect(
+                self._raw_cursor.fetchmany)
             if not results:
                 break
             for result in results:
@@ -147,10 +152,11 @@ class Connection(object):
     compile = compile
 
     _closed = False
+    _state = STATE_CONNECTED
 
-    def __init__(self, database, raw_connection):
+    def __init__(self, database):
         self._database = database # Ensures deallocation order.
-        self._raw_connection = raw_connection
+        self._raw_connection = self._database.raw_connect()
 
     def __del__(self):
         """Close the connection."""
@@ -172,6 +178,7 @@ class Connection(object):
         """
         if self._closed:
             raise ClosedError("Connection is closed")
+        self._ensure_connected()
         if isinstance(statement, Expr):
             if params is not None:
                 raise ValueError("Can't pass parameters with expressions")
@@ -179,9 +186,10 @@ class Connection(object):
             statement = self.compile(statement, state)
             params = state.parameters
         statement = convert_param_marks(statement, "?", self.param_mark)
-        raw_cursor = self.raw_execute(statement, params)
+        raw_cursor = self._check_disconnect(
+            self.raw_execute, statement, params)
         if noresult:
-            raw_cursor.close()
+            self._check_disconnect(raw_cursor.close)
             return None
         return self.result_factory(self, raw_cursor)
 
@@ -194,11 +202,22 @@ class Connection(object):
 
     def commit(self):
         """Commit the connection."""
-        self._raw_connection.commit()
+        self._ensure_connected()
+        self._check_disconnect(self._raw_connection.commit)
 
     def rollback(self):
         """Rollback the connection."""
-        self._raw_connection.rollback()
+        if self._state == STATE_CONNECTED:
+            try:
+                self._raw_connection.rollback()
+            except DatabaseError, exc:
+                if self.is_disconnection_error(exc):
+                    self._raw_connection = None
+                    self._state = STATE_RECONNECT
+                else:
+                    raise
+        else:
+            self._state = STATE_RECONNECT
 
     @staticmethod
     def to_database(params):
@@ -247,6 +266,46 @@ class Connection(object):
             raw_cursor.execute(statement, params)
         return raw_cursor
 
+    def _ensure_connected(self):
+        """Ensure that we are connected to the database.
+
+        If the connection is marked as dead, or if we can't reconnect,
+        then raise DisconnectionError.
+        """
+        if self._state == STATE_CONNECTED:
+            return
+        elif self._state == STATE_DISCONNECTED:
+            raise DisconnectionError('Already disconnected')
+        elif self._state == STATE_RECONNECT:
+            try:
+                self._raw_connection = self._database.raw_connect()
+            except DatabaseError, exc:
+                self._state = STATE_DISCONNECTED
+                self._raw_connection = None
+                raise DisconnectionError(str(exc))
+            else:
+                self._state = STATE_CONNECTED
+
+    def is_disconnection_error(self, exc):
+        """Check whether an exception represents a database disconnection.
+
+        This should be overridden by backends to detect whichever
+        exception values are used to represent this condition.
+        """
+        return False
+
+    def _check_disconnect(self, function, *args, **kwargs):
+        """Run the given function, checking for database disconnections."""
+        try:
+            return function(*args, **kwargs)
+        except DatabaseError, exc:
+            if self.is_disconnection_error(exc):
+                self._state = STATE_DISCONNECTED
+                self._raw_connection = None
+                raise DisconnectionError(str(exc))
+            else:
+                raise
+
     def preset_primary_key(self, primary_columns, primary_variables):
         """Process primary variables before an insert happens.
 
@@ -261,8 +320,7 @@ class Database(object):
     This should be subclassed for individual database backends.
 
     @cvar connection_factory: A callable which will take this database
-        and a raw connection and should return an instance of
-        L{Connection}.
+        and should return an instance of L{Connection}.
     """
 
     connection_factory = Connection
@@ -270,11 +328,21 @@ class Database(object):
     def connect(self):
         """Create a connection to the database.
 
-        This should be overriden in subclasses to do any
-        database-specific connection setup. It should call
-        C{self.connection_factory} to allow for ease of customization.
+        It calls C{self.connection_factory} to allow for ease of
+        customization.
 
         @return: An instance of L{Connection}.
+        """
+        return self.connection_factory(self)
+
+    def raw_connect(self):
+        """Create a raw database connection.
+
+        This is used by L{Connection} objects to connect to the
+        database.  It should be overriden in subclasses to do any
+        database-specific connection setup.
+
+        @return: A DB-API connection object.
         """
         raise NotImplementedError
 

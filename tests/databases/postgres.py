@@ -22,12 +22,15 @@ from datetime import date, time, timedelta
 import os
 
 from storm.databases.postgres import Postgres, compile
+from storm.uri import URI
 from storm.database import create_database
 from storm.variables import DateTimeVariable, RawStrVariable
 from storm.variables import ListVariable, IntVariable, Variable
 from storm.expr import Union, Select, Alias, SQLRaw, State, Sequence, Like
 
-from tests.databases.base import DatabaseTest, UnsupportedDatabaseTest
+from tests.databases.base import (
+    DatabaseTest, DatabaseDisconnectionTest, UnsupportedDatabaseTest)
+from tests.databases.proxy import ProxyTCPServer
 from tests.helper import TestHelper
 
 
@@ -287,3 +290,16 @@ class PostgresUnsupportedTest(UnsupportedDatabaseTest, TestHelper):
 
     dbapi_module_names = ["psycopg2"]
     db_module_name = "postgres"
+
+
+class PostgresDisconnectionTest(DatabaseDisconnectionTest, TestHelper):
+
+    def is_supported(self):
+        return bool(os.environ.get("STORM_POSTGRES_URI"))
+
+    def create_database_and_proxy(self):
+        uri = URI(os.environ["STORM_POSTGRES_URI"])
+        self.proxy = ProxyTCPServer((uri.host or '127.0.0.1',
+                                     uri.port or 5432))
+        uri.host, uri.port = self.proxy.server_address
+        self.database = create_database(uri)

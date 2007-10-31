@@ -113,6 +113,10 @@ class NotSupportedError(DatabaseError):
     pass
 
 
+class DisconnectionError(OperationalError):
+    pass
+
+
 def install_exceptions(module):
     for exception in (Error, Warning, DatabaseError, InternalError,
                       OperationalError, ProgrammingError, IntegrityError,
