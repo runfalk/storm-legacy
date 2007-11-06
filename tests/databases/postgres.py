@@ -294,12 +294,27 @@ class PostgresUnsupportedTest(UnsupportedDatabaseTest, TestHelper):
 
 class PostgresDisconnectionTest(DatabaseDisconnectionTest, TestHelper):
 
+    def get_uri(self):
+        uri_str = os.environ.get("STORM_POSTGRES_HOST_URI")
+        if uri_str:
+            uri = URI(uri_str)
+            if not uri.host:
+                raise RuntimeError("The URI in STORM_POSTGRES_HOST_URI "
+                                   "must include a host.")
+            return uri
+        else:
+            uri_str = os.environ.get("STORM_POSTGRES_URI")
+            if uri_str:
+                uri = URI(uri_str)
+                if uri.host:
+                    return uri
+        return None
+
     def is_supported(self):
-        return bool(os.environ.get("STORM_POSTGRES_URI"))
+        return bool(self.get_uri())
 
     def create_database_and_proxy(self):
-        uri = URI(os.environ["STORM_POSTGRES_URI"])
-        self.proxy = ProxyTCPServer((uri.host or '127.0.0.1',
-                                     uri.port or 5432))
+        uri = self.get_uri()
+        self.proxy = ProxyTCPServer((uri.host, uri.port or 5432))
         uri.host, uri.port = self.proxy.server_address
         self.database = create_database(uri)
