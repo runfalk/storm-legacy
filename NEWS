@@ -1,3 +1,27 @@
+0.12 (2007-XX-XX)
+=================
+
+Improvements
+------------
+ - The Connection will reconnect automatically when connection
+   drops are detected and a rollback is performed.  As a result,
+   the Store should handle reconnections in a seamless way in
+   most circumstances (#94986, by James Henstridge).  Support in
+   the MySQL backend is pending.
+ 
+Bug fixes
+---------
+ - Schema names are accepted in __storm_table__ when using
+   PostgreSQL as the database (e.g. "schema.table"). (#146580,
+   reported by James Mayfield)
+ - Tables named with reserved keywords are properly escaped.
+ - TransactionFailedError is now imported from the public
+   place: ZODB.POSException (#129715, by James Henstridge).
+ - Fixed bug which caused an object to be readded to the store
+   when a reference of an object that had already been removed
+   was looked up.
+
+
 0.11 (2007-10-08)
 =================
 

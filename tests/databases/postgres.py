@@ -26,6 +26,7 @@ from storm.uri import URI
 from storm.database import create_database
 from storm.variables import DateTimeVariable, RawStrVariable
 from storm.variables import ListVariable, IntVariable, Variable
+from storm.properties import Int
 from storm.expr import Union, Select, Alias, SQLRaw, State, Sequence, Like
 
 from tests.databases.base import (
@@ -284,6 +285,17 @@ class PostgresTest(DatabaseTest, TestHelper):
         variable = RawStrVariable(value=None)
         result = self.connection.execute(Select(variable))
         self.assertEquals(result.get_one(), (None,))
+
+    def test_compile_table_with_schema(self):
+        # We need the info to register its type.  In normal
+        # circumstances this is naturally imported.
+        import storm.info
+        class Foo(object):
+            __storm_table__ = "my schema.my table"
+            id = Int("my.column", primary=True)
+        self.assertEquals(compile(Select(Foo.id)),
+                          'SELECT "my schema"."my table"."my.column" '
+                          'FROM "my schema"."my table"')
 
 
 class PostgresUnsupportedTest(UnsupportedDatabaseTest, TestHelper):

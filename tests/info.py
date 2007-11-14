@@ -499,13 +499,26 @@ class ClassAliasTest(TestHelper):
         statement = compile(self.ClassAlias)
         self.assertEquals(statement, "alias")
 
+    def test_compile_with_reserved_keyword(self):
+        Alias = ClassAlias(self.Class, "select")
+        statement = compile(Alias)
+        self.assertEquals(statement, '"select"')
+
     def test_compile_in_select(self):
         expr = Select(self.ClassAlias.prop1, self.ClassAlias.prop1 == 1,
                       self.ClassAlias)
         statement = compile(expr)
         self.assertEquals(statement,
-                          "SELECT alias.column1 FROM table AS alias "
-                          "WHERE alias.column1 = ?")
+                          'SELECT alias.column1 FROM "table" AS alias '
+                          'WHERE alias.column1 = ?')
+
+    def test_compile_in_select_with_reserved_keyword(self):
+        Alias = ClassAlias(self.Class, "select")
+        expr = Select(Alias.prop1, Alias.prop1 == 1, Alias)
+        statement = compile(expr)
+        self.assertEquals(statement,
+                          'SELECT "select".column1 FROM "table" AS "select" '
+                          'WHERE "select".column1 = ?')
 
 
 class TypeCompilerTest(TestHelper):

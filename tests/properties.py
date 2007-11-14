@@ -45,12 +45,12 @@ class PropertyTest(TestHelper):
     def setUp(self):
         TestHelper.setUp(self)
         class Class(object):
-            __storm_table__ = "table"
+            __storm_table__ = "mytable"
             prop1 = Custom("column1", primary=True)
             prop2 = Custom()
             prop3 = Custom("column3", default=50, allow_none=False)
         class SubClass(Class):
-            __storm_table__ = "subtable"
+            __storm_table__ = "mysubtable"
         self.Class = Class
         self.SubClass = SubClass
 
@@ -217,10 +217,10 @@ class PropertyTest(TestHelper):
                                    (prop3 == "value3"))
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, "SELECT * FROM table WHERE "
-                                     "table.column1 = ? AND "
-                                     "table.prop2 = ? AND "
-                                     "table.column3 = ?")
+        self.assertEquals(statement, "SELECT * FROM mytable WHERE "
+                                     "mytable.column1 = ? AND "
+                                     "mytable.prop2 = ? AND "
+                                     "mytable.column3 = ?")
         self.assertEquals(state.parameters, [CustomVariable("value1"),
                                              CustomVariable("value2"),
                                              CustomVariable("value3")])
@@ -234,10 +234,10 @@ class PropertyTest(TestHelper):
                                    (prop3 == "value3"))
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, "SELECT * FROM subtable WHERE "
-                                     "subtable.column1 = ? AND "
-                                     "subtable.prop2 = ? AND "
-                                     "subtable.column3 = ?")
+        self.assertEquals(statement, "SELECT * FROM mysubtable WHERE "
+                                     "mysubtable.column1 = ? AND "
+                                     "mysubtable.prop2 = ? AND "
+                                     "mysubtable.column3 = ?")
         self.assertEquals(state.parameters, [CustomVariable("value1"),
                                              CustomVariable("value2"),
                                              CustomVariable("value3")])
@@ -258,7 +258,7 @@ class PropertyKindsTest(TestHelper):
         prop2_kwargs = kwargs.pop("prop2_kwargs", {})
         kwargs["primary"] = True
         class Class(object):
-            __storm_table__ = "table"
+            __storm_table__ = "mytable"
             prop1 = property("column1", *args, **kwargs)
             prop2 = property(**prop2_kwargs)
         class SubClass(Class):
@@ -651,6 +651,7 @@ class PropertyKindsTest(TestHelper):
     def test_variable_factory_arguments(self):
         class Class(object):
             __storm_table__ = "test"
+            id = Int(primary=True)
 
         for func, cls, value in [
                                (Bool, BoolVariable, True),
@@ -704,12 +705,12 @@ class PropertyRegistryTest(TestHelper):
         TestHelper.setUp(self)
 
         class Class(object):
-            __storm_table__ = "table"
+            __storm_table__ = "mytable"
             prop1 = Property("column1", primary=True)
             prop2 = Property()
 
         class SubClass(Class):
-            __storm_table__ = "subtable"
+            __storm_table__ = "mysubtable"
 
         self.Class = Class
         self.SubClass = SubClass
@@ -817,12 +818,12 @@ class PropertyPublisherMetaTest(TestHelper):
             __metaclass__ = PropertyPublisherMeta
 
         class Class(Base):
-            __storm_table__ = "table"
+            __storm_table__ = "mytable"
             prop1 = Property("column1", primary=True)
             prop2 = Property()
 
         class SubClass(Class):
-            __storm_table__ = "subtable"
+            __storm_table__ = "mysubtable"
 
         self.Class = Class
         self.SubClass = SubClass

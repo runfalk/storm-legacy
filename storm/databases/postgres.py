@@ -30,8 +30,8 @@ except:
 
 from storm.expr import (
     Undef, SetExpr, Select, Insert, Alias, And, Eq, FuncExpr, SQLRaw, Sequence,
-    Like, COLUMN_NAME, compile, compile_select, compile_insert,
-    compile_set_expr, compile_like)
+    Like, SQLToken, COLUMN_NAME, COLUMN_PREFIX, TABLE, compile, compile_select,
+    compile_insert, compile_set_expr, compile_like, compile_sql_token)
 from storm.variables import Variable, ListVariable, RawStrVariable
 from storm.database import Database, Connection, Result
 from storm.exceptions import install_exceptions, DatabaseModuleError
@@ -119,6 +119,19 @@ def compile_insert_postgres(compile, insert, state):
 def compile_sequence_postgres(compile, sequence, state):
     return "nextval('%s')" % sequence.name
 
+@compile.when(Like)
+def compile_like_postgres(compile, like, state):
+    if like.case_sensitive is False:
+        return compile_like(compile, like, state, oper=" ILIKE ")
+    return compile_like(compile, like, state)
+
+@compile.when(SQLToken)
+def compile_sql_token_postgres(compile, expr, state):
+    if "." in expr and state.context in (TABLE, COLUMN_PREFIX):
+        return ".".join(compile_sql_token(compile, subexpr, state)
+                        for subexpr in expr.split("."))
+    return compile_sql_token(compile, expr, state)
+
 def compile_str_variable_with_E(compile, variable, state):
     """Include an E just before the placeholder of string variables.
 
@@ -135,14 +148,6 @@ def compile_str_variable_with_E(compile, variable, state):
     return "?"
 
 psycopg_needs_E = None
-
-
-@compile.when(Like)
-def compile_like_postgres(compile, like, state):
-    if like.case_sensitive is False:
-        return compile_like(compile, like, state, oper=" ILIKE ")
-    return compile_like(compile, like, state)
-
 
 
 class PostgresResult(Result):
