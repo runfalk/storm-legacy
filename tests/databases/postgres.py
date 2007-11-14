@@ -21,13 +21,14 @@
 from datetime import date, time, timedelta
 import os
 
-from storm.databases.postgres import Postgres, compile
+from storm.databases.postgres import Postgres, compile, currval
 from storm.uri import URI
 from storm.database import create_database
 from storm.variables import DateTimeVariable, RawStrVariable
 from storm.variables import ListVariable, IntVariable, Variable
 from storm.properties import Int
-from storm.expr import Union, Select, Alias, SQLRaw, State, Sequence, Like
+from storm.expr import (
+    Union, Select, Alias, SQLRaw, State, Sequence, Like, Column)
 
 from tests.databases.base import (
     DatabaseTest, DatabaseDisconnectionTest, UnsupportedDatabaseTest)
@@ -287,7 +288,7 @@ class PostgresTest(DatabaseTest, TestHelper):
         self.assertEquals(result.get_one(), (None,))
 
     def test_compile_table_with_schema(self):
-        # We need the info to register its type.  In normal
+        # We need the info to register the 'type' compiler.  In normal
         # circumstances this is naturally imported.
         import storm.info
         class Foo(object):
@@ -296,6 +297,42 @@ class PostgresTest(DatabaseTest, TestHelper):
         self.assertEquals(compile(Select(Foo.id)),
                           'SELECT "my schema"."my table"."my.column" '
                           'FROM "my schema"."my table"')
+
+    def test_currval_no_escaping(self):
+        expr = currval(Column("thecolumn", "theschema.thetable"))
+        statement = compile(expr)
+        expected = """currval('theschema.thetable_thecolumn_seq')"""
+        self.assertEquals(statement, expected)
+
+    def test_currval_escaped_schema(self):
+        expr = currval(Column("thecolumn", "the schema.thetable"))
+        statement = compile(expr)
+        expected = """currval('"the schema".thetable_thecolumn_seq')"""
+        self.assertEquals(statement, expected)
+
+    def test_currval_escaped_table(self):
+        expr = currval(Column("thecolumn", "theschema.the table"))
+        statement = compile(expr)
+        expected = """currval('theschema."the table_thecolumn_seq"')"""
+        self.assertEquals(statement, expected)
+
+    def test_currval_escaped_column(self):
+        expr = currval(Column("the column", "theschema.thetable"))
+        statement = compile(expr)
+        expected = """currval('theschema."thetable_the column_seq"')"""
+        self.assertEquals(statement, expected)
+
+    def test_currval_escaped_column_no_schema(self):
+        expr = currval(Column("the column", "thetable"))
+        statement = compile(expr)
+        expected = """currval('"thetable_the column_seq"')"""
+        self.assertEquals(statement, expected)
+
+    def test_currval_escaped_schema_table_and_column(self):
+        expr = currval(Column("the column", "the schema.the table"))
+        statement = compile(expr)
+        expected = """currval('"the schema"."the table_the column_seq"')"""
+        self.assertEquals(statement, expected)
 
 
 class PostgresUnsupportedTest(UnsupportedDatabaseTest, TestHelper):

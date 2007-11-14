@@ -50,8 +50,38 @@ class currval(FuncExpr):
 
 @compile.when(currval)
 def compile_currval(compile, expr, state):
-    return "currval('%s_%s_seq')" % (compile(expr.column.table, state),
-                                     expr.column.name)
+    """Compile a currval.
+
+    This is a bit involved because we have to get escaping right.  Here
+    are a few cases to keep in mind:
+
+        currval('thetable_thecolumn_seq')
+        currval('theschema.thetable_thecolumn_seq')
+        currval('"the schema".thetable_thecolumn_seq')
+        currval('theschema."the table_thecolumn_seq"')
+        currval('theschema."thetable_the column_seq"')
+        currval('"thetable_the column_seq"')
+        currval('"the schema"."the table_the column_seq"')
+
+    """
+    state.push("context", COLUMN_PREFIX)
+    table = compile(expr.column.table, state, token=True)
+    state.pop()
+    column_name = compile(expr.column.name, state, token=True)
+    if table.endswith('"'):
+        table = table[:-1]
+        if column_name.endswith('"'):
+            column_name = column_name[1:-1]
+        return "currval('%s_%s_seq\"')" % (table, column_name)
+    elif column_name.endswith('"'):
+        column_name = column_name[1:-1]
+        if "." in table:
+            schema, table = table.rsplit(".", 1)
+            return "currval('%s.\"%s_%s_seq\"')" % (schema, table, column_name)
+        else:
+            return "currval('\"%s_%s_seq\"')" % (table, column_name)
+    else:
+        return "currval('%s_%s_seq')" % (table, column_name)
 
 @compile.when(ListVariable)
 def compile_list_variable(compile, list_variable, state):

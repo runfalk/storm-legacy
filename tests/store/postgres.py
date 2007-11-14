@@ -24,7 +24,7 @@ import gc
 from storm.database import create_database
 from storm.properties import Int, List
 
-from tests.store.base import StoreTest, EmptyResultSetTest
+from tests.store.base import StoreTest, EmptyResultSetTest, Foo
 from tests.helper import TestHelper
 
 from tests.helper import run_this
@@ -39,6 +39,9 @@ class Lst2(object):
     __storm_table__ = "lst2"
     id = Int(primary=True)
     ints = List(type=List(type=Int()))
+
+class FooWithSchema(Foo):
+    __storm_table__ = "public.foo"
 
 
 class PostgresStoreTest(TestHelper, StoreTest):
@@ -130,6 +133,15 @@ class PostgresStoreTest(TestHelper, StoreTest):
 
         result = self.store.execute("SELECT ints FROM lst2 WHERE id=1")
         self.assertEquals(result.get_one(), ([[1,2],[3,4],[5,6]],))
+
+    def test_add_find_with_schema(self):
+        foo = FooWithSchema()
+        foo.title = u"Title"
+        self.store.add(foo)
+        self.store.flush()
+        # We use find() here to actually exercise the backend code.
+        # get() would just pick the object from the cache.
+        self.assertEquals(self.store.find(FooWithSchema, id=foo.id).one(), foo)
 
 
 class PostgresEmptyResultSetTest(TestHelper, EmptyResultSetTest):
