@@ -143,6 +143,18 @@ class PostgresStoreTest(TestHelper, StoreTest):
         # get() would just pick the object from the cache.
         self.assertEquals(self.store.find(FooWithSchema, id=foo.id).one(), foo)
 
+    def test_wb_currval_based_identity(self):
+        """
+        Ensure that the currval()-based identity retrieval continues
+        to work, even if we're currently running on a 8.2+ database.
+        """
+        self.database._version = (8, 1, 9)
+        foo1 = self.store.add(Foo())
+        self.store.flush()
+        foo2 = self.store.add(Foo())
+        self.store.flush()
+        self.assertEquals(foo2.id-foo1.id, 1)
+
 
 class PostgresEmptyResultSetTest(TestHelper, EmptyResultSetTest):
 

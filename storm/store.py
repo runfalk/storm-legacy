@@ -150,7 +150,7 @@ class Store(object):
         if obj_info is not None:
             if obj_info.get("invalidated"):
                 try:
-                    self._fill_missing_values(obj_info, primary_vars)
+                    self._validate_cache(obj_info)
                 except LostObjectError:
                     return None
             return self._get_object(obj_info)
@@ -473,8 +473,7 @@ class Store(object):
             # the object.
             obj_info.pop("invalidated", None)
 
-            self._fill_missing_values(obj_info, obj_info.primary_vars, result,
-                                      checkpoint=False, replace_lazy=True)
+            self._fill_missing_values(obj_info, obj_info.primary_vars, result)
 
             self._enable_change_notification(obj_info)
             self._add_to_cache(obj_info)
@@ -495,8 +494,7 @@ class Store(object):
                               cls_info.table)
                 self._connection.execute(expr, noresult=True)
 
-                self._fill_missing_values(obj_info, obj_info.primary_vars,
-                                          checkpoint=False, replace_lazy=True)
+                self._fill_missing_values(obj_info, obj_info.primary_vars)
 
                 self._add_to_cache(obj_info)
 
@@ -543,12 +541,12 @@ class Store(object):
 
         return changes
 
-    def _fill_missing_values(self, obj_info, primary_vars, result=None,
-                             checkpoint=True, replace_lazy=False):
-        """Query retrieve from the database any missing values in obj_info.
+    def _fill_missing_values(self, obj_info, primary_vars, result=None):
+        """Fill missing values in variables of the given obj_info.
 
         This method will verify which values are unset in obj_info,
-        and will retrieve them from the database to set them.
+        and set them to AutoReload, or if it's part of the primary
+        key, query the database for the actual values.
 
         @param obj_info: ObjectInfo to have its values filled.
         @param primary_vars: Variables composing the primary key with
@@ -558,72 +556,45 @@ class Store(object):
             isn't defined, it must be retrieved from the database
             using database-dependent logic, which is provided by the
             backend in the result of the query which inserted the object.
-        @param checkpoint: If true, variables will be checkpointed so that
-            they are aware that the value just set is the value currently
-            in the database.  Generally this will be false only when
-            checkpointing is being done at the calling place.
-        @param replace_lazy: If true, lazy values are handled as if they
-            were missing, and are replaced by values returned from the
-            database.
         """
         cls_info = obj_info.cls_info
 
         cached_primary_vars = obj_info.get("primary_vars")
         primary_key_idx = cls_info.primary_key_idx
-
         missing_columns = []
         for column in cls_info.columns:
             variable = obj_info.variables[column]
             if not variable.is_defined():
                 idx = primary_key_idx.get(id(column))
-                lazy_value = variable.get_lazy()
-                if (idx is not None and cached_primary_vars is not None
-                    and lazy_value is AutoReload):
-                    # For auto-reloading a primary key, just get the
-                    # value out of the cache.
-                    variable.set(cached_primary_vars[idx].get())
-                elif (replace_lazy or lazy_value is None or
-                      lazy_value is AutoReload):
-                    missing_columns.append(column)
+                if idx is not None:
+                    if (cached_primary_vars is not None
+                        and variable.get_lazy() is AutoReload):
+                        # For auto-reloading a primary key, just
+                        # get the value out of the cache.
+                        variable.set(cached_primary_vars[idx].get())
+                    else:
+                        missing_columns.append(column)
+                else:
+                    # Any lazy values are overwritten here.  This value
+                    # must have just been sent to the database, so this
+                    # was already set there.
+                    variable.set(AutoReload)
 
         if missing_columns:
-            primary_key = cls_info.primary_key
-
-            for variable in primary_vars:
-                if not variable.is_defined():
-                    # XXX Think about the case where the primary key is set
-                    #     to a lazy value which isn't AutoReload.
-                    if result is None:
-                        raise RuntimeError("Can't find missing primary values "
-                                           "without a meaningful result")
-                    where = result.get_insert_identity(primary_key,
-                                                       primary_vars)
-                    break
-            else:
-                where = compare_columns(primary_key, primary_vars)
-
-            # This procedure will also validate the cache.
+            where = result.get_insert_identity(cls_info.primary_key,
+                                               primary_vars)
             result = self._connection.execute(Select(missing_columns, where))
             self._set_values(obj_info, missing_columns,
                              result, result.get_one())
 
-            obj_info.pop("invalidated", None)
-
-            if checkpoint:
-                for column in missing_columns:
-                    obj_info.variables[column].checkpoint()
-
-        elif obj_info.get("invalidated"):
-            # In case of no explicit missing values, enforce cache validation.
-            # It might happen that the primary key was autoreloaded and
-            # restored from the cache.
-            where = compare_columns(cls_info.primary_key, primary_vars)
-            result = self._connection.execute(Select(SQLRaw("1"), where))
-            if not result.get_one():
-                raise LostObjectError("Object is not in the database anymore")
-
-            obj_info.pop("invalidated", None)
-
+    def _validate_cache(self, obj_info):
+        """Perform cache validation for the given obj_info."""
+        where = compare_columns(obj_info.cls_info.primary_key,
+                                obj_info["primary_vars"])
+        result = self._connection.execute(Select(SQLRaw("1"), where))
+        if not result.get_one():
+            raise LostObjectError("Object is not in the database anymore")
+        obj_info.pop("invalidated", None)
 
     def _load_objects(self, cls_spec_info, result, values):
         if type(cls_spec_info) is not tuple:
@@ -713,6 +684,7 @@ class Store(object):
         if values is None:
             raise LostObjectError("Can't obtain values from the database "
                                   "(object got removed?)")
+        obj_info.pop("invalidated", None)
         for column, value in zip(columns, values):
             if value is None:
                 obj_info.variables[column].set(value, from_db=True)
@@ -787,8 +759,7 @@ class Store(object):
                     # This might be a previously cached object being
                     # updated.  Let's validate it now to improve debugging.
                     # This will raise LostObjectError if the object is gone.
-                    self._fill_missing_values(obj_info,
-                                              obj_info["primary_vars"])
+                    self._validate_cache(obj_info)
                 self._set_dirty(obj_info)
 
 
@@ -799,25 +770,32 @@ class Store(object):
         obj_info.event.unhook("resolve-lazy-value", self._resolve_lazy_value)
 
     def _resolve_lazy_value(self, obj_info, variable, lazy_value):
-        if lazy_value is AutoReload:
-            cached_primary_vars = obj_info.get("primary_vars")
-            if cached_primary_vars is None:
-                # XXX See the comment on self.flush() below.
-                self.flush()
-            else:
-                idx = obj_info.cls_info.primary_key_idx.get(id(variable.column))
-                if idx is not None:
-                    # No need to touch the database if auto-reloading
-                    # a primary key variable.
-                    variable.set(cached_primary_vars[idx].get())
-                else:
-                    self._fill_missing_values(obj_info, cached_primary_vars)
-        else:
-            # XXX This will do it for now, but it should really flush
-            #     just this single object and ones that it depends on.
-            #     _flush_one() doesn't consider dependencies, so it may
-            #     not be used directly.
-            self.flush()
+        """Resolve a variable set to a lazy value when it's touched.
+
+        This method is hooked into the obj_info to resolve variables
+        set to lazy values when they're accessed.  It will first flush
+        the store, and then set all variables set to AutoReload to
+        their database values.
+        """
+        # XXX This will do it for now, but it should really flush
+        #     just this single object and ones that it depends on.
+        #     _flush_one() doesn't consider dependencies, so it may
+        #     not be used directly.  Maybe allow flush(obj)?
+        self.flush()
+
+        autoreload_columns = []
+        for column in obj_info.cls_info.columns:
+            if obj_info.variables[column].get_lazy() is AutoReload:
+                autoreload_columns.append(column)
+
+        if autoreload_columns:
+            where = compare_columns(obj_info.cls_info.primary_key,
+                                    obj_info["primary_vars"])
+            result = self._connection.execute(Select(autoreload_columns, where))
+            self._set_values(obj_info, autoreload_columns,
+                             result, result.get_one())
+            for column in autoreload_columns:
+                obj_info.variables[column].checkpoint()
 
 
 class ResultSet(object):
