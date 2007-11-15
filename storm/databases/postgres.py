@@ -29,9 +29,10 @@ except:
     psycopg2 = dummy
 
 from storm.expr import (
-    Undef, SetExpr, Select, Insert, Alias, And, Eq, FuncExpr, SQLRaw, Sequence,
-    Like, SQLToken, COLUMN_NAME, COLUMN_PREFIX, TABLE, compile, compile_select,
-    compile_insert, compile_set_expr, compile_like, compile_sql_token)
+    Undef, Expr, SetExpr, Select, Insert, Alias, And, Eq, FuncExpr, SQLRaw,
+    Sequence, Like, SQLToken, COLUMN, COLUMN_NAME, COLUMN_PREFIX, TABLE,
+    compile, compile_select, compile_insert, compile_set_expr, compile_like,
+    compile_sql_token)
 from storm.variables import Variable, ListVariable, RawStrVariable
 from storm.database import Database, Connection, Result
 from storm.exceptions import install_exceptions, DatabaseModuleError
@@ -39,6 +40,26 @@ from storm.exceptions import install_exceptions, DatabaseModuleError
 
 install_exceptions(psycopg2)
 compile = compile.create_child()
+
+
+class Returning(Expr):
+    """Appends the "RETURNING <primary_columns>" suffix to an INSERT.
+
+    This is only supported in PostgreSQL 8.2+.
+    """
+
+    def __init__(self, insert):
+        self.insert = insert
+
+@compile.when(Returning)
+def compile_returning(compile, expr, state):
+    state.push("context", COLUMN)
+    columns = compile(expr.insert.primary_columns, state)
+    state.pop()
+    state.push("precedence", 0)
+    insert = compile(expr.insert, state)
+    state.pop()
+    return "%s RETURNING %s" % (insert, columns)
 
 
 class currval(FuncExpr):
@@ -83,6 +104,7 @@ def compile_currval(compile, expr, state):
     else:
         return "currval('%s_%s_seq')" % (table, column_name)
 
+
 @compile.when(ListVariable)
 def compile_list_variable(compile, list_variable, state):
     elements = []
@@ -94,6 +116,7 @@ def compile_list_variable(compile, list_variable, state):
     for variable in variables:
         elements.append(compile(variable, state))
     return "ARRAY[%s]" % ",".join(elements)
+
 
 @compile.when(SetExpr)
 def compile_set_expr_postgres(compile, expr, state):
@@ -136,6 +159,7 @@ def compile_set_expr_postgres(compile, expr, state):
     else:
         return compile_set_expr(compile, expr, state)
 
+
 @compile.when(Insert)
 def compile_insert_postgres(compile, insert, state):
     # PostgreSQL fails with INSERT INTO table VALUES (), so we transform
@@ -145,9 +169,11 @@ def compile_insert_postgres(compile, insert, state):
                                         SQLRaw("DEFAULT")))
     return compile_insert(compile, insert, state)
 
+
 @compile.when(Sequence)
 def compile_sequence_postgres(compile, sequence, state):
     return "nextval('%s')" % sequence.name
+
 
 @compile.when(Like)
 def compile_like_postgres(compile, like, state):
@@ -155,12 +181,14 @@ def compile_like_postgres(compile, like, state):
         return compile_like(compile, like, state, oper=" ILIKE ")
     return compile_like(compile, like, state)
 
+
 @compile.when(SQLToken)
 def compile_sql_token_postgres(compile, expr, state):
     if "." in expr and state.context in (TABLE, COLUMN_PREFIX):
         return ".".join(compile_sql_token(compile, subexpr, state)
                         for subexpr in expr.split("."))
     return compile_sql_token(compile, expr, state)
+
 
 def compile_str_variable_with_E(compile, variable, state):
     """Include an E just before the placeholder of string variables.
@@ -196,6 +224,28 @@ class PostgresConnection(Connection):
     result_factory = PostgresResult
     param_mark = "%s"
     compile = compile
+
+    def execute(self, statement, params=None, noresult=False):
+
+        if (isinstance(statement, Insert) and
+            self._database._version >= (8, 2) and
+            statement.primary_variables is not Undef and
+            statement.primary_columns is not Undef):
+
+            # Here we decorate the Insert statement with a Returning
+            # expression, so that we get back in the result the values
+            # for the primary key just inserted.  This prevents a round
+            # trip to the database for obtaining these values.
+
+            result = Connection.execute(self, Returning(statement), params)
+            for variable, value in zip(statement.primary_variables,
+                                       result.get_one()):
+                result.set_variable(variable, value)
+            return result
+
+        return Connection.execute(self, statement, params, noresult)
+
+    execute.__doc__ = Connection.__doc__
 
     def raw_execute(self, statement, params):
         """
@@ -241,15 +291,23 @@ class Postgres(Database):
 
     connection_factory = PostgresConnection
 
+    _version = None
+
     def __init__(self, uri):
         if psycopg2 is dummy:
             raise DatabaseModuleError("'psycopg2' module not found")
         self._dsn = make_dsn(uri)
 
     def raw_connect(self):
-        global psycopg_needs_E
         raw_connection = psycopg2.connect(self._dsn)
-        if psycopg_needs_E is None:
+
+        if self._version is None:
+            cursor = raw_connection.cursor()
+
+            cursor.execute("SHOW server_version")
+            server_version = cursor.fetchone()[0]
+            Postgres._version = tuple(int(x) for x in server_version.split("."))
+
             # This will conditionally change the compilation of binary
             # variables (RawStrVariable) to preceed the placeholder with an
             # 'E', if psycopg isn't doing it by itself.
@@ -258,7 +316,7 @@ class Postgres(Database):
             # would depend on a working psycopg version, or in an older
             # postgresql version.  Both branches were manually tested
             # for correctness at some point.
-            cursor = raw_connection.cursor()
+            global psycopg_needs_E
             try:
                 # If psycopg behaves correctly, this will break trying
                 # to run a query with EE''.
@@ -268,7 +326,9 @@ class Postgres(Database):
             else:
                 psycopg_needs_E = True
                 compile.when(RawStrVariable)(compile_str_variable_with_E)
+
             raw_connection.rollback()
+
         raw_connection.set_client_encoding("UTF8")
         raw_connection.set_isolation_level(
             psycopg2.extensions.ISOLATION_LEVEL_SERIALIZABLE)
