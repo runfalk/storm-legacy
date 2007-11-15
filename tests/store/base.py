@@ -3480,7 +3480,6 @@ class StoreTest(object):
 
         self.assertEquals(foo.title, "New title")
 
-
     def test_expr_values_flush_on_demand(self):
         foo = self.store.get(Foo, 20)
 
@@ -3502,6 +3501,27 @@ class StoreTest(object):
                           (20, "New title"),
                           (30, "Title 10"),
                          ])
+
+    def test_expr_values_flush_and_load_in_separate_steps(self):
+        foo = self.store.get(Foo, 20)
+
+        foo.title = SQL("'New title'")
+
+        self.store.flush()
+
+        # It's already in the database.
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "New title"),
+                          (30, "Title 10"),
+                         ])
+
+        # But our value is now an AutoReload.
+        lazy_value = get_obj_info(foo).variables[Foo.title].get_lazy()
+        self.assertTrue(lazy_value is AutoReload)
+
+        # Which gets resolved once touched.
+        self.assertEquals(foo.title, u"New title")
 
     def test_expr_values_flush_on_demand_with_added(self):
         foo = Foo()
@@ -3728,6 +3748,14 @@ class StoreTest(object):
         self.store.autoreload(foo)
         self.assertTrue(get_obj_info(foo) not in self.store._dirty)
 
+    def test_autoreload_missing_columns_on_insertion(self):
+        foo = Foo()
+        self.store.add(foo)
+        self.store.flush()
+        lazy_value = get_obj_info(foo).variables[Foo.title].get_lazy()
+        self.assertEquals(lazy_value, AutoReload)
+        self.assertEquals(foo.title, u"Default Title")
+
     def test_reference_break_on_local_diverged_doesnt_autoreload(self):
         foo = self.store.get(Foo, 10)
         self.store.autoreload(foo)
@@ -3797,15 +3825,12 @@ class StoreTest(object):
         self.store.invalidate(foo)
         self.assertRaises(LostObjectError, setattr, foo, "title", u"Title 40")
 
-    def test_invalidate_and_get_fills_undefined(self):
+    def test_invalidate_and_get_returns_autoreloaded(self):
         foo = self.store.get(Foo, 20)
         self.store.invalidate(foo)
-
-        unset_foo = Foo()
-        unset_state = get_obj_info(unset_foo).variables[Foo.title].get_state()
-        get_obj_info(foo).variables[Foo.title].set_state(unset_state)
-
         foo = self.store.get(Foo, 20)
+        self.assertEquals(get_obj_info(foo).variables[Foo.title].get_lazy(),
+                          AutoReload)
         self.assertEquals(foo.title, "Title 20")
 
     def test_invalidated_hook(self):
