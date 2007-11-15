@@ -214,7 +214,10 @@ class PostgresResult(Result):
         equals = []
         for column, variable in zip(primary_key, primary_variables):
             if not variable.is_defined():
-                variable = currval(column)
+                # The Select here prevents PostgreSQL from going nuts and
+                # performing a sequential scan when there *is* an index.
+                # http://tinyurl.com/2n8mv3
+                variable = Select(currval(column))
             equals.append(Eq(column, variable))
         return And(*equals)
 

@@ -349,6 +349,15 @@ class PostgresTest(DatabaseTest, TestHelper):
         expected = """currval('"the schema"."the table_the column_seq"')"""
         self.assertEquals(statement, expected)
 
+    def test_get_insert_identity(self):
+        column = Column("thecolumn", "thetable")
+        variable = IntVariable()
+        result = self.connection.execute("SELECT 1")
+        where = result.get_insert_identity((column,), (variable,))
+        self.assertEquals(compile(where),
+                          "thetable.thecolumn = "
+                          "(SELECT currval('thetable_thecolumn_seq'))")
+
     def test_returning(self):
         insert = Insert({column1: elem1}, table1,
                         primary_columns=(column2, column3))
