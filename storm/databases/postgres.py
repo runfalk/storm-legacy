@@ -229,7 +229,12 @@ class PostgresConnection(Connection):
     compile = compile
 
     def execute(self, statement, params=None, noresult=False):
+        """Execute a statement with the given parameters.
 
+        This extends the L{Connection.execute} method to add support
+        for automatic retrieval of inserted primary keys to link
+        in-memory objects with their specific rows.
+        """
         if (isinstance(statement, Insert) and
             self._database._version >= (8, 2) and
             statement.primary_variables is not Undef and
@@ -247,8 +252,6 @@ class PostgresConnection(Connection):
             return result
 
         return Connection.execute(self, statement, params, noresult)
-
-    execute.__doc__ = Connection.__doc__
 
     def raw_execute(self, statement, params):
         """
@@ -309,7 +312,7 @@ class Postgres(Database):
 
             cursor.execute("SHOW server_version")
             server_version = cursor.fetchone()[0]
-            Postgres._version = tuple(int(x) for x in server_version.split("."))
+            self._version = tuple(map(int, server_version.split(".")))
 
             # This will conditionally change the compilation of binary
             # variables (RawStrVariable) to preceed the placeholder with an

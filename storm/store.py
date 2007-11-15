@@ -770,6 +770,13 @@ class Store(object):
         obj_info.event.unhook("resolve-lazy-value", self._resolve_lazy_value)
 
     def _resolve_lazy_value(self, obj_info, variable, lazy_value):
+        """Resolve a variable set to a lazy value when it's touched.
+
+        This method is hooked into the obj_info to resolve variables
+        set to lazy values when they're accessed.  It will first flush
+        the store, and then set all variables set to AutoReload to
+        their database values.
+        """
         # XXX This will do it for now, but it should really flush
         #     just this single object and ones that it depends on.
         #     _flush_one() doesn't consider dependencies, so it may

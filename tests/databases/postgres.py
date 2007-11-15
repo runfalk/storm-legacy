@@ -95,7 +95,7 @@ class PostgresTest(DatabaseTest, TestHelper):
             self.assertEquals(type(item), int)
         result = self.connection.execute("SHOW server_version")
         server_version = result.get_one()[0]
-        self.assertEquals(".".join(str(x) for x in version), server_version)
+        self.assertEquals(".".join(map(str, version)), server_version)
 
     def test_utf8_client_encoding(self):
         connection = self.database.connect()
@@ -382,15 +382,17 @@ class PostgresTest(DatabaseTest, TestHelper):
         insert = Insert({}, primary_columns=(column1, column2),
                             primary_variables=(variable1, variable2))
         self.connection.execute(insert)
+
         self.assertTrue(variable1.is_defined())
         self.assertTrue(variable2.is_defined())
+
         self.assertEquals(variable1.get(), 123)
         self.assertEquals(variable2.get(), 456)
 
         result = self.connection.execute("SELECT * FROM insert_returning_test")
         self.assertEquals(result.get_one(), (123, 456))
 
-    def test_wb_execute_insert_returning_with_old_postgres(self):
+    def test_wb_execute_insert_returning_not_used_with_old_postgres(self):
         """Shouldn't try to use RETURNING with PostgreSQL < 8.2."""
         column1 = Column("id1", "insert_returning_test")
         column2 = Column("id2", "insert_returning_test")
@@ -399,7 +401,9 @@ class PostgresTest(DatabaseTest, TestHelper):
         insert = Insert({}, primary_columns=(column1, column2),
                             primary_variables=(variable1, variable2))
         self.database._version = (8, 1, 9)
+
         self.connection.execute(insert)
+        
         self.assertFalse(variable1.is_defined())
         self.assertFalse(variable2.is_defined())
 
@@ -407,23 +411,25 @@ class PostgresTest(DatabaseTest, TestHelper):
         self.assertEquals(result.get_one(), (123, 456))
 
     def test_execute_insert_returning_without_columns(self):
-        """Without primary_variables, INSERT+RETURNING won't work."""
+        """Without primary_columns, the RETURNING system won't be used."""
         column1 = Column("id1", "insert_returning_test")
         variable1 = IntVariable()
         insert = Insert({column1: 123}, primary_variables=(variable1,))
         self.connection.execute(insert)
+
         self.assertFalse(variable1.is_defined())
 
         result = self.connection.execute("SELECT * FROM insert_returning_test")
         self.assertEquals(result.get_one(), (123, 456))
 
     def test_execute_insert_returning_without_variables(self):
-        """Without primary_columns, INSERT+RETURNING won't work."""
+        """Without primary_variables, the RETURNING system won't be used."""
         column1 = Column("id1", "insert_returning_test")
         insert = Insert({}, primary_columns=(column1,))
         self.connection.execute(insert)
 
         result = self.connection.execute("SELECT * FROM insert_returning_test")
+
         self.assertEquals(result.get_one(), (123, 456))
 
 
