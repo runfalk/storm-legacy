@@ -20,6 +20,7 @@
 #
 from storm.properties import Bool, Int, Float, RawStr, Chars, Unicode, Pickle
 from storm.properties import List, Decimal, DateTime, Date, Time, Enum
+from storm.properties import TimeDelta
 from storm.references import Reference, ReferenceSet, Proxy
 from storm.database import create_database
 from storm.exceptions import StormError
