@@ -37,7 +37,6 @@ import storm.info
 from tests.databases.base import (
     DatabaseTest, DatabaseDisconnectionTest, UnsupportedDatabaseTest)
 from tests.expr import column1, column2, column3, elem1, table1, TrackContext
-from tests.databases.proxy import ProxyTCPServer
 from tests.helper import TestHelper
 
 
@@ -441,27 +440,6 @@ class PostgresUnsupportedTest(UnsupportedDatabaseTest, TestHelper):
 
 class PostgresDisconnectionTest(DatabaseDisconnectionTest, TestHelper):
 
-    def get_uri(self):
-        uri_str = os.environ.get("STORM_POSTGRES_HOST_URI")
-        if uri_str:
-            uri = URI(uri_str)
-            if not uri.host:
-                raise RuntimeError("The URI in STORM_POSTGRES_HOST_URI "
-                                   "must include a host.")
-            return uri
-        else:
-            uri_str = os.environ.get("STORM_POSTGRES_URI")
-            if uri_str:
-                uri = URI(uri_str)
-                if uri.host:
-                    return uri
-        return None
-
-    def is_supported(self):
-        return bool(self.get_uri())
-
-    def create_database_and_proxy(self):
-        uri = self.get_uri()
-        self.proxy = ProxyTCPServer((uri.host, uri.port or 5432))
-        uri.host, uri.port = self.proxy.server_address
-        self.database = create_database(uri)
+    environment_variable = "STORM_POSTGRES_URI"
+    host_environment_variable = "STORM_POSTGRES_HOST_URI"
+    default_port = 5432
