@@ -8,9 +8,17 @@ Improvements
    the Store should handle reconnections in a seamless way in
    most circumstances (#94986, by James Henstridge).  Support in
    the MySQL backend is pending.
- 
+ - Store.flush() will not load values inserted in the database.
+   Instead, undefined variables are set to AutoReload, and resolved
+   once first accessed.  This won't be noticeable in normal usage,
+   but will boost the performance of inserts.
+ - Support in the postgres backend to use the RETURNING extension of
+   the INSERT statement to retrieve the primary key on inserts for
+   object identity mapping (PostgreSQL >= 8.2 only)
+
 Bug fixes
 ---------
+ - TimeDelta was added to storm.locals.
  - Schema names are accepted in __storm_table__ when using
    PostgreSQL as the database (e.g. "schema.table"). (#146580,
    reported by James Mayfield)
@@ -20,6 +28,10 @@ Bug fixes
  - Fixed bug which caused an object to be readded to the store
    when a reference of an object that had already been removed
    was looked up.
+ - Prevent pathological case which happens when a statement like
+   "SELECT ... WHERE table.id = currval(...)" is executed in
+   PostgreSQL.  The change is only meaningful on PostgreSQL < 8.2,
+   as newer versions will use the RETURNING extension instead.
 
 
 0.11 (2007-10-08)
