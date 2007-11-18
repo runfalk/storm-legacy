@@ -52,6 +52,7 @@ class DatabaseTest(object):
     def tearDown(self):
         self.drop_sample_data()
         self.drop_tables()
+        self.drop_connection()
         self.drop_database()
         super(DatabaseTest, self).tearDown()
 
@@ -80,6 +81,9 @@ class DatabaseTest(object):
                 self.connection.commit()
             except:
                 self.connection.rollback()
+
+    def drop_connection(self):
+        self.connection.close()
 
     def drop_database(self):
         pass

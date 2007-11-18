@@ -21,8 +21,8 @@ Bug fixes
  - Schema names are accepted in __storm_table__ when using
    PostgreSQL as the database (e.g. "schema.table"). (#146580,
    reported by James Mayfield)
- - Test runner handles path correctly on Windows (patch by
-   Ali Afshar).
+ - Test runner handles path correctly on Windows, and SQLite
+   tests won't break (patch by Ali Afshar).
  - In the SQLite backend, ensure that we're able to recommit a
    transaction after "database is locked" errors.  Also make sure
    that when this happens the timeout is actually the expected

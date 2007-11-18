@@ -111,6 +111,8 @@ class FooVariable(Foo):
 class StoreTest(object):
 
     def setUp(self):
+        self.store = None
+        self.stores = []
         self.create_database()
         self.drop_tables()
         self.create_tables()
@@ -151,14 +153,19 @@ class StoreTest(object):
         connection.commit()
 
     def create_store(self):
-        self.store = Store(self.database)
+        store = Store(self.database)
+        self.stores.append(store)
+        if self.store is None:
+            self.store = store
+        return store
 
     def drop_store(self):
-        self.store.rollback()
+        for store in self.stores:
+            store.rollback()
 
-        # Closing the store is needed because testcase objects are all
-        # instantiated at once, and thus connections are kept open.
-        self.store.close()
+            # Closing the store is needed because testcase objects are all
+            # instantiated at once, and thus connections are kept open.
+            store.close()
 
     def drop_sample_data(self):
         pass
@@ -1750,7 +1757,7 @@ class StoreTest(object):
 
     def test_reload_unknown(self):
         foo = self.store.get(Foo, 20)
-        store = Store(self.database)
+        store = self.create_store()
         self.assertRaises(WrongStoreError, store.reload, foo)
 
     def test_wb_reload_not_dirty(self):
@@ -2233,7 +2240,7 @@ class StoreTest(object):
         self.assertEquals(type(bar.foo_id), int)
 
     def test_reference_on_added_wrong_store(self):
-        store = Store(self.database)
+        store = self.create_store()
 
         foo = Foo()
         foo.title = u"Title 40"
@@ -2258,7 +2265,7 @@ class StoreTest(object):
 
         self.store.add(bar)
 
-        store = Store(self.database)
+        store = self.create_store()
         store.add(foo1)
 
         self.assertEquals(Store.of(bar), self.store)
@@ -2798,7 +2805,7 @@ class StoreTest(object):
 
         self.store.add(foo)
 
-        store = Store(self.database)
+        store = self.create_store()
         store.add(bar1)
 
         self.assertEquals(Store.of(foo), self.store)
