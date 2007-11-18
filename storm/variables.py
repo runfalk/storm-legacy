@@ -21,6 +21,7 @@
 from datetime import datetime, date, time, timedelta
 from decimal import Decimal
 import cPickle as pickle
+import re
 
 from storm.exceptions import NoneError
 from storm import Undef
@@ -459,15 +460,7 @@ class TimeDeltaVariable(Variable):
                 return value
             if not isinstance(value, (str, unicode)):
                 raise TypeError("Expected timedelta, found %s" % repr(value))
-            (years, months, days,
-             hours, minutes, seconds, microseconds) = _parse_interval(value)
-            if years != 0:
-                raise ValueError("Can not handle year intervals")
-            if months != 0:
-                raise ValueError("Can not handle month intervals")
-            return timedelta(days=days, hours=hours,
-                             minutes=minutes, seconds=seconds,
-                             microseconds=microseconds)
+            return _parse_interval(value)
         else:
             if not isinstance(value, timedelta):
                 raise TypeError("Expected timedelta, found %s" % repr(value))
@@ -580,9 +573,14 @@ class ListVariable(Variable):
 
 def _parse_time(time_str):
     # TODO Add support for timezones.
-    if ":" not in time_str:
+    colons = time_str.count(":")
+    if not 1 <= colons <= 2:
         raise ValueError("Unknown time format: %r" % time_str)
-    hour, minute, second = time_str.split(":")
+    if colons == 2:
+        hour, minute, second = time_str.split(":")
+    else:
+        hour, minute = time_str.split(":")
+        second = "0"
     if "." in second:
         second, microsecond = second.split(".")
         second = int(second)
@@ -596,61 +594,52 @@ def _parse_date(date_str):
     year, month, day = date_str.split("-")
     return int(year), int(month), int(day)
 
-# XXX: 20070208 jamesh
-# The function below comes from psycopgda.adapter, which is licensed
-# under the ZPL.  Depending on Storm licensing, we may need to replace
-# it.
-def _parse_interval(interval_str):
-    """Parses PostgreSQL interval notation and returns a tuple (years, months,
-    days, hours, minutes, seconds).
 
-    Values accepted::
-        interval  ::= date
-                   |  time
-                   |  date time
-        date      ::= date_comp
-                   |  date date_comp
-        date_comp ::= 1 'day'
-                   |  number 'days'
-                   |  1 'month'
-                   |  1 'mon'
-                   |  number 'months'
-                   |  number 'mons'
-                   |  1 'year'
-                   |  number 'years'
-        time      ::= number ':' number
-                   |  number ':' number ':' number
-                   |  number ':' number ':' number '.' fraction
-    """
-    years = months = days = 0
-    hours = minutes = seconds = microseconds = 0
-    elements = interval_str.split()
-    # Tests with 7.4.6 on Ubuntu 5.4 interval output returns 'mon' and 'mons'
-    # and not 'month' or 'months' as expected. I've fixed this and left
-    # the original matches there too in case this is dependant on
-    # OS or PostgreSQL release.
-    for i in range(0, len(elements) - 1, 2):
-        count, unit = elements[i:i+2]
-        if unit.endswith(','):
-            unit = unit[:-1]
-        if unit == 'day' and count == '1':
-            days += 1
-        elif unit == 'days':
-            days += int(count)
-        elif unit == 'month' and count == '1':
-            months += 1
-        elif unit == 'mon' and count == '1':
-            months += 1
-        elif unit == 'months':
-            months += int(count)
-        elif unit == 'mons':
-            months += int(count)
-        elif unit == 'year' and count == '1':
-            years += 1
-        elif unit == 'years':
-            years += int(count)
+def _parse_interval_table():
+    table = {}
+    for units, delta in (
+        ("d day days", timedelta),
+        ("h hour hours", lambda x: timedelta(hours=x)),
+        ("m min minute minutes", lambda x: timedelta(minutes=x)),
+        ("s sec second seconds", lambda x: timedelta(seconds=x)),
+        ("ms millisecond milliseconds", lambda x: timedelta(milliseconds=x)),
+        ("microsecond microseconds", lambda x: timedelta(microseconds=x))
+        ):
+        for unit in units.split():
+            table[unit] = delta
+    return table
+
+_parse_interval_re = re.compile(r"[\s,]*"
+                                r"([-+]?(?:\d\d?:\d\d?(?::\d\d?)?(?:\.\d+)?"
+                                r"|\d+(?:\.\d+)?))"
+                                r"[\s,]*")
+
+def _parse_interval(interval, _table=_parse_interval_table(),
+                    _re=_parse_interval_re):
+    result = timedelta(0)
+    value = None
+    for token in _re.split(interval):
+        if not token:
+            pass
+        elif ":" in token:
+            if value is not None:
+                result += timedelta(days=value)
+                value = None
+            h, m, s, ms = _parse_time(token)
+            result += timedelta(hours=h, minutes=m, seconds=s, microseconds=ms)
+        elif value is None:
+            try:
+                value = float(token)
+            except ValueError:
+                raise ValueError("Expected an interval value rather than "
+                                 "%r in interval %r" % (token, interval))
         else:
-            raise ValueError, 'unknown time interval %s %s' % (count, unit)
-    if len(elements) % 2 == 1:
-        hours, minutes, seconds, microseconds = _parse_time(elements[-1])
-    return (years, months, days, hours, minutes, seconds, microseconds)
+            unit = _table.get(token)
+            if unit is None:
+                raise ValueError("Unsupported interval unit %r in interval %r"
+                                 % (token, interval))
+            result += unit(value)
+            value = None
+    if value is not None:
+        result += timedelta(seconds=value)
+    return result

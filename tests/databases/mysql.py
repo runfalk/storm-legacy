@@ -46,7 +46,8 @@ class MySQLTest(DatabaseTest, TestHelper):
                                 " title VARCHAR(50)) ENGINE=InnoDB")
         self.connection.execute("CREATE TABLE datetime_test "
                                 "(id INT AUTO_INCREMENT PRIMARY KEY,"
-                                " dt TIMESTAMP, d DATE, t TIME) ENGINE=InnoDB")
+                                " dt TIMESTAMP, d DATE, t TIME, td TEXT) "
+                                "ENGINE=InnoDB")
         self.connection.execute("CREATE TABLE bin_test "
                                 "(id INT AUTO_INCREMENT PRIMARY KEY,"
                                 " b BLOB) ENGINE=InnoDB")

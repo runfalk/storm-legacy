@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from datetime import datetime, date, time
+from datetime import datetime, date, time, timedelta
 import cPickle as pickle
 import shutil
 import sys
@@ -28,8 +28,8 @@ import os
 from storm.uri import URI
 from storm.expr import Select, Column, Undef, SQLToken, SQLRaw, Count, Alias
 from storm.variables import (Variable, PickleVariable, RawStrVariable,
-                             DecimalVariable)
-from storm.variables import DateTimeVariable, DateVariable, TimeVariable
+                             DecimalVariable, DateTimeVariable, DateVariable,
+                             TimeVariable, TimeDeltaVariable)
 from storm.database import *
 from storm.exceptions import (
     DatabaseModuleError, DisconnectionError, OperationalError)
@@ -227,6 +227,15 @@ class DatabaseTest(object):
         result.set_variable(variable, result.get_one()[0])
         if not self.supports_microseconds:
             value = value.replace(microsecond=0)
+        self.assertEquals(variable.get(), value)
+
+    def test_timedelta(self):
+        value = timedelta(12, 34, 56)
+        self.connection.execute("INSERT INTO datetime_test (td) VALUES (?)",
+                                (value,))
+        result = self.connection.execute("SELECT td FROM datetime_test")
+        variable = TimeDeltaVariable()
+        result.set_variable(variable, result.get_one()[0])
         self.assertEquals(variable.get(), value)
 
     def test_pickle(self):

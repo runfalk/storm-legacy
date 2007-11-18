@@ -18,6 +18,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+from datetime import timedelta
 import time
 import os
 
@@ -47,7 +48,7 @@ class SQLiteMemoryTest(DatabaseTest, TestHelper):
                                 "(id INTEGER PRIMARY KEY, title VARCHAR)")
         self.connection.execute("CREATE TABLE datetime_test "
                                 "(id INTEGER PRIMARY KEY,"
-                                " dt TIMESTAMP, d DATE, t TIME)")
+                                " dt TIMESTAMP, d DATE, t TIME, td INTERVAL)")
         self.connection.execute("CREATE TABLE bin_test "
                                 "(id INTEGER PRIMARY KEY, b BLOB)")
 
