@@ -24,7 +24,6 @@ import cPickle as pickle
 
 from storm.exceptions import NoneError
 from storm.variables import *
-from storm.variables import _parse_interval
 from storm.event import EventSystem
 from storm.expr import Column, SQLToken
 from storm.tz import tzutc, tzoffset
@@ -642,7 +641,7 @@ class TimeDeltaVariableTest(TestHelper):
 class ParseIntervalTest(TestHelper):
 
     def check(self, interval, td):
-        self.assertEquals(_parse_interval(interval), td)
+        self.assertEquals(TimeDeltaVariable(interval, from_db=True).get(), td)
 
     def test_zero(self):
         self.check("0:00:00", timedelta(0))
