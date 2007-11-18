@@ -49,7 +49,7 @@ def find_tests(testpaths=()):
             relpath = filepath[len(topdir)+1:]
 
             if (filename == "__init__.py" or filename.endswith(".pyc") or
-                relpath == "tests/conftest.py"):
+                relpath == os.path.join("tests", "conftest.py")):
                 # Skip non-tests.
                 continue
 
@@ -63,7 +63,7 @@ def find_tests(testpaths=()):
 
             if filename.endswith(".py"):
                 unittests.append(relpath)
-            elif relpath == "tests/zope/README.txt":
+            elif relpath == os.path.join("tests", "zope", "README.txt"):
                 # Special case the inclusion of the Zope-dependent
                 # ZStorm doctest.
                 from tests.zope.zstorm import has_zope
@@ -141,7 +141,7 @@ def test_with_unittest():
         print "Running unittests..."
         for relpath in unittests:
             print "[%s]" % relpath
-            modpath = relpath.replace('/', '.')[:-3]
+            modpath = relpath.replace(os.path.sep, '.')[:-3]
             module = __import__(modpath, None, None, [""])
             test = loader.loadTestsFromModule(module)
             result = runner.run(test)

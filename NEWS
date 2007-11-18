@@ -32,6 +32,8 @@ Bug fixes
    "SELECT ... WHERE table.id = currval(...)" is executed in
    PostgreSQL.  The change is only meaningful on PostgreSQL < 8.2,
    as newer versions will use the RETURNING extension instead.
+ - Test runner handles path correctly on Windows (patch by
+   Ali Afshar).
 
 
 0.11 (2007-10-08)
