@@ -37,7 +37,7 @@ from storm.exceptions import (
     WrongStoreError, NotFlushedError, OrderLoopError, UnorderedError,
     NotOneError, FeatureError, CompileError, LostObjectError, ClassInfoError)
 from storm import Undef
-
+from storm.cache import Cache
 
 __all__ = ["Store", "AutoReload", "EmptyResultSet"]
 
@@ -67,6 +67,7 @@ class Store(object):
         self._alive = WeakValueDictionary()
         self._dirty = {}
         self._order = {} # (info, info) = count
+        self._cache = Cache(100)
 
     @staticmethod
     def of(obj):
@@ -122,7 +123,7 @@ class Store(object):
     def get(self, cls, key):
         """Get object of type cls with the given primary key from the database.
 
-        If the object is cached the database won't be touched.
+        If the object is alive the database won't be touched.
 
         @param cls: Class of the object to be retrieved.
         @param key: Primary key of object. May be a tuple for composed keys.
@@ -164,7 +165,8 @@ class Store(object):
         values = result.get_one()
         if values is None:
             return None
-        return self._load_object(cls_info, result, values)
+        res = self._load_object(cls_info, result, values)
+        return res
 
     def find(self, cls_spec, *args, **kwargs):
         """Perform a query.
@@ -324,6 +326,10 @@ class Store(object):
         automatically invalidates all cached objects on transaction
         boundaries.
         """
+        if obj is None:
+            self._cache.clear()
+        else:
+            self._cache.remove(get_obj_info(obj))
         self._mark_autoreload(obj, True)
 
     def _mark_autoreload(self, obj=None, invalidate=False):
@@ -725,6 +731,8 @@ class Store(object):
                                  for variable in obj_info.primary_vars)
         self._alive[cls_info.cls, new_primary_vars] = obj_info
         obj_info["primary_vars"] = new_primary_vars
+        self._cache.add(obj_info)
+
 
     def _remove_from_alive(self, obj_info):
         """Remove an object from the cache.
@@ -737,6 +745,7 @@ class Store(object):
         if primary_vars is not None:
             del self._alive[obj_info.cls_info.cls, primary_vars]
             del obj_info["primary_vars"]
+            self._cache.remove(obj_info)
 
     def _iter_alive(self):
         return self._alive.values()

@@ -133,57 +133,6 @@ u'Joe Johnes'
 }}}
 
 
-==== Caching behavior ====
-
-One interesting thing is that this person is actually Joe, right? We've
-just added this object, so there's only one Joe, why would there be
-two different objects?  There isn't.
-
-{{{#!python
->>> person is joe
-True
-
-}}}
-
-What's going on behind the scenes is that each store has an object
-cache. When an object is linked to a store, it will be cached by
-the store for as long as there's a reference to the object somewhere,
-or while the object is dirty (has unflushed changes).
-
-Let's try to show that this is the case in practice.
-
-{{{#!python
->>> del person
->>> joe.tainted = True
->>> joe.tainted
-True
-
->>> joe = store.get(Person, 1)
->>> joe.tainted
-True
-
-}}}
-
-Now, let's get rid of the last reference, and see if it's still tainted.
-
-{{{#!python
->>> del joe
->>> import gc
->>> collected = gc.collect()
->>> joe = store.get(Person, 1)
->>> joe.tainted
-Traceback (most recent call last):
-...
-AttributeError: 'Person' object has no attribute 'tainted'
-
->>> print "%r, %r" % (joe.id, joe.name)
-1, u'Joe Johnes'
-
-}}}
-
-So, basically the last reference disapeared, and the object got
-deallocated, so the store has loaded the object again for us.
-
 ==== Flushing ====
 
 When we tried to find Joe in the database for the first time, we've
@@ -767,7 +716,9 @@ Creating Earl Easton
 
 >>> earl = store.find(PersonWithHook, name=u"Earl Easton").one()
 
+>>> store.invalidate(earl)
 >>> del earl
+>>> import gc
 >>> collected = gc.collect()
 
 >>> earl = store.find(PersonWithHook, name=u"Earl Easton").one()

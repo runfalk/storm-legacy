@@ -243,6 +243,9 @@ class StoreTest(object):
         self.store._connection = connection
 
     def test_alive_cleanup(self):
+        # at first we have to disable the cache, which holds strong
+        # references.
+        self.store._cache.set_size(0)
         foo = self.store.get(Foo, 10)
         foo.taint = True
 
@@ -283,6 +286,10 @@ class StoreTest(object):
     def test_obj_info_with_deleted_object(self):
         # Let's try to put Storm in trouble by killing the object
         # while still holding a reference to the obj_info.
+
+        # at first we have to disable the cache, which holds strong
+        # references.
+        self.store._cache.set_size(0)
         class MyFoo(Foo):
             loaded = False
             def __storm_loaded__(self):
@@ -306,6 +313,11 @@ class StoreTest(object):
 
     def test_obj_info_with_deleted_object_with_get(self):
         # Same thing, but using get rather than find.
+
+        # at first we have to disable the cache, which holds strong
+        # references.
+        self.store._cache.set_size(0)
+
         foo = self.store.get(Foo, 20)
         foo.tainted = True
         obj_info = get_obj_info(foo)
@@ -755,6 +767,10 @@ class StoreTest(object):
         self.assertEquals(self.store.find(Foo, title=u"Title 20").alive(), [])
 
     def test_find_alive_with_info_alive_and_object_dead(self):
+        # at first we have to disable the cache, which holds strong
+        # references.
+        self.store._cache.set_size(0)
+
         foo = self.store.get(Foo, 20)
         foo.tainted = True
         obj_info = get_obj_info(foo)
@@ -1864,6 +1880,10 @@ class StoreTest(object):
         self.assertEquals(bar.title, "Title 500")
 
     def test_find_set_with_info_alive_and_object_dead(self):
+        # at first we have to disable the cache, which holds strong
+        # references.
+        self.store._cache.set_size(0)
+
         foo = self.store.get(Foo, 20)
         foo.tainted = True
         obj_info = get_obj_info(foo)
