@@ -64,7 +64,7 @@ class Store(object):
         @param database: The L{storm.database.Database} instance to use.
         """
         self._connection = database.connect()
-        self._active = WeakValueDictionary()
+        self._alive = WeakValueDictionary()
         self._dirty = {}
         self._order = {} # (info, info) = count
 
@@ -146,7 +146,7 @@ class Store(object):
                 variable = column.variable_factory(value=variable)
             primary_vars.append(variable)
 
-        obj_info = self._active.get((cls_info.cls, tuple(primary_vars)))
+        obj_info = self._alive.get((cls_info.cls, tuple(primary_vars)))
         if obj_info is not None:
             if obj_info.get("invalidated"):
                 try:
@@ -634,7 +634,7 @@ class Store(object):
             return None
 
         # Lookup cache.
-        obj_info = self._active.get((cls, tuple(primary_vars)))
+        obj_info = self._alive.get((cls, tuple(primary_vars)))
 
         if obj_info is not None:
             # Found object in cache, and it must be valid since the
@@ -720,10 +720,10 @@ class Store(object):
         cls_info = obj_info.cls_info
         old_primary_vars = obj_info.get("primary_vars")
         if old_primary_vars is not None:
-            self._active.pop((cls_info.cls, old_primary_vars), None)
+            self._alive.pop((cls_info.cls, old_primary_vars), None)
         new_primary_vars = tuple(variable.copy()
                                  for variable in obj_info.primary_vars)
-        self._active[cls_info.cls, new_primary_vars] = obj_info
+        self._alive[cls_info.cls, new_primary_vars] = obj_info
         obj_info["primary_vars"] = new_primary_vars
 
     def _remove_from_cache(self, obj_info):
@@ -735,11 +735,11 @@ class Store(object):
         """
         primary_vars = obj_info.get("primary_vars")
         if primary_vars is not None:
-            del self._active[obj_info.cls_info.cls, primary_vars]
+            del self._alive[obj_info.cls_info.cls, primary_vars]
             del obj_info["primary_vars"]
 
     def _iter_cached(self):
-        return self._active.values()
+        return self._alive.values()
 
 
     def _enable_change_notification(self, obj_info):
