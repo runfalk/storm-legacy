@@ -150,7 +150,7 @@ class Store(object):
         if obj_info is not None:
             if obj_info.get("invalidated"):
                 try:
-                    self._validate_cache(obj_info)
+                    self._validate_alive(obj_info)
                 except LostObjectError:
                     return None
             return self._get_object(obj_info)
@@ -328,7 +328,7 @@ class Store(object):
 
     def _mark_autoreload(self, obj=None, invalidate=False):
         if obj is None:
-            obj_infos = self._iter_cached()
+            obj_infos = self._iter_alive()
         else:
             obj_infos = (get_obj_info(obj),)
         for obj_info in obj_infos:
@@ -399,7 +399,7 @@ class Store(object):
         normal flushing times are insufficient, such as when you want to
         make sure a database trigger gets run at a particular time.
         """
-        for obj_info in self._iter_cached():
+        for obj_info in self._iter_alive():
             obj_info.event.emit("flush")
 
         # The _dirty list may change under us while we're running
@@ -452,7 +452,7 @@ class Store(object):
             obj_info.pop("invalidated", None)
 
             self._disable_change_notification(obj_info)
-            self._remove_from_cache(obj_info)
+            self._remove_from_alive(obj_info)
             del obj_info["store"]
 
         elif pending is PENDING_ADD:
@@ -476,7 +476,7 @@ class Store(object):
             self._fill_missing_values(obj_info, obj_info.primary_vars, result)
 
             self._enable_change_notification(obj_info)
-            self._add_to_cache(obj_info)
+            self._add_to_alive(obj_info)
 
             obj_info.checkpoint()
 
@@ -496,7 +496,7 @@ class Store(object):
 
                 self._fill_missing_values(obj_info, obj_info.primary_vars)
 
-                self._add_to_cache(obj_info)
+                self._add_to_alive(obj_info)
 
 
             obj_info.checkpoint()
@@ -587,7 +587,7 @@ class Store(object):
             self._set_values(obj_info, missing_columns,
                              result, result.get_one())
 
-    def _validate_cache(self, obj_info):
+    def _validate_alive(self, obj_info):
         """Perform cache validation for the given obj_info."""
         where = compare_columns(obj_info.cls_info.primary_key,
                                 obj_info["primary_vars"])
@@ -655,7 +655,7 @@ class Store(object):
 
             obj_info.checkpoint()
 
-            self._add_to_cache(obj_info)
+            self._add_to_alive(obj_info)
             self._enable_change_notification(obj_info)
             self._enable_lazy_resolving(obj_info)
 
@@ -705,7 +705,7 @@ class Store(object):
         return self._dirty
 
 
-    def _add_to_cache(self, obj_info):
+    def _add_to_alive(self, obj_info):
         """Add an object to the cache, keyed on primary key variables.
 
         When an object is added to the cache, the key is built from
@@ -726,7 +726,7 @@ class Store(object):
         self._alive[cls_info.cls, new_primary_vars] = obj_info
         obj_info["primary_vars"] = new_primary_vars
 
-    def _remove_from_cache(self, obj_info):
+    def _remove_from_alive(self, obj_info):
         """Remove an object from the cache.
 
         This method is only called for objects that were explicitly
@@ -738,7 +738,7 @@ class Store(object):
             del self._alive[obj_info.cls_info.cls, primary_vars]
             del obj_info["primary_vars"]
 
-    def _iter_cached(self):
+    def _iter_alive(self):
         return self._alive.values()
 
 
@@ -756,10 +756,10 @@ class Store(object):
         if not fromdb:
             if new_value is not Undef and new_value is not AutoReload:
                 if obj_info.get("invalidated"):
-                    # This might be a previously cached object being
+                    # This might be a previously alive object being
                     # updated.  Let's validate it now to improve debugging.
                     # This will raise LostObjectError if the object is gone.
-                    self._validate_cache(obj_info)
+                    self._validate_alive(obj_info)
                 self._set_dirty(obj_info)
 
 
@@ -1149,9 +1149,9 @@ class ResultSet(object):
         self._store.execute(expr, noresult=True)
 
         try:
-            cached = self.cached()
+            cached = self.alive()
         except CompileError:
-            for obj_info in self._store._iter_cached():
+            for obj_info in self._store._iter_alive():
                 for column in changes:
                     obj_info.variables[column].set(AutoReload)
         else:
@@ -1168,12 +1168,13 @@ class ResultSet(object):
                     variables[column].set(value)
                     variables[column].checkpoint()
 
-    def cached(self):
-        """Return matching objects from the cache for the current query."""
+    def alive(self):
+        """Return matching objects from the alive store for the
+        current query."""
         if type(self._cls_spec_info) is tuple:
-            raise FeatureError("Cached finds not supported with tuples")
+            raise FeatureError("Alive finds not supported with tuples")
         if self._tables is not Undef:
-            raise FeatureError("Cached finds not supported with custom tables")
+            raise FeatureError("Alive finds not supported with custom tables")
         if self._where is Undef:
             match = None
         else:
@@ -1184,7 +1185,7 @@ class ResultSet(object):
                 return obj_info.variables[name_to_column[name]].get()
         objects = []
         cls = self._cls_spec_info.cls
-        for obj_info in self._store._iter_cached():
+        for obj_info in self._store._iter_alive():
             try:
                 if (obj_info.cls_info is self._cls_spec_info and
                     (match is None or match(get_column))):
@@ -1314,7 +1315,7 @@ class EmptyResultSet(object):
     def set(self, *args, **kwargs):
         pass
 
-    def cached(self):
+    def alive(self):
         return []
 
     def union(self, other):

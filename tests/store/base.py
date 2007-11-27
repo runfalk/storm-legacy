@@ -118,7 +118,7 @@ class StoreTest(object):
         self.create_tables()
         self.create_sample_data()
         self.create_store()
-    
+
     def tearDown(self):
         self.drop_store()
         self.drop_sample_data()
@@ -198,7 +198,7 @@ class StoreTest(object):
         result = self.store.execute("SELECT 1")
         self.assertTrue(isinstance(result, Result))
         self.assertEquals(result.get_one(), (1,))
-        
+
         result = self.store.execute("SELECT 1", noresult=True)
         self.assertEquals(result, None)
 
@@ -231,18 +231,18 @@ class StoreTest(object):
         foo = self.store.get(Foo, 40)
         self.assertEquals(foo, None)
 
-    def test_get_cached(self):
+    def test_get_alive(self):
         foo = self.store.get(Foo, 10)
         self.assertTrue(self.store.get(Foo, 10) is foo)
 
-    def test_wb_get_cached_doesnt_need_connection(self):
+    def test_wb_get_alive_doesnt_need_connection(self):
         foo = self.store.get(Foo, 10)
         connection = self.store._connection
         self.store._connection = None
         self.store.get(Foo, 10)
         self.store._connection = connection
 
-    def test_cache_cleanup(self):
+    def test_alive_cleanup(self):
         foo = self.store.get(Foo, 10)
         foo.taint = True
 
@@ -294,7 +294,7 @@ class StoreTest(object):
 
         del foo
         gc.collect()
-        
+
         self.assertEquals(obj_info.get_obj(), None)
 
         foo = self.store.find(MyFoo, id=20).one()
@@ -312,7 +312,7 @@ class StoreTest(object):
 
         del foo
         gc.collect()
-        
+
         self.assertEquals(obj_info.get_obj(), None)
 
         foo = self.store.get(Foo, 20)
@@ -328,7 +328,7 @@ class StoreTest(object):
 
         del foo
         gc.collect()
-        
+
         self.assertTrue(obj_info.get_obj())
 
     def test_get_tuple(self):
@@ -358,7 +358,7 @@ class StoreTest(object):
                           (30, "Title 10"),
                          ])
 
-    def test_find_from_cache(self):
+    def test_find_from_alive(self):
         foo = self.store.get(Foo, 10)
         self.assertTrue(self.store.find(Foo, id=10).one() is foo)
 
@@ -502,7 +502,7 @@ class StoreTest(object):
     def test_find_slice_offset(self):
         result = self.store.find(Foo).order_by(Foo.title)[1:]
         lst = [(foo.id, foo.title) for foo in result]
-        self.assertEquals(lst, 
+        self.assertEquals(lst,
                           [(20, "Title 20"),
                            (10, "Title 30")])
 
@@ -529,7 +529,7 @@ class StoreTest(object):
     def test_find_slice_limit(self):
         result = self.store.find(Foo).order_by(Foo.title)[:2]
         lst = [(foo.id, foo.title) for foo in result]
-        self.assertEquals(lst, 
+        self.assertEquals(lst,
                           [(30, "Title 10"),
                            (20, "Title 20")])
 
@@ -724,44 +724,44 @@ class StoreTest(object):
                           (30, "Title 10"),
                          ])
 
-    def test_find_cached(self):
+    def test_find_alive(self):
         foo = self.store.get(Foo, 20)
         bar = self.store.get(Bar, 200)
         self.assertTrue(foo)
         self.assertTrue(bar)
-        self.assertEquals(self.store.find(Foo).cached(), [foo])
+        self.assertEquals(self.store.find(Foo).alive(), [foo])
 
-    def test_find_cached_where(self):
+    def test_find_alive_where(self):
         foo1 = self.store.get(Foo, 10)
         foo2 = self.store.get(Foo, 20)
         bar = self.store.get(Bar, 200)
         self.assertTrue(foo1)
         self.assertTrue(foo2)
         self.assertTrue(bar)
-        self.assertEquals(self.store.find(Foo, title=u"Title 20").cached(),
+        self.assertEquals(self.store.find(Foo, title=u"Title 20").alive(),
                           [foo2])
 
-    def test_find_cached_invalidated(self):
+    def test_find_alive_invalidated(self):
         foo = self.store.get(Foo, 20)
         self.store.invalidate(foo)
-        self.assertEquals(self.store.find(Foo).cached(), [foo])
+        self.assertEquals(self.store.find(Foo).alive(), [foo])
 
-    def test_find_cached_invalidated_and_deleted(self):
+    def test_find_alive_invalidated_and_deleted(self):
         foo = self.store.get(Foo, 20)
         self.store.execute("DELETE FROM foo WHERE id=20")
         self.store.invalidate(foo)
         # Do not look for the primary key (id), since it's able to get
         # it without touching the database. Use the title instead.
-        self.assertEquals(self.store.find(Foo, title=u"Title 20").cached(), [])
+        self.assertEquals(self.store.find(Foo, title=u"Title 20").alive(), [])
 
-    def test_find_cached_with_info_alive_and_object_dead(self):
+    def test_find_alive_with_info_alive_and_object_dead(self):
         foo = self.store.get(Foo, 20)
         foo.tainted = True
         obj_info = get_obj_info(foo)
         del foo
         gc.collect()
-        cached = self.store.find(Foo).cached()
-        self.assertEquals(len(cached), 1)
+        alive = self.store.find(Foo).alive()
+        self.assertEquals(len(alive), 1)
         foo = self.store.get(Foo, 20)
         self.assertFalse(hasattr(foo, "tainted"))
 
@@ -908,13 +908,13 @@ class StoreTest(object):
         self.assertRaises(FeatureError,
                           self.store.find, (Foo, Bar), title=u"Title 10")
 
-    def test_find_tuple_cached(self):
+    def test_find_tuple_alive(self):
         result = self.store.find((Foo, Bar))
-        self.assertRaises(FeatureError, result.cached)
+        self.assertRaises(FeatureError, result.alive)
 
-    def test_find_using_cached(self):
+    def test_find_using_alive(self):
         result = self.store.using(Foo, Bar).find(Foo)
-        self.assertRaises(FeatureError, result.cached)
+        self.assertRaises(FeatureError, result.alive)
 
     def test_add_commit(self):
         foo = Foo()
@@ -1065,7 +1065,7 @@ class StoreTest(object):
 
         self.store.remove(foo)
         self.store.rollback()
-        
+
         foo.title = u"Title 200"
 
         self.store.flush()
@@ -1098,7 +1098,7 @@ class StoreTest(object):
 
         self.store.remove(foo)
         self.store.add(foo)
-        
+
         foo.title = u"Title 200"
 
         self.store.flush()
@@ -1115,7 +1115,7 @@ class StoreTest(object):
         self.store.remove(foo)
         self.store.flush()
         self.store.add(foo)
-        
+
         foo.title = u"Title 200"
 
         self.store.flush()
@@ -1144,7 +1144,7 @@ class StoreTest(object):
         obj_info = get_obj_info(foo)
         self.store.remove(foo)
         self.store.flush()
-        
+
         foo.title = u"Title 200"
 
         self.assertTrue(obj_info not in self.store._dirty)
@@ -1271,7 +1271,7 @@ class StoreTest(object):
 
         # Update twice to see if the notion of primary key for the
         # existent object was updated as well.
-        
+
         foo.id = 27
 
         self.store.commit()
@@ -1333,7 +1333,7 @@ class StoreTest(object):
     def test_update_find(self):
         foo = self.store.get(Foo, 20)
         foo.title = u"Title 200"
-        
+
         result = self.store.find(Foo, Foo.title == u"Title 200")
 
         self.assertTrue(result.one() is foo)
@@ -1523,7 +1523,7 @@ class StoreTest(object):
         self.assertEquals(foo.id, 20)
         self.assertEquals(foo.title, "Title 20")
 
-    def test_cache_has_improper_object(self):
+    def test_alive_has_improper_object(self):
         foo = self.store.get(Foo, 20)
         self.store.remove(foo)
         self.store.commit()
@@ -1532,7 +1532,7 @@ class StoreTest(object):
 
         self.assertTrue(self.store.get(Foo, 20) is not foo)
 
-    def test_cache_has_improper_object_readded(self):
+    def test_alive_has_improper_object_readded(self):
         foo = self.store.get(Foo, 20)
         self.store.remove(foo)
 
@@ -1798,25 +1798,25 @@ class StoreTest(object):
         self.assertEquals(bar.id, 200)
         self.assertEquals(bar.foo_id, 200)
 
-    def test_find_set_on_cached(self):
+    def test_find_set_on_alive(self):
         foo1 = self.store.get(Foo, 20)
         foo2 = self.store.get(Foo, 30)
         self.store.find(Foo, id=20).set(id=40)
         self.assertEquals(foo1.id, 40)
         self.assertEquals(foo2.id, 30)
 
-    def test_find_set_expr_on_cached(self):
+    def test_find_set_expr_on_alive(self):
         bar = self.store.get(Bar, 200)
         self.store.find(Bar, id=200).set(Bar.foo_id == Bar.id)
         self.assertEquals(bar.id, 200)
         self.assertEquals(bar.foo_id, 200)
 
-    def test_find_set_none_on_cached(self):
+    def test_find_set_none_on_alive(self):
         foo = self.store.get(Foo, 20)
         self.store.find(Foo, title=u"Title 20").set(title=None)
         self.assertEquals(foo.title, None)
 
-    def test_find_set_on_cached_but_removed(self):
+    def test_find_set_on_alive_but_removed(self):
         foo1 = self.store.get(Foo, 20)
         foo2 = self.store.get(Foo, 30)
         self.store.remove(foo1)
@@ -1824,7 +1824,7 @@ class StoreTest(object):
         self.assertEquals(foo1.id, 20)
         self.assertEquals(foo2.id, 30)
 
-    def test_find_set_on_cached_unsupported_python_expr(self):
+    def test_find_set_on_alive_unsupported_python_expr(self):
         foo1 = self.store.get(Foo, 20)
         foo2 = self.store.get(Foo, 30)
         self.store.find(Foo, Foo.id == Select(SQL("20"))).set(title=u"Title 40")
@@ -2558,7 +2558,7 @@ class StoreTest(object):
         # Object wasn't removed.
         self.assertTrue(self.store.get(Bar, 200))
 
-    def test_reference_set_clear_cached(self):
+    def test_reference_set_clear_alive(self):
         foo = self.store.get(FooRefSet, 20)
         bar = self.store.get(Bar, 200)
         self.assertEquals(bar.foo_id, 20)
@@ -2822,7 +2822,7 @@ class StoreTest(object):
                           (200, 20, "Title 200"),
                           (400, 20, "Title 100"),
                          ])
-        
+
 
     def test_indirect_reference_set(self):
         foo = self.store.get(FooIndRefSet, 20)
@@ -3444,7 +3444,7 @@ class StoreTest(object):
         self.store.flush()
         self.assertEquals(self.store.get(Foo, 20), None)
 
-    def test_rollback_loaded_and_still_in_cached(self):
+    def test_rollback_loaded_and_still_in_alive(self):
         # Explore problem found on interaction between caching, commits,
         # and rollbacks, when they still existed.
         foo1 = self.store.get(Foo, 20)
@@ -3534,7 +3534,7 @@ class StoreTest(object):
         foo = Foo()
         foo.id = 40
         foo.title = SQL("'New title'")
-        
+
         self.store.add(foo)
 
         # No commits yet.
@@ -3558,7 +3558,7 @@ class StoreTest(object):
     def test_expr_values_flush_on_demand_with_removed_and_added(self):
         foo = self.store.get(Foo, 20)
         foo.title = SQL("'New title'")
-        
+
         self.store.remove(foo)
         self.store.add(foo)
 
@@ -3581,7 +3581,7 @@ class StoreTest(object):
 
     def test_expr_values_flush_on_demand_with_removed_and_rollbacked(self):
         foo = self.store.get(Foo, 20)
-        
+
         self.store.remove(foo)
         self.store.rollback()
 
@@ -3793,7 +3793,7 @@ class StoreTest(object):
         self.store.invalidate(foo)
         self.assertEquals(self.store.find(Foo, id=20).one(), foo)
 
-        # Cache should be considered valid again at this point.
+        # Alive should be considered valid again at this point.
         self.store.execute("DELETE FROM foo WHERE id=20")
         self.assertEquals(self.store.get(Foo, 20), foo)
 
@@ -3821,8 +3821,8 @@ class StoreTest(object):
         foo.title = u"Title 40"
         self.store.flush()
 
-        # Object must have a valid cache at this point, since it was
-        # just added.
+        # Object must have a valid alive cache at this point, since it
+        # was just added.
         self.store.execute("DELETE FROM foo WHERE id=40")
         self.assertEquals(self.store.get(Foo, 40), foo)
 
@@ -3855,7 +3855,7 @@ class StoreTest(object):
     def test_invalidated_hook_called_after_all_invalidated(self):
         """
         Ensure that invalidated hooks are called only when all objects have
-        already been marked as invalidated. See comment in 
+        already been marked as invalidated. See comment in
         store.py:_mark_autoreload.
         """
         called = []
@@ -4153,7 +4153,7 @@ class EmptyResultSetTest(object):
         self.create_store()
         self.empty = EmptyResultSet()
         self.result = self.store.find(Foo)
-        
+
     def tearDown(self):
         self.drop_store()
         self.drop_tables()
@@ -4205,7 +4205,7 @@ class EmptyResultSetTest(object):
 
     def test_any(self):
         self.assertEquals(self.result.any(), None)
-        self.assertEquals(self.empty.any(), None)        
+        self.assertEquals(self.empty.any(), None)
 
     def test_first_unordered(self):
         self.assertRaises(UnorderedError, self.result.first)
@@ -4271,11 +4271,11 @@ class EmptyResultSetTest(object):
 
     def test_set_no_args(self):
         self.assertEquals(self.result.set(), None)
-        self.assertEquals(self.empty.set(), None)        
+        self.assertEquals(self.empty.set(), None)
 
-    def test_cached(self):
-        self.assertEquals(self.result.cached(), [])
-        self.assertEquals(self.empty.cached(), [])
+    def test_alive(self):
+        self.assertEquals(self.result.alive(), [])
+        self.assertEquals(self.empty.alive(), [])
 
     def test_union(self):
         self.assertEquals(self.empty.union(self.empty), self.empty)
