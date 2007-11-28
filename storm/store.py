@@ -165,8 +165,7 @@ class Store(object):
         values = result.get_one()
         if values is None:
             return None
-        res = self._load_object(cls_info, result, values)
-        return res
+        return self._load_object(cls_info, result, values)
 
     def find(self, cls_spec, *args, **kwargs):
         """Perform a query.
@@ -743,9 +742,9 @@ class Store(object):
         """
         primary_vars = obj_info.get("primary_vars")
         if primary_vars is not None:
+            self._cache.remove(obj_info)
             del self._alive[obj_info.cls_info.cls, primary_vars]
             del obj_info["primary_vars"]
-            self._cache.remove(obj_info)
 
     def _iter_alive(self):
         return self._alive.values()
@@ -1158,7 +1157,7 @@ class ResultSet(object):
         self._store.execute(expr, noresult=True)
 
         try:
-            cached = self.alive()
+            cached = self.cached()
         except CompileError:
             for obj_info in self._store._iter_alive():
                 for column in changes:
@@ -1177,8 +1176,8 @@ class ResultSet(object):
                     variables[column].set(value)
                     variables[column].checkpoint()
 
-    def alive(self):
-        """Return matching objects from the alive store for the
+    def cached(self):
+        """Return matching objects from the cache for the
         current query."""
         if type(self._cls_spec_info) is tuple:
             raise FeatureError("Alive finds not supported with tuples")
@@ -1324,7 +1323,7 @@ class EmptyResultSet(object):
     def set(self, *args, **kwargs):
         pass
 
-    def alive(self):
+    def cached(self):
         return []
 
     def union(self, other):

@@ -42,14 +42,14 @@ class Cache(object):
         old_size = self.max_size
         self.max_size = size
         if old_size<=size:
-            # size is bigger so nothing to delete
+            # shortcut: size is bigger so nothing to delete
             return
         if self.max_size==0:
             # shortcut for zero entries
             self.clear()
             return
         # remove all entries above max_size
-        while len(self._infos)>self.max_size:
+        while len(self._infos)>size:
             del self._objs[self._infos.pop()]
 
     def get_stats(self):
