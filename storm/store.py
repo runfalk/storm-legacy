@@ -644,6 +644,8 @@ class Store(object):
             # We're not sure if the obj is still in memory at this
             # point.  This will rebuild it if needed.
             obj = self._get_object(obj_info)
+            self._set_values(obj_info, cls_info.columns, result,
+                             values, keep_defined=True)
         else:
             # Nothing found in the cache. Build everything from the ground.
             obj = cls.__new__(cls)
@@ -680,16 +682,19 @@ class Store(object):
         if func is not None:
             func()
 
-    def _set_values(self, obj_info, columns, result, values):
+    def _set_values(self, obj_info, columns, result, values, keep_defined=False):
         if values is None:
             raise LostObjectError("Can't obtain values from the database "
                                   "(object got removed?)")
         obj_info.pop("invalidated", None)
         for column, value in zip(columns, values):
-            if value is None:
-                obj_info.variables[column].set(value, from_db=True)
+            variable = obj_info.variables[column]
+            if keep_defined and variable.is_defined():
+                continue
+            elif value is None:
+                variable.set(value, from_db=True)
             else:
-                result.set_variable(obj_info.variables[column], value)
+                result.set_variable(variable, value)
 
 
     def _is_dirty(self, obj_info):

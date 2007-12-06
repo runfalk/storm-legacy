@@ -118,7 +118,7 @@ class StoreTest(object):
         self.create_tables()
         self.create_sample_data()
         self.create_store()
-    
+
     def tearDown(self):
         self.drop_store()
         self.drop_sample_data()
@@ -198,7 +198,7 @@ class StoreTest(object):
         result = self.store.execute("SELECT 1")
         self.assertTrue(isinstance(result, Result))
         self.assertEquals(result.get_one(), (1,))
-        
+
         result = self.store.execute("SELECT 1", noresult=True)
         self.assertEquals(result, None)
 
@@ -294,7 +294,7 @@ class StoreTest(object):
 
         del foo
         gc.collect()
-        
+
         self.assertEquals(obj_info.get_obj(), None)
 
         foo = self.store.find(MyFoo, id=20).one()
@@ -312,7 +312,7 @@ class StoreTest(object):
 
         del foo
         gc.collect()
-        
+
         self.assertEquals(obj_info.get_obj(), None)
 
         foo = self.store.get(Foo, 20)
@@ -328,7 +328,7 @@ class StoreTest(object):
 
         del foo
         gc.collect()
-        
+
         self.assertTrue(obj_info.get_obj())
 
     def test_get_tuple(self):
@@ -502,7 +502,7 @@ class StoreTest(object):
     def test_find_slice_offset(self):
         result = self.store.find(Foo).order_by(Foo.title)[1:]
         lst = [(foo.id, foo.title) for foo in result]
-        self.assertEquals(lst, 
+        self.assertEquals(lst,
                           [(20, "Title 20"),
                            (10, "Title 30")])
 
@@ -529,7 +529,7 @@ class StoreTest(object):
     def test_find_slice_limit(self):
         result = self.store.find(Foo).order_by(Foo.title)[:2]
         lst = [(foo.id, foo.title) for foo in result]
-        self.assertEquals(lst, 
+        self.assertEquals(lst,
                           [(30, "Title 10"),
                            (20, "Title 20")])
 
@@ -1065,7 +1065,7 @@ class StoreTest(object):
 
         self.store.remove(foo)
         self.store.rollback()
-        
+
         foo.title = u"Title 200"
 
         self.store.flush()
@@ -1098,7 +1098,7 @@ class StoreTest(object):
 
         self.store.remove(foo)
         self.store.add(foo)
-        
+
         foo.title = u"Title 200"
 
         self.store.flush()
@@ -1115,7 +1115,7 @@ class StoreTest(object):
         self.store.remove(foo)
         self.store.flush()
         self.store.add(foo)
-        
+
         foo.title = u"Title 200"
 
         self.store.flush()
@@ -1144,7 +1144,7 @@ class StoreTest(object):
         obj_info = get_obj_info(foo)
         self.store.remove(foo)
         self.store.flush()
-        
+
         foo.title = u"Title 200"
 
         self.assertTrue(obj_info not in self.store._dirty)
@@ -1271,7 +1271,7 @@ class StoreTest(object):
 
         # Update twice to see if the notion of primary key for the
         # existent object was updated as well.
-        
+
         foo.id = 27
 
         self.store.commit()
@@ -1333,7 +1333,7 @@ class StoreTest(object):
     def test_update_find(self):
         foo = self.store.get(Foo, 20)
         foo.title = u"Title 200"
-        
+
         result = self.store.find(Foo, Foo.title == u"Title 200")
 
         self.assertTrue(result.one() is foo)
@@ -2822,7 +2822,7 @@ class StoreTest(object):
                           (200, 20, "Title 200"),
                           (400, 20, "Title 100"),
                          ])
-        
+
 
     def test_indirect_reference_set(self):
         foo = self.store.get(FooIndRefSet, 20)
@@ -3398,6 +3398,43 @@ class StoreTest(object):
         self.store.reload(blob)
         self.assertEquals(blob.bin, "\x80\x02}q\x01(U\x01aK\x01U\x01bK\x02u.")
 
+    def test_variable_not_override_on_find(self):
+        """make sure that a find operation does not set already
+        defined variables"""
+        blob = self.store.get(Blob, 20)
+        blob.bin = "\x80\x02}q\x01U\x01aK\x01s."
+        self.store.commit()
+        del blob
+        gc.collect()
+        class PBlob(object):
+            __storm_table__ = "bin"
+            id = Int(primary=True)
+            pickle = Pickle('bin')
+        blob = self.store.get(PBlob, 20)
+        value = blob.pickle
+        # now the find should not destroy our value pointer
+        [b for b in self.store.find(PBlob, id=20)]
+        blob = self.store.get(PBlob, 20)
+        assert(value is blob.pickle)
+
+
+    def test_no_refetch_on_find(self):
+        # we do a first find to get the object_infos into the cache
+        for foo in self.store.find(Foo, title=u'Title 20'):
+            pass
+        # commit and still reference foo
+        self.store.commit()
+        # another find with filled cache
+        for foo in self.store.find(Foo, title=u'Title 20'):
+            # make sure we have all variables defined, because the
+            # values are already retrieved by the find's select, we
+            # have to prevent an unneeded select.
+            oi = get_obj_info(foo)
+            self.assertEqual(
+                [oi.variables[v].is_defined() for v in oi.variables]
+                , [True, True])
+        self.store.commit()
+
     def test_pickle_variable_with_deleted_object(self):
         class PickleBlob(Blob):
             bin = Pickle()
@@ -3534,7 +3571,7 @@ class StoreTest(object):
         foo = Foo()
         foo.id = 40
         foo.title = SQL("'New title'")
-        
+
         self.store.add(foo)
 
         # No commits yet.
@@ -3558,7 +3595,7 @@ class StoreTest(object):
     def test_expr_values_flush_on_demand_with_removed_and_added(self):
         foo = self.store.get(Foo, 20)
         foo.title = SQL("'New title'")
-        
+
         self.store.remove(foo)
         self.store.add(foo)
 
@@ -3581,7 +3618,7 @@ class StoreTest(object):
 
     def test_expr_values_flush_on_demand_with_removed_and_rollbacked(self):
         foo = self.store.get(Foo, 20)
-        
+
         self.store.remove(foo)
         self.store.rollback()
 
@@ -3855,7 +3892,7 @@ class StoreTest(object):
     def test_invalidated_hook_called_after_all_invalidated(self):
         """
         Ensure that invalidated hooks are called only when all objects have
-        already been marked as invalidated. See comment in 
+        already been marked as invalidated. See comment in
         store.py:_mark_autoreload.
         """
         called = []
@@ -4153,7 +4190,7 @@ class EmptyResultSetTest(object):
         self.create_store()
         self.empty = EmptyResultSet()
         self.result = self.store.find(Foo)
-        
+
     def tearDown(self):
         self.drop_store()
         self.drop_tables()
@@ -4205,7 +4242,7 @@ class EmptyResultSetTest(object):
 
     def test_any(self):
         self.assertEquals(self.result.any(), None)
-        self.assertEquals(self.empty.any(), None)        
+        self.assertEquals(self.empty.any(), None)
 
     def test_first_unordered(self):
         self.assertRaises(UnorderedError, self.result.first)
@@ -4271,7 +4308,7 @@ class EmptyResultSetTest(object):
 
     def test_set_no_args(self):
         self.assertEquals(self.result.set(), None)
-        self.assertEquals(self.empty.set(), None)        
+        self.assertEquals(self.empty.set(), None)
 
     def test_cached(self):
         self.assertEquals(self.result.cached(), [])
