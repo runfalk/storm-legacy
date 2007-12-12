@@ -39,7 +39,9 @@ from storm.exceptions import (
 from storm import Undef
 from storm.cache import Cache
 
+
 __all__ = ["Store", "AutoReload", "EmptyResultSet"]
+
 
 PENDING_ADD = 1
 PENDING_REMOVE = 2
@@ -677,6 +679,8 @@ class Store(object):
             obj_info.set_obj(obj)
             set_obj_info(obj, obj_info)
             self._run_hook(obj_info, "__storm_loaded__")
+        # Renew the cache.
+        self._cache.add(obj_info)
         return obj
 
     @staticmethod
@@ -1177,12 +1181,11 @@ class ResultSet(object):
                     variables[column].checkpoint()
 
     def cached(self):
-        """Return matching objects from the cache for the
-        current query."""
+        """Return matching objects from the cache for the current query."""
         if type(self._cls_spec_info) is tuple:
-            raise FeatureError("Alive finds not supported with tuples")
+            raise FeatureError("Cache finds not supported with tuples")
         if self._tables is not Undef:
-            raise FeatureError("Alive finds not supported with custom tables")
+            raise FeatureError("Cache finds not supported with custom tables")
         if self._where is Undef:
             match = None
         else:

@@ -132,6 +132,26 @@ u'Joe Johnes'
 
 }}}
 
+==== Caching behavior ====
+
+One interesting thing is that this person is actually Joe, right? We've
+just added this object, so there's only one Joe, why would there be
+two different objects?  There isn't.
+
+{{{#!python
+>>> person is joe
+True
+
+}}}
+
+What's going on behind the scenes is that each store has an object
+cache. When an object is linked to a store, it will be cached by
+the store for as long as there's a reference to the object somewhere,
+or while the object is dirty (has unflushed changes).
+
+Storm ensures that at least a certain number of recently used objects
+will stay in memory inside the transaction, so that frequently used
+objects are not retrieved from the database too often.
 
 ==== Flushing ====
 

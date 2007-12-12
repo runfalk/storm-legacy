@@ -193,6 +193,9 @@ class StoreTest(object):
         result = connection.execute("SELECT * FROM foo ORDER BY id")
         return list(result)
 
+    def get_cache(self, store):
+        # We don't offer a public API for this just yet.
+        return store._cache
 
     def test_execute(self):
         result = self.store.execute("SELECT 1")
@@ -243,9 +246,8 @@ class StoreTest(object):
         self.store._connection = connection
 
     def test_cache_cleanup(self):
-        # at first we have to disable the cache, which holds strong
-        # references.
-        self.store._cache.set_size(0)
+        # Disable the cache, which holds strong references.
+        self.get_cache(self.store).set_size(0)
 
         foo = self.store.get(Foo, 10)
         foo.taint = True
@@ -287,9 +289,10 @@ class StoreTest(object):
     def test_obj_info_with_deleted_object(self):
         # Let's try to put Storm in trouble by killing the object
         # while still holding a reference to the obj_info.
-        # at first we have to disable the cache, which holds strong
-        # references.
-        self.store._cache.set_size(0)
+
+        # Disable the cache, which holds strong references.
+        self.get_cache(self.store).set_size(0)
+
         class MyFoo(Foo):
             loaded = False
             def __storm_loaded__(self):
@@ -314,9 +317,8 @@ class StoreTest(object):
     def test_obj_info_with_deleted_object_with_get(self):
         # Same thing, but using get rather than find.
 
-        # at first we have to disable the cache, which holds strong
-        # references.
-        self.store._cache.set_size(0)
+        # Disable the cache, which holds strong references.
+        self.get_cache(self.store).set_size(0)
 
         foo = self.store.get(Foo, 20)
         foo.tainted = True
@@ -332,10 +334,10 @@ class StoreTest(object):
         self.assertFalse(getattr(foo, "tainted", False))
 
     def test_delete_object_when_obj_info_is_dirty(self):
-        # Object should stay in memory if dirty.
-        # at first we have to disable the cache, which holds strong
-        # references.
-        self.store._cache.set_size(0)
+        """Object should stay in memory if dirty."""
+
+        # Disable the cache, which holds strong references.
+        self.get_cache(self.store).set_size(0)
 
         foo = self.store.get(Foo, 20)
         foo.title = u"Changed"
@@ -770,23 +772,9 @@ class StoreTest(object):
         # it without touching the database. Use the title instead.
         self.assertEquals(self.store.find(Foo, title=u"Title 20").cached(), [])
 
-    def test_cached_if_not_alive(self):
-        # objects should be referenced in the cache if not referenced
-        # in application code
-        foo = self.store.get(Foo, 20)
-        foo.tainted = True
-        obj_info = get_obj_info(foo)
-        del foo
-        gc.collect()
-        cached = self.store.find(Foo).cached()
-        self.assertEquals(len(cached), 1)
-        foo = self.store.get(Foo, 20)
-        self.assertTrue(hasattr(foo, "tainted"))
-
     def test_find_cached_with_info_alive_and_object_dead(self):
-        # at first we have to disable the cache, which holds strong
-        # references.
-        self.store._cache.set_size(0)
+        # Disable the cache, which holds strong references.
+        self.get_cache(self.store).set_size(0)
 
         foo = self.store.get(Foo, 20)
         foo.tainted = True
@@ -1565,16 +1553,6 @@ class StoreTest(object):
 
         self.assertTrue(self.store.get(Foo, 20) is not foo)
 
-    def test_cache_has_object_removed(self):
-        # make sure an object gets removed from the strongrefcache
-        # when removed from the store
-        foo = self.store.get(Foo, 20)
-        self.store.remove(foo)
-        c0, s = self.store._cache.get_stats()
-        self.store.flush()
-        c1, s = self.store._cache.get_stats()
-        self.assertEqual(c0-1, c1)
-
     def test_cache_has_improper_object_readded(self):
         foo = self.store.get(Foo, 20)
         self.store.remove(foo)
@@ -1907,9 +1885,8 @@ class StoreTest(object):
         self.assertEquals(bar.title, "Title 500")
 
     def test_find_set_with_info_alive_and_object_dead(self):
-        # at first we have to disable the cache, which holds strong
-        # references.
-        self.store._cache.set_size(0)
+        # Disable the cache, which holds strong references.
+        self.get_cache(self.store).set_size(0)
 
         foo = self.store.get(Foo, 20)
         foo.tainted = True
@@ -3822,16 +3799,6 @@ class StoreTest(object):
         obj_info = get_obj_info(foo)
         self.assertEquals(obj_info.variables[Foo.title].get_lazy(), AutoReload)
 
-    def test_invalidate_all_cache_empty(self):
-        foo = self.store.get(Foo, 20)
-        self.store.invalidate()
-        self.assertEqual((0, 100), self.store._cache.get_stats())
-
-    def test_invalidate_obj_removed_from_cache(self):
-        foo = self.store.get(Foo, 20)
-        self.store.invalidate(foo)
-        self.assertEqual((0, 100), self.store._cache.get_stats())
-
     def test_invalidate_and_get_object(self):
         foo = self.store.get(Foo, 20)
         self.store.invalidate(foo)
@@ -4199,6 +4166,65 @@ class StoreTest(object):
             self.assertEquals(foo.id, 40)
         finally:
             store.close()
+
+    def test_strong_cache_used(self):
+        """
+        Objects should be referenced in the cache if not referenced
+        in application code.
+        """
+        foo = self.store.get(Foo, 20)
+        foo.tainted = True
+        obj_info = get_obj_info(foo)
+        del foo
+        gc.collect()
+        cached = self.store.find(Foo).cached()
+        self.assertEquals(len(cached), 1)
+        foo = self.store.get(Foo, 20)
+        self.assertEquals(cached, [foo])
+        self.assertTrue(hasattr(foo, "tainted"))
+
+    def test_strong_cache_cleared_on_invalidate_all(self):
+        cache = self.get_cache(self.store)
+        foo = self.store.get(Foo, 20)
+        self.assertEquals(cache.get_cached(), [get_obj_info(foo)])
+        self.store.invalidate()
+        self.assertEquals(cache.get_cached(), [])
+
+    def test_strong_cache_loses_object_on_invalidate(self):
+        cache = self.get_cache(self.store)
+        foo = self.store.get(Foo, 20)
+        self.assertEquals(cache.get_cached(), [get_obj_info(foo)])
+        self.store.invalidate(foo)
+        self.assertEquals(cache.get_cached(), [])
+
+    def test_strong_cache_loses_object_on_remove(self):
+        """
+        Make sure an object gets removed from the strong reference
+        cache when removed from the store.
+        """
+        cache = self.get_cache(self.store)
+        foo = self.store.get(Foo, 20)
+        self.assertEquals(cache.get_cached(), [get_obj_info(foo)])
+        self.store.remove(foo)
+        self.store.flush()
+        self.assertEquals(cache.get_cached(), [])
+
+    def test_strong_cache_renews_object_on_get(self):
+        cache = self.get_cache(self.store)
+        foo1 = self.store.get(Foo, 10)
+        foo2 = self.store.get(Foo, 20)
+        foo1 = self.store.get(Foo, 10)
+        self.assertEquals(cache.get_cached(),
+                          [get_obj_info(foo1), get_obj_info(foo2)])
+
+    def test_strong_cache_renews_object_on_find(self):
+        cache = self.get_cache(self.store)
+        foo1 = self.store.find(Foo, id=10).one()
+        foo2 = self.store.find(Foo, id=20).one()
+        foo1 = self.store.find(Foo, id=10).one()
+        self.assertEquals(cache.get_cached(),
+                          [get_obj_info(foo1), get_obj_info(foo2)])
+
 
 
 class EmptyResultSetTest(object):
