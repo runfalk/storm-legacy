@@ -286,11 +286,11 @@ class PostgresConnection(Connection):
         # XXX: 2007-09-17 jamesh
         # I have no idea why I am seeing the last exception message
         # after upgrading to Gutsy.
-        return (msg.startswith('server closed the connection unexpectedly') or
-                msg.startswith('could not connect to server') or
-                msg.startswith('no connection to the server') or
-                msg.startswith('connection not open') or
-                msg.startswith('losed the connection unexpectedly'))
+        return (msg.startswith("server closed the connection unexpectedly") or
+                msg.startswith("could not connect to server") or
+                msg.startswith("no connection to the server") or
+                msg.startswith("connection not open") or
+                msg.startswith("losed the connection unexpectedly"))
 
 
 class Postgres(Database):

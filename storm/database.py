@@ -275,7 +275,7 @@ class Connection(object):
         if self._state == STATE_CONNECTED:
             return
         elif self._state == STATE_DISCONNECTED:
-            raise DisconnectionError('Already disconnected')
+            raise DisconnectionError("Already disconnected")
         elif self._state == STATE_RECONNECT:
             try:
                 self._raw_connection = self._database.raw_connect()

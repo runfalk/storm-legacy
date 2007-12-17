@@ -208,7 +208,7 @@ class ConnectionTest(TestHelper):
         """Check that _ensure_connected() is a no-op for STATE_CONNECTED."""
         self.assertEqual(self.connection._state, storm.database.STATE_CONNECTED)
         def connect():
-            raise DatabaseError('_ensure_connected() tried to connect')
+            raise DatabaseError("_ensure_connected() tried to connect")
         self.database.raw_connect = connect
         self.connection._ensure_connected()
 
@@ -233,7 +233,7 @@ class ConnectionTest(TestHelper):
         self.connection._state = storm.database.STATE_RECONNECT
         self.connection._raw_connection = None
         def _fail_to_connect():
-            raise DatabaseError('could not connect')
+            raise DatabaseError("could not connect")
         self.database.raw_connect = _fail_to_connect
 
         self.assertRaises(DisconnectionError,
