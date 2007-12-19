@@ -64,6 +64,9 @@ class CacheTest(TestHelper):
         cache = Cache(0)
         obj_info = self.obj_infos[0]
         cache.add(obj_info)
+        # Ensure that we don't even check if obj_info is in the
+        # cache, by testing if it was hashed.  Hopefully, that means
+        # we got a faster path.
         self.assertEquals(obj_info.hashed, False)
 
     def test_remove_with_size_zero(self):
@@ -71,7 +74,6 @@ class CacheTest(TestHelper):
         cache = Cache(0)
         obj_info = self.obj_infos[0]
         cache.remove(obj_info)
-        self.assertEquals(obj_info.hashed, False)
 
     def test_reduce_max_size_to_zero(self):
         """When setting the size to zero, there's an optimization."""
@@ -81,6 +83,9 @@ class CacheTest(TestHelper):
         obj_info.hashed = False
         cache.set_size(0)
         self.assertEquals(cache.get_cached(), [])
+        # Ensure that we don't even check if obj_info is in the
+        # cache, by testing if it was hashed.  Hopefully, that means
+        # we got a faster path.
         self.assertEquals(obj_info.hashed, False)
 
     def test_reduce_max_size(self):

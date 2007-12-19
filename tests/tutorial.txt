@@ -736,8 +736,8 @@ Creating Earl Easton
 
 >>> earl = store.find(PersonWithHook, name=u"Earl Easton").one()
 
->>> store.invalidate(earl)
 >>> del earl
+>>> store.invalidate(earl)
 >>> import gc
 >>> collected = gc.collect()
 
@@ -747,10 +747,11 @@ Loaded Earl Easton
 }}}
 
 Note that in the first find, nothing was called, since the object
-was still in memory and cached.  When we deleted the object and
-ensured that it was collected, the object had to be retrieved
-from the database again, and thus the hook was called (and not
-the constructor!).
+was still in memory and cached.  Then, we invalidated the object
+from Storm's internal cache and ensured that it was out-of-memory
+by triggering a garbage collection.  After that, the object had
+to be retrieved from the database again, and thus the hook was
+called (and not the constructor!).
 
 
 ==== Executing expressions ====

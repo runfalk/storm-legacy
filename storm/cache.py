@@ -40,7 +40,7 @@ class Cache(object):
 
         @return: True if C{obj_info} was cached, False otherwise.
         """
-        if self._size != 0 and obj_info in self._cache:
+        if obj_info in self._cache:
             self._order.remove(obj_info)
             del self._cache[obj_info]
             return True

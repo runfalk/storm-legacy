@@ -715,16 +715,21 @@ class Store(object):
 
 
     def _add_to_alive(self, obj_info):
-        """Add an object to the cache, keyed on primary key variables.
+        """Add an object to the set of known in-memory objects.
 
-        When an object is added to the cache, the key is built from
-        a copy of the current variables that are part of the primary
-        key.  This means that, when an object is retrieved from the
-        database, these values may be used to get the cached object
-        which is already in memory, even if it requested the primary
-        key value to be changed.  For that reason, when changes to
-        the primary key are flushed, the cache key should also be
-        updated to reflect these changes.
+        When an object is added to the set of known in-memory objects,
+        the key is built from a copy of the current variables that are
+        part of the primary key.  This means that, when an object is
+        retrieved from the database, these values may be used to get
+        the cached object which is already in memory, even if it
+        requested the primary key value to be changed.  For that reason,
+        when changes to the primary key are flushed, the alive object
+        key should also be updated to reflect these changes.
+
+        In addition to tracking objects alive in memory, we have a strong
+        reference cache which keeps a fixed number of last-used objects
+        in-memory, to prevent further database access for recently fetched
+        objects.
         """
         cls_info = obj_info.cls_info
         old_primary_vars = obj_info.get("primary_vars")
@@ -735,7 +740,6 @@ class Store(object):
         self._alive[cls_info.cls, new_primary_vars] = obj_info
         obj_info["primary_vars"] = new_primary_vars
         self._cache.add(obj_info)
-
 
     def _remove_from_alive(self, obj_info):
         """Remove an object from the cache.
