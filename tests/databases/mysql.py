@@ -23,8 +23,10 @@ import os
 
 from storm.databases.mysql import MySQL
 from storm.database import create_database
+from storm.uri import URI
 
-from tests.databases.base import DatabaseTest, UnsupportedDatabaseTest
+from tests.databases.base import (
+    DatabaseTest, DatabaseDisconnectionTest, UnsupportedDatabaseTest)
 from tests.helper import TestHelper
 
 
@@ -64,3 +66,10 @@ class MySQLUnsupportedTest(UnsupportedDatabaseTest, TestHelper):
     
     dbapi_module_names = ["MySQLdb"]
     db_module_name = "mysql"
+
+
+class MySQLDisconnectionTest(DatabaseDisconnectionTest, TestHelper):
+
+    environment_variable = "STORM_MYSQL_URI"
+    host_environment_variable = "STORM_MYSQL_HOST_URI"
+    default_port = 3306

@@ -6,8 +6,8 @@ Improvements
  - The Connection will reconnect automatically when connection
    drops are detected and a rollback is performed.  As a result,
    the Store should handle reconnections in a seamless way in
-   most circumstances (#94986, by James Henstridge).  Support in
-   the MySQL backend is pending.
+   most circumstances (#94986, by James Henstridge).  This is
+   supported in the MySQL and PostgreSQL backends.
  - Store.flush() will not load values inserted in the database.
    Instead, undefined variables are set to AutoReload, and resolved
    once first accessed.  This won't be noticeable in normal usage,
