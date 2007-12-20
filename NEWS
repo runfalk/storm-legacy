@@ -15,6 +15,10 @@ Improvements
  - Support in the postgres backend to use the RETURNING extension of
    the INSERT statement to retrieve the primary key on inserts for
    object identity mapping (PostgreSQL >= 8.2 only)
+ - Introduced a cache mechanism that keeps the N last retrieved objects
+   in memory to optimize cases where the same object is retrieved
+   often while no strong references are kept elsewhere.  Implemented by
+   Bernd Dorn, from Lovely Systems.
 
 Bug fixes
 ---------
