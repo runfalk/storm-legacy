@@ -132,7 +132,6 @@ u'Joe Johnes'
 
 }}}
 
-
 ==== Caching behavior ====
 
 One interesting thing is that this person is actually Joe, right? We've
@@ -150,39 +149,9 @@ cache. When an object is linked to a store, it will be cached by
 the store for as long as there's a reference to the object somewhere,
 or while the object is dirty (has unflushed changes).
 
-Let's try to show that this is the case in practice.
-
-{{{#!python
->>> del person
->>> joe.tainted = True
->>> joe.tainted
-True
-
->>> joe = store.get(Person, 1)
->>> joe.tainted
-True
-
-}}}
-
-Now, let's get rid of the last reference, and see if it's still tainted.
-
-{{{#!python
->>> del joe
->>> import gc
->>> collected = gc.collect()
->>> joe = store.get(Person, 1)
->>> joe.tainted
-Traceback (most recent call last):
-...
-AttributeError: 'Person' object has no attribute 'tainted'
-
->>> print "%r, %r" % (joe.id, joe.name)
-1, u'Joe Johnes'
-
-}}}
-
-So, basically the last reference disapeared, and the object got
-deallocated, so the store has loaded the object again for us.
+Storm ensures that at least a certain number of recently used objects
+will stay in memory inside the transaction, so that frequently used
+objects are not retrieved from the database too often.
 
 ==== Flushing ====
 
@@ -768,6 +737,8 @@ Creating Earl Easton
 >>> earl = store.find(PersonWithHook, name=u"Earl Easton").one()
 
 >>> del earl
+>>> store.invalidate(earl)
+>>> import gc
 >>> collected = gc.collect()
 
 >>> earl = store.find(PersonWithHook, name=u"Earl Easton").one()
@@ -776,10 +747,11 @@ Loaded Earl Easton
 }}}
 
 Note that in the first find, nothing was called, since the object
-was still in memory and cached.  When we deleted the object and
-ensured that it was collected, the object had to be retrieved
-from the database again, and thus the hook was called (and not
-the constructor!).
+was still in memory and cached.  Then, we invalidated the object
+from Storm's internal cache and ensured that it was out-of-memory
+by triggering a garbage collection.  After that, the object had
+to be retrieved from the database again, and thus the hook was
+called (and not the constructor!).
 
 
 ==== Executing expressions ====
