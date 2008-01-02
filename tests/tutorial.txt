@@ -616,8 +616,6 @@ Suppose we want to find all accountants that aren't associated with a
 company.  We can use a sub-select to get the data we want.
 
 {{{#!python
->>> from storm.expr import Not
-
 >>> laura = Accountant(u"Laura Montgomery")
 >>> store.add(laura)
 <Accountant ...>
