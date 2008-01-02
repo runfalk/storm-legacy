@@ -610,6 +610,26 @@ were named Ben, that'd have been easier.
 }}}
 
 
+==== Sub-selects ====
+
+Suppose we want to find all accountants that aren't associated with a
+company.  We can use a sub-select to get the data we want.
+
+{{{#!python
+>>> from storm.expr import Not
+
+>>> laura = Accountant(u"Laura Montgomery")
+>>> store.add(laura)
+<Accountant ...>
+
+>>> subselect = Select(CompanyAccountant.accountant_id, distinct=True)
+>>> result = store.find(Accountant, Not(Accountant.id.is_in(subselect)))
+>>> result.one() is laura
+True
+>>>
+}}}
+
+
 ==== Ordering and limiting results ====
 
 Ordering and limiting results obtained are certainly among the
@@ -736,8 +756,8 @@ Creating Earl Easton
 
 >>> earl = store.find(PersonWithHook, name=u"Earl Easton").one()
 
->>> del earl
 >>> store.invalidate(earl)
+>>> del earl
 >>> import gc
 >>> collected = gc.collect()
 
