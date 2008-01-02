@@ -736,8 +736,8 @@ Creating Earl Easton
 
 >>> earl = store.find(PersonWithHook, name=u"Earl Easton").one()
 
->>> del earl
 >>> store.invalidate(earl)
+>>> del earl
 >>> import gc
 >>> collected = gc.collect()
 
