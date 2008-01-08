@@ -35,7 +35,8 @@ from storm.expr import (
     compile_sql_token)
 from storm.variables import Variable, ListVariable, RawStrVariable
 from storm.database import Database, Connection, Result
-from storm.exceptions import install_exceptions, DatabaseModuleError
+from storm.exceptions import (install_exceptions, DatabaseModuleError,
+                              OperationalError, ProgrammingError)
 
 
 install_exceptions(psycopg2)
@@ -282,15 +283,18 @@ class PostgresConnection(Connection):
                 yield param
 
     def is_disconnection_error(self, exc):
-        msg = exc.args[0]
+        if not isinstance(exc, (OperationalError, ProgrammingError)):
+            return False
+
         # XXX: 2007-09-17 jamesh
         # I have no idea why I am seeing the last exception message
         # after upgrading to Gutsy.
-        return (msg.startswith('server closed the connection unexpectedly') or
-                msg.startswith('could not connect to server') or
-                msg.startswith('no connection to the server') or
-                msg.startswith('connection not open') or
-                msg.startswith('losed the connection unexpectedly'))
+        msg = str(exc)
+        return (msg.startswith("server closed the connection unexpectedly") or
+                msg.startswith("could not connect to server") or
+                msg.startswith("no connection to the server") or
+                msg.startswith("connection not open") or
+                msg.startswith("losed the connection unexpectedly"))
 
 
 class Postgres(Database):

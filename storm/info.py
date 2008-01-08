@@ -173,6 +173,12 @@ class ObjectInfo(dict):
         self.primary_vars = tuple(variables[column]
                                   for column in self.cls_info.primary_key)
 
+    def __eq__(self, other):
+        return self is other
+
+    def __ne__(self, other):
+        return self is not other
+
     def set_obj(self, obj):
         self.get_obj = ref(obj, self._emit_object_deleted)
 

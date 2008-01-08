@@ -92,6 +92,69 @@ class SQLiteFileTest(SQLiteMemoryTest):
         else:
             self.fail("OperationalError not raised")
 
+    def test_commit_timeout(self):
+        """Regression test for commit observing the timeout.
+        
+        In 0.10, the timeout wasn't observed for connection.commit().
+
+        """
+        # Create a database with a table.
+        database = create_database("sqlite:%s?timeout=0.3" % self.get_path())
+        connection1 = database.connect()
+        connection1.execute("CREATE TABLE test (id INTEGER PRIMARY KEY)")
+        connection1.commit()
+
+        # Put some data in, but also make a second connection to the database,
+        # which will prevent a commit until it is closed.
+        connection1.execute("INSERT INTO test VALUES (1)")
+        connection2 = database.connect()
+        connection2.execute("SELECT id FROM test")
+
+        started = time.time()
+        try:
+            connection1.commit()
+        except OperationalError, exception:
+            self.assertEquals(str(exception), "database is locked")
+            # In 0.10, the next assertion failed because the timeout wasn't
+            # enforced for the "COMMIT" statement.
+            self.assertTrue(time.time()-started >= 0.3)
+        else:
+            self.fail("OperationalError not raised")
+
+    def test_recover_after_timeout(self):
+        """Regression test for recovering from database locked exception.
+        
+        In 0.10, connection.commit() would forget that a transaction was in
+        progress if an exception was raised, such as an OperationalError due to
+        another connection being open.  As a result, a subsequent modification
+        to the database would cause BEGIN to be issued to the database, which
+        would complain that a transaction was already in progress.
+
+        """
+        # Create a database with a table.
+        database = create_database("sqlite:%s?timeout=0.3" % self.get_path())
+        connection1 = database.connect()
+        connection1.execute("CREATE TABLE test (id INTEGER PRIMARY KEY)")
+        connection1.commit()
+
+        # Put some data in, but also make a second connection to the database,
+        # which will prevent a commit until it is closed.
+        connection1.execute("INSERT INTO test VALUES (1)")
+        connection2 = database.connect()
+        connection2.execute("SELECT id FROM test")
+        self.assertRaises(OperationalError, connection1.commit)
+
+        # Close the second connection - it should now be possible to commit.
+        connection2.close()
+
+        # In 0.10, the next statement raised OperationalError: cannot start a
+        # transaction within a transaction
+        connection1.execute("INSERT INTO test VALUES (2)")
+        connection1.commit()
+
+        # Check that the correct data is present
+        self.assertEquals(connection1.execute("SELECT id FROM test").get_all(),
+                          [(1,), (2,)])
 
 class SQLiteUnsupportedTest(UnsupportedDatabaseTest, TestHelper):
  

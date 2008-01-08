@@ -183,6 +183,18 @@ class ObjectInfoTest(TestHelper):
         self.variable1 = self.obj_info.variables[Class.prop1]
         self.variable2 = self.obj_info.variables[Class.prop2]
 
+    def test_hashing(self):
+        self.assertEquals(hash(self.obj_info), hash(self.obj_info))
+
+    def test_equals(self):
+        obj_info1 = self.obj_info
+        obj_info2 = get_obj_info(self.Class())
+        self.assertFalse(obj_info1 == obj_info2)
+
+    def test_not_equals(self):
+        obj_info1 = self.obj_info
+        obj_info2 = get_obj_info(self.Class())
+        self.assertTrue(obj_info1 != obj_info2)
 
     def test_dict_subclass(self):
         self.assertTrue(isinstance(self.obj_info, dict))

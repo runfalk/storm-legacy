@@ -73,6 +73,9 @@ class Result(object):
     def get_one(self):
         """Fetch one result from the cursor.
 
+        @raise DisconnectionError: Raised when the connection is lost.
+            Reconnection happens automatically on rollback.
+
         The result will be converted to an appropriate format via
         L{from_database}.
 
@@ -86,6 +89,9 @@ class Result(object):
     def get_all(self):
         """Fetch all results from the cursor.
 
+        @raise DisconnectionError: Raised when the connection is lost.
+            Reconnection happens automatically on rollback.
+
         The results will be converted to an appropriate format via
         L{from_database}.
         """
@@ -96,6 +102,9 @@ class Result(object):
 
     def __iter__(self):
         """Yield all results, one at a time.
+
+        @raise DisconnectionError: Raised when the connection is lost.
+            Reconnection happens automatically on rollback.
 
         The results will be converted to an appropriate format via
         L{from_database}.
@@ -173,6 +182,9 @@ class Connection(object):
             compiled if necessary.
         @param noresult: If True, no result will be returned.
 
+        @raise DisconnectionError: Raised when the connection is lost.
+            Reconnection happens automatically on rollback.
+
         @return: The result of C{self.result_factory}, or None if
             C{noresult} is True.
         """
@@ -201,7 +213,12 @@ class Connection(object):
             self._raw_connection = None
 
     def commit(self):
-        """Commit the connection."""
+        """Commit the connection.
+
+        @raise DisconnectionError: Raised when the connection is lost.
+            Reconnection happens automatically on rollback.
+
+        """
         self._ensure_connected()
         self._check_disconnect(self._raw_connection.commit)
 
@@ -275,7 +292,7 @@ class Connection(object):
         if self._state == STATE_CONNECTED:
             return
         elif self._state == STATE_DISCONNECTED:
-            raise DisconnectionError('Already disconnected')
+            raise DisconnectionError("Already disconnected")
         elif self._state == STATE_RECONNECT:
             try:
                 self._raw_connection = self._database.raw_connect()

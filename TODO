@@ -76,3 +76,9 @@
 
 - Support allow_self in Reference and ReferenceSet, and default
   to false.
+
+- Set operations in ReferenceSets (suggested by Stephan Diehl):
+
+  accessGroups = set([grp1, grp2, grp3])
+  if usr.groups & accessGroups:
+      doSomething

@@ -34,7 +34,8 @@ from storm.expr import (compile, Select, compile_select, Undef, And, Eq,
                         SQLRaw, SQLToken, is_safe_token)
 from storm.variables import Variable
 from storm.database import Database, Connection, Result
-from storm.exceptions import install_exceptions, DatabaseModuleError
+from storm.exceptions import (
+    install_exceptions, DatabaseModuleError, OperationalError)
 
 
 install_exceptions(MySQLdb)
@@ -95,6 +96,11 @@ class MySQLConnection(Connection):
             else:
                 yield param
 
+    def is_disconnection_error(self, exc):
+        # http://dev.mysql.com/doc/refman/5.0/en/gone-away.html
+        return (isinstance(exc, OperationalError) and
+                exc.args[0] in (2006, 2013)) # (SERVER_GONE_ERROR, SERVER_LOST)
+
 
 class MySQL(Database):
 
@@ -130,6 +136,33 @@ class MySQL(Database):
 
     def raw_connect(self):
         raw_connection = MySQLdb.connect(**self._connect_kwargs)
+
+        # Here is another sad story about bad transactional behavior.  MySQL
+        # offers a feature to automatically reconnect dropped connections.
+        # What sounds like a dream, is actually a nightmare for anyone who
+        # is dealing with transactions.  When a reconnection happens, the
+        # currently running transaction is transparently rolled back, and
+        # everything that was being done is lost, without notice.  Not only
+        # that, but the connection may be put back in AUTOCOMMIT mode, even
+        # when that's not the default MySQLdb behavior.  The MySQL developers
+        # quickly understood that this is a terrible idea, and removed the
+        # behavior in MySQL 5.0.3.  Unfortunately, Debian and Ubuntu still
+        # have a patch for the MySQLdb module which *reenables* that
+        # behavior by default even past version 5.0.3 of MySQL.
+        #
+        # Some links:
+        #   http://dev.mysql.com/doc/refman/5.0/en/auto-reconnect.html
+        #   http://dev.mysql.com/doc/refman/5.0/en/mysql-reconnect.html
+        #   http://dev.mysql.com/doc/refman/5.0/en/gone-away.html
+        #
+        # What we do here is to explore something that is a very weird
+        # side-effect, discovered by reading the code.  When we call the
+        # ping() with a False argument, the automatic reconnection is
+        # disabled in a *permanent* way for this connection.  The argument
+        # to ping() is new in 1.2.2, though.
+        if MySQLdb.version_info >= (1, 2, 2):
+            raw_connection.ping(False)
+
         return raw_connection
 
 
