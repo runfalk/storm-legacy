@@ -1,3 +1,5 @@
+from storm.properties import Int
+from storm.info import get_obj_info
 from storm.cache import Cache
 
 from tests.helper import TestHelper
@@ -20,6 +22,13 @@ class StubObjectInfo(object):
         return self.id
 
 
+class StubClass(object):
+
+    __storm_table__ = "stub_class"
+
+    id = Int(primary=True)
+
+
 class CacheTest(TestHelper):
 
     def setUp(self):
@@ -36,6 +45,18 @@ class CacheTest(TestHelper):
             cache.add(self.obj_infos[id])
         self.assertEquals([obj_info.id for obj_info in cache.get_cached()],
                           [2, 1, 0])
+
+    def test_adding_similar_obj_infos(self):
+        """If __eq__ is broken, this fails."""
+        obj_info1 = get_obj_info(StubClass())
+        obj_info2 = get_obj_info(StubClass())
+        cache = Cache(5)
+        cache.add(obj_info1)
+        cache.add(obj_info2)
+        cache.add(obj_info2)
+        cache.add(obj_info1)
+        self.assertEquals([hash(obj_info) for obj_info in cache.get_cached()],
+                          [hash(obj_info1), hash(obj_info2)])
 
     def test_remove(self):
         cache = Cache(5)
