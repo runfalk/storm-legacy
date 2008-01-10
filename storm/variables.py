@@ -609,16 +609,17 @@ def _parse_interval_table():
             table[unit] = delta
     return table
 
+_parse_interval_table = _parse_interval_table()
+
 _parse_interval_re = re.compile(r"[\s,]*"
                                 r"([-+]?(?:\d\d?:\d\d?(?::\d\d?)?(?:\.\d+)?"
                                 r"|\d+(?:\.\d+)?))"
                                 r"[\s,]*")
 
-def _parse_interval(interval, _table=_parse_interval_table(),
-                    _re=_parse_interval_re):
+def _parse_interval(interval):
     result = timedelta(0)
     value = None
-    for token in _re.split(interval):
+    for token in _parse_interval_re.split(interval):
         if not token:
             pass
         elif ":" in token:
@@ -634,7 +635,7 @@ def _parse_interval(interval, _table=_parse_interval_table(),
                 raise ValueError("Expected an interval value rather than "
                                  "%r in interval %r" % (token, interval))
         else:
-            unit = _table.get(token)
+            unit = _parse_interval_table.get(token)
             if unit is None:
                 raise ValueError("Unsupported interval unit %r in interval %r"
                                  % (token, interval))
