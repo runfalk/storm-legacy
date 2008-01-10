@@ -383,7 +383,8 @@ def compile_proxy(compile, proxy, state):
 
     # Inject the join between the table of the class holding the proxy
     # and the table of the class which is the target of the reference.
-    left_join = LeftJoin(proxy._remote_prop.table,
+    left_join = LeftJoin(proxy._reference._relation.local_cls,
+                         proxy._remote_prop.table,
                          proxy._reference._relation.get_where_for_join())
     state.auto_tables.append(left_join)
 

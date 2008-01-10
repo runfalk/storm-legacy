@@ -4110,6 +4110,22 @@ class StoreTest(object):
         variable = MyBarProxy.foo_title.variable_factory(value=u"Hello")
         self.assertTrue(isinstance(variable, UnicodeVariable))
 
+    def test_proxy_with_extra_table(self):
+        """
+        Proxies use a join on auto_tables. It should work even if we have
+        more tables in the query.
+        """
+        result = self.store.find((BarProxy, Link),
+                                 BarProxy.foo_title == u"Title 20",
+                                 BarProxy.foo_id == Link.foo_id)
+        results = list(result)
+        self.assertEquals(len(results), 2)
+        for bar, link in results:
+            self.assertEquals(bar.id, 200)
+            self.assertEquals(bar.foo_title, u"Title 20")
+            self.assertEquals(bar.foo_id, 20)
+            self.assertEquals(link.foo_id, 20)
+
     def test_get_decimal_property(self):
         money = self.store.get(Money, 10)
         self.assertEquals(money.value, decimal.Decimal("12.3455"))

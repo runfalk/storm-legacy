@@ -42,6 +42,10 @@ Bug fixes
    "SELECT ... WHERE table.id = currval(...)" is executed in
    PostgreSQL.  The change is only meaningful on PostgreSQL < 8.2,
    as newer versions will use the RETURNING extension instead.
+ - Specify both of the joining tables explicitly when compiling Proxy,
+   so that it doesn't break due to incorrect references in the ON clause
+   when multiple tables are used (reported in #162528 by S3ym0ur and
+   Hamilton Tran)
 
 
 0.11 (2007-10-08)
