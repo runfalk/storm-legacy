@@ -55,7 +55,7 @@ class PostgresTest(DatabaseTest, TestHelper):
                                 "(id SERIAL PRIMARY KEY, title VARCHAR)")
         self.connection.execute("CREATE TABLE datetime_test "
                                 "(id SERIAL PRIMARY KEY,"
-                                " dt TIMESTAMP, d DATE, t TIME)")
+                                " dt TIMESTAMP, d DATE, t TIME, td INTERVAL)")
         self.connection.execute("CREATE TABLE bin_test "
                                 "(id SERIAL PRIMARY KEY, b BYTEA)")
         self.connection.execute("CREATE TABLE like_case_insensitive_test "

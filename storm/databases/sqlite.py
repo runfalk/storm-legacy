@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from datetime import datetime, date, time
+from datetime import datetime, date, time, timedelta
 from time import sleep, time as now
 import sys
 
@@ -112,7 +112,7 @@ class SQLiteConnection(Connection):
         for param in params:
             if isinstance(param, Variable):
                 param = param.get(to_db=True)
-            if isinstance(param, (datetime, date, time)):
+            if isinstance(param, (datetime, date, time, timedelta)):
                 yield str(param)
             elif isinstance(param, str):
                 yield buffer(param)

@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from datetime import time
+from datetime import time, timedelta
 from array import array
 import sys
 
@@ -32,6 +32,7 @@ except ImportError:
 
 from storm.expr import (compile, Select, compile_select, Undef, And, Eq,
                         SQLRaw, SQLToken, is_safe_token)
+from storm.variables import Variable
 from storm.database import Database, Connection, Result
 from storm.exceptions import (
     install_exceptions, DatabaseModuleError, OperationalError)
@@ -85,6 +86,15 @@ class MySQLConnection(Connection):
     result_factory = MySQLResult
     param_mark = "%s"
     compile = compile
+
+    def to_database(self, params):
+        for param in params:
+            if isinstance(param, Variable):
+                param = param.get(to_db=True)
+            if isinstance(param, timedelta):
+                yield str(param)
+            else:
+                yield param
 
     def is_disconnection_error(self, exc):
         # http://dev.mysql.com/doc/refman/5.0/en/gone-away.html

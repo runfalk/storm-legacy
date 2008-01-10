@@ -19,9 +19,15 @@ Improvements
    in memory to optimize cases where the same object is retrieved
    often while no strong references are kept elsewhere.  Implemented by
    Bernd Dorn, from Lovely Systems.
+ - Improved support for TimeDelta properties on all backends.  Many
+   more formats are accepted now, and some issues were fixed.
 
 Bug fixes
 ---------
+ - TimeDelta was added to storm.locals.
+ - Fixed TimeDelta support in SQLite, MySQL, and PostgreSQL,
+   and enabled base test for all backends to ensure that it
+   continues to work.
  - Schema names are accepted in __storm_table__ when using
    PostgreSQL as the database (e.g. "schema.table"). (#146580,
    reported by James Mayfield)
