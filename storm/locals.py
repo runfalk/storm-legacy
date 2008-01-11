@@ -26,6 +26,6 @@ from storm.database import create_database
 from storm.exceptions import StormError
 from storm.store import Store, AutoReload
 from storm.expr import Select, Insert, Update, Delete, Join, SQL
-from storm.expr import Like, In, Asc, Desc, And, Or, Min, Max, Count
+from storm.expr import Like, In, Asc, Desc, And, Or, Min, Max, Count, Not
 from storm.info import ClassAlias
 from storm.base import Storm
