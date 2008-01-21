@@ -736,7 +736,7 @@ def compile_column(compile, column, state):
             alias = state.aliases.get(column)
             if alias is not None:
                 return compile(alias.name, state, token=True)
-        return column.name
+        return compile(column.name, state, token=True)
     state.push("context", COLUMN_PREFIX)
     table = compile(column.table, state, token=True)
     state.pop()

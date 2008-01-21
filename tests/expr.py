@@ -739,6 +739,13 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, 'UPDATE "table 1" SET column1=elem1')
         self.assertEquals(state.parameters, [])
 
+    def test_update_with_columns_to_escape(self):
+        expr = Update({Column("column x", table1): elem1}, table=table1)
+        state = State()
+        statement = compile(expr, state)
+        self.assertEquals(statement, 'UPDATE "table 1" SET "column x"=elem1')
+        self.assertEquals(state.parameters, [])
+
     def test_update_where(self):
         expr = Update({column1: elem1}, Func1(), Func2())
         state = State()
