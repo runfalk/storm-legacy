@@ -3422,6 +3422,45 @@ class StoreTest(object):
         self.store.reload(blob)
         self.assertEquals(blob.bin, "\x80\x02}q\x01(U\x01aK\x01U\x01bK\x02u.")
 
+    def test_undefined_variables_filled_on_find(self):
+        """
+        Check that when data is fetched from the database on a find,
+        it is used to fill up any undefined variables.
+        """
+        # We do a first find to get the object_infos into the cache.
+        foos = list(self.store.find(Foo, title=u"Title 20"))
+
+        # Commit so that all foos are invalidated and variables are
+        # set back to AutoReload.
+        self.store.commit()
+
+        # Another find which should reuse in-memory foos.
+        for foo in self.store.find(Foo, title=u"Title 20"):
+            # Make sure we have all variables defined, because
+            # values were already retrieved by the find's select.
+            obj_info = get_obj_info(foo)
+            for column in obj_info.variables:
+                self.assertTrue(obj_info.variables[column].is_defined())
+
+    def test_defined_variables_not_overridden_on_find(self):
+        """
+        Check that the keep_defined=True setting in _load_object()
+        is in place.  In practice, it ensures that already defined
+        values aren't replaced during a find, when new data comes
+        from the database and is used whenever possible.
+        """
+        blob = self.store.get(Blob, 20)
+        blob.bin = "\x80\x02}q\x01U\x01aK\x01s."
+        class PickleBlob(object):
+            __storm_table__ = "bin"
+            id = Int(primary=True)
+            pickle = Pickle("bin")
+        blob = self.store.get(PickleBlob, 20)
+        value = blob.pickle
+        # Now the find should not destroy our value pointer.
+        blob = self.store.find(PickleBlob, id=20).one()
+        self.assertTrue(value is blob.pickle)
+
     def test_pickle_variable_with_deleted_object(self):
         class PickleBlob(Blob):
             bin = Pickle()

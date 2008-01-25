@@ -43,6 +43,9 @@ Bug fixes
  - Tables named with reserved keywords are properly escaped.
  - Reserved keywords on column names are properly escaped when
    part of an insert or update statement (#184849, by Thomas Herve).
+ - Prevent cached objects from issuing selects to retrieve their
+   data when find()s were previously made and already brough
+   their data (#174388, reported and fixed by Bernd Dorn).
  - Fixed bug which caused an object to be readded to the store
    when a reference of an object that had already been removed
    was looked up.
