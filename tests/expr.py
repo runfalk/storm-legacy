@@ -702,6 +702,14 @@ class CompileTest(TestHelper):
                           'INSERT INTO "table 2" ("column 1") VALUES (elem1)')
         self.assertEquals(state.parameters, [])
 
+    def test_insert_with_columns_as_raw_strings(self):
+        expr = Insert({"column 1": elem1}, table2)
+        state = State()
+        statement = compile(expr, state)
+        self.assertEquals(statement,
+                          'INSERT INTO "table 2" ("column 1") VALUES (elem1)')
+        self.assertEquals(state.parameters, [])
+
     def test_insert_auto_table(self):
         expr = Insert({Column(column1, table1): elem1})
         state = State()
@@ -752,6 +760,14 @@ class CompileTest(TestHelper):
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, 'UPDATE "table 1" SET "column x"=elem1')
+        self.assertEquals(state.parameters, [])
+
+    def test_update_with_columns_as_raw_strings(self):
+        expr = Update({"column 1": elem1}, table=table2)
+        state = State()
+        statement = compile(expr, state)
+        self.assertEquals(statement,
+                          'UPDATE "table 2" SET "column 1"=elem1')
         self.assertEquals(state.parameters, [])
 
     def test_update_where(self):
