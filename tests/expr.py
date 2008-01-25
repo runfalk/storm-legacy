@@ -694,6 +694,14 @@ class CompileTest(TestHelper):
                         'VALUES (elem2, elem1)'), statement)
         self.assertEquals(state.parameters, [])
 
+    def test_insert_with_columns_to_escape(self):
+        expr = Insert({Column("column 1", table1): elem1}, table2)
+        state = State()
+        statement = compile(expr, state)
+        self.assertEquals(statement,
+                          'INSERT INTO "table 2" ("column 1") VALUES (elem1)')
+        self.assertEquals(state.parameters, [])
+
     def test_insert_auto_table(self):
         expr = Insert({Column(column1, table1): elem1})
         state = State()
@@ -737,6 +745,13 @@ class CompileTest(TestHelper):
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, 'UPDATE "table 1" SET column1=elem1')
+        self.assertEquals(state.parameters, [])
+
+    def test_update_with_columns_to_escape(self):
+        expr = Update({Column("column x", table1): elem1}, table=table1)
+        state = State()
+        statement = compile(expr, state)
+        self.assertEquals(statement, 'UPDATE "table 1" SET "column x"=elem1')
         self.assertEquals(state.parameters, [])
 
     def test_update_where(self):

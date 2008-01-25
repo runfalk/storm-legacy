@@ -41,6 +41,8 @@ Bug fixes
    place: ZODB.POSException (#129715, by James Henstridge).
  - TimeDelta was added to storm.locals.
  - Tables named with reserved keywords are properly escaped.
+ - Reserved keywords on column names are properly escaped when
+   part of an insert or update statement (#184849, by Thomas Herve).
  - Fixed bug which caused an object to be readded to the store
    when a reference of an object that had already been removed
    was looked up.
