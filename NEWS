@@ -57,6 +57,8 @@ Bug fixes
    so that it doesn't break due to incorrect references in the ON clause
    when multiple tables are used (reported in #162528 by S3ym0ur and
    Hamilton Tran)
+ - MySQL client charset now defaults to UTF-8 (reported
+   by Brad Crittenden).
 
 
 0.11 (2007-10-08)

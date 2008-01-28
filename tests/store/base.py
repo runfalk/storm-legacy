@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #
 # Copyright (c) 2006, 2007 Canonical
 #
@@ -4280,6 +4281,20 @@ class StoreTest(object):
         self.assertEquals(cache.get_cached(),
                           [get_obj_info(foo1), get_obj_info(foo2)])
 
+    def test_unicode(self):
+        class MyFoo(Foo):
+            pass
+        foo = self.store.get(Foo, 20)
+        myfoo = self.store.get(MyFoo, 20)
+        for title in [u'Cừơng', u'Đức', u'Hạnh']:
+            foo.title = title
+            self.store.commit()
+            try:
+                self.assertEquals(myfoo.title, title)
+            except AssertionError, e:
+                raise AssertionError(str(e) +
+                    " (ensure your database was created with CREATE DATABASE"
+                    " ... CHARACTER SET utf8)")
 
 
 class EmptyResultSetTest(object):

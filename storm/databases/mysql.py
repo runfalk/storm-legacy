@@ -133,6 +133,7 @@ class MySQL(Database):
 
         self._connect_kwargs["conv"] = self._converters
         self._connect_kwargs["use_unicode"] = True
+        self._connect_kwargs["charset"] = uri.options.get("charset", "utf8")
 
     def raw_connect(self):
         raw_connection = MySQLdb.connect(**self._connect_kwargs)
