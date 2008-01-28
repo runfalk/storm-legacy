@@ -14,6 +14,10 @@ if os.path.isfile("MANIFEST"):
 BUILD_CEXTENSIONS = False
 
 
+VERSION = re.search('version = "([^"]+)"',
+                    open("storm/__init__.py").read()).group(1)
+
+
 def find_packages():
     # implement a simple find_packages so we don't have to depend on
     # setuptools
@@ -23,9 +27,10 @@ def find_packages():
             packages.append(directory.replace(os.sep, '.'))
     return packages
 
+
 setup(
     name="storm",
-    version="0.11",
+    version=VERSION,
     description="Storm is an object-relational mapper (ORM) for Python developed at Canonical.",
     author="Gustavo Niemeyer",
     author_email="gustavo@niemeyer.net",
