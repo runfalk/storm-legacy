@@ -145,3 +145,34 @@ class URITest(TestHelper):
         self.assertTrue(uri_copy is not uri)
         self.assertTrue(uri_copy.__dict__ == uri.__dict__)
         self.assertTrue(uri_copy.options is not uri.options)
+
+    def str(self, uri):
+        self.assertEquals(str(URI(uri)), uri)
+
+    def test_str_full_with_escaping(self):
+        self.str("scheme://us%2Fer:pa%2Fss@ho%2Fst:0/d%3Fb?a%2Fb=c%2Fd&ghi=jkl")
+
+    def test_str_no_path_escaping(self):
+        self.str("scheme:/a/b/c")
+
+    def test_str_scheme_only(self):
+        self.str("scheme:")
+
+    def test_str_username_only(self):
+        self.str("scheme://username@/")
+
+    def test_str_password_only(self):
+        self.str("scheme://:password@/")
+
+    def test_str_port_only(self):
+        self.str("scheme://:0/")
+
+    def test_str_host_only(self):
+        self.str("scheme://host/")
+
+    def test_str_database_only(self):
+        self.str("scheme:db")
+
+    def test_str_option_only(self):
+        self.str("scheme:?a=b")
+
