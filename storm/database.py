@@ -26,6 +26,7 @@ supported in modules in L{storm.databases}.
 """
 
 from storm.expr import Expr, State, compile
+from storm.tracer import trace
 from storm.variables import Variable
 from storm.exceptions import ClosedError, DatabaseError, DisconnectionError
 from storm.uri import URI
@@ -35,8 +36,6 @@ import storm
 __all__ = ["Database", "Connection", "Result",
            "convert_param_marks", "create_database", "register_scheme"]
 
-
-DEBUG = False
 
 STATE_CONNECTED = 1
 STATE_DISCONNECTED = 2
@@ -273,13 +272,11 @@ class Connection(object):
         """
         raw_cursor = self.build_raw_cursor()
         if not params:
-            if DEBUG:
-                print statement, ()
+            trace("connection_raw_execute", self, raw_cursor, statement, ())
             raw_cursor.execute(statement)
         else:
             params = tuple(self.to_database(params))
-            if DEBUG:
-                print statement, params
+            trace("connection_raw_execute", self, raw_cursor, statement, params)
             raw_cursor.execute(statement, params)
         return raw_cursor
 
