@@ -276,7 +276,12 @@ class Connection(object):
             args = (statement, tuple(self.to_database(params)))
         else:
             args = (statement,)
-        self._check_disconnect(raw_cursor.execute, *args)
+        try:
+            self._check_disconnect(raw_cursor.execute, *args)
+        except Exception, error:
+            trace("connection_raw_execute_error", self, raw_cursor,
+                  statement, params or (), error)
+            raise
         return raw_cursor
 
     def _ensure_connected(self):

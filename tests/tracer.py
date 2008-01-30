@@ -74,14 +74,29 @@ class DebugTracerTest(TestHelper):
 
     def test_connection_raw_execute(self):
         stderr = self.mocker.replace("sys.stderr")
-        stderr.write("'STATEMENT', 'PARAMS'\n")
+        stderr.write("EXECUTE: 'STATEMENT', 'PARAMS'\n")
         stderr.flush()
         self.mocker.replay()
 
-        connection = object()
-        raw_cursor = object()
+        connection = "CONNECTION"
+        raw_cursor = "RAW_CURSOR"
         statement = "STATEMENT"
         params = "PARAMS"
 
         self.tracer.connection_raw_execute(connection, raw_cursor,
                                            statement, params)
+
+    def test_connection_raw_execute_error(self):
+        stderr = self.mocker.replace("sys.stderr")
+        stderr.write("ERROR: 'ERROR'\n")
+        stderr.flush()
+        self.mocker.replay()
+
+        connection = "CONNECTION"
+        raw_cursor = "RAW_CURSOR"
+        statement = "STATEMENT"
+        params = "PARAMS"
+        error = "ERROR"
+
+        self.tracer.connection_raw_execute_error(connection, raw_cursor,
+                                                 statement, params, error)

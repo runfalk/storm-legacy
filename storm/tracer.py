@@ -4,7 +4,12 @@ import sys
 class DebugTracer(object):
 
     def connection_raw_execute(self, connection, raw_cursor, statement, params):
-        sys.stderr.write("%r, %r\n" % (statement, params))
+        sys.stderr.write("EXECUTE: %r, %r\n" % (statement, params))
+        sys.stderr.flush()
+
+    def connection_raw_execute_error(self, connection, raw_cursor,
+                                     statement, params, error):
+        sys.stderr.write("ERROR: %r\n" % error)
         sys.stderr.flush()
 
 
