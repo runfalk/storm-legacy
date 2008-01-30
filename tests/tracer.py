@@ -1,6 +1,8 @@
 from storm.tracer import (trace, install_tracer, remove_tracer_type,
-                          remove_all_tracers, debug, DebugTracer, _tracers)
+                          remove_all_tracers, debug, DebugTracer,
+                          TimeoutTracer, TimeoutError, _tracers)
 
+from tests.mocker import ARGS
 from tests.helper import TestHelper
 
 
@@ -100,3 +102,135 @@ class DebugTracerTest(TestHelper):
 
         self.tracer.connection_raw_execute_error(connection, raw_cursor,
                                                  statement, params, error)
+
+
+class TimeoutTracerTestBase(TestHelper):
+
+    def setUp(self):
+        super(TimeoutTracerTestBase, self).setUp()
+        self.tracer = TimeoutTracer()
+        self.raw_cursor = self.mocker.mock()
+        self.statement = self.mocker.mock()
+        self.params = self.mocker.mock()
+
+        # Some data is kept in the connection, so we use a proxy to
+        # allow things we don't care about here to happen.
+        class Connection(object): pass
+        self.connection = self.mocker.proxy(Connection())
+
+    def tearDown(self):
+        super(TimeoutTracerTestBase, self).tearDown()
+        del _tracers[:]
+
+    def execute(self):
+        self.tracer.connection_raw_execute(self.connection, self.raw_cursor,
+                                           self.statement, self.params)
+
+    def execute_raising(self):
+        self.assertRaises(TimeoutError, self.tracer.connection_raw_execute,
+                          self.connection, self.raw_cursor,
+                          self.statement, self.params)
+
+
+class TimeoutTracerTest(TimeoutTracerTestBase):
+
+    def test_raise_not_implemented(self):
+        self.assertRaises(NotImplementedError,
+                          self.tracer.connection_raw_execute_error,
+                          None, None, None, None, None)
+        self.assertRaises(NotImplementedError,
+                          self.tracer.set_statement_timeout, None, None)
+        self.assertRaises(NotImplementedError,
+                          self.tracer.get_remaining_time)
+
+    def test_raise_timeout_error_when_no_remaining_time(self):
+        tracer_mock = self.mocker.patch(self.tracer)
+        tracer_mock.get_remaining_time()
+        self.mocker.result(0)
+        self.mocker.replay()
+
+        self.execute_raising()
+
+    def test_raise_timeout_on_granularity(self):
+        tracer_mock = self.mocker.patch(self.tracer)
+
+        self.mocker.order()
+
+        tracer_mock.get_remaining_time()
+        self.mocker.result(self.tracer.granularity)
+        tracer_mock.set_statement_timeout(self.raw_cursor,
+                                          self.tracer.granularity)
+        tracer_mock.get_remaining_time()
+        self.mocker.result(0)
+        self.mocker.replay()
+
+        self.execute()
+        self.execute_raising()
+
+    def test_wont_raise_timeout_before_granularity(self):
+        tracer_mock = self.mocker.patch(self.tracer)
+
+        self.mocker.order()
+
+        tracer_mock.get_remaining_time()
+        self.mocker.result(self.tracer.granularity)
+        tracer_mock.set_statement_timeout(self.raw_cursor,
+                                          self.tracer.granularity)
+        tracer_mock.get_remaining_time()
+        self.mocker.result(1)
+        self.mocker.replay()
+
+        self.execute()
+        self.execute()
+
+    def test_always_set_when_remaining_time_increased(self):
+        tracer_mock = self.mocker.patch(self.tracer)
+
+        self.mocker.order()
+
+        tracer_mock.get_remaining_time()
+        self.mocker.result(1)
+        tracer_mock.set_statement_timeout(self.raw_cursor, 1)
+        tracer_mock.get_remaining_time()
+        self.mocker.result(2)
+        tracer_mock.set_statement_timeout(self.raw_cursor, 2)
+        self.mocker.replay()
+
+        self.execute()
+        self.execute()
+
+    def test_set_again_on_granularity(self):
+        tracer_mock = self.mocker.patch(self.tracer)
+
+        self.mocker.order()
+
+        tracer_mock.get_remaining_time()
+        self.mocker.result(self.tracer.granularity * 2)
+        tracer_mock.set_statement_timeout(self.raw_cursor,
+                                          self.tracer.granularity * 2)
+        tracer_mock.get_remaining_time()
+        self.mocker.result(self.tracer.granularity)
+        tracer_mock.set_statement_timeout(self.raw_cursor,
+                                          self.tracer.granularity)
+        self.mocker.replay()
+
+        self.execute()
+        self.execute()
+
+    def test_set_again_after_granularity(self):
+        tracer_mock = self.mocker.patch(self.tracer)
+
+        self.mocker.order()
+
+        tracer_mock.get_remaining_time()
+        self.mocker.result(self.tracer.granularity * 2)
+        tracer_mock.set_statement_timeout(self.raw_cursor,
+                                          self.tracer.granularity * 2)
+        tracer_mock.get_remaining_time()
+        self.mocker.result(self.tracer.granularity - 1)
+        tracer_mock.set_statement_timeout(self.raw_cursor,
+                                          self.tracer.granularity - 1)
+        self.mocker.replay()
+
+        self.execute()
+        self.execute()

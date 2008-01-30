@@ -116,6 +116,9 @@ class NotSupportedError(DatabaseError):
 class DisconnectionError(OperationalError):
     pass
 
+class TimeoutError(StormError):
+    pass
+
 
 def install_exceptions(module):
     for exception in (Error, Warning, DatabaseError, InternalError,
