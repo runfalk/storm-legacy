@@ -23,7 +23,7 @@ class TimeoutTracer(object):
     def connection_raw_execute(self, connection, raw_cursor, statement, params):
         remaining_time = self.get_remaining_time()
         if remaining_time <= 0:
-            raise TimeoutError("Allocated time is over")
+            raise TimeoutError(statement, params)
 
         last_remaining_time = getattr(connection, "_timeout_tracer", 0)
         if (remaining_time > last_remaining_time or
@@ -42,6 +42,9 @@ class TimeoutTracer(object):
 
     def set_statement_timeout(self, raw_cursor, remaining_time):
         """Perform the timeout setup in the raw cursor.
+
+        The database should raise an error if the next statement takes
+        more than the number of seconds provided in C{remaining_time}.
 
         Must be specialized in the backend.
         """

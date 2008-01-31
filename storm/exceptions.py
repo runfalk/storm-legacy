@@ -117,7 +117,14 @@ class DisconnectionError(OperationalError):
     pass
 
 class TimeoutError(StormError):
-    pass
+    """Raised by timeout tracers when remining time is over."""
+
+    def __init__(self, statement, params):
+        self.statement = statement
+        self.params = params
+
+    def __str__(self):
+        return "%r, %r" % (self.statement, self.params)
 
 
 def install_exceptions(module):

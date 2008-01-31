@@ -36,7 +36,8 @@ from storm.expr import (
 from storm.variables import Variable, ListVariable, RawStrVariable
 from storm.database import Database, Connection, Result
 from storm.exceptions import (install_exceptions, DatabaseModuleError,
-                              OperationalError, ProgrammingError)
+                              OperationalError, ProgrammingError, TimeoutError)
+from storm.tracer import TimeoutTracer
 
 
 install_exceptions(psycopg2)
@@ -365,3 +366,16 @@ def make_dsn(uri):
     if uri.password is not None:
         dsn += " password=%s" % uri.password
     return dsn
+
+
+class PostgresTimeoutTracer(TimeoutTracer):
+
+    def set_statement_timeout(self, raw_cursor, remaining_time):
+        raw_cursor.execute("SET statement_timeout TO %d" %
+                           (remaining_time * 1000))
+
+    def connection_raw_execute_error(self, connection, raw_cursor,
+                                     statement, params, error):
+        if (isinstance(error, ProgrammingError) and
+            "statement timeout" in str(error)):
+            raise TimeoutError(statement, params)

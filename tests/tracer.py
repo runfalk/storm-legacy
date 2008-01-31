@@ -106,9 +106,11 @@ class DebugTracerTest(TestHelper):
 
 class TimeoutTracerTestBase(TestHelper):
 
+    tracer_class = TimeoutTracer
+
     def setUp(self):
         super(TimeoutTracerTestBase, self).setUp()
-        self.tracer = TimeoutTracer()
+        self.tracer = self.tracer_class()
         self.raw_cursor = self.mocker.mock()
         self.statement = self.mocker.mock()
         self.params = self.mocker.mock()
@@ -149,7 +151,13 @@ class TimeoutTracerTest(TimeoutTracerTestBase):
         self.mocker.result(0)
         self.mocker.replay()
 
-        self.execute_raising()
+        try:
+            self.execute()
+        except TimeoutError, e:
+            self.assertEquals(e.statement, self.statement)
+            self.assertEquals(e.params, self.params)
+        else:
+            self.fail("TimeoutError not raised")
 
     def test_raise_timeout_on_granularity(self):
         tracer_mock = self.mocker.patch(self.tracer)
