@@ -1,6 +1,6 @@
-from storm.tracer import (trace, install_tracer, remove_tracer_type,
-                          remove_all_tracers, debug, DebugTracer,
-                          TimeoutTracer, TimeoutError, _tracers)
+from storm.tracer import (trace, install_tracer, get_tracers(),
+                          remove_tracer_type, remove_all_tracers, debug,
+                          DebugTracer, TimeoutTracer, TimeoutError, _tracers)
 
 from tests.mocker import ARGS
 from tests.helper import TestHelper
@@ -12,19 +12,19 @@ class TracerTest(TestHelper):
         super(TracerTest, self).tearDown()
         del _tracers[:]
 
-    def test_wb_install_tracer(self):
+    def test_install_tracer(self):
         c = object()
         d = object()
         install_tracer(c)
         install_tracer(d)
-        self.assertEquals(_tracers, [c, d])
+        self.assertEquals(get_tracers(), [c, d])
 
-    def test_wb_remove_all_tracers(self):
+    def test_remove_all_tracers(self):
         install_tracer(object())
         remove_all_tracers()
-        self.assertEquals(_tracers, [])
+        self.assertEquals(get_tracers(), [])
 
-    def test_wb_remove_tracer_type(self):
+    def test_remove_tracer_type(self):
         class C(object): pass
         class D(C): pass
         c = C()
@@ -34,20 +34,20 @@ class TracerTest(TestHelper):
         install_tracer(c)
         install_tracer(d2)
         remove_tracer_type(C)
-        self.assertEquals(_tracers, [d1, d2])
+        self.assertEquals(get_tracers(), [d1, d2])
         remove_tracer_type(D)
-        self.assertEquals(_tracers, [])
+        self.assertEquals(get_tracers(), [])
 
-    def test_wb_install_debug(self):
+    def test_install_debug(self):
         debug(True)
         debug(True)
-        self.assertEquals([type(x) for x in _tracers], [DebugTracer])
+        self.assertEquals([type(x) for x in get_tracers()], [DebugTracer])
 
-    def test_wb_remove_debug(self):
+    def test_remove_debug(self):
         debug(True)
         debug(True)
         debug(False)
-        self.assertEquals(_tracers, [])
+        self.assertEquals(get_tracers(), [])
 
     def test_trace(self):
         stash = []

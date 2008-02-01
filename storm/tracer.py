@@ -73,6 +73,9 @@ def trace(name, *args, **kwargs):
 def install_tracer(tracer):
     _tracers.append(tracer)
 
+def get_tracers():
+    return _tracers[:]
+
 def remove_all_tracers():
     del _tracers[:]
 
