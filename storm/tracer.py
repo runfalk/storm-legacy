@@ -5,14 +5,17 @@ from storm.exceptions import TimeoutError
 
 class DebugTracer(object):
 
+    def __init__(self, stream=None):
+        self._stream = stream or sys.stderr
+
     def connection_raw_execute(self, connection, raw_cursor, statement, params):
-        sys.stderr.write("EXECUTE: %r, %r\n" % (statement, params))
-        sys.stderr.flush()
+        self._stream.write("EXECUTE: %r, %r\n" % (statement, params))
+        self._stream.flush()
 
     def connection_raw_execute_error(self, connection, raw_cursor,
                                      statement, params, error):
-        sys.stderr.write("ERROR: %r\n" % error)
-        sys.stderr.flush()
+        self._stream.write("ERROR: %r\n" % error)
+        self._stream.flush()
 
 
 class TimeoutTracer(object):

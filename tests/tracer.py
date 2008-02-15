@@ -1,3 +1,5 @@
+import sys
+
 from storm.tracer import (trace, install_tracer, get_tracers,
                           remove_tracer_type, remove_all_tracers, debug,
                           DebugTracer, TimeoutTracer, TimeoutError, _tracers)
@@ -102,6 +104,22 @@ class DebugTracerTest(TestHelper):
 
         self.tracer.connection_raw_execute_error(connection, raw_cursor,
                                                  statement, params, error)
+
+    def test_custom_stream(self):
+        self.tracer = DebugTracer(sys.stdout)
+
+        stdout = self.mocker.replace("sys.stdout")
+        stdout.write("EXECUTE: 'STATEMENT', 'PARAMS'\n")
+        stdout.flush()
+        self.mocker.replay()
+
+        connection = "CONNECTION"
+        raw_cursor = "RAW_CURSOR"
+        statement = "STATEMENT"
+        params = "PARAMS"
+
+        self.tracer.connection_raw_execute(connection, raw_cursor,
+                                           statement, params)
 
 
 class TimeoutTracerTestBase(TestHelper):
