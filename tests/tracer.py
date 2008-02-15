@@ -1,4 +1,4 @@
-from storm.tracer import (trace, install_tracer, get_tracers(),
+from storm.tracer import (trace, install_tracer, get_tracers,
                           remove_tracer_type, remove_all_tracers, debug,
                           DebugTracer, TimeoutTracer, TimeoutError, _tracers)
 

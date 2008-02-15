@@ -25,11 +25,12 @@ class TimeoutTracer(object):
         if remaining_time <= 0:
             raise TimeoutError(statement, params)
 
-        last_remaining_time = getattr(connection, "_timeout_tracer", 0)
+        last_remaining_time = getattr(connection,
+                                      "_timeout_tracer_remaining_time", 0)
         if (remaining_time > last_remaining_time or
             last_remaining_time - remaining_time >= self.granularity):
             self.set_statement_timeout(raw_cursor, remaining_time)
-            connection._timeout_tracer = remaining_time
+            connection._timeout_tracer_remaining_time = remaining_time
 
     def connection_raw_execute_error(self, connection, raw_cursor,
                                      statement, params, error):
