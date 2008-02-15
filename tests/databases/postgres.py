@@ -21,7 +21,8 @@
 from datetime import date, time, timedelta
 import os
 
-from storm.databases.postgres import Postgres, compile, currval, Returning
+from storm.databases.postgres import (
+    Postgres, compile, currval, Returning, PostgresTimeoutTracer)
 from storm.uri import URI
 from storm.database import create_database
 from storm.variables import DateTimeVariable, RawStrVariable
@@ -29,6 +30,7 @@ from storm.variables import ListVariable, IntVariable, Variable
 from storm.properties import Int
 from storm.expr import (Union, Select, Insert, Alias, SQLRaw, State,
                         Sequence, Like, Column, COLUMN)
+from storm.tracer import install_tracer, TimeoutError
 
 # We need the info to register the 'type' compiler.  In normal
 # circumstances this is naturally imported.
@@ -37,6 +39,7 @@ import storm.info
 from tests.databases.base import (
     DatabaseTest, DatabaseDisconnectionTest, UnsupportedDatabaseTest)
 from tests.expr import column1, column2, column3, elem1, table1, TrackContext
+from tests.tracer import TimeoutTracerTestBase
 from tests.helper import TestHelper
 
 
@@ -443,3 +446,37 @@ class PostgresDisconnectionTest(DatabaseDisconnectionTest, TestHelper):
     environment_variable = "STORM_POSTGRES_URI"
     host_environment_variable = "STORM_POSTGRES_HOST_URI"
     default_port = 5432
+
+
+class PostgresTimeoutTracerTest(TimeoutTracerTestBase):
+
+    tracer_class = PostgresTimeoutTracer
+
+    def is_supported(self):
+        return bool(os.environ.get("STORM_POSTGRES_URI"))
+
+    def setUp(self):
+        super(PostgresTimeoutTracerTest, self).setUp()
+        self.database = create_database(os.environ["STORM_POSTGRES_URI"])
+        self.connection = self.database.connect()
+        install_tracer(self.tracer)
+        self.tracer.get_remaining_time = lambda: self.remaining_time
+        self.remaining_time = 10.5
+
+    def test_set_statement_timeout(self):
+        result = self.connection.execute("SHOW statement_timeout")
+        self.assertEquals(result.get_one(), ("10500ms",))
+
+    def test_connection_raw_execute_error(self):
+        # Let's hope it works.  We may have to find something more
+        # expensive if that becomes too quick (e.g. maybe creating
+        # an index on existent data or something).
+        statement = "CREATE TABLE test (id SERIAL)"
+        self.remaining_time = 0.001
+        try:
+            self.connection.execute(statement)
+        except TimeoutError, e:
+            self.assertEquals(e.statement, statement)
+            self.assertEquals(e.params, ())
+        else:
+            self.fail("TimeoutError not raised")

@@ -26,10 +26,12 @@ from storm.exceptions import ClosedError, DatabaseError, DisconnectionError
 from storm.variables import Variable
 import storm.database
 from storm.database import *
+from storm.tracer import install_tracer, remove_all_tracers, DebugTracer
 from storm.uri import URI
 from storm.expr import *
 
 from tests.helper import TestHelper
+from tests.mocker import ARGS
 
 
 marker = object()
@@ -116,6 +118,10 @@ class ConnectionTest(TestHelper):
         self.database.raw_connect = lambda: self.raw_connection
         self.connection = Connection(self.database)
 
+    def tearDown(self):
+        TestHelper.tearDown(self)
+        remove_all_tracers()
+
     def test_execute(self):
         result = self.connection.execute("something")
         self.assertTrue(isinstance(result, Result))
@@ -165,6 +171,50 @@ class ConnectionTest(TestHelper):
     def test_execute_closed(self):
         self.connection.close()
         self.assertRaises(ClosedError, self.connection.execute, "SELECT 1")
+
+    def test_raw_execute_tracing(self):
+        stash = []
+        class Tracer(object):
+            def connection_raw_execute(self, connection, raw_cursor,
+                                       statement, params):
+                stash.extend((connection, type(raw_cursor), statement, params))
+        self.assertMethodsMatch(Tracer, DebugTracer)
+        install_tracer(Tracer())
+        self.connection.execute("something")
+        self.assertEquals(stash, [self.connection, RawCursor, "something", ()])
+
+        del stash[:]
+        self.connection.execute("something", (1, 2))
+        self.assertEquals(stash, [self.connection, RawCursor,
+                                  "something", (1, 2)])
+
+    def test_raw_execute_error_tracing(self):
+        cursor_mock = self.mocker.patch(RawCursor)
+        cursor_mock.execute(ARGS)
+        self.mocker.throw(ZeroDivisionError)
+        self.mocker.replay()
+
+        stash = []
+        class Tracer(object):
+            def connection_raw_execute_error(self, connection, raw_cursor,
+                                             statement, params, error):
+                stash.extend((connection, type(raw_cursor), statement,
+                              params, type(error)))
+
+        self.assertMethodsMatch(Tracer, DebugTracer)
+        install_tracer(Tracer())
+        self.assertRaises(ZeroDivisionError,
+                          self.connection.execute, "something")
+        self.assertEquals(stash, [self.connection, RawCursor, "something", (),
+                                  ZeroDivisionError])
+
+        # Verify and reset so that we check if it won't be run without errors.
+        self.mocker.verify()
+        self.mocker.reset()
+
+        del stash[:]
+        self.connection.execute("something")
+        self.assertEquals(stash, [])
 
     def test_commit(self):
         self.connection.commit()

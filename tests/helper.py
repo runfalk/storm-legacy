@@ -25,6 +25,8 @@ import logging
 import shutil
 import sys
 
+from tests import mocker
+
 
 __all__ = ["TestHelper", "MakePath", "LogKeeper", "run_this"]
 
@@ -34,7 +36,7 @@ def run_this(method):
     return method
 
 
-class TestHelper(unittest.TestCase):
+class TestHelper(mocker.MockerTestCase):
 
     helpers = []
 

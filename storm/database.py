@@ -26,6 +26,7 @@ supported in modules in L{storm.databases}.
 """
 
 from storm.expr import Expr, State, compile
+from storm.tracer import trace
 from storm.variables import Variable
 from storm.exceptions import ClosedError, DatabaseError, DisconnectionError
 from storm.uri import URI
@@ -35,8 +36,6 @@ import storm
 __all__ = ["Database", "Connection", "Result",
            "convert_param_marks", "create_database", "register_scheme"]
 
-
-DEBUG = False
 
 STATE_CONNECTED = 1
 STATE_DISCONNECTED = 2
@@ -198,8 +197,7 @@ class Connection(object):
             statement = self.compile(statement, state)
             params = state.parameters
         statement = convert_param_marks(statement, "?", self.param_mark)
-        raw_cursor = self._check_disconnect(
-            self.raw_execute, statement, params)
+        raw_cursor = self.raw_execute(statement, params)
         if noresult:
             self._check_disconnect(raw_cursor.close)
             return None
@@ -272,15 +270,18 @@ class Connection(object):
         @return: The dbapi cursor object, as fetched from L{build_raw_cursor}.
         """
         raw_cursor = self.build_raw_cursor()
-        if not params:
-            if DEBUG:
-                print statement, ()
-            raw_cursor.execute(statement)
+        trace("connection_raw_execute", self, raw_cursor,
+              statement, params or ())
+        if params:
+            args = (statement, tuple(self.to_database(params)))
         else:
-            params = tuple(self.to_database(params))
-            if DEBUG:
-                print statement, params
-            raw_cursor.execute(statement, params)
+            args = (statement,)
+        try:
+            self._check_disconnect(raw_cursor.execute, *args)
+        except Exception, error:
+            trace("connection_raw_execute_error", self, raw_cursor,
+                  statement, params or (), error)
+            raise
         return raw_cursor
 
     def _ensure_connected(self):

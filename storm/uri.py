@@ -18,6 +18,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+from urllib import quote
+
 from storm.exceptions import URIError
 
 
@@ -76,6 +78,38 @@ class URI(object):
         uri.__dict__.update(self.__dict__)
         uri.options = self.options.copy()
         return uri
+
+    def __str__(self):
+        tokens = [self.scheme, ":"]
+        append = tokens.append
+        if (self.username is not None or self.password is not None or
+            self.host is not None or self.port is not None):
+            append("//")
+            if self.username is not None or self.password is not None:
+                if self.username is not None:
+                    append(escape(self.username))
+                if self.password is not None:
+                    append(":")
+                    append(escape(self.password))
+                append("@")
+            if self.host is not None:
+                append(escape(self.host))
+            if self.port is not None:
+                append(":")
+                append(str(self.port))
+            append("/")
+        if self.database is not None:
+            append(escape(self.database, "/"))
+        if self.options:
+            options = ["%s=%s" % (escape(key), escape(value))
+                       for key, value in sorted(self.options.iteritems())]
+            append("?")
+            append("&".join(options))
+        return "".join(tokens)
+
+
+def escape(s, safe=""):
+    return quote(s, safe)
 
 
 def unescape(s):
