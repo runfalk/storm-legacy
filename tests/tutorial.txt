@@ -876,6 +876,35 @@ Woah!  Mike and Ben work for the same company!
 the query above?)
 
 
+==== Debugging ====
+
+Sometimes you just need to see which statements Storm is executing.  A
+debug tracer built on top of Storm's tracing system can be used to see
+what's going on under the hood.  A tracer is an object that gets
+notified when interesting events occur, such as when Storm executes a
+statement.  A function to enable and disable statement tracing is
+provided.  Statements are logged to sys.stderr by default, but a
+custom stream may also be used.
+
+{{{#!python
+>>> import sys
+>>> from storm.tracer import debug
+
+>>> debug(True, stream=sys.stdout)
+>>> result = store.find((Employee, AnotherEmployee),
+...                     Employee.company_id == AnotherEmployee.company_id,
+...                     Employee.id > AnotherEmployee.id)
+>>> list(result)
+EXECUTE: 'SELECT employee.company_id, employee.id, employee.name, "_1".company_id, "_1".id, "_1".name FROM employee, employee AS "_1" WHERE employee.company_id = "_1".company_id AND employee.id > "_1".id', ()
+[(<Employee object at ...>, <Employee object at ...>)]
+
+>>> debug(False)
+>>> list(result)
+[(<Employee object at ...>, <Employee object at ...>)]
+
+}}}
+
+
 ==== Much more! ====
 
 There's a lot more about Storm to be shown.  This tutorial is just a
