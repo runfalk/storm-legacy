@@ -489,6 +489,30 @@ class SQLObjectTest(TestHelper):
         self.assertEquals([phone.number for phone in result],
                           ["8765-4321", "1234-5678"])
 
+    def test_single_join(self):
+        self.store.execute("CREATE TABLE office "
+                           "(id INTEGER PRIMARY KEY, phone_id INTEGER,"
+                           "name TEXT)")
+        self.store.execute("INSERT INTO office VALUES (1, 1, 'An office')")
+
+        class Phone(self.SQLObject):
+            office = SingleJoin("Office", joinColumn="phoneID")
+
+        class Office(self.SQLObject):
+            phone = ForeignKey(foreignKey="Phone", dbName="phone_id",
+                               notNull=True)
+            name = StringCol()
+
+        office = Office.get(1)
+        self.assertEqual(office.name, "An office")
+
+        phone = Phone.get(1)
+        self.assertEqual(phone.office, office)
+
+        # The single join returns None for a phone with no office
+        phone = Phone.get(2)
+        self.assertEqual(phone.office, None)
+
     def test_result_set_orderBy(self):
         result = self.Person.select()
 

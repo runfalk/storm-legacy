@@ -41,9 +41,9 @@ from storm import Undef
 
 __all__ = ["SQLObjectBase", "StringCol", "IntCol", "BoolCol", "FloatCol",
            "DateCol", "UtcDateTimeCol", "IntervalCol", "ForeignKey",
-           "SQLMultipleJoin", "SQLRelatedJoin", "DESC", "AND", "OR",
-           "NOT", "IN", "LIKE", "SQLConstant", "SQLObjectNotFound",
-           "CONTAINSSTRING"]
+           "SQLMultipleJoin", "SQLRelatedJoin", "SingleJoin", "DESC",
+           "AND", "OR", "NOT", "IN", "LIKE", "SQLConstant",
+           "SQLObjectNotFound", "CONTAINSSTRING"]
 
 
 DESC, AND, OR, NOT, IN, LIKE, SQLConstant = Desc, And, Or, Not, In, Like, SQL
@@ -521,7 +521,15 @@ class SQLMultipleJoin(ReferenceSet):
             result_set.order_by(*target_cls._parse_orderBy(self._orderBy))
         return SQLObjectResultSet(result_set, target_cls)
 
+
 SQLRelatedJoin = SQLMultipleJoin
+
+
+class SingleJoin(Reference):
+
+    def __init__(self, otherClass, joinColumn, prejoins=_IGNORED):
+        super(SingleJoin, self).__init__(
+            "<primary key>", "%s.%s" % (otherClass, joinColumn))
 
 
 class CONTAINSSTRING(Like):
