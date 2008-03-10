@@ -179,11 +179,27 @@ class SQLObjectMeta(PropertyPublisherMeta):
                         return obj
                     func.func_name = method_name
                     dict[method_name] = classmethod(func)
+            elif isinstance(prop, SQLMultipleJoin):
+                # Generate addFoo/removeFoo names.
+                def define_add_remove(dict, prop):
+                    capitalised_name = (prop._otherClass[0].capitalize() +
+                                        prop._otherClass[1:])
+                    def add(self, obj):
+                        prop._get_bound_reference_set(self).add(obj)
+                    add.__name__ = 'add' + capitalised_name
+                    dict.setdefault(add.__name__, add)
+
+                    def remove(self, obj):
+                        prop._get_bound_reference_set(self).remove(obj)
+                    remove.__name__ = 'remove' + capitalised_name
+                    dict.setdefault(remove.__name__, remove)
+                define_add_remove(dict, prop)
 
 
         id_type = dict.get("_idType", int)
         id_cls = {int: Int, str: RawStr, unicode: AutoUnicode}[id_type]
         dict[id_name] = id_cls(primary=True)
+        attr_to_prop[id_name] = id_name
 
         # Notice that obj is the class since this is the metaclass.
         obj = super(SQLObjectMeta, cls).__new__(cls, name, bases, dict)
@@ -510,6 +526,7 @@ class SQLMultipleJoin(ReferenceSet):
             args = ("<primary key>", "%s.%s" % (otherClass, joinColumn))
         ReferenceSet.__init__(self, *args)
         self._orderBy = orderBy
+        self._otherClass = otherClass
 
     def __get__(self, obj, cls=None):
         if obj is None:
@@ -520,6 +537,10 @@ class SQLMultipleJoin(ReferenceSet):
         if self._orderBy:
             result_set.order_by(*target_cls._parse_orderBy(self._orderBy))
         return SQLObjectResultSet(result_set, target_cls)
+
+    def _get_bound_reference_set(self, obj):
+        assert obj is not None
+        return ReferenceSet.__get__(self, obj)
 
 
 SQLRelatedJoin = SQLMultipleJoin

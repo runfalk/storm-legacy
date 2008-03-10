@@ -71,10 +71,11 @@ class SQLObjectTest(TestHelper):
         self.store.execute("INSERT INTO phone VALUES (3, 2, '8765-5678')")
 
         self.store.execute("CREATE TABLE person_phone "
-                           "(person_id INTEGER , phone_id INTEGER)")
-        self.store.execute("INSERT INTO person_phone VALUES (2, 1)")
-        self.store.execute("INSERT INTO person_phone VALUES (2, 2)")
-        self.store.execute("INSERT INTO person_phone VALUES (1, 1)")
+                           "(id INTEGER PRIMARY KEY, person_id INTEGER, "
+                           "phone_id INTEGER)")
+        self.store.execute("INSERT INTO person_phone VALUES (1, 2, 1)")
+        self.store.execute("INSERT INTO person_phone VALUES (2, 2, 2)")
+        self.store.execute("INSERT INTO person_phone VALUES (3, 1, 1)")
 
         class Person(self.SQLObject):
             _defaultOrder = "-Person.name"
@@ -464,6 +465,15 @@ class SQLObjectTest(TestHelper):
         self.assertEquals([phone.number for phone in result],
                           ["8765-5678", "1234-5678"])
 
+        # Test add/remove methods.
+        number = Phone.selectOneBy(number="1234-5678")
+        person.removePhone(number)
+        self.assertEquals(sorted(phone.number for phone in person.phones),
+                          ["8765-5678"])
+        person.addPhone(number)
+        self.assertEquals(sorted(phone.number for phone in person.phones),
+                          ["1234-5678", "8765-5678"])
+
     def test_related_join(self):
         class AnotherPerson(self.Person):
             _table = "person"
@@ -480,7 +490,7 @@ class SQLObjectTest(TestHelper):
 
         person = AnotherPerson.get(2)
 
-        self.assertEquals([phone.number for phone in person.phones],
+        self.assertEquals(sorted(phone.number for phone in person.phones),
                           ["1234-5678", "8765-4321"])
 
         # Make sure that the result is wrapped.
@@ -488,6 +498,15 @@ class SQLObjectTest(TestHelper):
 
         self.assertEquals([phone.number for phone in result],
                           ["8765-4321", "1234-5678"])
+
+        # Test add/remove methods.
+        number = Phone.selectOneBy(number="1234-5678")
+        person.removePhone(number)
+        self.assertEquals(sorted(phone.number for phone in person.phones),
+                          ["8765-4321"])
+        person.addPhone(number)
+        self.assertEquals(sorted(phone.number for phone in person.phones),
+                          ["1234-5678", "8765-4321"])
 
     def test_single_join(self):
         self.store.execute("CREATE TABLE office "
