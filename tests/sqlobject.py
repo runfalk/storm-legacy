@@ -490,7 +490,7 @@ class SQLObjectTest(TestHelper):
 
         person = AnotherPerson.get(2)
 
-        self.assertEquals(sorted(phone.number for phone in person.phones),
+        self.assertEquals([phone.number for phone in person.phones],
                           ["1234-5678", "8765-4321"])
 
         # Make sure that the result is wrapped.
