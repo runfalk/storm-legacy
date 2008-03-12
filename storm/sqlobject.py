@@ -198,15 +198,15 @@ class SQLObjectMeta(PropertyPublisherMeta):
 
         id_type = dict.setdefault("_idType", int)
         id_cls = {int: Int, str: RawStr, unicode: AutoUnicode}[id_type]
-        dict[id_name] = id_cls(primary=True)
-        attr_to_prop[id_name] = id_name
+        dict['id'] = id_cls(id_name, primary=True)
+        attr_to_prop[id_name] = 'id'
 
         # Notice that obj is the class since this is the metaclass.
         obj = super(SQLObjectMeta, cls).__new__(cls, name, bases, dict)
 
         property_registry = obj._storm_property_registry
 
-        property_registry.add_property(obj, getattr(obj, id_name),
+        property_registry.add_property(obj, getattr(obj, 'id'),
                                        "<primary key>")
 
         for fake_name, real_name in attr_to_prop.items():

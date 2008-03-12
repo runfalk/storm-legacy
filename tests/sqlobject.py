@@ -128,7 +128,7 @@ class SQLObjectTest(TestHelper):
         person = MyPerson.get("John Doe")
 
         self.assertTrue(person)
-        self.assertEquals(person.name, "John Doe")
+        self.assertEquals(person.id, "John Doe")
 
     def test_create(self):
         person = self.Person(name="John Joe")
@@ -634,17 +634,13 @@ class SQLObjectTest(TestHelper):
             address = ForeignKey(foreignKey="Phone", dbName='address_id',
                                  notNull=True)
 
-        # *.q.id points to the primary key, no matter its name.
-        self.assertEquals(id(Person.q.id), id(Person.name))
-
-        self.assertEquals(id(Person.q.name), id(Person.name))
+        self.assertEquals(id(Person.q.id), id(Person.id))
         self.assertEquals(id(Person.q.address), id(Person.address))
         self.assertEquals(id(Person.q.addressID), id(Person.addressID))
 
         person = Person.get("John Joe")
 
-        self.assertEquals(id(person.q.id), id(Person.name))
-        self.assertEquals(id(person.q.name), id(Person.name))
+        self.assertEquals(id(person.q.id), id(Person.id))
         self.assertEquals(id(person.q.address), id(Person.address))
         self.assertEquals(id(person.q.addressID), id(Person.addressID))
 
