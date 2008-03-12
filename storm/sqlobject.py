@@ -196,7 +196,7 @@ class SQLObjectMeta(PropertyPublisherMeta):
                 define_add_remove(dict, prop)
 
 
-        id_type = dict.get("_idType", int)
+        id_type = dict.setdefault("_idType", int)
         id_cls = {int: Int, str: RawStr, unicode: AutoUnicode}[id_type]
         dict[id_name] = id_cls(primary=True)
         attr_to_prop[id_name] = id_name
@@ -295,6 +295,7 @@ class SQLObjectBase(Storm):
 
     @classmethod
     def get(cls, id):
+        id = cls._idType(id)
         store = cls._get_store()
         obj = store.get(cls, id)
         if obj is None:

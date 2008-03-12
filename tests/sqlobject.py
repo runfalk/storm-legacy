@@ -93,6 +93,11 @@ class SQLObjectTest(TestHelper):
     def test_get_not_found(self):
         self.assertRaises(SQLObjectNotFound, self.Person.get, 1000)
 
+    def test_get_typecast(self):
+        person = self.Person.get('2')
+        self.assertTrue(person)
+        self.assertEquals(person.name, "John Doe")
+
     def test_destroySelf(self):
         person = self.Person.get(2)
         person.destroySelf()
