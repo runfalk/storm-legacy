@@ -63,7 +63,7 @@ class SQLObjectStyle(object):
         if self.longID:
             return self.tableReference(table_name)
         else:
-            return 'id'
+            return "id"
 
     def pythonClassToAttr(self, class_name):
         return self._lowerword(class_name)
@@ -89,23 +89,23 @@ class SQLObjectStyle(object):
     def tableReference(self, table_name):
         return table_name+"_id"
 
-    def _mixed_to_under(self, name, _re=re.compile(r'[A-Z]+')):
-        if name.endswith('ID'):
+    def _mixed_to_under(self, name, _re=re.compile("[A-Z]+")):
+        if name.endswith("ID"):
             return self._mixed_to_under(name[:-2]+"_id")
         name = _re.sub(self._mixed_to_under_sub, name)
-        if name.startswith('_'):
+        if name.startswith("_"):
             return name[1:]
         return name
 
     def _mixed_to_under_sub(self, match):
         m = match.group(0).lower()
         if len(m) > 1:
-            return '_%s_%s' % (m[:-1], m[-1])
+            return "_%s_%s" % (m[:-1], m[-1])
         else:
-            return '_%s' % m
+            return "_%s" % m
 
-    def _under_to_mixed(self, name, _re=re.compile('_.')):
-        if name.endswith('_id'):
+    def _under_to_mixed(self, name, _re=re.compile("_.")):
+        if name.endswith("_id"):
             return self._under_to_mixed(name[:-3] + "ID")
         return _re.sub(self._under_to_mixed_sub, name)
 
@@ -186,27 +186,27 @@ class SQLObjectMeta(PropertyPublisherMeta):
                                         prop._otherClass[1:])
                     def add(self, obj):
                         prop._get_bound_reference_set(self).add(obj)
-                    add.__name__ = 'add' + capitalised_name
+                    add.__name__ = "add" + capitalised_name
                     dict.setdefault(add.__name__, add)
 
                     def remove(self, obj):
                         prop._get_bound_reference_set(self).remove(obj)
-                    remove.__name__ = 'remove' + capitalised_name
+                    remove.__name__ = "remove" + capitalised_name
                     dict.setdefault(remove.__name__, remove)
                 define_add_remove(dict, prop)
 
 
         id_type = dict.setdefault("_idType", int)
         id_cls = {int: Int, str: RawStr, unicode: AutoUnicode}[id_type]
-        dict['id'] = id_cls(id_name, primary=True)
-        attr_to_prop[id_name] = 'id'
+        dict["id"] = id_cls(id_name, primary=True)
+        attr_to_prop[id_name] = "id"
 
         # Notice that obj is the class since this is the metaclass.
         obj = super(SQLObjectMeta, cls).__new__(cls, name, bases, dict)
 
         property_registry = obj._storm_property_registry
 
-        property_registry.add_property(obj, getattr(obj, 'id'),
+        property_registry.add_property(obj, getattr(obj, "id"),
                                        "<primary key>")
 
         for fake_name, real_name in attr_to_prop.items():
@@ -237,9 +237,9 @@ class BoundDotQ(object):
         self._cls = cls
 
     def __getattr__(self, attr):
-        if attr.startswith('__'):
+        if attr.startswith("__"):
             raise AttributeError(attr)
-        elif attr == 'id':
+        elif attr == "id":
             cls_info = get_cls_info(self._cls)
             return cls_info.primary_key[0]
         else:

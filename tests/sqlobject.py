@@ -94,7 +94,7 @@ class SQLObjectTest(TestHelper):
         self.assertRaises(SQLObjectNotFound, self.Person.get, 1000)
 
     def test_get_typecast(self):
-        person = self.Person.get('2')
+        person = self.Person.get("2")
         self.assertTrue(person)
         self.assertEquals(person.name, "John Doe")
 
@@ -172,7 +172,7 @@ class SQLObjectTest(TestHelper):
         self.assertEquals(result[0].name, "John Joe")
 
     def test_select_sqlbuilder(self):
-        result = self.Person.select(self.Person.q.name == 'John Joe')
+        result = self.Person.select(self.Person.q.name == "John Joe")
         self.assertEqual(result[0].name, "John Joe")
 
     def test_select_orderBy(self):
@@ -235,10 +235,10 @@ class SQLObjectTest(TestHelper):
         self.assertEquals(nobody, None)
 
         # SQLBuilder style expression:
-        person = self.Person.selectOne(self.Person.q.name == 'John Joe')
+        person = self.Person.selectOne(self.Person.q.name == "John Joe")
 
         self.assertNotEqual(person, None)
-        self.assertEqual(person.name, 'John Joe')
+        self.assertEqual(person.name, "John Joe")
 
     def test_selectOne_clauseTables(self):
         person = self.Person.selectOne("person.name = 'John Joe' and "
@@ -272,10 +272,10 @@ class SQLObjectTest(TestHelper):
         self.assertEquals(nobody, None)
 
         # SQLBuilder style expression:
-        person = self.Person.selectFirst(LIKE(self.Person.q.name, 'John%'),
+        person = self.Person.selectFirst(LIKE(self.Person.q.name, "John%"),
                                          orderBy="name")
         self.assertNotEqual(person, None)
-        self.assertEqual(person.name, 'John Doe')
+        self.assertEqual(person.name, "John Doe")
 
     def test_selectFirst_default_order(self):
         person = self.Person.selectFirst("name LIKE 'John%'")
@@ -456,7 +456,7 @@ class SQLObjectTest(TestHelper):
         class AnotherPerson(self.Person):
             _table = "person"
             phones = SQLMultipleJoin("Phone", joinColumn="person",
-                                     prejoins=['person'])
+                                     prejoins=["person"])
 
         class Phone(self.SQLObject):
             person = ForeignKey("AnotherPerson", dbName="person_id")
@@ -574,7 +574,7 @@ class SQLObjectTest(TestHelper):
     def test_result_set__nonzero__(self):
         result = self.Person.select()
         self.assertEquals(result.__nonzero__(), True)
-        result = self.Person.select(self.Person.q.name == 'No Person')
+        result = self.Person.select(self.Person.q.name == "No Person")
         self.assertEquals(result.__nonzero__(), False)
 
     def test_result_set_distinct(self):
@@ -631,7 +631,7 @@ class SQLObjectTest(TestHelper):
         class Person(self.SQLObject):
             _idName = "name"
             _idType = unicode
-            address = ForeignKey(foreignKey="Phone", dbName='address_id',
+            address = ForeignKey(foreignKey="Phone", dbName="address_id",
                                  notNull=True)
 
         self.assertEquals(id(Person.q.id), id(Person.id))
