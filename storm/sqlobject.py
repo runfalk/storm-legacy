@@ -34,7 +34,8 @@ from storm.exceptions import StormError
 from storm.info import get_cls_info
 from storm.store import Store
 from storm.base import Storm
-from storm.expr import SQL, SQLRaw, Desc, And, Or, Not, In, Like
+from storm.expr import (
+    SQL, SQLRaw, Desc, And, Or, Not, In, Like, AutoTables, LeftJoin)
 from storm.tz import tzutc
 from storm import Undef
 
@@ -358,7 +359,7 @@ class SQLObjectResultSet(object):
     """
 
     def __init__(self, cls, clause=None, clauseTables=None, orderBy=None,
-                 limit=None, distinct=None, prejoins=_IGNORED,
+                 limit=None, distinct=None, prejoins=None,
                  prejoinClauseTables=None,
                  by={}, prepared_result_set=None, slice=None):
         self._cls = cls
@@ -391,14 +392,32 @@ class SQLObjectResultSet(object):
         else:
             args = (self._clause,)
 
+        tables = []
+
         if self._clauseTables is not None:
-            clauseTables = set(table.lower() for table in self._clauseTables)
-            clauseTables.add(self._cls.__storm_table__.lower())
-            store = store.using(*clauseTables)
+            tables.extend(table.lower() for table in self._clauseTables)
 
-        # XXX Handle prejoins here.
+        if not self._prejoins:
+            find_spec = self._cls
+        else:
+            find_spec = [self._cls]
 
-        return store.find(self._cls, *args, **self._by)
+            for prejoin in self._prejoins:
+                relation = getattr(self._cls, prejoin)._relation
+                tables.append(LeftJoin(relation.remote_cls,
+                                       relation.get_where_for_join()))
+                find_spec.append(relation.remote_cls)
+
+            find_spec = tuple(find_spec)
+
+        if tables:
+            # Inject an AutoTables expression with a dummy true value to
+            # be ANDed in the WHERE clause, so that we can introduce our
+            # tables into the dynamic table handling of Storm without
+            # disrupting anything else.
+            args += (AutoTables(SQL("1=1"), tables),)
+
+        return store.find(find_spec, *args, **self._by)
 
     def _finish_result_set(self):
         if self._prepared_result_set is not None:
@@ -427,7 +446,8 @@ class SQLObjectResultSet(object):
         return self._result_set.count()
 
     def __iter__(self):
-        return self._result_set.__iter__()
+        for item in self._result_set:
+            yield detuplelize(item)
 
     def __getitem__(self, index):
         if isinstance(index, slice):
@@ -465,10 +485,23 @@ class SQLObjectResultSet(object):
         return self._copy(prepared_result_set=result_set, orderBy=orderBy)
 
     def prejoin(self, prejoins):
-        return self
+        return self._copy(prejoins=prejoins)
 
     def prejoinClauseTables(self, prejoinClauseTables):
         return self
+
+
+def detuplelize(item):
+    """If item is a tuple, return first element, otherwise the item itself.
+
+    The tuple syntax is used to implement prejoins, so we have to hide from
+    the user the fact that more than a single object are being selected at
+    once.
+    """
+    if type(item) is tuple:
+        return item[0]
+    return item
+
 
 
 class PropertyAdapter(object):

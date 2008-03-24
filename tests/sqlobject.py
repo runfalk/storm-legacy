@@ -616,8 +616,33 @@ class SQLObjectTest(TestHelper):
                           ["John Doe", "John Moe"])
 
     def test_result_set_prejoin(self):
-        result = self.Person.select()
-        self.assertEquals(result.prejoin(None), result) # Dummy.
+        self.store.execute("ALTER TABLE person ADD COLUMN phone_id INTEGER")
+        self.store.execute("UPDATE person SET phone_id=1 WHERE name='John Doe'")
+
+        class Person(self.Person):
+            address = ForeignKey(foreignKey="Address", dbName="address_id")
+            phone = ForeignKey(foreignKey="Phone", dbName="phone_id")
+
+        class Address(self.SQLObject):
+            city = StringCol()
+
+        class Phone(self.SQLObject):
+            number = StringCol()
+
+        result = Person.select("name = 'John Doe'")
+        result = result.prejoin(["address", "phone"])
+
+        people = list(result)
+
+        # Remove rows behind its back.
+        self.store.execute("DELETE FROM address")
+        self.store.execute("DELETE FROM phone")
+
+        # They were prefetched, so it should work even then.
+        self.assertEquals([person.address.city for person in result],
+                          ["Sao Carlos"])
+        self.assertEquals([person.phone.number for person in result],
+                          ["1234-5678"])
 
     def test_result_set_prejoinClauseTables(self):
         result = self.Person.select()
@@ -665,23 +690,4 @@ class SQLObjectTest(TestHelper):
         result = self.Person.select(expr)
         self.assertEquals([person.name for person in result],
                           ["John Joe"])
-
-    def test_prejoin(self):
-        class Person(self.Person):
-            address = ForeignKey(foreignKey="Address", dbName="address_id",
-                                 notNull=True)
-
-        class Address(self.SQLObject):
-            city = StringCol()
-
-        result = Person.select("name = 'John Doe'")
-        result.prejoin(["address"])
-
-        people = list(result)
-
-        # Remove the row behind its back.
-        self.store.execute("DELETE FROM address")
-
-        self.assertEquals([person.address.city for person in result],
-                          ["Sao Carlos"])
 
