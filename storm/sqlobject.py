@@ -319,49 +319,29 @@ class SQLObjectBase(Storm):
         return tuple(result)
 
     @classmethod
-    def _find(cls, clause=None, clauseTables=None, orderBy=None,
-              limit=None, distinct=None, prejoins=_IGNORED,
-              prejoinClauseTables=_IGNORED, _by={}):
-        store = cls._get_store()
-        if clause is None:
-            args = ()
-        else:
-            args = (clause,)
-        if clauseTables is not None:
-            clauseTables = set(table.lower() for table in clauseTables)
-            clauseTables.add(cls.__storm_table__.lower())
-            store = store.using(*clauseTables)
-        result = store.find(cls, *args, **_by)
-        if orderBy is not None:
-            result.order_by(*cls._parse_orderBy(orderBy))
-        result.config(limit=limit, distinct=distinct)
-        return result
-
-    @classmethod
     def select(cls, *args, **kwargs):
-        result = cls._find(*args, **kwargs)
-        return SQLObjectResultSet(result, cls)
+        return SQLObjectResultSet(cls, *args, **kwargs)
 
     @classmethod
     def selectBy(cls, orderBy=None, **kwargs):
-        result = cls._find(orderBy=orderBy, _by=kwargs)
-        return SQLObjectResultSet(result, cls)
+        return SQLObjectResultSet(cls, orderBy=orderBy, by=kwargs)
 
     @classmethod
     def selectOne(cls, *args, **kwargs):
-        return cls._find(*args, **kwargs).one()
+        return SQLObjectResultSet(cls, *args, **kwargs)._result_set.one()
 
     @classmethod
     def selectOneBy(cls, **kwargs):
-        return cls._find(_by=kwargs).one()
+        return SQLObjectResultSet(cls, by=kwargs)._result_set.one()
 
     @classmethod
     def selectFirst(cls, *args, **kwargs):
-        return cls._find(*args, **kwargs).first()
+        return SQLObjectResultSet(cls, *args, **kwargs)._result_set.first()
 
     @classmethod
     def selectFirstBy(cls, orderBy=None, **kwargs):
-        return cls._find(orderBy=orderBy, _by=kwargs).first()
+        result = SQLObjectResultSet(cls, orderBy=orderBy, by=kwargs)
+        return result._result_set.first()
 
     # Dummy methods.
     def sync(self): pass
@@ -369,10 +349,79 @@ class SQLObjectBase(Storm):
 
 
 class SQLObjectResultSet(object):
+    """SQLObject-equivalent of the ResultSet class in Storm.
 
-    def __init__(self, result_set, cls):
-        self._result_set = result_set
+    Storm handles joins in the Store interface, while SQLObject
+    does that in the result one.  To offer support for prejoins,
+    we can't simply wrap our ResultSet instance, and instead have
+    to postpone the actual find until the very last moment.
+    """
+
+    def __init__(self, cls, clause=None, clauseTables=None, orderBy=None,
+                 limit=None, distinct=None, prejoins=_IGNORED,
+                 prejoinClauseTables=None,
+                 by={}, prepared_result_set=None, slice=None):
         self._cls = cls
+        self._clause = clause
+        self._clauseTables = clauseTables
+        self._orderBy = orderBy
+        self._limit = limit
+        self._distinct = distinct
+        self._prejoins = prejoins
+        self._prejoinClauseTables = prejoinClauseTables
+
+        # Parameters not mapping SQLObject:
+        self._by = by
+        self._slice = slice
+        self._prepared_result_set = prepared_result_set
+        self._finished_result_set = None
+
+    def _copy(self, **kwargs):
+        copy = self.__class__(self._cls, **kwargs)
+        for name, value in self.__dict__.iteritems():
+            if name[1:] not in kwargs and name != "_finished_result_set":
+                setattr(copy, name, value)
+        return copy
+
+    def _prepare_result_set(self):
+        store = self._cls._get_store()
+
+        if self._clause is None:
+            args = ()
+        else:
+            args = (self._clause,)
+
+        if self._clauseTables is not None:
+            clauseTables = set(table.lower() for table in self._clauseTables)
+            clauseTables.add(self._cls.__storm_table__.lower())
+            store = store.using(*clauseTables)
+
+        # XXX Handle prejoins here.
+
+        return store.find(self._cls, *args, **self._by)
+
+    def _finish_result_set(self):
+        if self._prepared_result_set is not None:
+            result = self._prepared_result_set
+        else:
+            result = self._prepare_result_set()
+
+        if self._orderBy is not None:
+            result.order_by(*self._cls._parse_orderBy(self._orderBy))
+
+        if self._limit is not None or self._distinct is not None:
+            result.config(limit=self._limit, distinct=self._distinct)
+
+        if self._slice is not None:
+            result = result[self._slice]
+
+        return result
+
+    @property
+    def _result_set(self):
+        if self._finished_result_set is None:
+            self._finished_result_set = self._finish_result_set()
+        return self._finished_result_set
 
     def count(self):
         return self._result_set.count()
@@ -381,53 +430,39 @@ class SQLObjectResultSet(object):
         return self._result_set.__iter__()
 
     def __getitem__(self, index):
-        result_set = self._result_set[index]
         if isinstance(index, slice):
-            return self.__class__(result_set, self._cls)
-        return result_set
+            return self._copy(slice=index)
+        return self._result_set[index]
 
     def __nonzero__(self):
         return self._result_set.any() is not None
 
     def orderBy(self, orderBy):
-        result_set = self._result_set.copy()
-        result_set.order_by(*self._cls._parse_orderBy(orderBy))
-        return self.__class__(result_set, self._cls)
+        return self._copy(orderBy=orderBy)
 
     def limit(self, limit):
-        result_set = self._result_set.copy().config(limit=limit)
-        return self.__class__(result_set, self._cls)
+        return self._copy(limit=limit)
 
     def distinct(self):
-        result_set = self._result_set.copy().config(distinct=True)
-        result_set.order_by() # Remove default order.
-        return self.__class__(result_set, self._cls)
+        return self._copy(distinct=True, orderBy=None)
 
     def union(self, otherSelect, unionAll=False, orderBy=None):
         result_set = self._result_set.union(otherSelect._result_set,
                                             all=unionAll)
         result_set.order_by() # Remove default order.
-        new = self.__class__(result_set, self._cls)
-        if orderBy is not None:
-            return new.orderBy(orderBy)
-        return new
+        return self._copy(prepared_result_set=result_set, orderBy=orderBy)
 
     def except_(self, otherSelect, exceptAll=False, orderBy=None):
         result_set = self._result_set.difference(otherSelect._result_set,
                                                  all=exceptAll)
         result_set.order_by() # Remove default order.
-        new = self.__class__(result_set, self._cls)
-        if orderBy is not None:
-            return new.orderBy(orderBy)
-        return new
+        return self._copy(prepared_result_set=result_set, orderBy=orderBy)
 
     def intersect(self, otherSelect, intersectAll=False, orderBy=None):
         result_set = self._result_set.intersection(otherSelect._result_set,
                                                    all=intersectAll)
-        new = self.__class__(result_set, self._cls)
-        if orderBy is not None:
-            return new.orderBy(orderBy)
-        return new
+        result_set.order_by() # Remove default order.
+        return self._copy(prepared_result_set=result_set, orderBy=orderBy)
 
     def prejoin(self, prejoins):
         return self
@@ -535,9 +570,8 @@ class SQLMultipleJoin(ReferenceSet):
         bound_reference_set = ReferenceSet.__get__(self, obj)
         target_cls = bound_reference_set._target_cls
         result_set = bound_reference_set.find()
-        if self._orderBy:
-            result_set.order_by(*target_cls._parse_orderBy(self._orderBy))
-        return SQLObjectResultSet(result_set, target_cls)
+        return SQLObjectResultSet(target_cls, prepared_result_set=result_set,
+                                  orderBy=self._orderBy)
 
     def _get_bound_reference_set(self, obj):
         assert obj is not None
