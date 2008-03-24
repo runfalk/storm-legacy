@@ -665,3 +665,23 @@ class SQLObjectTest(TestHelper):
         result = self.Person.select(expr)
         self.assertEquals([person.name for person in result],
                           ["John Joe"])
+
+    def test_prejoin(self):
+        class Person(self.Person):
+            address = ForeignKey(foreignKey="Address", dbName="address_id",
+                                 notNull=True)
+
+        class Address(self.SQLObject):
+            city = StringCol()
+
+        result = Person.select("name = 'John Doe'")
+        result.prejoin(["address"])
+
+        people = list(result)
+
+        # Remove the row behind its back.
+        self.store.execute("DELETE FROM address")
+
+        self.assertEquals([person.address.city for person in result],
+                          ["Sao Carlos"])
+
