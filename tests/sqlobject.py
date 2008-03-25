@@ -192,6 +192,14 @@ class SQLObjectTest(TestHelper):
         result = self.Person.select(limit=1)
         self.assertEquals(len(list(result)), 1)
 
+    def test_select_negative_offset(self):
+        result = self.Person.select(orderBy="name")
+        self.assertEquals(result[-1].name, "John Joe")
+
+    def test_select_slice_negative_offset(self):
+        result = self.Person.select(orderBy="name")[-1:]
+        self.assertEquals(result[0].name, "John Joe")
+
     def test_select_distinct(self):
         result = self.Person.select("person.name = 'John Joe'",
                                     clauseTables=["phone"], distinct=True)

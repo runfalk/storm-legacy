@@ -24,6 +24,7 @@ L{SQLObjectBase} is the central point of compatibility.
 """
 
 import re
+import warnings
 
 from storm.properties import (
     RawStr, Int, Bool, Float, DateTime, Date, TimeDelta)
@@ -383,10 +384,28 @@ class SQLObjectResultSet(object):
         return self._result_set.__iter__()
 
     def __getitem__(self, index):
-        result_set = self._result_set[index]
         if isinstance(index, slice):
-            return self.__class__(result_set, self._cls)
-        return result_set
+            if not index.start and not index.stop:
+                return self
+
+            if index.start and index.start < 0 or (
+                index.stop and index.stop < 0):
+                L = list(self)
+                if len(L) > 100:
+                    warnings.warn('Negative indices when slicing are slow: '
+                                  'fetched %d rows.' % (len(L),))
+                start, stop, step = index.indices(len(L))
+                assert step == 1, "slice step must be 1"
+                index = slice(start, stop)
+            return self.__class__(self._result_set[index], self._cls)
+        else:
+            if index < 0:
+                L = list(self)
+                if len(L) > 100:
+                    warnings.warn('Negative indices are slow: '
+                                  'fetched %d rows.' % (len(L),))
+                return L[index]
+            return self._result_set[index]
 
     def __nonzero__(self):
         return self._result_set.any() is not None
