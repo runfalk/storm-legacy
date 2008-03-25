@@ -321,7 +321,7 @@ class SQLObjectBase(Storm):
     @classmethod
     def _find(cls, clause=None, clauseTables=None, orderBy=None,
               limit=None, distinct=None, prejoins=_IGNORED,
-              prejoinClauseTables=_IGNORED, _by={}):
+              prejoinClauseTables=_IGNORED, selectAlso=None, _by={}):
         store = cls._get_store()
         if clause is None:
             args = ()
@@ -334,6 +334,8 @@ class SQLObjectBase(Storm):
         result = store.find(cls, *args, **_by)
         if orderBy is not None:
             result.order_by(*cls._parse_orderBy(orderBy))
+        if selectAlso is not None:
+            result._add_select_also(SQL(selectAlso))
         result.config(limit=limit, distinct=distinct)
         return result
 

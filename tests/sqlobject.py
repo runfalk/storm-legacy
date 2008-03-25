@@ -197,6 +197,20 @@ class SQLObjectTest(TestHelper):
                                     clauseTables=["phone"], distinct=True)
         self.assertEquals(len(list(result)), 1)
 
+    def test_select_selectAlso(self):
+        # Since John Doe has two phone numbers, this would return him
+        # twice without the distinct=True bit.
+        result = self.Person.select(
+            "person.id = phone.person_id",
+            clauseTables=["phone"],
+            selectAlso="LOWER(name) AS lower_name",
+            orderBy="lower_name",
+            distinct=True)
+        people = list(result)
+        self.assertEquals(len(people), 2)
+        self.assertEquals(people[0].name, "John Doe")
+        self.assertEquals(people[1].name, "John Joe")
+
     def test_select_clauseTables_simple(self):
         result = self.Person.select("name = 'John Joe'", ["person"])
         self.assertEquals(result[0].name, "John Joe")
