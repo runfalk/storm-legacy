@@ -210,6 +210,11 @@ class SQLObjectMeta(PropertyPublisherMeta):
         property_registry.add_property(obj, getattr(obj, "id"),
                                        "<primary key>")
 
+        # Let's explore this same mechanism to register table names,
+        # so that we can find them to handle prejoinClauseTables.
+        property_registry.add_property(obj, getattr(obj, "id"),
+                                       "<table %s>" % table_name)
+
         for fake_name, real_name in attr_to_prop.items():
             prop = getattr(obj, real_name)
             if fake_name != real_name:
@@ -329,22 +334,22 @@ class SQLObjectBase(Storm):
 
     @classmethod
     def selectOne(cls, *args, **kwargs):
-        return SQLObjectResultSet(cls, *args, **kwargs)._result_set.one()
+        return SQLObjectResultSet(cls, *args, **kwargs)._one()
 
     @classmethod
     def selectOneBy(cls, **kwargs):
-        return SQLObjectResultSet(cls, by=kwargs)._result_set.one()
+        return SQLObjectResultSet(cls, by=kwargs)._one()
 
     @classmethod
     def selectFirst(cls, *args, **kwargs):
-        return SQLObjectResultSet(cls, *args, **kwargs)._result_set.first()
+        return SQLObjectResultSet(cls, *args, **kwargs)._first()
 
     @classmethod
     def selectFirstBy(cls, orderBy=None, **kwargs):
         result = SQLObjectResultSet(cls, orderBy=orderBy, by=kwargs)
-        return result._result_set.first()
+        return result._first()
 
-    # Dummy methods.
+    # Thanks goodness we don't need these.
     def sync(self): pass
     def syncUpdate(self): pass
 
@@ -397,16 +402,23 @@ class SQLObjectResultSet(object):
         if self._clauseTables is not None:
             tables.extend(table.lower() for table in self._clauseTables)
 
-        if not self._prejoins:
+        if not (self._prejoins or self._prejoinClauseTables):
             find_spec = self._cls
         else:
             find_spec = [self._cls]
 
-            for prejoin in self._prejoins:
-                relation = getattr(self._cls, prejoin)._relation
-                tables.append(LeftJoin(relation.remote_cls,
-                                       relation.get_where_for_join()))
-                find_spec.append(relation.remote_cls)
+            if self._prejoins:
+                for prejoin in self._prejoins:
+                    relation = getattr(self._cls, prejoin)._relation
+                    tables.append(LeftJoin(relation.remote_cls,
+                                           relation.get_where_for_join()))
+                    find_spec.append(relation.remote_cls)
+
+            if self._prejoinClauseTables:
+                property_registry = self._cls._storm_property_registry
+                for table in tables:
+                    cls = property_registry.get("<table %s>" % table).cls
+                    find_spec.append(cls)
 
             find_spec = tuple(find_spec)
 
@@ -442,8 +454,13 @@ class SQLObjectResultSet(object):
             self._finished_result_set = self._finish_result_set()
         return self._finished_result_set
 
-    def count(self):
-        return self._result_set.count()
+    def _one(self):
+        """Internal API for the base class."""
+        return detuplelize(self._result_set.one())
+
+    def _first(self):
+        """Internal API for the base class."""
+        return detuplelize(self._result_set.first())
 
     def __iter__(self):
         for item in self._result_set:
@@ -452,10 +469,13 @@ class SQLObjectResultSet(object):
     def __getitem__(self, index):
         if isinstance(index, slice):
             return self._copy(slice=index)
-        return self._result_set[index]
+        return detuplelize(self._result_set[index])
 
     def __nonzero__(self):
         return self._result_set.any() is not None
+
+    def count(self):
+        return self._result_set.count()
 
     def orderBy(self, orderBy):
         return self._copy(orderBy=orderBy)
@@ -488,7 +508,7 @@ class SQLObjectResultSet(object):
         return self._copy(prejoins=prejoins)
 
     def prejoinClauseTables(self, prejoinClauseTables):
-        return self
+        return self._copy(prejoinClauseTables=prejoinClauseTables)
 
 
 def detuplelize(item):

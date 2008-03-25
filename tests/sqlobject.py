@@ -639,14 +639,100 @@ class SQLObjectTest(TestHelper):
         self.store.execute("DELETE FROM phone")
 
         # They were prefetched, so it should work even then.
-        self.assertEquals([person.address.city for person in result],
+        self.assertEquals([person.address.city for person in people],
                           ["Sao Carlos"])
-        self.assertEquals([person.phone.number for person in result],
+        self.assertEquals([person.phone.number for person in people],
                           ["1234-5678"])
 
+    def test_result_set_prejoin_getitem(self):
+        """Ensure that detuplelizing is used on getitem."""
+
+        class Person(self.Person):
+            address = ForeignKey(foreignKey="Address", dbName="address_id")
+
+        class Address(self.SQLObject):
+            city = StringCol()
+
+        result = Person.select("name = 'John Doe'", prejoins=["address"])
+        person = result[0]
+
+        # Remove the row behind its back.
+        self.store.execute("DELETE FROM address")
+
+        # They were prefetched, so it should work even then.
+        self.assertEquals(person.address.city, "Sao Carlos")
+
+    def test_result_set_prejoin_one(self):
+        """Ensure that detuplelizing is used on selectOne()."""
+
+        class Person(self.Person):
+            address = ForeignKey(foreignKey="Address", dbName="address_id")
+
+        class Address(self.SQLObject):
+            city = StringCol()
+
+        person = Person.selectOne("name = 'John Doe'", prejoins=["address"])
+
+        # Remove the row behind its back.
+        self.store.execute("DELETE FROM address")
+
+        # They were prefetched, so it should work even then.
+        self.assertEquals(person.address.city, "Sao Carlos")
+
+    def test_result_set_prejoin_first(self):
+        """Ensure that detuplelizing is used on selectFirst()."""
+
+        class Person(self.Person):
+            address = ForeignKey(foreignKey="Address", dbName="address_id")
+
+        class Address(self.SQLObject):
+            city = StringCol()
+
+        person = Person.selectFirst("name = 'John Doe'", prejoins=["address"],
+                                    orderBy="name")
+
+        # Remove the row behind its back.
+        self.store.execute("DELETE FROM address")
+
+        # They were prefetched, so it should work even then.
+        self.assertEquals(person.address.city, "Sao Carlos")
+
     def test_result_set_prejoinClauseTables(self):
-        result = self.Person.select()
-        self.assertEquals(result.prejoinClauseTables(None), result) # Dummy.
+        self.store.execute("ALTER TABLE person ADD COLUMN phone_id INTEGER")
+        self.store.execute("UPDATE person SET phone_id=1 WHERE name='John Doe'")
+
+        class Person(self.Person):
+            address = ForeignKey(foreignKey="AddressClass", dbName="address_id")
+            phone = ForeignKey(foreignKey="PhoneClass", dbName="phone_id")
+
+        # Name the class so that it doesn't match the table name, to ensure
+        # that the prejoin is actually using table names, rather than class
+        # names.
+        class AddressClass(self.SQLObject):
+            _table = "address"
+            city = StringCol()
+
+        class PhoneClass(self.SQLObject):
+            _table = "phone"
+            number = StringCol()
+
+        result = Person.select("person.name = 'John Doe' and "
+                               "person.phone_id = phone.id and "
+                               "person.address_id = address.id",
+                               clauseTables=["address", "phone"])
+        result = result.prejoinClauseTables(["address", "phone"])
+
+        people = list(result)
+
+        # Remove rows behind its back.
+        self.store.execute("DELETE FROM address")
+        self.store.execute("DELETE FROM phone")
+
+        # They were prefetched, so it should work even then.
+        self.assertEquals([person.address.city for person in people],
+                          ["Sao Carlos"])
+        self.assertEquals([person.phone.number for person in people],
+                          ["1234-5678"])
 
     def test_table_dot_q(self):
         # Table.q.fieldname is a syntax used in SQLObject for
