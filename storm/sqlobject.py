@@ -499,7 +499,11 @@ class SQLObjectResultSet(object):
         return self._result_set.any() is not None
 
     def count(self):
-        return self._result_set.count()
+        if self._prejoins:
+            result_set = self._copy(prejoins=None)._result_set
+        else:
+            result_set = self._result_set
+        return result_set.count()
 
     def orderBy(self, orderBy):
         return self._copy(orderBy=orderBy)
