@@ -133,8 +133,6 @@ class SQLObjectTest(TestHelper):
     def test_create(self):
         person = self.Person(name="John Joe")
 
-        self.store.flush()
-
         self.assertTrue(Store.of(person) is self.store)
         self.assertEquals(type(person.id), int)
         self.assertEquals(person.name, "John Joe")

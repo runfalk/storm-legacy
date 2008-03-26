@@ -33,7 +33,7 @@ from storm.properties import SimpleProperty, PropertyPublisherMeta
 from storm.variables import Variable
 from storm.exceptions import StormError
 from storm.info import get_cls_info
-from storm.store import Store
+from storm.store import AutoReload, Store
 from storm.base import Storm
 from storm.expr import SQL, SQLRaw, Desc, And, Or, Not, In, Like
 from storm.tz import tzutc
@@ -199,7 +199,7 @@ class SQLObjectMeta(PropertyPublisherMeta):
 
         id_type = dict.setdefault("_idType", int)
         id_cls = {int: Int, str: RawStr, unicode: AutoUnicode}[id_type]
-        dict['id'] = id_cls(id_name, primary=True)
+        dict['id'] = id_cls(id_name, primary=True, default=AutoReload)
         attr_to_prop[id_name] = 'id'
 
         # Notice that obj is the class since this is the metaclass.
@@ -364,9 +364,13 @@ class SQLObjectBase(Storm):
     def selectFirstBy(cls, orderBy=None, **kwargs):
         return cls._find(orderBy=orderBy, _by=kwargs).first()
 
-    # Dummy methods.
-    def sync(self): pass
-    def syncUpdate(self): pass
+    def syncUpdate(self):
+        self._get_store().flush()
+
+    def sync(self):
+        store = self._get_store()
+        store.flush()
+        store.autoreload(self)
 
 
 class SQLObjectResultSet(object):
