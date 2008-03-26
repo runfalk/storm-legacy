@@ -421,7 +421,7 @@ class SQLObjectResultSet(object):
 
             if self._prejoinClauseTables:
                 property_registry = self._cls._storm_property_registry
-                for table in tables:
+                for table in self._prejoinClauseTables:
                     cls = property_registry.get("<table %s>" % table).cls
                     find_spec.append(cls)
 
