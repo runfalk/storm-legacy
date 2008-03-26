@@ -459,6 +459,12 @@ class SQLObjectResultSet(object):
             self._finished_result_set = self._finish_result_set()
         return self._finished_result_set
 
+    def _without_prejoins(self):
+        if self._prejoins or self._prejoinClauseTables:
+            return self._copy(prejoins=None, prejoinClauseTables=None)
+        else:
+            return self
+
     def _one(self):
         """Internal API for the base class."""
         return detuplelize(self._result_set.one())
@@ -499,11 +505,7 @@ class SQLObjectResultSet(object):
         return self._result_set.any() is not None
 
     def count(self):
-        if self._prejoins:
-            result_set = self._copy(prejoins=None)._result_set
-        else:
-            result_set = self._result_set
-        return result_set.count()
+        return self._without_prejoins()._result_set.count()
 
     def orderBy(self, orderBy):
         return self._copy(orderBy=orderBy)
@@ -515,8 +517,8 @@ class SQLObjectResultSet(object):
         return self._copy(distinct=True, orderBy=None)
 
     def union(self, otherSelect, unionAll=False, orderBy=None):
-        result_set = self._result_set.union(otherSelect._result_set,
-                                            all=unionAll)
+        result_set = self._without_prejoins()._result_set.union(
+            otherSelect._without_prejoins()._result_set, all=unionAll)
         result_set.order_by() # Remove default order.
         return self._copy(prepared_result_set=result_set, orderBy=orderBy)
 

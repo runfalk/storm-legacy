@@ -722,13 +722,14 @@ class SQLObjectTest(TestHelper):
         class Address(self.SQLObject):
             city = StringCol()
 
-        # The prejoin should not prevent the union from working.  The
-        # prejoin may be lost in the process though (it is in our
-        # SQLObject implementation).
+        # The prejoin should not prevent the union from working.  At
+        # the moment this is done by unconditionally stripping the
+        # prejoins (which is what our SQLObject patch did), but could
+        # be smarter.
         result1 = Person.select("name = 'John Doe'", prejoins=["address"])
         result2 = Person.select("name = 'John Joe'")
         result = result1.union(result2)
-        names = sorted(person.name for name in result)
+        names = sorted(person.name for person in result)
         self.assertEquals(names, ["John Doe", "John Joe"])
 
     def test_result_set_prejoinClauseTables(self):
