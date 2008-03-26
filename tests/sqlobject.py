@@ -210,7 +210,7 @@ class SQLObjectTest(TestHelper):
     def test_select_clauseTables_implicit_join(self):
         result = self.Person.select("person.name = 'John Joe' and "
                                     "phone.person_id = person.id",
-                                    ["Person", "phone"])
+                                    ["person", "phone"])
         self.assertEquals(result[0].name, "John Joe")
 
     def test_select_clauseTables_no_cls_table(self):

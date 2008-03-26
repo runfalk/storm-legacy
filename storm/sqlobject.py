@@ -405,7 +405,7 @@ class SQLObjectResultSet(object):
         tables = []
 
         if self._clauseTables is not None:
-            tables.extend(table.lower() for table in self._clauseTables)
+            tables.extend(self._clauseTables)
 
         if not (self._prejoins or self._prejoinClauseTables):
             find_spec = self._cls
