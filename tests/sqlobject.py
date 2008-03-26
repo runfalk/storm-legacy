@@ -714,6 +714,23 @@ class SQLObjectTest(TestHelper):
         result = Person.select("name = 'John Doe'", prejoins=["address"])
         self.assertEquals(result.count(), 1)
 
+    def test_result_set_union_mismatched_prejoins(self):
+        """As prejoins do not cause set operation incompatibilities. """
+        class Person(self.Person):
+            address = ForeignKey(foreignKey="Address", dbName="address_id")
+
+        class Address(self.SQLObject):
+            city = StringCol()
+
+        # The prejoin should not prevent the union from working.  The
+        # prejoin may be lost in the process though (it is in our
+        # SQLObject implementation).
+        result1 = Person.select("name = 'John Doe'", prejoins=["address"])
+        result2 = Person.select("name = 'John Joe'")
+        result = result1.union(result2)
+        names = sorted(person.name for name in result)
+        self.assertEquals(names, ["John Doe", "John Joe"])
+
     def test_result_set_prejoinClauseTables(self):
         self.store.execute("ALTER TABLE person ADD COLUMN phone_id INTEGER")
         self.store.execute("UPDATE person SET phone_id=1 WHERE name='John Doe'")
