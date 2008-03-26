@@ -24,6 +24,7 @@ L{SQLObjectBase} is the central point of compatibility.
 """
 
 import re
+import warnings
 
 from storm.properties import (
     RawStr, Int, Bool, Float, DateTime, Date, TimeDelta)
@@ -32,7 +33,7 @@ from storm.properties import SimpleProperty, PropertyPublisherMeta
 from storm.variables import Variable
 from storm.exceptions import StormError
 from storm.info import get_cls_info
-from storm.store import Store
+from storm.store import AutoReload, Store
 from storm.base import Storm
 from storm.expr import SQL, SQLRaw, Desc, And, Or, Not, In, Like
 from storm.tz import tzutc
@@ -41,9 +42,9 @@ from storm import Undef
 
 __all__ = ["SQLObjectBase", "StringCol", "IntCol", "BoolCol", "FloatCol",
            "DateCol", "UtcDateTimeCol", "IntervalCol", "ForeignKey",
-           "SQLMultipleJoin", "SQLRelatedJoin", "DESC", "AND", "OR",
-           "NOT", "IN", "LIKE", "SQLConstant", "SQLObjectNotFound",
-           "CONTAINSSTRING"]
+           "SQLMultipleJoin", "SQLRelatedJoin", "SingleJoin", "DESC",
+           "AND", "OR", "NOT", "IN", "LIKE", "SQLConstant",
+           "SQLObjectNotFound", "CONTAINSSTRING"]
 
 
 DESC, AND, OR, NOT, IN, LIKE, SQLConstant = Desc, And, Or, Not, In, Like, SQL
@@ -179,18 +180,34 @@ class SQLObjectMeta(PropertyPublisherMeta):
                         return obj
                     func.func_name = method_name
                     dict[method_name] = classmethod(func)
+            elif isinstance(prop, SQLMultipleJoin):
+                # Generate addFoo/removeFoo names.
+                def define_add_remove(dict, prop):
+                    capitalised_name = (prop._otherClass[0].capitalize() +
+                                        prop._otherClass[1:])
+                    def add(self, obj):
+                        prop._get_bound_reference_set(self).add(obj)
+                    add.__name__ = 'add' + capitalised_name
+                    dict.setdefault(add.__name__, add)
+
+                    def remove(self, obj):
+                        prop._get_bound_reference_set(self).remove(obj)
+                    remove.__name__ = 'remove' + capitalised_name
+                    dict.setdefault(remove.__name__, remove)
+                define_add_remove(dict, prop)
 
 
-        id_type = dict.get("_idType", int)
+        id_type = dict.setdefault("_idType", int)
         id_cls = {int: Int, str: RawStr, unicode: AutoUnicode}[id_type]
-        dict[id_name] = id_cls(primary=True)
+        dict['id'] = id_cls(id_name, primary=True, default=AutoReload)
+        attr_to_prop[id_name] = 'id'
 
         # Notice that obj is the class since this is the metaclass.
         obj = super(SQLObjectMeta, cls).__new__(cls, name, bases, dict)
 
         property_registry = obj._storm_property_registry
 
-        property_registry.add_property(obj, getattr(obj, id_name),
+        property_registry.add_property(obj, getattr(obj, 'id'),
                                        "<primary key>")
 
         for fake_name, real_name in attr_to_prop.items():
@@ -279,6 +296,7 @@ class SQLObjectBase(Storm):
 
     @classmethod
     def get(cls, id):
+        id = cls._idType(id)
         store = cls._get_store()
         obj = store.get(cls, id)
         if obj is None:
@@ -346,9 +364,13 @@ class SQLObjectBase(Storm):
     def selectFirstBy(cls, orderBy=None, **kwargs):
         return cls._find(orderBy=orderBy, _by=kwargs).first()
 
-    # Dummy methods.
-    def sync(self): pass
-    def syncUpdate(self): pass
+    def syncUpdate(self):
+        self._get_store().flush()
+
+    def sync(self):
+        store = self._get_store()
+        store.flush()
+        store.autoreload(self)
 
 
 class SQLObjectResultSet(object):
@@ -364,10 +386,28 @@ class SQLObjectResultSet(object):
         return self._result_set.__iter__()
 
     def __getitem__(self, index):
-        result_set = self._result_set[index]
         if isinstance(index, slice):
-            return self.__class__(result_set, self._cls)
-        return result_set
+            if not index.start and not index.stop:
+                return self
+
+            if index.start and index.start < 0 or (
+                index.stop and index.stop < 0):
+                L = list(self)
+                if len(L) > 100:
+                    warnings.warn('Negative indices when slicing are slow: '
+                                  'fetched %d rows.' % (len(L),))
+                start, stop, step = index.indices(len(L))
+                assert step == 1, "slice step must be 1"
+                index = slice(start, stop)
+            return self.__class__(self._result_set[index], self._cls)
+        else:
+            if index < 0:
+                L = list(self)
+                if len(L) > 100:
+                    warnings.warn('Negative indices are slow: '
+                                  'fetched %d rows.' % (len(L),))
+                return L[index]
+            return self._result_set[index]
 
     def __nonzero__(self):
         return self._result_set.any() is not None
@@ -510,6 +550,7 @@ class SQLMultipleJoin(ReferenceSet):
             args = ("<primary key>", "%s.%s" % (otherClass, joinColumn))
         ReferenceSet.__init__(self, *args)
         self._orderBy = orderBy
+        self._otherClass = otherClass
 
     def __get__(self, obj, cls=None):
         if obj is None:
@@ -521,7 +562,19 @@ class SQLMultipleJoin(ReferenceSet):
             result_set.order_by(*target_cls._parse_orderBy(self._orderBy))
         return SQLObjectResultSet(result_set, target_cls)
 
+    def _get_bound_reference_set(self, obj):
+        assert obj is not None
+        return ReferenceSet.__get__(self, obj)
+
+
 SQLRelatedJoin = SQLMultipleJoin
+
+
+class SingleJoin(Reference):
+
+    def __init__(self, otherClass, joinColumn, prejoins=_IGNORED):
+        super(SingleJoin, self).__init__(
+            "<primary key>", "%s.%s" % (otherClass, joinColumn))
 
 
 class CONTAINSSTRING(Like):

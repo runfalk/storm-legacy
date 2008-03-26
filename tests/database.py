@@ -199,7 +199,7 @@ class ConnectionTest(TestHelper):
             def connection_raw_execute_error(self, connection, raw_cursor,
                                              statement, params, error):
                 stash.extend((connection, type(raw_cursor), statement,
-                              params, type(error)))
+                              params, error.__class__))
 
         self.assertMethodsMatch(Tracer, DebugTracer)
         install_tracer(Tracer())
