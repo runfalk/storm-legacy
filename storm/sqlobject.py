@@ -24,6 +24,7 @@ L{SQLObjectBase} is the central point of compatibility.
 """
 
 import re
+import warnings
 
 from storm.properties import (
     RawStr, Int, Bool, Float, DateTime, Date, TimeDelta)
@@ -32,7 +33,7 @@ from storm.properties import SimpleProperty, PropertyPublisherMeta
 from storm.variables import Variable
 from storm.exceptions import StormError
 from storm.info import get_cls_info
-from storm.store import Store
+from storm.store import AutoReload, Store
 from storm.base import Storm
 from storm.expr import (
     SQL, SQLRaw, Desc, And, Or, Not, In, Like, AutoTables, LeftJoin)
@@ -199,7 +200,7 @@ class SQLObjectMeta(PropertyPublisherMeta):
 
         id_type = dict.setdefault("_idType", int)
         id_cls = {int: Int, str: RawStr, unicode: AutoUnicode}[id_type]
-        dict["id"] = id_cls(id_name, primary=True)
+        dict["id"] = id_cls(id_name, primary=True, default=AutoReload)
         attr_to_prop[id_name] = "id"
 
         # Notice that obj is the class since this is the metaclass.
@@ -349,9 +350,13 @@ class SQLObjectBase(Storm):
         result = SQLObjectResultSet(cls, orderBy=orderBy, by=kwargs)
         return result._first()
 
-    # Thanks goodness we don't need these.
-    def sync(self): pass
-    def syncUpdate(self): pass
+    def syncUpdate(self):
+        self._get_store().flush()
+
+    def sync(self):
+        store = self._get_store()
+        store.flush()
+        store.autoreload(self)
 
 
 class SQLObjectResultSet(object):
@@ -468,8 +473,27 @@ class SQLObjectResultSet(object):
 
     def __getitem__(self, index):
         if isinstance(index, slice):
+            if not index.start and not index.stop:
+                return self
+
+            if index.start and index.start < 0 or (
+                index.stop and index.stop < 0):
+                L = list(self)
+                if len(L) > 100:
+                    warnings.warn('Negative indices when slicing are slow: '
+                                  'fetched %d rows.' % (len(L),))
+                start, stop, step = index.indices(len(L))
+                assert step == 1, "slice step must be 1"
+                index = slice(start, stop)
             return self._copy(slice=index)
-        return detuplelize(self._result_set[index])
+        else:
+            if index < 0:
+                L = list(self)
+                if len(L) > 100:
+                    warnings.warn('Negative indices are slow: '
+                                  'fetched %d rows.' % (len(L),))
+                return detuplelize(L[index])
+            return detuplelize(self._result_set[index])
 
     def __nonzero__(self):
         return self._result_set.any() is not None

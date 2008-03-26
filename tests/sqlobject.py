@@ -133,8 +133,6 @@ class SQLObjectTest(TestHelper):
     def test_create(self):
         person = self.Person(name="John Joe")
 
-        self.store.flush()
-
         self.assertTrue(Store.of(person) is self.store)
         self.assertEquals(type(person.id), int)
         self.assertEquals(person.name, "John Joe")
@@ -191,6 +189,14 @@ class SQLObjectTest(TestHelper):
     def test_select_limit(self):
         result = self.Person.select(limit=1)
         self.assertEquals(len(list(result)), 1)
+
+    def test_select_negative_offset(self):
+        result = self.Person.select(orderBy="name")
+        self.assertEquals(result[-1].name, "John Joe")
+
+    def test_select_slice_negative_offset(self):
+        result = self.Person.select(orderBy="name")[-1:]
+        self.assertEquals(result[0].name, "John Joe")
 
     def test_select_distinct(self):
         result = self.Person.select("person.name = 'John Joe'",
