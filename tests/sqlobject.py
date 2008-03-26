@@ -94,7 +94,7 @@ class SQLObjectTest(TestHelper):
         self.assertRaises(SQLObjectNotFound, self.Person.get, 1000)
 
     def test_get_typecast(self):
-        person = self.Person.get('2')
+        person = self.Person.get("2")
         self.assertTrue(person)
         self.assertEquals(person.name, "John Doe")
 
@@ -133,8 +133,6 @@ class SQLObjectTest(TestHelper):
     def test_create(self):
         person = self.Person(name="John Joe")
 
-        self.store.flush()
-
         self.assertTrue(Store.of(person) is self.store)
         self.assertEquals(type(person.id), int)
         self.assertEquals(person.name, "John Joe")
@@ -172,7 +170,7 @@ class SQLObjectTest(TestHelper):
         self.assertEquals(result[0].name, "John Joe")
 
     def test_select_sqlbuilder(self):
-        result = self.Person.select(self.Person.q.name == 'John Joe')
+        result = self.Person.select(self.Person.q.name == "John Joe")
         self.assertEqual(result[0].name, "John Joe")
 
     def test_select_orderBy(self):
@@ -257,10 +255,10 @@ class SQLObjectTest(TestHelper):
         self.assertEquals(nobody, None)
 
         # SQLBuilder style expression:
-        person = self.Person.selectOne(self.Person.q.name == 'John Joe')
+        person = self.Person.selectOne(self.Person.q.name == "John Joe")
 
         self.assertNotEqual(person, None)
-        self.assertEqual(person.name, 'John Joe')
+        self.assertEqual(person.name, "John Joe")
 
     def test_selectOne_clauseTables(self):
         person = self.Person.selectOne("person.name = 'John Joe' and "
@@ -294,10 +292,10 @@ class SQLObjectTest(TestHelper):
         self.assertEquals(nobody, None)
 
         # SQLBuilder style expression:
-        person = self.Person.selectFirst(LIKE(self.Person.q.name, 'John%'),
+        person = self.Person.selectFirst(LIKE(self.Person.q.name, "John%"),
                                          orderBy="name")
         self.assertNotEqual(person, None)
-        self.assertEqual(person.name, 'John Doe')
+        self.assertEqual(person.name, "John Doe")
 
     def test_selectFirst_default_order(self):
         person = self.Person.selectFirst("name LIKE 'John%'")
@@ -478,7 +476,7 @@ class SQLObjectTest(TestHelper):
         class AnotherPerson(self.Person):
             _table = "person"
             phones = SQLMultipleJoin("Phone", joinColumn="person",
-                                     prejoins=['person'])
+                                     prejoins=["person"])
 
         class Phone(self.SQLObject):
             person = ForeignKey("AnotherPerson", dbName="person_id")
@@ -596,7 +594,7 @@ class SQLObjectTest(TestHelper):
     def test_result_set__nonzero__(self):
         result = self.Person.select()
         self.assertEquals(result.__nonzero__(), True)
-        result = self.Person.select(self.Person.q.name == 'No Person')
+        result = self.Person.select(self.Person.q.name == "No Person")
         self.assertEquals(result.__nonzero__(), False)
 
     def test_result_set_distinct(self):
@@ -638,12 +636,123 @@ class SQLObjectTest(TestHelper):
                           ["John Doe", "John Moe"])
 
     def test_result_set_prejoin(self):
-        result = self.Person.select()
-        self.assertEquals(result.prejoin(None), result) # Dummy.
+        self.store.execute("ALTER TABLE person ADD COLUMN phone_id INTEGER")
+        self.store.execute("UPDATE person SET phone_id=1 WHERE name='John Doe'")
+
+        class Person(self.Person):
+            address = ForeignKey(foreignKey="Address", dbName="address_id")
+            phone = ForeignKey(foreignKey="Phone", dbName="phone_id")
+
+        class Address(self.SQLObject):
+            city = StringCol()
+
+        class Phone(self.SQLObject):
+            number = StringCol()
+
+        result = Person.select("name = 'John Doe'")
+        result = result.prejoin(["address", "phone"])
+
+        people = list(result)
+
+        # Remove rows behind its back.
+        self.store.execute("DELETE FROM address")
+        self.store.execute("DELETE FROM phone")
+
+        # They were prefetched, so it should work even then.
+        self.assertEquals([person.address.city for person in people],
+                          ["Sao Carlos"])
+        self.assertEquals([person.phone.number for person in people],
+                          ["1234-5678"])
+
+    def test_result_set_prejoin_getitem(self):
+        """Ensure that detuplelizing is used on getitem."""
+
+        class Person(self.Person):
+            address = ForeignKey(foreignKey="Address", dbName="address_id")
+
+        class Address(self.SQLObject):
+            city = StringCol()
+
+        result = Person.select("name = 'John Doe'", prejoins=["address"])
+        person = result[0]
+
+        # Remove the row behind its back.
+        self.store.execute("DELETE FROM address")
+
+        # They were prefetched, so it should work even then.
+        self.assertEquals(person.address.city, "Sao Carlos")
+
+    def test_result_set_prejoin_one(self):
+        """Ensure that detuplelizing is used on selectOne()."""
+
+        class Person(self.Person):
+            address = ForeignKey(foreignKey="Address", dbName="address_id")
+
+        class Address(self.SQLObject):
+            city = StringCol()
+
+        person = Person.selectOne("name = 'John Doe'", prejoins=["address"])
+
+        # Remove the row behind its back.
+        self.store.execute("DELETE FROM address")
+
+        # They were prefetched, so it should work even then.
+        self.assertEquals(person.address.city, "Sao Carlos")
+
+    def test_result_set_prejoin_first(self):
+        """Ensure that detuplelizing is used on selectFirst()."""
+
+        class Person(self.Person):
+            address = ForeignKey(foreignKey="Address", dbName="address_id")
+
+        class Address(self.SQLObject):
+            city = StringCol()
+
+        person = Person.selectFirst("name = 'John Doe'", prejoins=["address"],
+                                    orderBy="name")
+
+        # Remove the row behind its back.
+        self.store.execute("DELETE FROM address")
+
+        # They were prefetched, so it should work even then.
+        self.assertEquals(person.address.city, "Sao Carlos")
 
     def test_result_set_prejoinClauseTables(self):
-        result = self.Person.select()
-        self.assertEquals(result.prejoinClauseTables(None), result) # Dummy.
+        self.store.execute("ALTER TABLE person ADD COLUMN phone_id INTEGER")
+        self.store.execute("UPDATE person SET phone_id=1 WHERE name='John Doe'")
+
+        class Person(self.Person):
+            address = ForeignKey(foreignKey="AddressClass", dbName="address_id")
+            phone = ForeignKey(foreignKey="PhoneClass", dbName="phone_id")
+
+        # Name the class so that it doesn't match the table name, to ensure
+        # that the prejoin is actually using table names, rather than class
+        # names.
+        class AddressClass(self.SQLObject):
+            _table = "address"
+            city = StringCol()
+
+        class PhoneClass(self.SQLObject):
+            _table = "phone"
+            number = StringCol()
+
+        result = Person.select("person.name = 'John Doe' and "
+                               "person.phone_id = phone.id and "
+                               "person.address_id = address.id",
+                               clauseTables=["address", "phone"])
+        result = result.prejoinClauseTables(["address", "phone"])
+
+        people = list(result)
+
+        # Remove rows behind its back.
+        self.store.execute("DELETE FROM address")
+        self.store.execute("DELETE FROM phone")
+
+        # They were prefetched, so it should work even then.
+        self.assertEquals([person.address.city for person in people],
+                          ["Sao Carlos"])
+        self.assertEquals([person.phone.number for person in people],
+                          ["1234-5678"])
 
     def test_table_dot_q(self):
         # Table.q.fieldname is a syntax used in SQLObject for
@@ -653,7 +762,7 @@ class SQLObjectTest(TestHelper):
         class Person(self.SQLObject):
             _idName = "name"
             _idType = unicode
-            address = ForeignKey(foreignKey="Phone", dbName='address_id',
+            address = ForeignKey(foreignKey="Phone", dbName="address_id",
                                  notNull=True)
 
         self.assertEquals(id(Person.q.id), id(Person.id))
@@ -687,3 +796,4 @@ class SQLObjectTest(TestHelper):
         result = self.Person.select(expr)
         self.assertEquals([person.name for person in result],
                           ["John Joe"])
+
