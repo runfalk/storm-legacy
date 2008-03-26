@@ -703,6 +703,17 @@ class SQLObjectTest(TestHelper):
         # They were prefetched, so it should work even then.
         self.assertEquals(person.address.city, "Sao Carlos")
 
+    def test_result_set_prejoin_count(self):
+        """Prejoins do not affect the result of aggregates like COUNT()."""
+        class Person(self.Person):
+            address = ForeignKey(foreignKey="Address", dbName="address_id")
+
+        class Address(self.SQLObject):
+            city = StringCol()
+
+        result = Person.select("name = 'John Doe'", prejoins=["address"])
+        self.assertEquals(result.count(), 1)
+
     def test_result_set_prejoinClauseTables(self):
         self.store.execute("ALTER TABLE person ADD COLUMN phone_id INTEGER")
         self.store.execute("UPDATE person SET phone_id=1 WHERE name='John Doe'")
