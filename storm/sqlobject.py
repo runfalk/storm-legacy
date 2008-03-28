@@ -414,11 +414,23 @@ class SQLObjectResultSet(object):
             find_spec = [self._cls]
 
             if self._prejoins:
-                for prejoin in self._prejoins:
-                    relation = getattr(self._cls, prejoin)._relation
-                    tables.append(LeftJoin(relation.remote_cls,
-                                           relation.get_where_for_join()))
-                    find_spec.append(relation.remote_cls)
+                already_prejoined = {}
+                for prejoinItem in self._prejoins:
+                    from_cls = self._cls
+                    full_path = ()
+                    for prejoin in prejoinItem.split("."):
+                        full_path += (prejoin,)
+                        # If we've already prejoined this column, we're done.
+                        if full_path in already_prejoined:
+                            from_cls = already_prejoined[full_path]
+                            continue
+                        # Otherwise, join the table
+                        relation = getattr(from_cls, prejoin)._relation
+                        from_cls = relation.remote_cls
+                        tables.append(LeftJoin(from_cls,
+                                               relation.get_where_for_join()))
+                        find_spec.append(from_cls)
+                        already_prejoined[full_path] = from_cls
 
             if self._prejoinClauseTables:
                 property_registry = self._cls._storm_property_registry

@@ -778,11 +778,35 @@ class SQLObjectTest(TestHelper):
         person = Person.selectFirst("name = 'John Doe'", prejoins=["address"],
                                     orderBy="name")
 
-        # Remove the row behind its back.
+        # Remove the row behind Storm's back.
         self.store.execute("DELETE FROM address")
 
         # They were prefetched, so it should work even then.
         self.assertEquals(person.address.city, "Sao Carlos")
+
+    def test_result_set_prejoin_related(self):
+        """Dotted prejoins are used to prejoin through another table."""
+        class Phone(self.SQLObject):
+            person = ForeignKey(foreignKey="AnotherPerson", dbName="person_id")
+            number = StringCol()
+
+        class AnotherPerson(self.Person):
+            _table = "person"
+            address = ForeignKey(foreignKey="Address", dbName="address_id")
+
+        class Address(self.SQLObject):
+            city = StringCol()
+
+        phone = Phone.selectOne("number = '1234-5678'",
+                                prejoins=["person.address"])
+
+        # Remove the rows behind Storm's back.
+        self.store.execute("DELETE FROM address")
+        self.store.execute("DELETE FROM person")
+
+        # They were prefetched, so it should work even then.
+        self.assertEquals(phone.person.name, "John Joe")
+        self.assertEquals(phone.person.address.city, "Curitiba")
 
     def test_result_set_prejoin_table_twice(self):
         """A single table can be prejoined multiple times."""
