@@ -70,7 +70,7 @@ class ClassInfo(dict):
 
         self.cls = cls
 
-        if not isinstance(self.table, Expr):
+        if isinstance(self.table, basestring):
             self.table = SQLToken(self.table)
 
         pairs = []
@@ -173,6 +173,12 @@ class ObjectInfo(dict):
         self.primary_vars = tuple(variables[column]
                                   for column in self.cls_info.primary_key)
 
+    def __eq__(self, other):
+        return self is other
+
+    def __ne__(self, other):
+        return self is not other
+
     def set_obj(self, obj):
         self.get_obj = ref(obj, self._emit_object_deleted)
 
@@ -208,12 +214,8 @@ class ClassAlias(FromExpr):
 
 @compile.when(type)
 def compile_type(compile, expr, state):
-    table = getattr(expr, "__storm_table__", None)
-    if table is None:
-        raise CompileError("Don't know how to compile %r" % expr)
+    cls_info = get_cls_info(expr)
+    table = compile(cls_info.table, state)
     if state.context is TABLE and issubclass(expr, ClassAlias):
-        cls_info = get_cls_info(expr)
         return "%s AS %s" % (compile(cls_info.cls, state), table)
-    if isinstance(table, basestring):
-        return table
-    return compile(table, state)
+    return table

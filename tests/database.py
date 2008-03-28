@@ -22,14 +22,16 @@ import sys
 import new
 import gc
 
-from storm.exceptions import ClosedError
+from storm.exceptions import ClosedError, DatabaseError, DisconnectionError
 from storm.variables import Variable
 import storm.database
 from storm.database import *
+from storm.tracer import install_tracer, remove_all_tracers, DebugTracer
 from storm.uri import URI
 from storm.expr import *
 
 from tests.helper import TestHelper
+from tests.mocker import ARGS
 
 
 marker = object()
@@ -90,6 +92,12 @@ class RawCursor(object):
         return result
 
 
+class FakeConnection(object):
+
+    def _check_disconnect(self, _function, *args, **kwargs):
+        return _function(*args, **kwargs)
+
+
 class DatabaseTest(TestHelper):
 
     def setUp(self):
@@ -107,7 +115,12 @@ class ConnectionTest(TestHelper):
         self.executed = []
         self.database = Database()
         self.raw_connection = RawConnection(self.executed)
-        self.connection = Connection(self.database, self.raw_connection)
+        self.database.raw_connect = lambda: self.raw_connection
+        self.connection = Connection(self.database)
+
+    def tearDown(self):
+        TestHelper.tearDown(self)
+        remove_all_tracers()
 
     def test_execute(self):
         result = self.connection.execute("something")
@@ -131,7 +144,7 @@ class ConnectionTest(TestHelper):
     def test_execute_convert_param_style(self):
         class MyConnection(Connection):
             param_mark = "%s"
-        connection = MyConnection(self.database, RawConnection(self.executed))
+        connection = MyConnection(self.database)
         result = connection.execute("'?' ? '?' ? '?'")
         self.assertEquals(self.executed, [("'?' %s '?' %s '?'", marker)])
 
@@ -158,6 +171,50 @@ class ConnectionTest(TestHelper):
     def test_execute_closed(self):
         self.connection.close()
         self.assertRaises(ClosedError, self.connection.execute, "SELECT 1")
+
+    def test_raw_execute_tracing(self):
+        stash = []
+        class Tracer(object):
+            def connection_raw_execute(self, connection, raw_cursor,
+                                       statement, params):
+                stash.extend((connection, type(raw_cursor), statement, params))
+        self.assertMethodsMatch(Tracer, DebugTracer)
+        install_tracer(Tracer())
+        self.connection.execute("something")
+        self.assertEquals(stash, [self.connection, RawCursor, "something", ()])
+
+        del stash[:]
+        self.connection.execute("something", (1, 2))
+        self.assertEquals(stash, [self.connection, RawCursor,
+                                  "something", (1, 2)])
+
+    def test_raw_execute_error_tracing(self):
+        cursor_mock = self.mocker.patch(RawCursor)
+        cursor_mock.execute(ARGS)
+        self.mocker.throw(ZeroDivisionError)
+        self.mocker.replay()
+
+        stash = []
+        class Tracer(object):
+            def connection_raw_execute_error(self, connection, raw_cursor,
+                                             statement, params, error):
+                stash.extend((connection, type(raw_cursor), statement,
+                              params, error.__class__))
+
+        self.assertMethodsMatch(Tracer, DebugTracer)
+        install_tracer(Tracer())
+        self.assertRaises(ZeroDivisionError,
+                          self.connection.execute, "something")
+        self.assertEquals(stash, [self.connection, RawCursor, "something", (),
+                                  ZeroDivisionError])
+
+        # Verify and reset so that we check if it won't be run without errors.
+        self.mocker.verify()
+        self.mocker.reset()
+
+        del stash[:]
+        self.connection.execute("something")
+        self.assertEquals(stash, [])
 
     def test_commit(self):
         self.connection.commit()
@@ -197,13 +254,80 @@ class ConnectionTest(TestHelper):
         self.assertRaises(NotImplementedError,
                           result.get_insert_identity, None, None)
 
+    def test_wb_ensure_connected_noop(self):
+        """Check that _ensure_connected() is a no-op for STATE_CONNECTED."""
+        self.assertEqual(self.connection._state, storm.database.STATE_CONNECTED)
+        def connect():
+            raise DatabaseError("_ensure_connected() tried to connect")
+        self.database.raw_connect = connect
+        self.connection._ensure_connected()
+
+    def test_wb_ensure_connected_dead_connection(self):
+        """Check that DisconnectionError is raised for STATE_DISCONNECTED."""
+        self.connection._state = storm.database.STATE_DISCONNECTED
+        self.assertRaises(DisconnectionError,
+                          self.connection._ensure_connected)
+
+    def test_wb_ensure_connected_reconnects(self):
+        """Check that _ensure_connected() reconnects for STATE_RECONNECT."""
+        self.connection._state = storm.database.STATE_RECONNECT
+        self.connection._raw_connection = None
+
+        self.connection._ensure_connected()
+        self.assertNotEqual(self.connection._raw_connection, None)
+        self.assertEqual(self.connection._state,
+                         storm.database.STATE_CONNECTED)
+
+    def test_wb_ensure_connected_connect_failure(self):
+        """Check that the connection is flagged on reconnect failures."""
+        self.connection._state = storm.database.STATE_RECONNECT
+        self.connection._raw_connection = None
+        def _fail_to_connect():
+            raise DatabaseError("could not connect")
+        self.database.raw_connect = _fail_to_connect
+
+        self.assertRaises(DisconnectionError,
+                          self.connection._ensure_connected)
+        self.assertEqual(self.connection._state,
+                         storm.database.STATE_DISCONNECTED)
+        self.assertEqual(self.connection._raw_connection, None)
+
+    def test_wb_check_disconnection(self):
+        """Ensure that _check_disconnect() detects disconnections."""
+        class FakeException(DatabaseError):
+            """A fake database exception that indicates a disconnection."""
+        self.connection.is_disconnection_error = (
+            lambda exc: isinstance(exc, FakeException))
+
+        self.assertEqual(self.connection._state,
+                         storm.database.STATE_CONNECTED)
+        # Error is converted to DisconnectionError:
+        def raise_exception():
+            raise FakeException
+        self.assertRaises(DisconnectionError,
+                          self.connection._check_disconnect, raise_exception)
+        self.assertEqual(self.connection._state,
+                         storm.database.STATE_DISCONNECTED)
+        self.assertEqual(self.connection._raw_connection, None)
+
+    def test_wb_rollback_clears_disconnected_connection(self):
+        """Check that rollback clears the DISCONNECTED state."""
+        self.connection._state = storm.database.STATE_DISCONNECTED
+        self.connection._raw_connection = None
+
+        self.connection.rollback()
+        self.assertEqual(self.executed, [])
+        self.assertEqual(self.connection._state,
+                         storm.database.STATE_RECONNECT)
+
+
 class ResultTest(TestHelper):
 
     def setUp(self):
         TestHelper.setUp(self)
         self.executed = []
         self.raw_cursor = RawCursor(executed=self.executed)
-        self.result = Result(None, self.raw_cursor)
+        self.result = Result(FakeConnection(), self.raw_cursor)
 
     def test_get_one(self):
         self.assertEquals(self.result.get_one(), ("fetchone0",))
@@ -217,7 +341,7 @@ class ResultTest(TestHelper):
         self.assertEquals(self.result.get_all(), [])
 
     def test_iter(self):
-        result = Result(None, RawCursor(2))
+        result = Result(FakeConnection(), RawCursor(2))
         self.assertEquals([item for item in result],
                           [("fetchmany0",), ("fetchmany1",), ("fetchmany2",),
                            ("fetchmany3",), ("fetchmany4",)])
@@ -256,13 +380,13 @@ class ResultTest(TestHelper):
         """When the arraysize is 1, change it to a better value."""
         raw_cursor = RawCursor()
         self.assertEquals(raw_cursor.arraysize, 1)
-        result = Result(None, raw_cursor)
+        result = Result(FakeConnection(), raw_cursor)
         self.assertEquals(raw_cursor.arraysize, 10)
 
     def test_preserve_arraysize(self):
         """When the arraysize is not 1, preserve it."""
         raw_cursor = RawCursor(arraysize=123)
-        result = Result(None, raw_cursor)
+        result = Result(FakeConnection(), raw_cursor)
         self.assertEquals(raw_cursor.arraysize, 123)
 
 
@@ -308,7 +432,7 @@ class RegisterSchemeTest(TestHelper):
         if 'factory' in storm.database._database_schemes:
             del storm.database._database_schemes['factory']
         TestHelper.tearDown(self)
-    
+
     def test_register_scheme(self):
         def factory(uri):
             self.uri = uri

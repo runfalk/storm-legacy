@@ -20,11 +20,12 @@
 #
 from storm.properties import Bool, Int, Float, RawStr, Chars, Unicode, Pickle
 from storm.properties import List, Decimal, DateTime, Date, Time, Enum
+from storm.properties import TimeDelta
 from storm.references import Reference, ReferenceSet, Proxy
 from storm.database import create_database
 from storm.exceptions import StormError
 from storm.store import Store, AutoReload
 from storm.expr import Select, Insert, Update, Delete, Join, SQL
-from storm.expr import Like, In, Asc, Desc, And, Or, Min, Max, Count
+from storm.expr import Like, In, Asc, Desc, And, Or, Min, Max, Count, Not
 from storm.info import ClassAlias
 from storm.base import Storm

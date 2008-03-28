@@ -32,7 +32,7 @@ from zope.interface import implements
 
 import transaction
 from transaction.interfaces import IDataManager, ISynchronizer
-from transaction._transaction import TransactionFailedError
+from ZODB.POSException import TransactionFailedError
 
 from storm.zope.interfaces import IZStorm, ZStormError
 from storm.database import create_database
@@ -167,7 +167,11 @@ class ZStorm(object):
 
     def iterstores(self):
         """Iterate C{name, store} 2-tuples."""
-        for store, name in self._name_index.iteritems():
+        # items is explicitly used here, instead of iteritems, to
+        # avoid the problem where a store is deallocated during
+        # iteration causing RuntimeError: dictionary changed size
+        # during iteration.
+        for store, name in self._name_index.items():
             yield name, store
 
     def get_name(self, store):

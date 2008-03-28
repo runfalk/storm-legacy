@@ -19,9 +19,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from datetime import datetime, date, time
+from datetime import datetime, date, time, timedelta
 import cPickle as pickle
-import thread
 import shutil
 import sys
 import os
@@ -29,11 +28,13 @@ import os
 from storm.uri import URI
 from storm.expr import Select, Column, Undef, SQLToken, SQLRaw, Count, Alias
 from storm.variables import (Variable, PickleVariable, RawStrVariable,
-                             DecimalVariable)
-from storm.variables import DateTimeVariable, DateVariable, TimeVariable
+                             DecimalVariable, DateTimeVariable, DateVariable,
+                             TimeVariable, TimeDeltaVariable)
 from storm.database import *
-from storm.exceptions import DatabaseModuleError, OperationalError
+from storm.exceptions import (
+    DatabaseModuleError, DisconnectionError, OperationalError)
 
+from tests.databases.proxy import ProxyTCPServer
 from tests.helper import MakePath
 
 
@@ -52,6 +53,7 @@ class DatabaseTest(object):
     def tearDown(self):
         self.drop_sample_data()
         self.drop_tables()
+        self.drop_connection()
         self.drop_database()
         super(DatabaseTest, self).tearDown()
 
@@ -80,6 +82,9 @@ class DatabaseTest(object):
                 self.connection.commit()
             except:
                 self.connection.rollback()
+
+    def drop_connection(self):
+        self.connection.close()
 
     def drop_database(self):
         pass
@@ -227,6 +232,15 @@ class DatabaseTest(object):
         result.set_variable(variable, result.get_one()[0])
         if not self.supports_microseconds:
             value = value.replace(microsecond=0)
+        self.assertEquals(variable.get(), value)
+
+    def test_timedelta(self):
+        value = timedelta(12, 34, 56)
+        self.connection.execute("INSERT INTO datetime_test (td) VALUES (?)",
+                                (value,))
+        result = self.connection.execute("SELECT td FROM datetime_test")
+        variable = TimeDeltaVariable()
+        result.set_variable(variable, result.get_one()[0])
         self.assertEquals(variable.get(), value)
 
     def test_pickle(self):
@@ -395,3 +409,119 @@ class UnsupportedDatabaseTest(object):
             del sys.modules["_fake_"]
 
             sys.modules.update(dbapi_modules)
+
+
+class DatabaseDisconnectionTest(object):
+
+    environment_variable = ""
+    host_environment_variable = ""
+    default_port = None
+
+    def setUp(self):
+        super(DatabaseDisconnectionTest, self).setUp()
+        self.create_database_and_proxy()
+        self.create_connection()
+
+    def tearDown(self):
+        self.drop_database()
+        self.proxy.close()
+        super(DatabaseDisconnectionTest, self).tearDown()
+
+    def is_supported(self):
+        return bool(self.get_uri())
+
+    def get_uri(self):
+        """Return URI instance with a defined host and port."""
+        if not self.environment_variable or not self.default_port:
+            raise RuntimeError("Define at least %s.environment_variable and "
+                               "%s.default_port" % (type(self).__name__,
+                                                    type(self).__name__))
+        uri_str = os.environ.get(self.host_environment_variable)
+        if uri_str:
+            uri = URI(uri_str)
+            if not uri.host:
+                raise RuntimeError("The URI in %s must include a host." %
+                                   self.host_environment_variable)
+            if not uri.port:
+                uri.port = self.default_port
+            return uri
+        else:
+            uri_str = os.environ.get(self.environment_variable)
+            if uri_str:
+                uri = URI(uri_str)
+                if uri.host:
+                    if not uri.port:
+                        uri.port = self.default_port
+                    return uri
+        return None
+
+    def create_database_and_proxy(self):
+        """Set up the TCP proxy and database object.
+
+        The TCP proxy should forward requests on to the database.  The
+        database object should point at the TCP proxy.
+        """
+        uri = self.get_uri()
+        self.proxy = ProxyTCPServer((uri.host, uri.port))
+        uri.host, uri.port = self.proxy.server_address
+        self.database = create_database(uri)
+
+    def create_connection(self):
+        self.connection = self.database.connect()
+
+    def drop_database(self):
+        pass
+
+    def test_proxy_works(self):
+        """Ensure that we can talk to the database through the proxy."""
+        result = self.connection.execute("SELECT 1")
+        self.assertEqual(result.get_one(), (1,))
+
+    def test_catch_disconnect_on_execute(self):
+        """Test that database disconnections get caught on execute()."""
+        result = self.connection.execute("SELECT 1")
+        self.assertTrue(result.get_one())
+        self.proxy.restart()
+        self.assertRaises(DisconnectionError,
+                          self.connection.execute, "SELECT 1")
+
+    def test_catch_disconnect_on_commit(self):
+        """Test that database disconnections get caught on commit()."""
+        result = self.connection.execute("SELECT 1")
+        self.assertTrue(result.get_one())
+        self.proxy.restart()
+        self.assertRaises(DisconnectionError, self.connection.commit)
+
+    def test_connection_stays_disconnected_in_transaction(self):
+        """Test that connection does not immediately reconnect."""
+        result = self.connection.execute("SELECT 1")
+        self.assertTrue(result.get_one())
+        self.proxy.restart()
+        self.assertRaises(DisconnectionError,
+                          self.connection.execute, "SELECT 1")
+        self.assertRaises(DisconnectionError,
+                          self.connection.execute, "SELECT 1")
+
+    def test_reconnect_after_rollback(self):
+        """Test that we reconnect after rolling back the connection."""
+        result = self.connection.execute("SELECT 1")
+        self.assertTrue(result.get_one())
+        self.proxy.restart()
+        self.assertRaises(DisconnectionError,
+                          self.connection.execute, "SELECT 1")
+        self.connection.rollback()
+        result = self.connection.execute("SELECT 1")
+        self.assertTrue(result.get_one())
+
+    def test_catch_disconnect_on_reconnect(self):
+        """Test that reconnection failures result in DisconnectionError."""
+        result = self.connection.execute("SELECT 1")
+        self.assertTrue(result.get_one())
+        self.proxy.stop()
+        self.assertRaises(DisconnectionError,
+                          self.connection.execute, "SELECT 1")
+        # Rollback the connection, but because the proxy is still
+        # down, we get a DisconnectionError again.
+        self.connection.rollback()
+        self.assertRaises(DisconnectionError,
+                          self.connection.execute, "SELECT 1")

@@ -23,8 +23,10 @@ import os
 
 from storm.databases.mysql import MySQL
 from storm.database import create_database
+from storm.uri import URI
 
-from tests.databases.base import DatabaseTest, UnsupportedDatabaseTest
+from tests.databases.base import (
+    DatabaseTest, DatabaseDisconnectionTest, UnsupportedDatabaseTest)
 from tests.helper import TestHelper
 
 
@@ -46,7 +48,8 @@ class MySQLTest(DatabaseTest, TestHelper):
                                 " title VARCHAR(50)) ENGINE=InnoDB")
         self.connection.execute("CREATE TABLE datetime_test "
                                 "(id INT AUTO_INCREMENT PRIMARY KEY,"
-                                " dt TIMESTAMP, d DATE, t TIME) ENGINE=InnoDB")
+                                " dt TIMESTAMP, d DATE, t TIME, td TEXT) "
+                                "ENGINE=InnoDB")
         self.connection.execute("CREATE TABLE bin_test "
                                 "(id INT AUTO_INCREMENT PRIMARY KEY,"
                                 " b BLOB) ENGINE=InnoDB")
@@ -59,8 +62,28 @@ class MySQLTest(DatabaseTest, TestHelper):
                            ("unix_socket", "us")]:
             self.assertEquals(database._connect_kwargs.get(key), value)
 
+    def test_charset_defaults_to_utf8(self):
+        result = self.connection.execute("SELECT @@character_set_client")
+        self.assertEquals(result.get_one(), ("utf8",))
+
+    def test_charset_option(self):
+        uri = URI(os.environ["STORM_MYSQL_URI"])
+        uri.options["charset"] = "ascii"
+        database = create_database(uri)
+        connection = database.connect()
+        result = connection.execute("SELECT @@character_set_client")
+        self.assertEquals(result.get_one(), ("ascii",))
+
+
 
 class MySQLUnsupportedTest(UnsupportedDatabaseTest, TestHelper):
     
     dbapi_module_names = ["MySQLdb"]
     db_module_name = "mysql"
+
+
+class MySQLDisconnectionTest(DatabaseDisconnectionTest, TestHelper):
+
+    environment_variable = "STORM_MYSQL_URI"
+    host_environment_variable = "STORM_MYSQL_HOST_URI"
+    default_port = 3306

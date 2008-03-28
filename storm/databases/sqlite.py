@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from datetime import datetime, date, time
+from datetime import datetime, date, time, timedelta
 from time import sleep, time as now
 import sys
 
@@ -112,7 +112,7 @@ class SQLiteConnection(Connection):
         for param in params:
             if isinstance(param, Variable):
                 param = param.get(to_db=True)
-            if isinstance(param, (datetime, date, time)):
+            if isinstance(param, (datetime, date, time, timedelta)):
                 yield str(param)
             elif isinstance(param, str):
                 yield buffer(param)
@@ -122,16 +122,14 @@ class SQLiteConnection(Connection):
     def commit(self):
         # See story at the end to understand why we do COMMIT manually.
         if self._in_transaction:
-            self._in_transaction = False
-            self._raw_connection.execute("COMMIT")
+            self.raw_execute("COMMIT", _end=True)
 
     def rollback(self):
         # See story at the end to understand why we do ROLLBACK manually.
         if self._in_transaction:
-            self._in_transaction = False
-            self._raw_connection.execute("ROLLBACK")
+            self.raw_execute("ROLLBACK", _end=True)
 
-    def raw_execute(self, statement, params=None, _started=None):
+    def raw_execute(self, statement, params=None, _end=False):
         """Execute a raw statement with the given parameters.
 
         This method will automatically retry on locked database errors.
@@ -139,21 +137,33 @@ class SQLiteConnection(Connection):
         versions < 2.3.4, so we make sure the timeout is respected
         here.
         """
-        if not self._in_transaction:
+        if _end:
+            self._in_transaction = False
+        elif not self._in_transaction:
             # See story at the end to understand why we do BEGIN manually.
             self._in_transaction = True
             self._raw_connection.execute("BEGIN")
+
+        # Remember the time at which we started the operation.  If pysqlite
+        # handles the timeout correctly, we won't retry the operation, because
+        # the timeout will have expired when the raw_execute() returns.
+        started = now()
         while True:
             try:
                 return Connection.raw_execute(self, statement, params)
             except sqlite.OperationalError, e:
                 if str(e) != "database is locked":
                     raise
-                if _started is None:
-                    _started = now()
-                elif now() - _started < self._database._timeout:
+                elif now() - started < self._database._timeout:
+                    # pysqlite didn't handle the timeout correctly,
+                    # so we sleep a little and then retry.
                     sleep(0.1)
                 else:
+                    # The operation failed due to being unable to get a
+                    # lock on the database.  In this case, we are still
+                    # in a transaction.
+                    if _end:
+                        self._in_transaction = True
                     raise
 
 
@@ -167,11 +177,11 @@ class SQLite(Database):
         self._filename = uri.database or ":memory:"
         self._timeout = float(uri.options.get("timeout", 5))
 
-    def connect(self):
+    def raw_connect(self):
         # See the story at the end to understand why we set isolation_level.
         raw_connection = sqlite.connect(self._filename, timeout=self._timeout,
                                         isolation_level=None)
-        return self.connection_factory(self, raw_connection)
+        return raw_connection
 
 
 create_from_uri = SQLite

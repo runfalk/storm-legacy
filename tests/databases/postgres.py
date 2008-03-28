@@ -21,13 +21,25 @@
 from datetime import date, time, timedelta
 import os
 
-from storm.databases.postgres import Postgres, compile
+from storm.databases.postgres import (
+    Postgres, compile, currval, Returning, PostgresTimeoutTracer)
+from storm.uri import URI
 from storm.database import create_database
 from storm.variables import DateTimeVariable, RawStrVariable
 from storm.variables import ListVariable, IntVariable, Variable
-from storm.expr import Union, Select, Alias, SQLRaw, State, Sequence, Like
+from storm.properties import Int
+from storm.expr import (Union, Select, Insert, Alias, SQLRaw, State,
+                        Sequence, Like, Column, COLUMN)
+from storm.tracer import install_tracer, TimeoutError
 
-from tests.databases.base import DatabaseTest, UnsupportedDatabaseTest
+# We need the info to register the 'type' compiler.  In normal
+# circumstances this is naturally imported.
+import storm.info
+
+from tests.databases.base import (
+    DatabaseTest, DatabaseDisconnectionTest, UnsupportedDatabaseTest)
+from tests.expr import column1, column2, column3, elem1, table1, TrackContext
+from tests.tracer import TimeoutTracerTestBase
 from tests.helper import TestHelper
 
 
@@ -46,19 +58,23 @@ class PostgresTest(DatabaseTest, TestHelper):
                                 "(id SERIAL PRIMARY KEY, title VARCHAR)")
         self.connection.execute("CREATE TABLE datetime_test "
                                 "(id SERIAL PRIMARY KEY,"
-                                " dt TIMESTAMP, d DATE, t TIME)")
+                                " dt TIMESTAMP, d DATE, t TIME, td INTERVAL)")
         self.connection.execute("CREATE TABLE bin_test "
                                 "(id SERIAL PRIMARY KEY, b BYTEA)")
         self.connection.execute("CREATE TABLE like_case_insensitive_test "
                                 "(id SERIAL PRIMARY KEY, description TEXT)")
+        self.connection.execute("CREATE TABLE insert_returning_test "
+                                "(id1 INTEGER DEFAULT 123, "
+                                " id2 INTEGER DEFAULT 456)")
 
     def drop_tables(self):
         super(PostgresTest, self).drop_tables()
-        try:
-            self.connection.execute("DROP TABLE like_case_insensitive_test")
-            self.connection.commit()
-        except:
-            self.connection.rollback()
+        for table in ["like_case_insensitive_test", "insert_returning_test"]:
+            try:
+                self.connection.execute("DROP TABLE %s" % table)
+                self.connection.commit()
+            except:
+                self.connection.rollback()
 
     def create_sample_data(self):
         super(PostgresTest, self).create_sample_data()
@@ -73,6 +89,15 @@ class PostgresTest(DatabaseTest, TestHelper):
         self.assertTrue(isinstance(database, Postgres))
         self.assertEquals(database._dsn,
                           "dbname=db host=ht port=12 user=un password=pw")
+
+    def test_wb_version(self):
+        version = self.database._version
+        self.assertEquals(type(version), tuple)
+        for item in version:
+            self.assertEquals(type(item), int)
+        result = self.connection.execute("SHOW server_version")
+        server_version = result.get_one()[0]
+        self.assertEquals(".".join(map(str, version)), server_version)
 
     def test_utf8_client_encoding(self):
         connection = self.database.connect()
@@ -282,8 +307,173 @@ class PostgresTest(DatabaseTest, TestHelper):
         result = self.connection.execute(Select(variable))
         self.assertEquals(result.get_one(), (None,))
 
+    def test_compile_table_with_schema(self):
+        class Foo(object):
+            __storm_table__ = "my schema.my table"
+            id = Int("my.column", primary=True)
+        self.assertEquals(compile(Select(Foo.id)),
+                          'SELECT "my schema"."my table"."my.column" '
+                          'FROM "my schema"."my table"')
+
+    def test_currval_no_escaping(self):
+        expr = currval(Column("thecolumn", "theschema.thetable"))
+        statement = compile(expr)
+        expected = """currval('theschema.thetable_thecolumn_seq')"""
+        self.assertEquals(statement, expected)
+
+    def test_currval_escaped_schema(self):
+        expr = currval(Column("thecolumn", "the schema.thetable"))
+        statement = compile(expr)
+        expected = """currval('"the schema".thetable_thecolumn_seq')"""
+        self.assertEquals(statement, expected)
+
+    def test_currval_escaped_table(self):
+        expr = currval(Column("thecolumn", "theschema.the table"))
+        statement = compile(expr)
+        expected = """currval('theschema."the table_thecolumn_seq"')"""
+        self.assertEquals(statement, expected)
+
+    def test_currval_escaped_column(self):
+        expr = currval(Column("the column", "theschema.thetable"))
+        statement = compile(expr)
+        expected = """currval('theschema."thetable_the column_seq"')"""
+        self.assertEquals(statement, expected)
+
+    def test_currval_escaped_column_no_schema(self):
+        expr = currval(Column("the column", "thetable"))
+        statement = compile(expr)
+        expected = """currval('"thetable_the column_seq"')"""
+        self.assertEquals(statement, expected)
+
+    def test_currval_escaped_schema_table_and_column(self):
+        expr = currval(Column("the column", "the schema.the table"))
+        statement = compile(expr)
+        expected = """currval('"the schema"."the table_the column_seq"')"""
+        self.assertEquals(statement, expected)
+
+    def test_get_insert_identity(self):
+        column = Column("thecolumn", "thetable")
+        variable = IntVariable()
+        result = self.connection.execute("SELECT 1")
+        where = result.get_insert_identity((column,), (variable,))
+        self.assertEquals(compile(where),
+                          "thetable.thecolumn = "
+                          "(SELECT currval('thetable_thecolumn_seq'))")
+
+    def test_returning(self):
+        insert = Insert({column1: elem1}, table1,
+                        primary_columns=(column2, column3))
+        self.assertEquals(compile(Returning(insert)),
+                          'INSERT INTO "table 1" (column1) VALUES (elem1) '
+                          'RETURNING column2, column3')
+
+    def test_returning_column_context(self):
+        column2 = TrackContext()
+        insert = Insert({column1: elem1}, table1, primary_columns=column2)
+        compile(Returning(insert))
+        self.assertEquals(column2.context, COLUMN)
+
+    def test_execute_insert_returning(self):
+        if self.database._version < (8, 2):
+            return # Can't run this test with old PostgreSQL versions.
+
+        column1 = Column("id1", "insert_returning_test")
+        column2 = Column("id2", "insert_returning_test")
+        variable1 = IntVariable()
+        variable2 = IntVariable()
+        insert = Insert({}, primary_columns=(column1, column2),
+                            primary_variables=(variable1, variable2))
+        self.connection.execute(insert)
+
+        self.assertTrue(variable1.is_defined())
+        self.assertTrue(variable2.is_defined())
+
+        self.assertEquals(variable1.get(), 123)
+        self.assertEquals(variable2.get(), 456)
+
+        result = self.connection.execute("SELECT * FROM insert_returning_test")
+        self.assertEquals(result.get_one(), (123, 456))
+
+    def test_wb_execute_insert_returning_not_used_with_old_postgres(self):
+        """Shouldn't try to use RETURNING with PostgreSQL < 8.2."""
+        column1 = Column("id1", "insert_returning_test")
+        column2 = Column("id2", "insert_returning_test")
+        variable1 = IntVariable()
+        variable2 = IntVariable()
+        insert = Insert({}, primary_columns=(column1, column2),
+                            primary_variables=(variable1, variable2))
+        self.database._version = (8, 1, 9)
+
+        self.connection.execute(insert)
+        
+        self.assertFalse(variable1.is_defined())
+        self.assertFalse(variable2.is_defined())
+
+        result = self.connection.execute("SELECT * FROM insert_returning_test")
+        self.assertEquals(result.get_one(), (123, 456))
+
+    def test_execute_insert_returning_without_columns(self):
+        """Without primary_columns, the RETURNING system won't be used."""
+        column1 = Column("id1", "insert_returning_test")
+        variable1 = IntVariable()
+        insert = Insert({column1: 123}, primary_variables=(variable1,))
+        self.connection.execute(insert)
+
+        self.assertFalse(variable1.is_defined())
+
+        result = self.connection.execute("SELECT * FROM insert_returning_test")
+        self.assertEquals(result.get_one(), (123, 456))
+
+    def test_execute_insert_returning_without_variables(self):
+        """Without primary_variables, the RETURNING system won't be used."""
+        column1 = Column("id1", "insert_returning_test")
+        insert = Insert({}, primary_columns=(column1,))
+        self.connection.execute(insert)
+
+        result = self.connection.execute("SELECT * FROM insert_returning_test")
+
+        self.assertEquals(result.get_one(), (123, 456))
+
 
 class PostgresUnsupportedTest(UnsupportedDatabaseTest, TestHelper):
 
     dbapi_module_names = ["psycopg2"]
     db_module_name = "postgres"
+
+
+class PostgresDisconnectionTest(DatabaseDisconnectionTest, TestHelper):
+
+    environment_variable = "STORM_POSTGRES_URI"
+    host_environment_variable = "STORM_POSTGRES_HOST_URI"
+    default_port = 5432
+
+
+class PostgresTimeoutTracerTest(TimeoutTracerTestBase):
+
+    tracer_class = PostgresTimeoutTracer
+
+    def is_supported(self):
+        return bool(os.environ.get("STORM_POSTGRES_URI"))
+
+    def setUp(self):
+        super(PostgresTimeoutTracerTest, self).setUp()
+        self.database = create_database(os.environ["STORM_POSTGRES_URI"])
+        self.connection = self.database.connect()
+        install_tracer(self.tracer)
+        self.tracer.get_remaining_time = lambda: self.remaining_time
+        self.remaining_time = 10.5
+
+    def test_set_statement_timeout(self):
+        result = self.connection.execute("SHOW statement_timeout")
+        self.assertEquals(result.get_one(), ("10500ms",))
+
+    def test_connection_raw_execute_error(self):
+        statement = "SELECT pg_sleep(0.005)"
+        self.remaining_time = 0.001
+        try:
+            self.connection.execute(statement)
+        except TimeoutError, e:
+            self.assertEquals(e.statement, statement)
+            self.assertEquals(e.params, ())
+        else:
+            self.fail("TimeoutError not raised")

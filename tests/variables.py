@@ -638,6 +638,90 @@ class TimeDeltaVariableTest(TestHelper):
         self.assertRaises(ValueError, variable.set, "42 years", from_db=True)
 
 
+class ParseIntervalTest(TestHelper):
+
+    def check(self, interval, td):
+        self.assertEquals(TimeDeltaVariable(interval, from_db=True).get(), td)
+
+    def test_zero(self):
+        self.check("0:00:00", timedelta(0))
+
+    def test_one_microsecond(self):
+        self.check("0:00:00.000001", timedelta(0, 0, 1))
+
+    def test_twelve_centiseconds(self):
+        self.check("0:00:00.120000", timedelta(0, 0, 120000))
+
+    def test_one_second(self):
+        self.check("0:00:01", timedelta(0, 1))
+
+    def test_twelve_seconds(self):
+        self.check("0:00:12", timedelta(0, 12))
+
+    def test_one_minute(self):
+        self.check("0:01:00", timedelta(0, 60))
+
+    def test_twelve_minutes(self):
+        self.check("0:12:00", timedelta(0, 12*60))
+
+    def test_one_hour(self):
+        self.check("1:00:00", timedelta(0, 60*60))
+
+    def test_twelve_hours(self):
+        self.check("12:00:00", timedelta(0, 12*60*60))
+
+    def test_one_day(self):
+        self.check("1 day, 0:00:00", timedelta(1))
+
+    def test_twelve_days(self):
+        self.check("12 days, 0:00:00", timedelta(12))
+
+    def test_twelve_twelve_twelve_twelve_twelve(self):
+        self.check("12 days, 12:12:12.120000",
+                   timedelta(12, 12*60*60 + 12*60 + 12, 120000))
+
+    def test_minus_twelve_centiseconds(self):
+        self.check("-1 day, 23:59:59.880000", timedelta(0, 0, -120000))
+
+    def test_minus_twelve_days(self):
+        self.check("-12 days, 0:00:00", timedelta(-12))
+
+    def test_minus_twelve_hours(self):
+        self.check("-12:00:00", timedelta(hours=-12))
+
+    def test_one_day_and_a_half(self):
+        self.check("1.5 days", timedelta(days=1, hours=12))
+
+    def test_seconds_without_unit(self):
+        self.check("1h123", timedelta(hours=1, seconds=123))
+
+    def test_d_h_m_s_ms(self):
+        self.check("1d1h1m1s1ms", timedelta(days=1, hours=1, minutes=1,
+                                            seconds=1, microseconds=1000))
+
+    def test_days_without_unit(self):
+        self.check("-12 1:02 3s", timedelta(days=-12, hours=1, minutes=2,
+                                            seconds=3))
+
+    def test_unsupported_unit(self):
+        try:
+            self.check("1 month", None)
+        except ValueError, e:
+            self.assertEquals(str(e), "Unsupported interval unit 'month' "
+                                      "in interval '1 month'")
+        else:
+            self.fail("ValueError not raised")
+
+    def test_missing_value(self):
+        try:
+            self.check("day", None)
+        except ValueError, e:
+            self.assertEquals(str(e), "Expected an interval value rather than "
+                                      "'day' in interval 'day'")
+        else:
+            self.fail("ValueError not raised")
+
+
 class PickleVariableTest(TestHelper):
 
     def test_get_set(self):

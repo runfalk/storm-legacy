@@ -646,7 +646,7 @@ class Insert(Expr):
 @compile.when(Insert)
 def compile_insert(compile, insert, state):
     state.push("context", COLUMN_NAME)
-    columns = compile(tuple(insert.map), state)
+    columns = compile(tuple(insert.map), state, token=True)
     state.context = TABLE
     table = build_tables(compile, insert.table, insert.default_table, state)
     state.context = EXPR
@@ -668,7 +668,8 @@ class Update(Expr):
 def compile_update(compile, update, state):
     map = update.map
     state.push("context", COLUMN_NAME)
-    sets = ["%s=%s" % (compile(col, state), compile(map[col], state))
+    sets = ["%s=%s" % (compile(col, state, token=True),
+                       compile(map[col], state))
             for col in map]
     state.context = TABLE
     tokens = ["UPDATE ", build_tables(compile, update.table,
@@ -736,7 +737,7 @@ def compile_column(compile, column, state):
             alias = state.aliases.get(column)
             if alias is not None:
                 return compile(alias.name, state, token=True)
-        return column.name
+        return compile(column.name, state, token=True)
     state.push("context", COLUMN_PREFIX)
     table = compile(column.table, state, token=True)
     state.pop()

@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from datetime import datetime, date, time
+from datetime import datetime, date, time, timedelta
 
 from storm.databases import dummy
 
@@ -29,16 +29,40 @@ except:
     psycopg2 = dummy
 
 from storm.expr import (
-    Undef, SetExpr, Select, Insert, Alias, And, Eq, FuncExpr, SQLRaw, Sequence,
-    Like, COLUMN_NAME, compile, compile_select, compile_insert,
-    compile_set_expr, compile_like)
+    Undef, Expr, SetExpr, Select, Insert, Alias, And, Eq, FuncExpr, SQLRaw,
+    Sequence, Like, SQLToken, COLUMN, COLUMN_NAME, COLUMN_PREFIX, TABLE,
+    compile, compile_select, compile_insert, compile_set_expr, compile_like,
+    compile_sql_token)
 from storm.variables import Variable, ListVariable, RawStrVariable
 from storm.database import Database, Connection, Result
-from storm.exceptions import install_exceptions, DatabaseModuleError
+from storm.exceptions import (
+    install_exceptions, DatabaseError, DatabaseModuleError,
+    OperationalError, ProgrammingError, TimeoutError)
+from storm.tracer import TimeoutTracer
 
 
 install_exceptions(psycopg2)
 compile = compile.create_child()
+
+
+class Returning(Expr):
+    """Appends the "RETURNING <primary_columns>" suffix to an INSERT.
+
+    This is only supported in PostgreSQL 8.2+.
+    """
+
+    def __init__(self, insert):
+        self.insert = insert
+
+@compile.when(Returning)
+def compile_returning(compile, expr, state):
+    state.push("context", COLUMN)
+    columns = compile(expr.insert.primary_columns, state)
+    state.pop()
+    state.push("precedence", 0)
+    insert = compile(expr.insert, state)
+    state.pop()
+    return "%s RETURNING %s" % (insert, columns)
 
 
 class currval(FuncExpr):
@@ -50,8 +74,39 @@ class currval(FuncExpr):
 
 @compile.when(currval)
 def compile_currval(compile, expr, state):
-    return "currval('%s_%s_seq')" % (compile(expr.column.table, state),
-                                     expr.column.name)
+    """Compile a currval.
+
+    This is a bit involved because we have to get escaping right.  Here
+    are a few cases to keep in mind:
+
+        currval('thetable_thecolumn_seq')
+        currval('theschema.thetable_thecolumn_seq')
+        currval('"the schema".thetable_thecolumn_seq')
+        currval('theschema."the table_thecolumn_seq"')
+        currval('theschema."thetable_the column_seq"')
+        currval('"thetable_the column_seq"')
+        currval('"the schema"."the table_the column_seq"')
+
+    """
+    state.push("context", COLUMN_PREFIX)
+    table = compile(expr.column.table, state, token=True)
+    state.pop()
+    column_name = compile(expr.column.name, state, token=True)
+    if table.endswith('"'):
+        table = table[:-1]
+        if column_name.endswith('"'):
+            column_name = column_name[1:-1]
+        return "currval('%s_%s_seq\"')" % (table, column_name)
+    elif column_name.endswith('"'):
+        column_name = column_name[1:-1]
+        if "." in table:
+            schema, table = table.rsplit(".", 1)
+            return "currval('%s.\"%s_%s_seq\"')" % (schema, table, column_name)
+        else:
+            return "currval('\"%s_%s_seq\"')" % (table, column_name)
+    else:
+        return "currval('%s_%s_seq')" % (table, column_name)
+
 
 @compile.when(ListVariable)
 def compile_list_variable(compile, list_variable, state):
@@ -64,6 +119,7 @@ def compile_list_variable(compile, list_variable, state):
     for variable in variables:
         elements.append(compile(variable, state))
     return "ARRAY[%s]" % ",".join(elements)
+
 
 @compile.when(SetExpr)
 def compile_set_expr_postgres(compile, expr, state):
@@ -106,6 +162,7 @@ def compile_set_expr_postgres(compile, expr, state):
     else:
         return compile_set_expr(compile, expr, state)
 
+
 @compile.when(Insert)
 def compile_insert_postgres(compile, insert, state):
     # PostgreSQL fails with INSERT INTO table VALUES (), so we transform
@@ -115,9 +172,26 @@ def compile_insert_postgres(compile, insert, state):
                                         SQLRaw("DEFAULT")))
     return compile_insert(compile, insert, state)
 
+
 @compile.when(Sequence)
 def compile_sequence_postgres(compile, sequence, state):
     return "nextval('%s')" % sequence.name
+
+
+@compile.when(Like)
+def compile_like_postgres(compile, like, state):
+    if like.case_sensitive is False:
+        return compile_like(compile, like, state, oper=" ILIKE ")
+    return compile_like(compile, like, state)
+
+
+@compile.when(SQLToken)
+def compile_sql_token_postgres(compile, expr, state):
+    if "." in expr and state.context in (TABLE, COLUMN_PREFIX):
+        return ".".join(compile_sql_token(compile, subexpr, state)
+                        for subexpr in expr.split("."))
+    return compile_sql_token(compile, expr, state)
+
 
 def compile_str_variable_with_E(compile, variable, state):
     """Include an E just before the placeholder of string variables.
@@ -137,21 +211,16 @@ def compile_str_variable_with_E(compile, variable, state):
 psycopg_needs_E = None
 
 
-@compile.when(Like)
-def compile_like_postgres(compile, like, state):
-    if like.case_sensitive is False:
-        return compile_like(compile, like, state, oper=" ILIKE ")
-    return compile_like(compile, like, state)
-
-
-
 class PostgresResult(Result):
 
     def get_insert_identity(self, primary_key, primary_variables):
         equals = []
         for column, variable in zip(primary_key, primary_variables):
             if not variable.is_defined():
-                variable = currval(column)
+                # The Select here prevents PostgreSQL from going nuts and
+                # performing a sequential scan when there *is* an index.
+                # http://tinyurl.com/2n8mv3
+                variable = Select(currval(column))
             equals.append(Eq(column, variable))
         return And(*equals)
 
@@ -161,6 +230,31 @@ class PostgresConnection(Connection):
     result_factory = PostgresResult
     param_mark = "%s"
     compile = compile
+
+    def execute(self, statement, params=None, noresult=False):
+        """Execute a statement with the given parameters.
+
+        This extends the L{Connection.execute} method to add support
+        for automatic retrieval of inserted primary keys to link
+        in-memory objects with their specific rows.
+        """
+        if (isinstance(statement, Insert) and
+            self._database._version >= (8, 2) and
+            statement.primary_variables is not Undef and
+            statement.primary_columns is not Undef):
+
+            # Here we decorate the Insert statement with a Returning
+            # expression, so that we get back in the result the values
+            # for the primary key just inserted.  This prevents a round
+            # trip to the database for obtaining these values.
+
+            result = Connection.execute(self, Returning(statement), params)
+            for variable, value in zip(statement.primary_variables,
+                                       result.get_one()):
+                result.set_variable(variable, value)
+            return result
+
+        return Connection.execute(self, statement, params, noresult)
 
     def raw_execute(self, statement, params):
         """
@@ -181,7 +275,7 @@ class PostgresConnection(Connection):
         for param in params:
             if isinstance(param, Variable):
                 param = param.get(to_db=True)
-            if isinstance(param, (datetime, date, time)):
+            if isinstance(param, (datetime, date, time, timedelta)):
                 yield str(param)
             elif isinstance(param, unicode):
                 yield param.encode("UTF-8")
@@ -190,20 +284,42 @@ class PostgresConnection(Connection):
             else:
                 yield param
 
+    def is_disconnection_error(self, exc):
+        if not isinstance(exc, (OperationalError, ProgrammingError)):
+            return False
+
+        # XXX: 2007-09-17 jamesh
+        # I have no idea why I am seeing the last exception message
+        # after upgrading to Gutsy.
+        msg = str(exc)
+        return (msg.startswith("server closed the connection unexpectedly") or
+                msg.startswith("could not connect to server") or
+                msg.startswith("no connection to the server") or
+                msg.startswith("connection not open") or
+                msg.startswith("losed the connection unexpectedly"))
+
 
 class Postgres(Database):
 
     connection_factory = PostgresConnection
+
+    _version = None
 
     def __init__(self, uri):
         if psycopg2 is dummy:
             raise DatabaseModuleError("'psycopg2' module not found")
         self._dsn = make_dsn(uri)
 
-    def connect(self):
-        global psycopg_needs_E
+    def raw_connect(self):
         raw_connection = psycopg2.connect(self._dsn)
-        if psycopg_needs_E is None:
+
+        if self._version is None:
+            cursor = raw_connection.cursor()
+
+            cursor.execute("SHOW server_version")
+            server_version = cursor.fetchone()[0]
+            self._version = tuple(map(int, server_version.split(".")))
+
             # This will conditionally change the compilation of binary
             # variables (RawStrVariable) to preceed the placeholder with an
             # 'E', if psycopg isn't doing it by itself.
@@ -212,7 +328,7 @@ class Postgres(Database):
             # would depend on a working psycopg version, or in an older
             # postgresql version.  Both branches were manually tested
             # for correctness at some point.
-            cursor = raw_connection.cursor()
+            global psycopg_needs_E
             try:
                 # If psycopg behaves correctly, this will break trying
                 # to run a query with EE''.
@@ -222,11 +338,13 @@ class Postgres(Database):
             else:
                 psycopg_needs_E = True
                 compile.when(RawStrVariable)(compile_str_variable_with_E)
+
             raw_connection.rollback()
+
         raw_connection.set_client_encoding("UTF8")
         raw_connection.set_isolation_level(
             psycopg2.extensions.ISOLATION_LEVEL_SERIALIZABLE)
-        return self.connection_factory(self, raw_connection)
+        return raw_connection
 
 
 create_from_uri = Postgres
@@ -249,3 +367,18 @@ def make_dsn(uri):
     if uri.password is not None:
         dsn += " password=%s" % uri.password
     return dsn
+
+
+class PostgresTimeoutTracer(TimeoutTracer):
+
+    def set_statement_timeout(self, raw_cursor, remaining_time):
+        raw_cursor.execute("SET statement_timeout TO %d" %
+                           (remaining_time * 1000))
+
+    def connection_raw_execute_error(self, connection, raw_cursor,
+                                     statement, params, error):
+        # This should just check for
+        # psycopg2.extensions.QueryCanceledError in the future.
+        if (isinstance(error, DatabaseError) and
+            "statement timeout" in str(error)):
+            raise TimeoutError(statement, params)

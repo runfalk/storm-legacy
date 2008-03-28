@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #
 # Copyright (c) 2006, 2007 Canonical
 #
@@ -111,12 +112,14 @@ class FooVariable(Foo):
 class StoreTest(object):
 
     def setUp(self):
+        self.store = None
+        self.stores = []
         self.create_database()
         self.drop_tables()
         self.create_tables()
         self.create_sample_data()
         self.create_store()
-    
+
     def tearDown(self):
         self.drop_store()
         self.drop_sample_data()
@@ -151,14 +154,19 @@ class StoreTest(object):
         connection.commit()
 
     def create_store(self):
-        self.store = Store(self.database)
+        store = Store(self.database)
+        self.stores.append(store)
+        if self.store is None:
+            self.store = store
+        return store
 
     def drop_store(self):
-        self.store.rollback()
+        for store in self.stores:
+            store.rollback()
 
-        # Closing the store is needed because testcase objects are all
-        # instantiated at once, and thus connections are kept open.
-        self.store.close()
+            # Closing the store is needed because testcase objects are all
+            # instantiated at once, and thus connections are kept open.
+            store.close()
 
     def drop_sample_data(self):
         pass
@@ -186,12 +194,15 @@ class StoreTest(object):
         result = connection.execute("SELECT * FROM foo ORDER BY id")
         return list(result)
 
+    def get_cache(self, store):
+        # We don't offer a public API for this just yet.
+        return store._cache
 
     def test_execute(self):
         result = self.store.execute("SELECT 1")
         self.assertTrue(isinstance(result, Result))
         self.assertEquals(result.get_one(), (1,))
-        
+
         result = self.store.execute("SELECT 1", noresult=True)
         self.assertEquals(result, None)
 
@@ -236,6 +247,9 @@ class StoreTest(object):
         self.store._connection = connection
 
     def test_cache_cleanup(self):
+        # Disable the cache, which holds strong references.
+        self.get_cache(self.store).set_size(0)
+
         foo = self.store.get(Foo, 10)
         foo.taint = True
 
@@ -276,6 +290,10 @@ class StoreTest(object):
     def test_obj_info_with_deleted_object(self):
         # Let's try to put Storm in trouble by killing the object
         # while still holding a reference to the obj_info.
+
+        # Disable the cache, which holds strong references.
+        self.get_cache(self.store).set_size(0)
+
         class MyFoo(Foo):
             loaded = False
             def __storm_loaded__(self):
@@ -287,7 +305,7 @@ class StoreTest(object):
 
         del foo
         gc.collect()
-        
+
         self.assertEquals(obj_info.get_obj(), None)
 
         foo = self.store.find(MyFoo, id=20).one()
@@ -299,13 +317,17 @@ class StoreTest(object):
 
     def test_obj_info_with_deleted_object_with_get(self):
         # Same thing, but using get rather than find.
+
+        # Disable the cache, which holds strong references.
+        self.get_cache(self.store).set_size(0)
+
         foo = self.store.get(Foo, 20)
         foo.tainted = True
         obj_info = get_obj_info(foo)
 
         del foo
         gc.collect()
-        
+
         self.assertEquals(obj_info.get_obj(), None)
 
         foo = self.store.get(Foo, 20)
@@ -313,7 +335,11 @@ class StoreTest(object):
         self.assertFalse(getattr(foo, "tainted", False))
 
     def test_delete_object_when_obj_info_is_dirty(self):
-        # Object should stay in memory if dirty.
+        """Object should stay in memory if dirty."""
+
+        # Disable the cache, which holds strong references.
+        self.get_cache(self.store).set_size(0)
+
         foo = self.store.get(Foo, 20)
         foo.title = u"Changed"
         foo.tainted = True
@@ -321,7 +347,7 @@ class StoreTest(object):
 
         del foo
         gc.collect()
-        
+
         self.assertTrue(obj_info.get_obj())
 
     def test_get_tuple(self):
@@ -495,7 +521,7 @@ class StoreTest(object):
     def test_find_slice_offset(self):
         result = self.store.find(Foo).order_by(Foo.title)[1:]
         lst = [(foo.id, foo.title) for foo in result]
-        self.assertEquals(lst, 
+        self.assertEquals(lst,
                           [(20, "Title 20"),
                            (10, "Title 30")])
 
@@ -522,7 +548,7 @@ class StoreTest(object):
     def test_find_slice_limit(self):
         result = self.store.find(Foo).order_by(Foo.title)[:2]
         lst = [(foo.id, foo.title) for foo in result]
-        self.assertEquals(lst, 
+        self.assertEquals(lst,
                           [(30, "Title 10"),
                            (20, "Title 20")])
 
@@ -748,6 +774,9 @@ class StoreTest(object):
         self.assertEquals(self.store.find(Foo, title=u"Title 20").cached(), [])
 
     def test_find_cached_with_info_alive_and_object_dead(self):
+        # Disable the cache, which holds strong references.
+        self.get_cache(self.store).set_size(0)
+
         foo = self.store.get(Foo, 20)
         foo.tainted = True
         obj_info = get_obj_info(foo)
@@ -1058,7 +1087,7 @@ class StoreTest(object):
 
         self.store.remove(foo)
         self.store.rollback()
-        
+
         foo.title = u"Title 200"
 
         self.store.flush()
@@ -1091,7 +1120,7 @@ class StoreTest(object):
 
         self.store.remove(foo)
         self.store.add(foo)
-        
+
         foo.title = u"Title 200"
 
         self.store.flush()
@@ -1108,7 +1137,7 @@ class StoreTest(object):
         self.store.remove(foo)
         self.store.flush()
         self.store.add(foo)
-        
+
         foo.title = u"Title 200"
 
         self.store.flush()
@@ -1137,7 +1166,7 @@ class StoreTest(object):
         obj_info = get_obj_info(foo)
         self.store.remove(foo)
         self.store.flush()
-        
+
         foo.title = u"Title 200"
 
         self.assertTrue(obj_info not in self.store._dirty)
@@ -1264,7 +1293,7 @@ class StoreTest(object):
 
         # Update twice to see if the notion of primary key for the
         # existent object was updated as well.
-        
+
         foo.id = 27
 
         self.store.commit()
@@ -1326,7 +1355,7 @@ class StoreTest(object):
     def test_update_find(self):
         foo = self.store.get(Foo, 20)
         foo.title = u"Title 200"
-        
+
         result = self.store.find(Foo, Foo.title == u"Title 200")
 
         self.assertTrue(result.one() is foo)
@@ -1750,7 +1779,7 @@ class StoreTest(object):
 
     def test_reload_unknown(self):
         foo = self.store.get(Foo, 20)
-        store = Store(self.database)
+        store = self.create_store()
         self.assertRaises(WrongStoreError, store.reload, foo)
 
     def test_wb_reload_not_dirty(self):
@@ -1857,6 +1886,9 @@ class StoreTest(object):
         self.assertEquals(bar.title, "Title 500")
 
     def test_find_set_with_info_alive_and_object_dead(self):
+        # Disable the cache, which holds strong references.
+        self.get_cache(self.store).set_size(0)
+
         foo = self.store.get(Foo, 20)
         foo.tainted = True
         obj_info = get_obj_info(foo)
@@ -2233,7 +2265,7 @@ class StoreTest(object):
         self.assertEquals(type(bar.foo_id), int)
 
     def test_reference_on_added_wrong_store(self):
-        store = Store(self.database)
+        store = self.create_store()
 
         foo = Foo()
         foo.title = u"Title 40"
@@ -2258,11 +2290,23 @@ class StoreTest(object):
 
         self.store.add(bar)
 
-        store = Store(self.database)
+        store = self.create_store()
         store.add(foo1)
 
         self.assertEquals(Store.of(bar), self.store)
         self.assertEquals(Store.of(foo1), store)
+
+    def test_reference_on_removed_wont_add_back(self):
+        bar = self.store.get(Bar, 200)
+        foo = self.store.get(Foo, bar.foo_id)
+
+        self.store.remove(bar)
+
+        self.assertEquals(bar.foo, foo)
+        self.store.flush()
+
+        self.assertEquals(Store.of(bar), None)
+        self.assertEquals(Store.of(foo), self.store)
 
     def test_reference_equals(self):
         foo = self.store.get(Foo, 10)
@@ -2786,7 +2830,7 @@ class StoreTest(object):
 
         self.store.add(foo)
 
-        store = Store(self.database)
+        store = self.create_store()
         store.add(bar1)
 
         self.assertEquals(Store.of(foo), self.store)
@@ -2803,7 +2847,7 @@ class StoreTest(object):
                           (200, 20, "Title 200"),
                           (400, 20, "Title 100"),
                          ])
-        
+
 
     def test_indirect_reference_set(self):
         foo = self.store.get(FooIndRefSet, 20)
@@ -3379,6 +3423,45 @@ class StoreTest(object):
         self.store.reload(blob)
         self.assertEquals(blob.bin, "\x80\x02}q\x01(U\x01aK\x01U\x01bK\x02u.")
 
+    def test_undefined_variables_filled_on_find(self):
+        """
+        Check that when data is fetched from the database on a find,
+        it is used to fill up any undefined variables.
+        """
+        # We do a first find to get the object_infos into the cache.
+        foos = list(self.store.find(Foo, title=u"Title 20"))
+
+        # Commit so that all foos are invalidated and variables are
+        # set back to AutoReload.
+        self.store.commit()
+
+        # Another find which should reuse in-memory foos.
+        for foo in self.store.find(Foo, title=u"Title 20"):
+            # Make sure we have all variables defined, because
+            # values were already retrieved by the find's select.
+            obj_info = get_obj_info(foo)
+            for column in obj_info.variables:
+                self.assertTrue(obj_info.variables[column].is_defined())
+
+    def test_defined_variables_not_overridden_on_find(self):
+        """
+        Check that the keep_defined=True setting in _load_object()
+        is in place.  In practice, it ensures that already defined
+        values aren't replaced during a find, when new data comes
+        from the database and is used whenever possible.
+        """
+        blob = self.store.get(Blob, 20)
+        blob.bin = "\x80\x02}q\x01U\x01aK\x01s."
+        class PickleBlob(object):
+            __storm_table__ = "bin"
+            id = Int(primary=True)
+            pickle = Pickle("bin")
+        blob = self.store.get(PickleBlob, 20)
+        value = blob.pickle
+        # Now the find should not destroy our value pointer.
+        blob = self.store.find(PickleBlob, id=20).one()
+        self.assertTrue(value is blob.pickle)
+
     def test_pickle_variable_with_deleted_object(self):
         class PickleBlob(Blob):
             bin = Pickle()
@@ -3468,7 +3551,6 @@ class StoreTest(object):
 
         self.assertEquals(foo.title, "New title")
 
-
     def test_expr_values_flush_on_demand(self):
         foo = self.store.get(Foo, 20)
 
@@ -3491,11 +3573,32 @@ class StoreTest(object):
                           (30, "Title 10"),
                          ])
 
+    def test_expr_values_flush_and_load_in_separate_steps(self):
+        foo = self.store.get(Foo, 20)
+
+        foo.title = SQL("'New title'")
+
+        self.store.flush()
+
+        # It's already in the database.
+        self.assertEquals(self.get_items(), [
+                          (10, "Title 30"),
+                          (20, "New title"),
+                          (30, "Title 10"),
+                         ])
+
+        # But our value is now an AutoReload.
+        lazy_value = get_obj_info(foo).variables[Foo.title].get_lazy()
+        self.assertTrue(lazy_value is AutoReload)
+
+        # Which gets resolved once touched.
+        self.assertEquals(foo.title, u"New title")
+
     def test_expr_values_flush_on_demand_with_added(self):
         foo = Foo()
         foo.id = 40
         foo.title = SQL("'New title'")
-        
+
         self.store.add(foo)
 
         # No commits yet.
@@ -3519,7 +3622,7 @@ class StoreTest(object):
     def test_expr_values_flush_on_demand_with_removed_and_added(self):
         foo = self.store.get(Foo, 20)
         foo.title = SQL("'New title'")
-        
+
         self.store.remove(foo)
         self.store.add(foo)
 
@@ -3542,7 +3645,7 @@ class StoreTest(object):
 
     def test_expr_values_flush_on_demand_with_removed_and_rollbacked(self):
         foo = self.store.get(Foo, 20)
-        
+
         self.store.remove(foo)
         self.store.rollback()
 
@@ -3716,6 +3819,14 @@ class StoreTest(object):
         self.store.autoreload(foo)
         self.assertTrue(get_obj_info(foo) not in self.store._dirty)
 
+    def test_autoreload_missing_columns_on_insertion(self):
+        foo = Foo()
+        self.store.add(foo)
+        self.store.flush()
+        lazy_value = get_obj_info(foo).variables[Foo.title].get_lazy()
+        self.assertEquals(lazy_value, AutoReload)
+        self.assertEquals(foo.title, u"Default Title")
+
     def test_reference_break_on_local_diverged_doesnt_autoreload(self):
         foo = self.store.get(Foo, 10)
         self.store.autoreload(foo)
@@ -3785,15 +3896,12 @@ class StoreTest(object):
         self.store.invalidate(foo)
         self.assertRaises(LostObjectError, setattr, foo, "title", u"Title 40")
 
-    def test_invalidate_and_get_fills_undefined(self):
+    def test_invalidate_and_get_returns_autoreloaded(self):
         foo = self.store.get(Foo, 20)
         self.store.invalidate(foo)
-
-        unset_foo = Foo()
-        unset_state = get_obj_info(unset_foo).variables[Foo.title].get_state()
-        get_obj_info(foo).variables[Foo.title].set_state(unset_state)
-
         foo = self.store.get(Foo, 20)
+        self.assertEquals(get_obj_info(foo).variables[Foo.title].get_lazy(),
+                          AutoReload)
         self.assertEquals(foo.title, "Title 20")
 
     def test_invalidated_hook(self):
@@ -3811,7 +3919,7 @@ class StoreTest(object):
     def test_invalidated_hook_called_after_all_invalidated(self):
         """
         Ensure that invalidated hooks are called only when all objects have
-        already been marked as invalidated. See comment in 
+        already been marked as invalidated. See comment in
         store.py:_mark_autoreload.
         """
         called = []
@@ -4042,6 +4150,22 @@ class StoreTest(object):
         variable = MyBarProxy.foo_title.variable_factory(value=u"Hello")
         self.assertTrue(isinstance(variable, UnicodeVariable))
 
+    def test_proxy_with_extra_table(self):
+        """
+        Proxies use a join on auto_tables. It should work even if we have
+        more tables in the query.
+        """
+        result = self.store.find((BarProxy, Link),
+                                 BarProxy.foo_title == u"Title 20",
+                                 BarProxy.foo_id == Link.foo_id)
+        results = list(result)
+        self.assertEquals(len(results), 2)
+        for bar, link in results:
+            self.assertEquals(bar.id, 200)
+            self.assertEquals(bar.foo_title, u"Title 20")
+            self.assertEquals(bar.foo_id, 20)
+            self.assertEquals(link.foo_id, 20)
+
     def test_get_decimal_property(self):
         money = self.store.get(Money, 10)
         self.assertEquals(money.value, decimal.Decimal("12.3455"))
@@ -4099,6 +4223,79 @@ class StoreTest(object):
         finally:
             store.close()
 
+    def test_strong_cache_used(self):
+        """
+        Objects should be referenced in the cache if not referenced
+        in application code.
+        """
+        foo = self.store.get(Foo, 20)
+        foo.tainted = True
+        obj_info = get_obj_info(foo)
+        del foo
+        gc.collect()
+        cached = self.store.find(Foo).cached()
+        self.assertEquals(len(cached), 1)
+        foo = self.store.get(Foo, 20)
+        self.assertEquals(cached, [foo])
+        self.assertTrue(hasattr(foo, "tainted"))
+
+    def test_strong_cache_cleared_on_invalidate_all(self):
+        cache = self.get_cache(self.store)
+        foo = self.store.get(Foo, 20)
+        self.assertEquals(cache.get_cached(), [get_obj_info(foo)])
+        self.store.invalidate()
+        self.assertEquals(cache.get_cached(), [])
+
+    def test_strong_cache_loses_object_on_invalidate(self):
+        cache = self.get_cache(self.store)
+        foo = self.store.get(Foo, 20)
+        self.assertEquals(cache.get_cached(), [get_obj_info(foo)])
+        self.store.invalidate(foo)
+        self.assertEquals(cache.get_cached(), [])
+
+    def test_strong_cache_loses_object_on_remove(self):
+        """
+        Make sure an object gets removed from the strong reference
+        cache when removed from the store.
+        """
+        cache = self.get_cache(self.store)
+        foo = self.store.get(Foo, 20)
+        self.assertEquals(cache.get_cached(), [get_obj_info(foo)])
+        self.store.remove(foo)
+        self.store.flush()
+        self.assertEquals(cache.get_cached(), [])
+
+    def test_strong_cache_renews_object_on_get(self):
+        cache = self.get_cache(self.store)
+        foo1 = self.store.get(Foo, 10)
+        foo2 = self.store.get(Foo, 20)
+        foo1 = self.store.get(Foo, 10)
+        self.assertEquals(cache.get_cached(),
+                          [get_obj_info(foo1), get_obj_info(foo2)])
+
+    def test_strong_cache_renews_object_on_find(self):
+        cache = self.get_cache(self.store)
+        foo1 = self.store.find(Foo, id=10).one()
+        foo2 = self.store.find(Foo, id=20).one()
+        foo1 = self.store.find(Foo, id=10).one()
+        self.assertEquals(cache.get_cached(),
+                          [get_obj_info(foo1), get_obj_info(foo2)])
+
+    def test_unicode(self):
+        class MyFoo(Foo):
+            pass
+        foo = self.store.get(Foo, 20)
+        myfoo = self.store.get(MyFoo, 20)
+        for title in [u'Cừơng', u'Đức', u'Hạnh']:
+            foo.title = title
+            self.store.commit()
+            try:
+                self.assertEquals(myfoo.title, title)
+            except AssertionError, e:
+                raise AssertionError(str(e) +
+                    " (ensure your database was created with CREATE DATABASE"
+                    " ... CHARACTER SET utf8)")
+
 
 class EmptyResultSetTest(object):
 
@@ -4109,7 +4306,7 @@ class EmptyResultSetTest(object):
         self.create_store()
         self.empty = EmptyResultSet()
         self.result = self.store.find(Foo)
-        
+
     def tearDown(self):
         self.drop_store()
         self.drop_tables()
@@ -4161,7 +4358,7 @@ class EmptyResultSetTest(object):
 
     def test_any(self):
         self.assertEquals(self.result.any(), None)
-        self.assertEquals(self.empty.any(), None)        
+        self.assertEquals(self.empty.any(), None)
 
     def test_first_unordered(self):
         self.assertRaises(UnorderedError, self.result.first)
@@ -4227,7 +4424,7 @@ class EmptyResultSetTest(object):
 
     def test_set_no_args(self):
         self.assertEquals(self.result.set(), None)
-        self.assertEquals(self.empty.set(), None)        
+        self.assertEquals(self.empty.set(), None)
 
     def test_cached(self):
         self.assertEquals(self.result.cached(), [])

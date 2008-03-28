@@ -19,6 +19,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+
+version = "0.12"
+version_info = tuple([int(x) for x in version.split(".")])
+
+
 class UndefType(object):
 
     def __repr__(self):
