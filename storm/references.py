@@ -270,11 +270,14 @@ class BoundReferenceSet(BoundReferenceSetBase):
         self._target_cls = self._relation.remote_cls
         self._order_by = order_by
 
+    def _get_where_clause(self):
+        return self._relation.get_where_for_remote(self._local)
+
     def find(self, *args, **kwargs):
         store = Store.of(self._local)
         if store is None:
             raise NoStoreError("Can't perform operation without a store")
-        where = self._relation.get_where_for_remote(self._local)
+        where = self._get_where_clause()
         result = store.find(self._target_cls, where, *args, **kwargs)
         if self._order_by is not None:
             result.order_by(self._order_by)
@@ -309,12 +312,15 @@ class BoundIndirectReferenceSet(BoundReferenceSetBase):
         self._target_cls = relation2.local_cls
         self._link_cls = relation1.remote_cls
 
+    def _get_where_clause(self):
+        return (self._relation1.get_where_for_remote(self._local) &
+                self._relation2.get_where_for_join())
+
     def find(self, *args, **kwargs):
         store = Store.of(self._local)
         if store is None:
             raise NoStoreError("Can't perform operation without a store")
-        where = (self._relation1.get_where_for_remote(self._local) &
-                 self._relation2.get_where_for_join())
+        where = self._get_where_clause()
         result = store.find(self._target_cls, where, *args, **kwargs)
         if self._order_by is not None:
             result.order_by(self._order_by)
