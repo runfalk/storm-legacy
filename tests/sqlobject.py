@@ -71,10 +71,11 @@ class SQLObjectTest(TestHelper):
         self.store.execute("INSERT INTO phone VALUES (3, 2, '8765-5678')")
 
         self.store.execute("CREATE TABLE person_phone "
-                           "(person_id INTEGER , phone_id INTEGER)")
-        self.store.execute("INSERT INTO person_phone VALUES (2, 1)")
-        self.store.execute("INSERT INTO person_phone VALUES (2, 2)")
-        self.store.execute("INSERT INTO person_phone VALUES (1, 1)")
+                           "(id INTEGER PRIMARY KEY, person_id INTEGER, "
+                           "phone_id INTEGER)")
+        self.store.execute("INSERT INTO person_phone VALUES (1, 2, 1)")
+        self.store.execute("INSERT INTO person_phone VALUES (2, 2, 2)")
+        self.store.execute("INSERT INTO person_phone VALUES (3, 1, 1)")
 
         class Person(self.SQLObject):
             _defaultOrder = "-Person.name"
@@ -91,6 +92,11 @@ class SQLObjectTest(TestHelper):
 
     def test_get_not_found(self):
         self.assertRaises(SQLObjectNotFound, self.Person.get, 1000)
+
+    def test_get_typecast(self):
+        person = self.Person.get('2')
+        self.assertTrue(person)
+        self.assertEquals(person.name, "John Doe")
 
     def test_destroySelf(self):
         person = self.Person.get(2)
@@ -122,12 +128,10 @@ class SQLObjectTest(TestHelper):
         person = MyPerson.get("John Doe")
 
         self.assertTrue(person)
-        self.assertEquals(person.name, "John Doe")
+        self.assertEquals(person.id, "John Doe")
 
     def test_create(self):
         person = self.Person(name="John Joe")
-
-        self.store.flush()
 
         self.assertTrue(Store.of(person) is self.store)
         self.assertEquals(type(person.id), int)
@@ -185,6 +189,14 @@ class SQLObjectTest(TestHelper):
     def test_select_limit(self):
         result = self.Person.select(limit=1)
         self.assertEquals(len(list(result)), 1)
+
+    def test_select_negative_offset(self):
+        result = self.Person.select(orderBy="name")
+        self.assertEquals(result[-1].name, "John Joe")
+
+    def test_select_slice_negative_offset(self):
+        result = self.Person.select(orderBy="name")[-1:]
+        self.assertEquals(result[0].name, "John Joe")
 
     def test_select_distinct(self):
         result = self.Person.select("person.name = 'John Joe'",
@@ -325,10 +337,29 @@ class SQLObjectTest(TestHelper):
         self.assertTrue(person)
         self.assertEquals(person.name, "John Joe")
 
-    def test_dummy_methods(self):
+    def test_syncUpdate(self):
+        """syncUpdate() flushes pending changes to the database."""
         person = self.Person.get(id=1)
-        person.sync()
+        person.name = "John Smith"
         person.syncUpdate()
+        name = self.store.execute(
+            "SELECT name FROM person WHERE id = 1").get_one()[0]
+        self.assertEquals(name, "John Smith")
+
+    def test_sync(self):
+        """sync() flushes pending changes and invalidates the cache."""
+        person = self.Person.get(id=1)
+        person.name = "John Smith"
+        person.sync()
+        name = self.store.execute(
+            "SELECT name FROM person WHERE id = 1").get_one()[0]
+        self.assertEquals(name, "John Smith")
+        # Now make a change behind Storm's back and show that sync()
+        # makes the new value from the database visible.
+        self.store.execute("UPDATE person SET name = 'Jane Smith' "
+                           "WHERE id = 1", noresult=True)
+        person.sync()
+        self.assertEquals(person.name, "Jane Smith")
 
     def test_col_name(self):
         class Person(self.SQLObject):
@@ -464,6 +495,15 @@ class SQLObjectTest(TestHelper):
         self.assertEquals([phone.number for phone in result],
                           ["8765-5678", "1234-5678"])
 
+        # Test add/remove methods.
+        number = Phone.selectOneBy(number="1234-5678")
+        person.removePhone(number)
+        self.assertEquals(sorted(phone.number for phone in person.phones),
+                          ["8765-5678"])
+        person.addPhone(number)
+        self.assertEquals(sorted(phone.number for phone in person.phones),
+                          ["1234-5678", "8765-5678"])
+
     def test_related_join(self):
         class AnotherPerson(self.Person):
             _table = "person"
@@ -488,6 +528,39 @@ class SQLObjectTest(TestHelper):
 
         self.assertEquals([phone.number for phone in result],
                           ["8765-4321", "1234-5678"])
+
+        # Test add/remove methods.
+        number = Phone.selectOneBy(number="1234-5678")
+        person.removePhone(number)
+        self.assertEquals(sorted(phone.number for phone in person.phones),
+                          ["8765-4321"])
+        person.addPhone(number)
+        self.assertEquals(sorted(phone.number for phone in person.phones),
+                          ["1234-5678", "8765-4321"])
+
+    def test_single_join(self):
+        self.store.execute("CREATE TABLE office "
+                           "(id INTEGER PRIMARY KEY, phone_id INTEGER,"
+                           "name TEXT)")
+        self.store.execute("INSERT INTO office VALUES (1, 1, 'An office')")
+
+        class Phone(self.SQLObject):
+            office = SingleJoin("Office", joinColumn="phoneID")
+
+        class Office(self.SQLObject):
+            phone = ForeignKey(foreignKey="Phone", dbName="phone_id",
+                               notNull=True)
+            name = StringCol()
+
+        office = Office.get(1)
+        self.assertEqual(office.name, "An office")
+
+        phone = Phone.get(1)
+        self.assertEqual(phone.office, office)
+
+        # The single join returns None for a phone with no office
+        phone = Phone.get(2)
+        self.assertEqual(phone.office, None)
 
     def test_result_set_orderBy(self):
         result = self.Person.select()
@@ -586,17 +659,13 @@ class SQLObjectTest(TestHelper):
             address = ForeignKey(foreignKey="Phone", dbName='address_id',
                                  notNull=True)
 
-        # *.q.id points to the primary key, no matter its name.
-        self.assertEquals(id(Person.q.id), id(Person.name))
-
-        self.assertEquals(id(Person.q.name), id(Person.name))
+        self.assertEquals(id(Person.q.id), id(Person.id))
         self.assertEquals(id(Person.q.address), id(Person.address))
         self.assertEquals(id(Person.q.addressID), id(Person.addressID))
 
         person = Person.get("John Joe")
 
-        self.assertEquals(id(person.q.id), id(Person.name))
-        self.assertEquals(id(person.q.name), id(Person.name))
+        self.assertEquals(id(person.q.id), id(Person.id))
         self.assertEquals(id(person.q.address), id(Person.address))
         self.assertEquals(id(person.q.addressID), id(Person.addressID))
 

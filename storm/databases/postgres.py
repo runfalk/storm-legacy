@@ -35,8 +35,9 @@ from storm.expr import (
     compile_sql_token)
 from storm.variables import Variable, ListVariable, RawStrVariable
 from storm.database import Database, Connection, Result
-from storm.exceptions import (install_exceptions, DatabaseModuleError,
-                              OperationalError, ProgrammingError, TimeoutError)
+from storm.exceptions import (
+    install_exceptions, DatabaseError, DatabaseModuleError,
+    OperationalError, ProgrammingError, TimeoutError)
 from storm.tracer import TimeoutTracer
 
 
@@ -376,6 +377,8 @@ class PostgresTimeoutTracer(TimeoutTracer):
 
     def connection_raw_execute_error(self, connection, raw_cursor,
                                      statement, params, error):
-        if (isinstance(error, ProgrammingError) and
+        # This should just check for
+        # psycopg2.extensions.QueryCanceledError in the future.
+        if (isinstance(error, DatabaseError) and
             "statement timeout" in str(error)):
             raise TimeoutError(statement, params)
