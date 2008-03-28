@@ -722,6 +722,30 @@ class SQLObjectTest(TestHelper):
         # They were prefetched, so it should work even then.
         self.assertEquals(person.address.city, "Sao Carlos")
 
+    def test_result_set_prejoin_table_twice(self):
+        """A single table can be prejoined multiple times."""
+        self.store.execute("CREATE TABLE lease "
+                           "(id INTEGER PRIMARY KEY,"
+                           " landlord_id INTEGER, tenant_id INTEGER,"
+                           " address_id INTEGER)")
+        self.store.execute("INSERT INTO lease VALUES (1, 1, 2, 1)")
+
+        class Address(self.SQLObject):
+            city = StringCol()
+
+        class Lease(self.SQLObject):
+            landlord = ForeignKey(foreignKey="Person", dbName="landlord_id")
+            tenant = ForeignKey(foreignKey="Person", dbName="tenant_id")
+            address = ForeignKey(foreignKey="Address", dbName="address_id")
+
+        lease = Lease.select(prejoins=["landlord", "tenant", "address"])[0]
+
+        # Remove the person rows behind Storm's back.
+        self.store.execute("DELETE FROM person")
+
+        self.assertEquals(lease.landlord.name, "John Joe")
+        self.assertEquals(lease.landlord.name, "John Doe")
+
     def test_result_set_prejoin_count(self):
         """Prejoins do not affect the result of aggregates like COUNT()."""
         class Person(self.Person):
