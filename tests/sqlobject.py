@@ -480,8 +480,7 @@ class SQLObjectTest(TestHelper):
     def test_multiple_join(self):
         class AnotherPerson(self.Person):
             _table = "person"
-            phones = SQLMultipleJoin("Phone", joinColumn="person",
-                                     prejoins=["person"])
+            phones = SQLMultipleJoin("Phone", joinColumn="person")
 
         class Phone(self.SQLObject):
             person = ForeignKey("AnotherPerson", dbName="person_id")
@@ -503,6 +502,35 @@ class SQLObjectTest(TestHelper):
         person.addPhone(number)
         self.assertEquals(sorted(phone.number for phone in person.phones),
                           ["1234-5678", "8765-5678"])
+
+    def test_multiple_join_prejoins(self):
+        self.store.execute("ALTER TABLE phone ADD COLUMN address_id INT")
+        self.store.execute("UPDATE phone SET address_id = 1")
+        self.store.execute("UPDATE phone SET address_id = 2 WHERE id = 3")
+
+        class AnotherPerson(self.Person):
+            _table = "person"
+            phones = SQLMultipleJoin("Phone", joinColumn="person",
+                                     orderBy="number", prejoins=["address"])
+
+        class Phone(self.SQLObject):
+            person = ForeignKey("AnotherPerson", dbName="person_id")
+            address = ForeignKey("Address", dbName="address_id")
+            number = StringCol()
+
+        class Address(self.SQLObject):
+            city = StringCol()
+
+        person = AnotherPerson.get(2)
+        [phone1, phone2] = person.phones
+
+        # Delete addresses behind Storm's back to show that the
+        # addresses have been loaded.
+        self.store.execute("DELETE FROM address")
+        self.assertEquals(phone1.number, "1234-5678")
+        self.assertEquals(phone1.address.city, "Curitiba")
+        self.assertEquals(phone2.number, "8765-5678")
+        self.assertEquals(phone2.address.city, "Sao Carlos")
 
     def test_related_join(self):
         class AnotherPerson(self.Person):
@@ -537,6 +565,40 @@ class SQLObjectTest(TestHelper):
         person.addPhone(number)
         self.assertEquals(sorted(phone.number for phone in person.phones),
                           ["1234-5678", "8765-4321"])
+
+    def test_related_join_prejoins(self):
+        self.store.execute("ALTER TABLE phone ADD COLUMN address_id INT")
+        self.store.execute("UPDATE phone SET address_id = 1")
+        self.store.execute("UPDATE phone SET address_id = 2 WHERE id = 2")
+
+        class AnotherPerson(self.Person):
+            _table = "person"
+            phones = SQLRelatedJoin("Phone", otherColumn="phone_id",
+                                    intermediateTable="PersonPhone",
+                                    joinColumn="person_id", orderBy="id",
+                                    prejoins=["address"])
+
+        class PersonPhone(self.Person):
+            person_id = IntCol()
+            phone_id = IntCol()
+
+        class Phone(self.SQLObject):
+            number = StringCol()
+            address = ForeignKey("Address", dbName="address_id")
+
+        class Address(self.SQLObject):
+            city = StringCol()
+
+        person = AnotherPerson.get(2)
+        [phone1, phone2] = person.phones
+
+        # Delete addresses behind Storm's back to show that the
+        # addresses have been loaded.
+        self.store.execute("DELETE FROM address")
+        self.assertEquals(phone1.number, "1234-5678")
+        self.assertEquals(phone1.address.city, "Curitiba")
+        self.assertEquals(phone2.number, "8765-4321")
+        self.assertEquals(phone2.address.city, "Sao Carlos")
 
     def test_single_join(self):
         self.store.execute("CREATE TABLE office "
@@ -726,9 +788,8 @@ class SQLObjectTest(TestHelper):
         """A single table can be prejoined multiple times."""
         self.store.execute("CREATE TABLE lease "
                            "(id INTEGER PRIMARY KEY,"
-                           " landlord_id INTEGER, tenant_id INTEGER,"
-                           " address_id INTEGER)")
-        self.store.execute("INSERT INTO lease VALUES (1, 1, 2, 1)")
+                           " landlord_id INTEGER, tenant_id INTEGER)")
+        self.store.execute("INSERT INTO lease VALUES (1, 1, 2)")
 
         class Address(self.SQLObject):
             city = StringCol()
@@ -736,9 +797,8 @@ class SQLObjectTest(TestHelper):
         class Lease(self.SQLObject):
             landlord = ForeignKey(foreignKey="Person", dbName="landlord_id")
             tenant = ForeignKey(foreignKey="Person", dbName="tenant_id")
-            address = ForeignKey(foreignKey="Address", dbName="address_id")
 
-        lease = Lease.select(prejoins=["landlord", "tenant", "address"])[0]
+        lease = Lease.select(prejoins=["landlord", "tenant"])[0]
 
         # Remove the person rows behind Storm's back.
         self.store.execute("DELETE FROM person")

@@ -635,7 +635,7 @@ class SQLMultipleJoin(ReferenceSet):
 
     def __init__(self, otherClass=None, joinColumn=None,
                  intermediateTable=None, otherColumn=None, orderBy=None,
-                 prejoins=_IGNORED):
+                 prejoins=None):
         if intermediateTable:
             args = ("<primary key>",
                     "%s.%s" % (intermediateTable, joinColumn),
@@ -646,15 +646,17 @@ class SQLMultipleJoin(ReferenceSet):
         ReferenceSet.__init__(self, *args)
         self._orderBy = orderBy
         self._otherClass = otherClass
+        self._prejoins = prejoins
 
     def __get__(self, obj, cls=None):
         if obj is None:
             return self
         bound_reference_set = ReferenceSet.__get__(self, obj)
         target_cls = bound_reference_set._target_cls
-        result_set = bound_reference_set.find()
-        return SQLObjectResultSet(target_cls, prepared_result_set=result_set,
-                                  orderBy=self._orderBy)
+        where_clause = bound_reference_set._get_where_clause()
+        return SQLObjectResultSet(target_cls, where_clause,
+                                  orderBy=self._orderBy,
+                                  prejoins=self._prejoins)
 
     def _get_bound_reference_set(self, obj):
         assert obj is not None
