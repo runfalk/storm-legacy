@@ -337,10 +337,29 @@ class SQLObjectTest(TestHelper):
         self.assertTrue(person)
         self.assertEquals(person.name, "John Joe")
 
-    def test_dummy_methods(self):
+    def test_syncUpdate(self):
+        """syncUpdate() flushes pending changes to the database."""
         person = self.Person.get(id=1)
-        person.sync()
+        person.name = "John Smith"
         person.syncUpdate()
+        name = self.store.execute(
+            "SELECT name FROM person WHERE id = 1").get_one()[0]
+        self.assertEquals(name, "John Smith")
+
+    def test_sync(self):
+        """sync() flushes pending changes and invalidates the cache."""
+        person = self.Person.get(id=1)
+        person.name = "John Smith"
+        person.sync()
+        name = self.store.execute(
+            "SELECT name FROM person WHERE id = 1").get_one()[0]
+        self.assertEquals(name, "John Smith")
+        # Now make a change behind Storm's back and show that sync()
+        # makes the new value from the database visible.
+        self.store.execute("UPDATE person SET name = 'Jane Smith' "
+                           "WHERE id = 1", noresult=True)
+        person.sync()
+        self.assertEquals(person.name, "Jane Smith")
 
     def test_col_name(self):
         class Person(self.SQLObject):
