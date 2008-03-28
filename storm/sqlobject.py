@@ -163,7 +163,8 @@ class SQLObjectMeta(PropertyPublisherMeta):
             if isinstance(prop, ForeignKey):
                 db_name = prop.kwargs.get("dbName", attr)
                 local_prop_name = style.instanceAttrToIDAttr(attr)
-                dict[local_prop_name] = local_prop = Int(db_name)
+                dict[local_prop_name] = local_prop = Int(
+                    db_name, allow_none=not prop.kwargs.get("notNull", False))
                 dict[attr] = Reference(local_prop,
                                        "%s.<primary key>" % prop.foreignKey)
                 attr_to_prop[attr] = local_prop_name
