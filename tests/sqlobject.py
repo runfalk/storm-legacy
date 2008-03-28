@@ -818,17 +818,27 @@ class SQLObjectTest(TestHelper):
         class Address(self.SQLObject):
             city = StringCol()
 
-        class Lease(self.SQLObject):
-            landlord = ForeignKey(foreignKey="Person", dbName="landlord_id")
-            tenant = ForeignKey(foreignKey="Person", dbName="tenant_id")
+        class AnotherPerson(self.Person):
+            _table = "person"
+            address = ForeignKey(foreignKey="Address", dbName="address_id")
 
-        lease = Lease.select(prejoins=["landlord", "tenant"])[0]
+        class Lease(self.SQLObject):
+            landlord = ForeignKey(foreignKey="AnotherPerson",
+                                  dbName="landlord_id")
+            tenant = ForeignKey(foreignKey="AnotherPerson",
+                                dbName="tenant_id")
+
+        lease = Lease.select(prejoins=["landlord", "landlord.address",
+                                       "tenant", "tenant.address"])[0]
 
         # Remove the person rows behind Storm's back.
+        self.store.execute("DELETE FROM address")
         self.store.execute("DELETE FROM person")
 
         self.assertEquals(lease.landlord.name, "John Joe")
-        self.assertEquals(lease.landlord.name, "John Doe")
+        self.assertEquals(lease.landlord.address.city, "Curitiba")
+        self.assertEquals(lease.tenant.name, "John Doe")
+        self.assertEquals(lease.tenant.address.city, "Sao Carlos")
 
     def test_result_set_prejoin_count(self):
         """Prejoins do not affect the result of aggregates like COUNT()."""
