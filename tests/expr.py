@@ -1494,7 +1494,7 @@ class CompileTest(TestHelper):
         expr = Join(Join(table1, table2), Join(table3, table4))
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, '("table 1" JOIN "table 2") JOIN '
+        self.assertEquals(statement, '"table 1" JOIN "table 2" JOIN '
                                      '("table 3" JOIN "table 4")')
         self.assertEquals(state.parameters, [])
 

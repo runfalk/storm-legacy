@@ -820,14 +820,15 @@ class JoinExpr(FromExpr):
 @compile.when(JoinExpr)
 def compile_join(compile, join, state):
     result = []
-    # Ensure that nested JOINs get parentheses.
-    state.precedence += 0.5
     if join.left is not Undef:
         statement = compile(join.left, state, token=True)
         result.append(statement)
         if state.join_tables is not None:
             state.join_tables.add(statement)
     result.append(join.oper)
+    # Joins are left associative, so ensure joins in the right hand
+    # argument get parentheses.
+    state.precedence += 0.5
     statement = compile(join.right, state, token=True)
     result.append(statement)
     if state.join_tables is not None:
