@@ -371,7 +371,7 @@ class SQLObjectResultSet(object):
 
     def __init__(self, cls, clause=None, clauseTables=None, orderBy=None,
                  limit=None, distinct=None, prejoins=None,
-                 prejoinClauseTables=None,
+                 prejoinClauseTables=None, selectAlso=None,
                  by={}, prepared_result_set=None, slice=None):
         self._cls = cls
         self._clause = clause
@@ -381,6 +381,7 @@ class SQLObjectResultSet(object):
         self._distinct = distinct
         self._prejoins = prejoins
         self._prejoinClauseTables = prejoinClauseTables
+        self._selectAlso = selectAlso
 
         # Parameters not mapping SQLObject:
         self._by = by
@@ -460,6 +461,9 @@ class SQLObjectResultSet(object):
 
         if self._orderBy is not None:
             result.order_by(*self._cls._parse_orderBy(self._orderBy))
+
+        if self._selectAlso is not None:
+            result._add_select_also(SQL(self._selectAlso))
 
         if self._limit is not None or self._distinct is not None:
             result.config(limit=self._limit, distinct=self._distinct)

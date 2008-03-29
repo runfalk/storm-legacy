@@ -492,6 +492,14 @@ class StoreTest(object):
                           (30, 300),
                          ])
 
+    def test_find__add_select_also(self):
+        result = self.store.find(Foo)
+        result.config(distinct=True)
+        result._add_select_also(SQL('lower(foo.title) AS lower_title'))
+        result.order_by('lower_title')
+        lst = [foo.title for foo in result]
+        self.assertEquals(lst, ["Title 10", "Title 20", "Title 30"])
+
     def test_find_index(self):
         foo = self.store.find(Foo).order_by(Foo.title)[0]
         self.assertEquals(foo.id, 30)
