@@ -716,7 +716,7 @@ class SQLObjectTest(TestHelper):
         class Phone(self.SQLObject):
             number = StringCol()
 
-        result = Person.select("name = 'John Doe'")
+        result = Person.select("person.name = 'John Doe'")
         result = result.prejoin(["address", "phone"])
 
         people = list(result)
@@ -797,7 +797,7 @@ class SQLObjectTest(TestHelper):
         class Address(self.SQLObject):
             city = StringCol()
 
-        phone = Phone.selectOne("number = '1234-5678'",
+        phone = Phone.selectOne("phone.number = '1234-5678'",
                                 prejoins=["person.address"])
 
         # Remove the rows behind Storm's back.
@@ -805,8 +805,8 @@ class SQLObjectTest(TestHelper):
         self.store.execute("DELETE FROM person")
 
         # They were prefetched, so it should work even then.
-        self.assertEquals(phone.person.name, "John Joe")
-        self.assertEquals(phone.person.address.city, "Curitiba")
+        self.assertEquals(phone.person.name, "John Doe")
+        self.assertEquals(phone.person.address.city, "Sao Carlos")
 
     def test_result_set_prejoin_table_twice(self):
         """A single table can be prejoined multiple times."""

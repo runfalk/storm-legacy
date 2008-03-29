@@ -415,6 +415,7 @@ class SQLObjectResultSet(object):
 
             if self._prejoins:
                 already_prejoined = {}
+                join = self._cls
                 for prejoinItem in self._prejoins:
                     from_cls = self._cls
                     full_path = ()
@@ -427,10 +428,12 @@ class SQLObjectResultSet(object):
                         # Otherwise, join the table
                         relation = getattr(from_cls, prejoin)._relation
                         from_cls = relation.remote_cls
-                        tables.append(LeftJoin(from_cls,
-                                               relation.get_where_for_join()))
+                        join = LeftJoin(join, from_cls,
+                                        relation.get_where_for_join())
                         find_spec.append(from_cls)
                         already_prejoined[full_path] = from_cls
+                if join is not self._cls:
+                    tables.append(join)
 
             if self._prejoinClauseTables:
                 property_registry = self._cls._storm_property_registry
