@@ -45,6 +45,12 @@ class TracerTest(TestHelper):
         debug(True)
         self.assertEquals([type(x) for x in get_tracers()], [DebugTracer])
 
+    def test_wb_install_debug_with_custom_stream(self):
+        marker = object()
+        debug(True, marker)
+        [tracer] = get_tracers()
+        self.assertEquals(tracer._stream, marker)
+
     def test_remove_debug(self):
         debug(True)
         debug(True)
