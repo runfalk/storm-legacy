@@ -70,6 +70,7 @@ class Store(object):
         self._dirty = {}
         self._order = {} # (info, info) = count
         self._cache = Cache(100)
+        self._implicit_flush_block_count = 0
 
     @staticmethod
     def of(obj):
@@ -89,7 +90,8 @@ class Store(object):
         This is just like L{storm.database.Database.execute}, except
         that a flush is performed first.
         """
-        self.flush()
+        if self._implicit_flush_block_count == 0:
+            self.flush()
         return self._connection.execute(statement, params, noresult)
 
     def close(self):
@@ -134,7 +136,8 @@ class Store(object):
             if no object is found.
         """
 
-        self.flush()
+        if self._implicit_flush_block_count == 0:
+            self.flush()
 
         if type(key) != tuple:
             key = (key,)
@@ -189,7 +192,8 @@ class Store(object):
         @return: A L{ResultSet} of instances C{cls_spec}. If C{cls_spec}
             was a tuple, then an iterator of tuples of such instances.
         """
-        self.flush()
+        if self._implicit_flush_block_count == 0:
+            self.flush()
         if type(cls_spec) is tuple:
             cls_spec_info = tuple(get_cls_info(cls) for cls in cls_spec)
             where = get_where_for_args(args, kwargs)
@@ -511,6 +515,15 @@ class Store(object):
         self._run_hook(obj_info, "__storm_flushed__")
 
         obj_info.event.emit("flushed")
+
+    def block_implicit_flushes(self):
+        """Block implicit flushes from operations like execute()."""
+        self._implicit_flush_block_count += 1
+
+    def unblock_implicit_flushes(self):
+        """Unblock implicit flushes from operations like execute()."""
+        assert self._implicit_flush_block_count > 0
+        self._implicit_flush_block_count -= 1
 
     def _get_changes_map(self, obj_info, adding=False):
         """Return a {column: variable} dictionary suitable for inserts/updates.
