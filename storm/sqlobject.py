@@ -399,10 +399,12 @@ class SQLObjectResultSet(object):
     def _prepare_result_set(self):
         store = self._cls._get_store()
 
-        if self._clause is None:
-            args = ()
-        else:
-            args = (self._clause,)
+        args = []
+        if self._clause is not None:
+            args.append(self._clause)
+
+        for key, value in self._by.items():
+            args.append(getattr(self._cls, key) == value)
 
         tables = []
 
@@ -451,7 +453,7 @@ class SQLObjectResultSet(object):
             # disrupting anything else.
             args += (AutoTables(SQL("1=1"), tables),)
 
-        return store.find(find_spec, *args, **self._by)
+        return store.find(find_spec, *args)
 
     def _finish_result_set(self):
         if self._prepared_result_set is not None:
