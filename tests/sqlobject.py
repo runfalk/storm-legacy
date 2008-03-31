@@ -740,7 +740,7 @@ class SQLObjectTest(TestHelper):
         class Address(self.SQLObject):
             city = StringCol()
 
-        result = Person.select("name = 'John Doe'", prejoins=["address"])
+        result = Person.select("person.name = 'John Doe'", prejoins=["address"])
         person = result[0]
 
         # Remove the row behind its back.
@@ -758,7 +758,8 @@ class SQLObjectTest(TestHelper):
         class Address(self.SQLObject):
             city = StringCol()
 
-        person = Person.selectOne("name = 'John Doe'", prejoins=["address"])
+        person = Person.selectOne("person.name = 'John Doe'",
+                                  prejoins=["address"])
 
         # Remove the row behind its back.
         self.store.execute("DELETE FROM address")
@@ -775,8 +776,26 @@ class SQLObjectTest(TestHelper):
         class Address(self.SQLObject):
             city = StringCol()
 
-        person = Person.selectFirst("name = 'John Doe'", prejoins=["address"],
-                                    orderBy="name")
+        person = Person.selectFirst("person.name = 'John Doe'",
+                                    prejoins=["address"], orderBy="name")
+
+        # Remove the row behind Storm's back.
+        self.store.execute("DELETE FROM address")
+
+        # They were prefetched, so it should work even then.
+        self.assertEquals(person.address.city, "Sao Carlos")
+
+    def test_result_set_prejoin_by(self):
+        """Ensure that prejoins work with selectBy() queries."""
+
+        class Person(self.Person):
+            address = ForeignKey(foreignKey="Address", dbName="address_id")
+
+        class Address(self.SQLObject):
+            city = StringCol()
+
+        result = Person.selectBy(name="John Doe").prejoin(["address"])
+        person = result[0]
 
         # Remove the row behind Storm's back.
         self.store.execute("DELETE FROM address")
