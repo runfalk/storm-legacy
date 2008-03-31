@@ -1,3 +1,4 @@
+import datetime
 import sys
 
 from storm.tracer import (trace, install_tracer, get_tracers,
@@ -72,13 +73,18 @@ class DebugTracerTest(TestHelper):
         super(DebugTracerTest, self).setUp()
         self.tracer = DebugTracer()
 
+        datetime_mock = self.mocker.replace("datetime.datetime")
+        datetime_mock.now()
+        self.mocker.result(datetime.datetime(1,2,3,4,5,6,7))
+        self.mocker.count(0, 1)
+
     def tearDown(self):
         super(DebugTracerTest, self).tearDown()
         del _tracers[:]
 
     def test_connection_raw_execute(self):
         stderr = self.mocker.replace("sys.stderr")
-        stderr.write("EXECUTE: 'STATEMENT', 'PARAMS'\n")
+        stderr.write("[04:05:06.000007] EXECUTE: 'STATEMENT', 'PARAMS'\n")
         stderr.flush()
         self.mocker.replay()
 
@@ -92,7 +98,7 @@ class DebugTracerTest(TestHelper):
 
     def test_connection_raw_execute_error(self):
         stderr = self.mocker.replace("sys.stderr")
-        stderr.write("ERROR: 'ERROR'\n")
+        stderr.write("[04:05:06.000007] ERROR: 'ERROR'\n")
         stderr.flush()
         self.mocker.replay()
 
@@ -105,11 +111,25 @@ class DebugTracerTest(TestHelper):
         self.tracer.connection_raw_execute_error(connection, raw_cursor,
                                                  statement, params, error)
 
+    def test_connection_raw_execute_success(self):
+        stderr = self.mocker.replace("sys.stderr")
+        stderr.write("[04:05:06.000007] DONE\n")
+        stderr.flush()
+        self.mocker.replay()
+
+        connection = "CONNECTION"
+        raw_cursor = "RAW_CURSOR"
+        statement = "STATEMENT"
+        params = "PARAMS"
+
+        self.tracer.connection_raw_execute_success(connection, raw_cursor,
+                                                   statement, params)
+
     def test_custom_stream(self):
         self.tracer = DebugTracer(sys.stdout)
 
         stdout = self.mocker.replace("sys.stdout")
-        stdout.write("EXECUTE: 'STATEMENT', 'PARAMS'\n")
+        stdout.write("[04:05:06.000007] EXECUTE: 'STATEMENT', 'PARAMS'\n")
         stdout.flush()
         self.mocker.replay()
 
