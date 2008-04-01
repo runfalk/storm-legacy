@@ -205,8 +205,9 @@ class ClassAlias(FromExpr):
             ClassAlias.alias_count += 1
             name = "_%x" % ClassAlias.alias_count
         cls_info = get_cls_info(cls)
-        alias_cls = type(cls.__name__+"Alias", (cls, self_cls),
+        alias_cls = type(cls.__name__+"Alias", (self_cls,),
                          {"__storm_table__": name})
+        alias_cls.__bases__ = (cls, self_cls)
         alias_cls_info = get_cls_info(alias_cls)
         alias_cls_info.cls = cls
         return alias_cls

@@ -32,11 +32,12 @@ from storm.references import Reference, ReferenceSet
 from storm.properties import SimpleProperty, PropertyPublisherMeta
 from storm.variables import Variable
 from storm.exceptions import StormError
-from storm.info import get_cls_info
+from storm.info import get_cls_info, ClassAlias
 from storm.store import AutoReload, Store
 from storm.base import Storm
 from storm.expr import (
-    SQL, SQLRaw, Desc, And, Or, Not, In, Like, AutoTables, LeftJoin)
+    SQL, SQLRaw, Desc, And, Or, Not, In, Like, AutoTables, LeftJoin,
+    Column, compare_columns)
 from storm.tz import tzutc
 from storm import Undef
 
@@ -418,22 +419,23 @@ class SQLObjectResultSet(object):
             if self._prejoins:
                 already_prejoined = {}
                 join = self._cls
-                for prejoinItem in self._prejoins:
-                    from_cls = self._cls
-                    full_path = ()
-                    for prejoin in prejoinItem.split("."):
-                        full_path += (prejoin,)
+                for prejoin_path in self._prejoins:
+                    local_cls = self._cls
+                    path = ()
+                    for prejoin_attr in prejoin_path.split("."):
+                        path += (prejoin_attr,)
                         # If we've already prejoined this column, we're done.
-                        if full_path in already_prejoined:
-                            from_cls = already_prejoined[full_path]
+                        if path in already_prejoined:
+                            local_cls = already_prejoined[path]
                             continue
                         # Otherwise, join the table
-                        relation = getattr(from_cls, prejoin)._relation
-                        from_cls = relation.remote_cls
-                        join = LeftJoin(join, from_cls,
-                                        relation.get_where_for_join())
-                        find_spec.append(from_cls)
-                        already_prejoined[full_path] = from_cls
+                        relation = getattr(local_cls, prejoin_attr)._relation
+                        remote_cls, join_expr = join_aliased_relation(local_cls,
+                                                                      relation)
+                        join = LeftJoin(join, remote_cls, join_expr)
+                        find_spec.append(remote_cls)
+                        already_prejoined[path] = remote_cls
+                        local_cls = remote_cls
                 if join is not self._cls:
                     tables.append(join)
 
@@ -569,6 +571,24 @@ def detuplelize(item):
     if type(item) is tuple:
         return item[0]
     return item
+
+def join_aliased_relation(local_cls, relation):
+    """Build a join expression between local_cls and relation.remote_cls.
+
+    This is equivalent to relation.get_where_for_join(), except that we
+    rebuild the column so that we can turn relation.remote_cls into an
+    alias, and join it multiple times.  Also, local_cls is passed as a
+    parameter rather than obtained from remote.local_cls because it may
+    *also* be an alias, previously wrapped.
+
+    The result is (remote_cls_alias, join_expr).
+    """
+    remote_cls = ClassAlias(relation.remote_cls)
+    remote_key = tuple(Column(column.name, remote_cls)
+                       for column in relation.remote_key)
+    local_key = tuple(Column(column.name, local_cls)
+                      for column in relation.local_key)
+    return remote_cls, compare_columns(local_key, remote_key)
 
 
 
