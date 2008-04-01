@@ -88,7 +88,7 @@ def remove_tracer_type(tracer_type):
         if type(_tracers[i]) is tracer_type:
             del _tracers[i]
 
-def debug(flag):
+def debug(flag, stream=None):
     remove_tracer_type(DebugTracer)
     if flag:
-        install_tracer(DebugTracer())
+        install_tracer(DebugTracer(stream=stream))

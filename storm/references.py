@@ -237,6 +237,16 @@ class ReferenceSet(object):
 
 class BoundReferenceSetBase(object):
 
+    def find(self, *args, **kwargs):
+        store = Store.of(self._local)
+        if store is None:
+            raise NoStoreError("Can't perform operation without a store")
+        where = self._get_where_clause()
+        result = store.find(self._target_cls, where, *args, **kwargs)
+        if self._order_by is not None:
+            result.order_by(self._order_by)
+        return result
+
     def __iter__(self):
         return self.find().__iter__()
 
@@ -270,15 +280,8 @@ class BoundReferenceSet(BoundReferenceSetBase):
         self._target_cls = self._relation.remote_cls
         self._order_by = order_by
 
-    def find(self, *args, **kwargs):
-        store = Store.of(self._local)
-        if store is None:
-            raise NoStoreError("Can't perform operation without a store")
-        where = self._relation.get_where_for_remote(self._local)
-        result = store.find(self._target_cls, where, *args, **kwargs)
-        if self._order_by is not None:
-            result.order_by(self._order_by)
-        return result
+    def _get_where_clause(self):
+        return self._relation.get_where_for_remote(self._local)
 
     def clear(self, *args, **kwargs):
         set_kwargs = {}
@@ -309,16 +312,9 @@ class BoundIndirectReferenceSet(BoundReferenceSetBase):
         self._target_cls = relation2.local_cls
         self._link_cls = relation1.remote_cls
 
-    def find(self, *args, **kwargs):
-        store = Store.of(self._local)
-        if store is None:
-            raise NoStoreError("Can't perform operation without a store")
-        where = (self._relation1.get_where_for_remote(self._local) &
-                 self._relation2.get_where_for_join())
-        result = store.find(self._target_cls, where, *args, **kwargs)
-        if self._order_by is not None:
-            result.order_by(self._order_by)
-        return result
+    def _get_where_clause(self):
+        return (self._relation1.get_where_for_remote(self._local) &
+                self._relation2.get_where_for_join())
 
     def clear(self, *args, **kwargs):
         store = Store.of(self._local)
