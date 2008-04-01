@@ -418,6 +418,7 @@ class SQLObjectResultSet(object):
 
             if self._prejoins:
                 already_prejoined = {}
+                last_prejoin = 0
                 join = self._cls
                 for prejoin_path in self._prejoins:
                     local_cls = self._cls
@@ -430,8 +431,11 @@ class SQLObjectResultSet(object):
                             continue
                         # Otherwise, join the table
                         relation = getattr(local_cls, prejoin_attr)._relation
-                        remote_cls, join_expr = join_aliased_relation(local_cls,
-                                                                      relation)
+                        last_prejoin += 1
+                        remote_cls = ClassAlias(relation.remote_cls,
+                                                '_prejoin%d' % last_prejoin)
+                        join_expr = join_aliased_relation(
+                            local_cls, remote_cls, relation)
                         join = LeftJoin(join, remote_cls, join_expr)
                         find_spec.append(remote_cls)
                         already_prejoined[path] = remote_cls
@@ -572,23 +576,20 @@ def detuplelize(item):
         return item[0]
     return item
 
-def join_aliased_relation(local_cls, relation):
-    """Build a join expression between local_cls and relation.remote_cls.
+def join_aliased_relation(local_cls, remote_cls, relation):
+    """Build a join expression between local_cls and remote_cls.
 
-    This is equivalent to relation.get_where_for_join(), except that we
-    rebuild the column so that we can turn relation.remote_cls into an
-    alias, and join it multiple times.  Also, local_cls is passed as a
-    parameter rather than obtained from remote.local_cls because it may
-    *also* be an alias, previously wrapped.
+    This is equivalent to relation.get_where_for_join(), except that
+    the join expression is changed to be relative to the given
+    local_cls and remote_cls (which may be aliases).
 
-    The result is (remote_cls_alias, join_expr).
+    The result is the join expression.
     """
-    remote_cls = ClassAlias(relation.remote_cls)
     remote_key = tuple(Column(column.name, remote_cls)
                        for column in relation.remote_key)
     local_key = tuple(Column(column.name, local_cls)
                       for column in relation.local_key)
-    return remote_cls, compare_columns(local_key, remote_key)
+    return compare_columns(local_key, remote_key)
 
 
 
