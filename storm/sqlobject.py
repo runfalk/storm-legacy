@@ -452,11 +452,14 @@ class SQLObjectResultSet(object):
             find_spec = tuple(find_spec)
 
         if tables:
+            # If we are adding extra tables, make sure the main table
+            # is included.
+            tables.insert(0, self._cls.__storm_table__)
             # Inject an AutoTables expression with a dummy true value to
             # be ANDed in the WHERE clause, so that we can introduce our
             # tables into the dynamic table handling of Storm without
             # disrupting anything else.
-            args += (AutoTables(SQL("1=1"), tables),)
+            args.append(AutoTables(SQL("1=1"), tables))
 
         return store.find(find_spec, *args)
 

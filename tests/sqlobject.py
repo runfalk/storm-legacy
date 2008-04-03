@@ -650,6 +650,12 @@ class SQLObjectTest(TestHelper):
         result = self.Person.select()
         self.assertEquals(result.count(), 2)
 
+    def test_result_set_count_with_joins(self):
+        result = self.Person.select(
+            "person.address_id = address.id",
+            clauseTables=["address"])
+        self.assertEquals(result.count(), 2)
+
     def test_result_set__getitem__(self):
         result = self.Person.select()
         self.assertEquals(result[0].name, "John Joe")
