@@ -1,3 +1,4 @@
+from datetime import datetime
 import sys
 
 from storm.exceptions import TimeoutError
@@ -9,12 +10,20 @@ class DebugTracer(object):
         self._stream = stream or sys.stderr
 
     def connection_raw_execute(self, connection, raw_cursor, statement, params):
-        self._stream.write("EXECUTE: %r, %r\n" % (statement, params))
+        time = datetime.now().isoformat()[11:]
+        self._stream.write("[%s] EXECUTE: %r, %r\n" % (time, statement, params))
         self._stream.flush()
 
     def connection_raw_execute_error(self, connection, raw_cursor,
                                      statement, params, error):
-        self._stream.write("ERROR: %r\n" % error)
+        time = datetime.now().isoformat()[11:]
+        self._stream.write("[%s] ERROR: %r\n" % (time, error))
+        self._stream.flush()
+
+    def connection_raw_execute_success(self, connection, raw_cursor,
+                                       statement, params):
+        time = datetime.now().isoformat()[11:]
+        self._stream.write("[%s] DONE\n" % time)
         self._stream.flush()
 
 
