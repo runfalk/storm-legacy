@@ -98,6 +98,27 @@ class FakeConnection(object):
         return _function(*args, **kwargs)
 
 
+class FakeTracer(object):
+
+    def __init__(self, stream=None):
+        self.seen = []
+
+    def connection_raw_execute(self, connection, raw_cursor,
+                               statement, params):
+        self.seen.append(("EXECUTE", connection, type(raw_cursor),
+                          statement, params))
+
+    def connection_raw_execute_success(self, connection, raw_cursor,
+                                       statement, params):
+        self.seen.append(("SUCCESS", connection, type(raw_cursor),
+                          statement, params))
+
+    def connection_raw_execute_error(self, connection, raw_cursor,
+                                     statement, params, error):
+        self.seen.append(("ERROR", connection, type(raw_cursor),
+                          statement, params, error))
+
+
 class DatabaseTest(TestHelper):
 
     def setUp(self):
@@ -173,48 +194,38 @@ class ConnectionTest(TestHelper):
         self.assertRaises(ClosedError, self.connection.execute, "SELECT 1")
 
     def test_raw_execute_tracing(self):
-        stash = []
-        class Tracer(object):
-            def connection_raw_execute(self, connection, raw_cursor,
-                                       statement, params):
-                stash.extend((connection, type(raw_cursor), statement, params))
-        self.assertMethodsMatch(Tracer, DebugTracer)
-        install_tracer(Tracer())
+        self.assertMethodsMatch(FakeTracer, DebugTracer)
+        tracer = FakeTracer()
+        install_tracer(tracer)
         self.connection.execute("something")
-        self.assertEquals(stash, [self.connection, RawCursor, "something", ()])
+        self.assertEquals(tracer.seen, [("EXECUTE", self.connection, RawCursor,
+                                         "something", ()),
+                                        ("SUCCESS", self.connection, RawCursor,
+                                         "something", ())])
 
-        del stash[:]
+        del tracer.seen[:]
         self.connection.execute("something", (1, 2))
-        self.assertEquals(stash, [self.connection, RawCursor,
-                                  "something", (1, 2)])
+        self.assertEquals(tracer.seen, [("EXECUTE", self.connection, RawCursor,
+                                         "something", (1, 2)),
+                                        ("SUCCESS", self.connection, RawCursor,
+                                         "something", (1, 2))])
 
     def test_raw_execute_error_tracing(self):
         cursor_mock = self.mocker.patch(RawCursor)
         cursor_mock.execute(ARGS)
-        self.mocker.throw(ZeroDivisionError)
+        error = ZeroDivisionError()
+        self.mocker.throw(error)
         self.mocker.replay()
 
-        stash = []
-        class Tracer(object):
-            def connection_raw_execute_error(self, connection, raw_cursor,
-                                             statement, params, error):
-                stash.extend((connection, type(raw_cursor), statement,
-                              params, error.__class__))
-
-        self.assertMethodsMatch(Tracer, DebugTracer)
-        install_tracer(Tracer())
+        self.assertMethodsMatch(FakeTracer, DebugTracer)
+        tracer = FakeTracer()
+        install_tracer(tracer)
         self.assertRaises(ZeroDivisionError,
                           self.connection.execute, "something")
-        self.assertEquals(stash, [self.connection, RawCursor, "something", (),
-                                  ZeroDivisionError])
-
-        # Verify and reset so that we check if it won't be run without errors.
-        self.mocker.verify()
-        self.mocker.reset()
-
-        del stash[:]
-        self.connection.execute("something")
-        self.assertEquals(stash, [])
+        self.assertEquals(tracer.seen, [("EXECUTE", self.connection, RawCursor,
+                                         "something", ()),
+                                        ("ERROR", self.connection, RawCursor,
+                                         "something", (), error)])
 
     def test_commit(self):
         self.connection.commit()

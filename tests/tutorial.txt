@@ -895,7 +895,8 @@ custom stream may also be used.
 ...                     Employee.company_id == AnotherEmployee.company_id,
 ...                     Employee.id > AnotherEmployee.id)
 >>> list(result)
-EXECUTE: 'SELECT employee.company_id, employee.id, employee.name, "...".company_id, "...".id, "...".name FROM employee, employee AS "..." WHERE employee.company_id = "...".company_id AND employee.id > "...".id', ()
+[...] EXECUTE: 'SELECT employee.company_id, employee.id, employee.name, "...".company_id, "...".id, "...".name FROM employee, employee AS "..." WHERE employee.company_id = "...".company_id AND employee.id > "...".id', ()
+[...] DONE
 [(<Employee object at ...>, <Employee object at ...>)]
 
 >>> debug(False)
