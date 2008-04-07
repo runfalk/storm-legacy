@@ -282,6 +282,9 @@ class Connection(object):
             trace("connection_raw_execute_error", self, raw_cursor,
                   statement, params or (), error)
             raise
+        else:
+            trace("connection_raw_execute_success", self, raw_cursor,
+                  statement, params or ())
         return raw_cursor
 
     def _ensure_connected(self):
