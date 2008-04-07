@@ -45,6 +45,9 @@ class ZStormTest(TestHelper):
         self.zstorm = ZStorm()
 
     def tearDown(self):
+        # Reset the utility to cleanup the StoreSynchronizer's from the
+        # transaction.
+        self.zstorm._reset()
         # Free the transaction to avoid having errors that cross
         # test cases.
         transaction.manager.free(transaction.get())
@@ -193,3 +196,19 @@ class ZStormTest(TestHelper):
         self.assertRaises(OperationalError, transaction.commit)
         transaction.abort()
         transaction.abort()
+
+    def test_wb_reset(self):
+        """_reset is used to reset the zstorm utility between zope test runs.
+
+        We must make sure the L{StoreSynchronizer} is removed from the
+        transaction manager.
+        """
+        store = self.zstorm.get("name", "sqlite:")
+        self.assertEquals(
+            len(transaction.manager._synchs.values()[0].data.values()), 1)
+        transaction.abort()
+        self.assertEquals(
+            len(transaction.manager._synchs.values()[0].data.values()), 1)
+        self.zstorm._reset()
+        self.assertEquals(
+            len(transaction.manager._synchs.values()[0].data.values()), 0)

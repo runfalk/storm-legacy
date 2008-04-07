@@ -66,7 +66,8 @@ class ZStorm(object):
         self._default_uris = {}
 
     def _reset(self):
-        for name, store in self.iterstores():
+        for name, store in list(self.iterstores()):
+            self.remove(store)
             store.close()
         self._local = threading.local()
         self._databases.clear()
@@ -162,7 +163,8 @@ class ZStorm(object):
         del self._stores[id(store)]
         name = self._name_index[store]
         del self._name_index[store]
-        del self._named[name]
+        if name in self._named:
+            del self._named[name]
         transaction.manager.unregisterSynch(store.__synchronizer)
 
     def iterstores(self):
