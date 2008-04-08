@@ -830,7 +830,8 @@ class Store(object):
         #     just this single object and ones that it depends on.
         #     _flush_one() doesn't consider dependencies, so it may
         #     not be used directly.  Maybe allow flush(obj)?
-        self.flush()
+        if self._implicit_flush_block_count == 0:
+            self.flush()
 
         autoreload_columns = []
         for column in obj_info.cls_info.columns:
@@ -1410,7 +1411,8 @@ class TableSet(object):
 
         @return: A L{ResultSet}.
         """
-        self._store.flush()
+        if self._store._implicit_flush_block_count == 0:
+            self._store.flush()
         if type(cls_spec) is tuple:
             cls_spec_info = tuple(get_cls_info(cls) for cls in cls_spec)
             where = get_where_for_args(args, kwargs)
