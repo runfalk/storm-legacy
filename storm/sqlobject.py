@@ -553,19 +553,22 @@ class SQLObjectResultSet(object):
         result_set = self._without_prejoins()._result_set.union(
             otherSelect._without_prejoins()._result_set, all=unionAll)
         result_set.order_by() # Remove default order.
-        return self._copy(prepared_result_set=result_set, orderBy=orderBy)
+        return self._copy(
+            prepared_result_set=result_set, distinct=False, orderBy=orderBy)
 
     def except_(self, otherSelect, exceptAll=False, orderBy=None):
         result_set = self._without_prejoins()._result_set.difference(
             otherSelect._without_prejoins()._result_set, all=exceptAll)
         result_set.order_by() # Remove default order.
-        return self._copy(prepared_result_set=result_set, orderBy=orderBy)
+        return self._copy(
+            prepared_result_set=result_set, distinct=False, orderBy=orderBy)
 
     def intersect(self, otherSelect, intersectAll=False, orderBy=None):
         result_set = self._without_prejoins()._result_set.intersection(
             otherSelect._without_prejoins()._result_set, all=intersectAll)
         result_set.order_by() # Remove default order.
-        return self._copy(prepared_result_set=result_set, orderBy=orderBy)
+        return self._copy(
+            prepared_result_set=result_set, distinct=False, orderBy=orderBy)
 
     def prejoin(self, prejoins):
         return self._copy(prejoins=prejoins)
