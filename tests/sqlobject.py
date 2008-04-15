@@ -650,6 +650,13 @@ class SQLObjectTest(TestHelper):
         result = self.Person.select()
         self.assertEquals(result.count(), 2)
 
+    def test_result_set_count_distinct(self):
+        result = self.Person.select(
+            "person.id = phone.person_id",
+            clauseTables=["phone"],
+            distinct=True)
+        self.assertEquals(result.count(), 2)
+
     def test_result_set_count_with_joins(self):
         result = self.Person.select(
             "person.address_id = address.id",
