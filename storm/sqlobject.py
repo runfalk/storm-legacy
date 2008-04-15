@@ -536,7 +536,13 @@ class SQLObjectResultSet(object):
         return self._result_set.any() is not None
 
     def count(self):
-        return self._without_prejoins()._result_set.count()
+        result_set = self._without_prejoins()._result_set
+        # XXX 2008-04-14 jamesh: this should probably be handled at
+        # the store level.
+        if self._distinct:
+            return result_set.count(self._cls.id, distinct=True)
+        else:
+            return result_set.count()
 
     def orderBy(self, orderBy):
         return self._copy(orderBy=orderBy)
