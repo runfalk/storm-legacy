@@ -73,13 +73,12 @@ class Property(object):
         column = self._get_column(obj_info.cls_info.cls)
         obj_info.variables[column].delete()
 
-    def _detect_name(self, used_cls):
+    def _detect_attr_name(self, used_cls):
         self_id = id(self)
         for cls in used_cls.__mro__:
             for attr, prop in cls.__dict__.iteritems():
                 if id(prop) == self_id:
-                    self._name = attr
-                    return
+                    return attr
         raise RuntimeError("Property used in an unknown class")
 
     def _get_column(self, cls):
@@ -95,9 +94,12 @@ class Property(object):
             cls._storm_columns = {}
             column = None
         if column is None:
+            attr = self._detect_attr_name(cls)
             if self._name is None:
-                self._detect_name(cls)
-            column = PropertyColumn(self, cls, self._name, self._primary,
+                name = attr
+            else:
+                name = self._name
+            column = PropertyColumn(self, cls, attr, name, self._primary,
                                     self._variable_class,
                                     self._variable_kwargs)
             cls._storm_columns[self] = column
@@ -106,10 +108,11 @@ class Property(object):
 
 class PropertyColumn(Column):
 
-    def __init__(self, prop, cls, name, primary,
+    def __init__(self, prop, cls, attr, name, primary,
                  variable_class, variable_kwargs):
         Column.__init__(self, name, cls, primary,
                         VariableFactory(variable_class, column=self,
+                                        validator_attribute=attr,
                                         **variable_kwargs))
 
         self.cls = cls # Used by references

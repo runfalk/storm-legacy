@@ -98,12 +98,16 @@ class Variable(object):
     _lazy_value = Undef
     _checkpoint_state = Undef
     _allow_none = True
+    _validator = None
+    _validator_object_factory = None
+    _validator_attribute = None
 
     column = None
     event = None
 
     def __init__(self, value=Undef, value_factory=Undef, from_db=False,
-                 allow_none=True, column=None, event=None):
+                 allow_none=True, column=None, event=None, validator=None,
+                 validator_object_factory=None, validator_attribute=None):
         """
         @param value: The initial value of this variable. The default
             behavior is for the value to stay undefined until it is
@@ -115,6 +119,14 @@ class Variable(object):
             specified.
         @param allow_none: A boolean indicating whether None should be
             allowed to be set as the value of this variable.
+        @param validator: Validation function called whenever trying to
+            set the variable to a non-db value.  The function should
+            look like validator(object, attr, value), where the first and
+            second arguments are the result of validator_object_factory()
+            and the value of validator_attribute, respectively.  When
+            called, the function should raise an error if the value is
+            unacceptable, or return the value to be used in place of the
+            original value otherwise.
         @type column: L{storm.expr.Column}
         @param column: The column that this variable represents. It's
             used for reporting better error messages.
@@ -124,6 +136,12 @@ class Variable(object):
         """
         if not allow_none:
             self._allow_none = False
+        if validator is not None:
+            self._validator = validator
+            if validator_object_factory is not None:
+                self._validator_object_factory = validator_object_factory
+            if validator_attribute is not None:
+                self._validator_attribute = validator_attribute
         if value is not Undef:
             self.set(value, from_db)
         elif value_factory is not Undef:
@@ -179,6 +197,12 @@ class Variable(object):
         # FASTPATH This method is part of the fast path.  Be careful when
         #          changing it (try to profile any changes).
 
+        if not from_db and self._validator is not None:
+            # We use a factory rather than the object itself to prevent
+            # the cycle object => obj_info => variable => object
+            value = self._validator(self._validator_object_factory and
+                                    self._validator_object_factory(),
+                                    self._validator_attribute, value)
         if isinstance(value, LazyValue):
             self._lazy_value = value
             new_value = Undef

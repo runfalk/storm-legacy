@@ -104,6 +104,22 @@ class PropertyTest(TestHelper):
         self.assertTrue(isinstance(variable, CustomVariable))
         self.assertTrue(variable.is_defined())
 
+    def test_variable_factory_validator_attribute(self):
+        # Should work even if we make things harder by reusing properties.
+        prop = Custom()
+        class Class1(object):
+            __storm_table__ = "table1"
+            prop1 = prop
+        class Class2(object):
+            __storm_table__ = "table2"
+            prop2 = prop
+        args = []
+        def validator(obj, attr, value):
+            args.append((obj, attr, value))
+        variable1 = Class1.prop1.variable_factory(validator=validator, value=1)
+        variable2 = Class2.prop2.variable_factory(validator=validator, value=2)
+        self.assertEquals(args, [(None, "prop1", 1), (None, "prop2", 2)])
+
     def test_default(self):
         obj = self.SubClass()
         self.assertEquals(obj.prop1, None)
@@ -126,6 +142,22 @@ class PropertyTest(TestHelper):
         self.assertEquals(obj.prop1, None)
         self.assertEquals(obj.prop2, None)
         self.assertRaises(NoneError, setattr, obj, "prop3", None)
+
+    def test_set_with_validator(self):
+        args = []
+        def validator(obj, attr, value):
+            args[:] = obj, attr, value
+            return 42
+
+        class Class(object):
+            __storm_table__ = "mytable"
+            prop = Custom("column", primary=True, validator=validator)
+
+        obj = Class()
+        obj.prop = 21
+
+        self.assertEquals(args, [obj, "prop", 21])
+        self.assertEquals(obj.prop, 42)
 
     def test_set_get_subclass(self):
         obj = self.SubClass()
@@ -250,6 +282,25 @@ class PropertyTest(TestHelper):
         self.Class.prop1.__delete__(Wrapper(obj))
         self.assertEquals(self.Class.prop1.__get__(Wrapper(obj)), None)
 
+    def test_reuse_of_instance(self):
+        """Properties are dynamically bound to the class where they're used.
+
+        It basically means that the property may be instantiated
+        independently from the class itself, and reused in any number of
+        classes.  It's not something we should announce as granted, but
+        right now it works, and we should try not to break it.
+        """
+        prop = Custom()
+        class Class1(object):
+            __storm_table__ = "table1"
+            prop1 = prop
+        class Class2(object):
+            __storm_table__ = "table2"
+            prop2 = prop
+        self.assertEquals(Class1.prop1.name, "prop1")
+        self.assertEquals(Class1.prop1.table, Class1)
+        self.assertEquals(Class2.prop2.name, "prop2")
+        self.assertEquals(Class2.prop2.table, Class2)
 
 
 class PropertyKindsTest(TestHelper):
@@ -653,6 +704,11 @@ class PropertyKindsTest(TestHelper):
             __storm_table__ = "test"
             id = Int(primary=True)
 
+        validator_args = []
+        def validator(obj, attr, value):
+            validator_args[:] = obj, attr, value
+            return value
+
         for func, cls, value in [
                                (Bool, BoolVariable, True),
                                (Int, IntVariable, 1),
@@ -666,8 +722,8 @@ class PropertyKindsTest(TestHelper):
                                      ]:
 
             # Test no default and allow_none=True.
-            prop = func(name="name")
-            column = prop.__get__(None, Class)
+            Class.prop = func(name="name")
+            column = Class.prop.__get__(None, Class)
             self.assertEquals(column.name, "name")
             self.assertEquals(column.table, Class)
 
@@ -678,8 +734,8 @@ class PropertyKindsTest(TestHelper):
             self.assertEquals(variable.get(), None)
 
             # Test default and allow_none=False.
-            prop = func(name="name", default=value, allow_none=False)
-            column = prop.__get__(None, Class)
+            Class.prop = func(name="name", default=value, allow_none=False)
+            column = Class.prop.__get__(None, Class)
             self.assertEquals(column.name, "name")
             self.assertEquals(column.table, Class)
 
@@ -689,14 +745,25 @@ class PropertyKindsTest(TestHelper):
             self.assertEquals(variable.get(), value)
 
             # Test default_factory.
-            prop = func(name="name", default_factory=lambda:value)
-            column = prop.__get__(None, Class)
+            Class.prop = func(name="name", default_factory=lambda:value)
+            column = Class.prop.__get__(None, Class)
             self.assertEquals(column.name, "name")
             self.assertEquals(column.table, Class)
 
             variable = column.variable_factory()
             self.assertTrue(isinstance(variable, cls))
             self.assertEquals(variable.get(), value)
+
+            # Test validator.
+            Class.prop = func(name="name", validator=validator, default=value)
+            column = Class.prop.__get__(None, Class)
+            self.assertEquals(column.name, "name")
+            self.assertEquals(column.table, Class)
+
+            del validator_args[:]
+            variable = column.variable_factory()
+            self.assertTrue(isinstance(variable, cls))
+            self.assertEquals(validator_args, [None, "prop", value])
 
 
 class PropertyRegistryTest(TestHelper):

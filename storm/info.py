@@ -167,8 +167,10 @@ class ObjectInfo(dict):
         self.variables = variables = {}
 
         for column in self.cls_info.columns:
-            variables[column] = column.variable_factory(column=column,
-                                                        event=event)
+            variables[column] = \
+                column.variable_factory(column=column,
+                                        event=event,
+                                        validator_object_factory=self.get_obj)
  
         self.primary_vars = tuple(variables[column]
                                   for column in self.cls_info.primary_key)
@@ -180,7 +182,10 @@ class ObjectInfo(dict):
         return self is not other
 
     def set_obj(self, obj):
-        self.get_obj = ref(obj, self._emit_object_deleted)
+        self._ref = ref(obj, self._emit_object_deleted)
+
+    def get_obj(self):
+        return self._ref()
 
     def _emit_object_deleted(self, obj_ref):
         self.event.emit("object-deleted")
