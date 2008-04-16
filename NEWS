@@ -6,6 +6,12 @@ Improvements
  - Implemented support for plugging generic "tracers".  Statement
    debugging is now implemented using a tracer, and easily enabled
    with storm.tracer.debug(True) (storm.database.DEBUG = True is gone).
+ - All properties now accept a "validator" parameter.  When used, a
+   function like validate(object, attribute_name, value) should be
+   given, and it may validate or modify the value before it's set in
+   the property.  The value assigned to the property is the result
+   of the validator, so the original value should be returned if
+   changing it isn't intended.
 
 Bug fixes
 ---------
