@@ -299,10 +299,10 @@ class ExprTest(TestHelper):
         self.assertEquals(expr.limit, 1)
         self.assertEquals(expr.offset, 2)
 
-    def test_auto_table(self):
-        expr = AutoTable(elem1, elem2)
+    def test_auto_tables(self):
+        expr = AutoTables(elem1, [elem2])
         self.assertEquals(expr.expr, elem1)
-        self.assertEquals(expr.table, elem2)
+        self.assertEquals(expr.tables, [elem2])
 
     def test_sequence(self):
         expr = Sequence(elem1)
@@ -1494,7 +1494,7 @@ class CompileTest(TestHelper):
         expr = Join(Join(table1, table2), Join(table3, table4))
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, '("table 1" JOIN "table 2") JOIN '
+        self.assertEquals(statement, '"table 1" JOIN "table 2" JOIN '
                                      '("table 3" JOIN "table 4")')
         self.assertEquals(state.parameters, [])
 
@@ -1740,50 +1740,51 @@ class CompileTest(TestHelper):
         self.assertEquals(order_by.context, COLUMN_NAME)
 
     def test_auto_table(self):
-        expr = Select(AutoTable(1, table1))
+        expr = Select(AutoTables(1, [table1]))
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, 'SELECT ? FROM "table 1"')
         self.assertEquals(state.parameters, [IntVariable(1)])
 
-    def test_auto_table_with_column(self):
-        expr = Select(AutoTable(Column(elem1, table1), table2))
+    def test_auto_tables_with_column(self):
+        expr = Select(AutoTables(Column(elem1, table1), [table2]))
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, 'SELECT "table 1".elem1 '
                                      'FROM "table 1", "table 2"')
         self.assertEquals(state.parameters, [])
 
-    def test_auto_table_with_column_and_replace(self):
-        expr = Select(AutoTable(Column(elem1, table1), table2, replace=True))
+    def test_auto_tables_with_column_and_replace(self):
+        expr = Select(AutoTables(Column(elem1, table1), [table2], replace=True))
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, 'SELECT "table 1".elem1 FROM "table 2"')
         self.assertEquals(state.parameters, [])
 
-    def test_auto_table_with_join(self):
-        expr = Select(AutoTable(Column(elem1, table1), LeftJoin(table2)))
+    def test_auto_tables_with_join(self):
+        expr = Select(AutoTables(Column(elem1, table1), [LeftJoin(table2)]))
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, 'SELECT "table 1".elem1 FROM "table 1" '
                                      'LEFT JOIN "table 2"')
         self.assertEquals(state.parameters, [])
 
-    def test_auto_table_with_join_with_left_table(self):
-        expr = Select(AutoTable(Column(elem1, table1),
-                                LeftJoin(table1, table2)))
+    def test_auto_tables_with_join_with_left_table(self):
+        expr = Select(AutoTables(Column(elem1, table1),
+                                 [LeftJoin(table1, table2)]))
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, 'SELECT "table 1".elem1 FROM "table 1" '
                                      'LEFT JOIN "table 2"')
         self.assertEquals(state.parameters, [])
 
-    def test_auto_table_duplicated(self):
-        expr = Select([AutoTable(Column(elem1, table1), Join(table2)),
-                       AutoTable(Column(elem2, table2), Join(table1)),
-                       AutoTable(Column(elem3, table1), Join(table1)),
-                       AutoTable(Column(elem4, table3), table1),
-                       AutoTable(Column(elem5, table1), Join(table4, table5))])
+    def test_auto_tables_duplicated(self):
+        expr = Select([AutoTables(Column(elem1, table1), [Join(table2)]),
+                       AutoTables(Column(elem2, table2), [Join(table1)]),
+                       AutoTables(Column(elem3, table1), [Join(table1)]),
+                       AutoTables(Column(elem4, table3), [table1]),
+                       AutoTables(Column(elem5, table1),
+                                  [Join(table4, table5)])])
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement,
@@ -1793,10 +1794,10 @@ class CompileTest(TestHelper):
                           '"table 1" JOIN "table 2"')
         self.assertEquals(state.parameters, [])
 
-    def test_auto_table_duplicated_nested(self):
-        expr = Select(AutoTable(Column(elem1, table1), Join(table2)),
-                      In(1, Select(AutoTable(Column(elem1, table1),
-                                             Join(table2)))))
+    def test_auto_tables_duplicated_nested(self):
+        expr = Select(AutoTables(Column(elem1, table1), [Join(table2)]),
+                      In(1, Select(AutoTables(Column(elem1, table1),
+                                              [Join(table2)]))))
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement,
