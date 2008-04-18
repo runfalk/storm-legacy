@@ -136,16 +136,16 @@ class Variable(object):
         """
         if not allow_none:
             self._allow_none = False
+        if value is not Undef:
+            self.set(value, from_db)
+        elif value_factory is not Undef:
+            self.set(value_factory(), from_db)
         if validator is not None:
             self._validator = validator
             if validator_object_factory is not None:
                 self._validator_object_factory = validator_object_factory
             if validator_attribute is not None:
                 self._validator_attribute = validator_attribute
-        if value is not Undef:
-            self.set(value, from_db)
-        elif value_factory is not Undef:
-            self.set(value_factory(), from_db)
         self.column = column
         self.event = event
 
@@ -197,16 +197,16 @@ class Variable(object):
         # FASTPATH This method is part of the fast path.  Be careful when
         #          changing it (try to profile any changes).
 
-        if not from_db and self._validator is not None:
-            # We use a factory rather than the object itself to prevent
-            # the cycle object => obj_info => variable => object
-            value = self._validator(self._validator_object_factory and
-                                    self._validator_object_factory(),
-                                    self._validator_attribute, value)
         if isinstance(value, LazyValue):
             self._lazy_value = value
             new_value = Undef
         else:
+            if not from_db and self._validator is not None:
+                # We use a factory rather than the object itself to prevent
+                # the cycle object => obj_info => variable => object
+                value = self._validator(self._validator_object_factory and
+                                        self._validator_object_factory(),
+                                        self._validator_attribute, value)
             self._lazy_value = Undef
             if value is None:
                 if self._allow_none is False:

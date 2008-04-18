@@ -959,7 +959,7 @@ class StoreTest(object):
         class Foo(object):
             __storm_table__ = "foo"
             id = Int(primary=True)
-            title = Unicode(validator=validator, default="default value")
+            title = Unicode(validator=validator, default=u"default value")
 
         foo = self.store.get(Foo, 10)
         self.assertEqual(foo.title, "Title 30")
