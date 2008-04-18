@@ -940,7 +940,8 @@ class StoreTest(object):
 
     def test_get_does_not_validate(self):
         def validator(object, attr, value):
-            self.fail("validator called")
+            self.fail("validator called with arguments (%r, %r, %r)" %
+                      (object, attr, value))
 
         class Foo(object):
             __storm_table__ = "foo"
@@ -950,9 +951,23 @@ class StoreTest(object):
         foo = self.store.get(Foo, 10)
         self.assertEqual(foo.title, "Title 30")
 
+    def test_get_does_not_validate_default_value(self):
+        def validator(object, attr, value):
+            self.fail("validator called with arguments (%r, %r, %r)" %
+                      (object, attr, value))
+
+        class Foo(object):
+            __storm_table__ = "foo"
+            id = Int(primary=True)
+            title = Unicode(validator=validator, default="default value")
+
+        foo = self.store.get(Foo, 10)
+        self.assertEqual(foo.title, "Title 30")
+
     def test_find_does_not_validate(self):
         def validator(object, attr, value):
-            self.fail("validator called")
+            self.fail("validator called with arguments (%r, %r, %r)" %
+                      (object, attr, value))
 
         class Foo(object):
             __storm_table__ = "foo"
