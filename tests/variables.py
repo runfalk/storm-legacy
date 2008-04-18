@@ -141,6 +141,56 @@ class VariableTest(TestHelper):
             pass
         self.assertTrue("table_name.column_name" in str(e))
 
+    def test_set_with_validator(self):
+        args = []
+        def validator(obj, attr, value):
+            args.append((obj, attr, value))
+            return value
+        variable = CustomVariable(validator=validator)
+        variable.set(3)
+        self.assertEquals(args, [(None, None, 3)])
+
+    def test_set_with_validator_and_validator_arguments(self):
+        args = []
+        def validator(obj, attr, value):
+            args.append((obj, attr, value))
+            return value
+        variable = CustomVariable(validator=validator,
+                                  validator_object_factory=lambda: 1,
+                                  validator_attribute=2)
+        variable.set(3)
+        self.assertEquals(args, [(1, 2, 3)])
+
+    def test_set_with_validator_raising_error(self):
+        args = []
+        def validator(obj, attr, value):
+            args.append((obj, attr, value))
+            raise ZeroDivisionError()
+        variable = CustomVariable(validator=validator)
+        self.assertRaises(ZeroDivisionError, variable.set, marker)
+        self.assertEquals(args, [(None, None, marker)])
+        self.assertEquals(variable.get(), None)
+
+    def test_set_with_validator_changing_value(self):
+        args = []
+        def validator(obj, attr, value):
+            args.append((obj, attr, value))
+            return 42
+        variable = CustomVariable(validator=validator)
+        variable.set(marker)
+        self.assertEquals(args, [(None, None, marker)])
+        self.assertEquals(variable.get(), ('g', ('s', 42)))
+
+    def test_set_from_db_wont_call_validator(self):
+        args = []
+        def validator(obj, attr, value):
+            args.append((obj, attr, value))
+            return 42
+        variable = CustomVariable(validator=validator)
+        variable.set(marker, from_db=True)
+        self.assertEquals(args, [])
+        self.assertEquals(variable.get(), ('g', ('s', marker)))
+
     def test_event_changed(self):
         event = EventSystem(marker)
 
