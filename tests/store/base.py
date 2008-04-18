@@ -938,6 +938,30 @@ class StoreTest(object):
         result = self.store.using(Foo, Bar).find(Foo)
         self.assertRaises(FeatureError, result.cached)
 
+    def test_get_does_not_validate(self):
+        def validator(object, attr, value):
+            self.fail("validator called")
+
+        class Foo(object):
+            __storm_table__ = "foo"
+            id = Int(primary=True)
+            title = Unicode(validator=validator)
+
+        foo = self.store.get(Foo, 10)
+        self.assertEqual(foo.title, "Title 30")
+
+    def test_find_does_not_validate(self):
+        def validator(object, attr, value):
+            self.fail("validator called")
+
+        class Foo(object):
+            __storm_table__ = "foo"
+            id = Int(primary=True)
+            title = Unicode(validator=validator)
+
+        foo = self.store.find(Foo, Foo.id == 10).one()
+        self.assertEqual(foo.title, "Title 30")
+
     def test_add_commit(self):
         foo = Foo()
         foo.id = 40
