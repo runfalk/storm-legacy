@@ -404,6 +404,17 @@ class SQLObjectTest(TestHelper):
         person = Person.get(2)
         self.assertRaises(NoneError, setattr, person, "name", None)
 
+    def test_col_storm_validator(self):
+        calls = []
+        def validator(obj, attr, value):
+            calls.append((obj, attr, value))
+            return value
+        class Person(self.SQLObject):
+            name = StringCol(storm_validator=validator)
+        person = Person.get(2)
+        person.name = u'foo'
+        self.assertEquals(calls, [(person, 'name', u'foo')])
+
     def test_string_col(self):
         class Person(self.SQLObject):
             name = StringCol()
@@ -490,6 +501,23 @@ class SQLObjectTest(TestHelper):
         person = Person.selectFirst()
         self.assertEquals(person.addressID, 1)
 
+    def test_foreign_key_storm_validator(self):
+        calls = []
+        def validator(obj, attr, value):
+            calls.append((obj, attr, value))
+            return value
+
+        class Person(self.SQLObject):
+            address = ForeignKey(foreignKey="Address", dbName="address_id",
+                                 storm_validator=validator)
+
+        class Address(self.SQLObject):
+            city = StringCol()
+
+        person = Person.get(2)
+        address = Address.get(1)
+        person.address = address
+        self.assertEquals(calls, [(person, 'addressID', 1)])
 
     def test_multiple_join(self):
         class AnotherPerson(self.Person):

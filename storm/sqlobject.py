@@ -165,7 +165,8 @@ class SQLObjectMeta(PropertyPublisherMeta):
                 db_name = prop.kwargs.get("dbName", attr)
                 local_prop_name = style.instanceAttrToIDAttr(attr)
                 dict[local_prop_name] = local_prop = Int(
-                    db_name, allow_none=not prop.kwargs.get("notNull", False))
+                    db_name, allow_none=not prop.kwargs.get("notNull", False),
+                    validator=prop.kwargs.get("storm_validator", None))
                 dict[attr] = Reference(local_prop,
                                        "%s.<primary key>" % prop.foreignKey)
                 attr_to_prop[attr] = local_prop_name
@@ -616,7 +617,7 @@ class PropertyAdapter(object):
     def __init__(self, dbName=None, notNull=False, default=Undef,
                  alternateID=None, unique=_IGNORED, name=_IGNORED,
                  alternateMethodName=None, length=_IGNORED, immutable=None,
-                 prejoins=_IGNORED):
+                 storm_validator=None):
         if default is None and notNull:
             raise RuntimeError("Can't use default=None and notNull=True")
 
@@ -633,7 +634,6 @@ class PropertyAdapter(object):
         #   - unique (for tablebuilder)
         #   - length (for tablebuilder for StringCol)
         #   - name (for _columns stuff)
-        #   - prejoins
 
         if callable(default):
             default_factory = default
@@ -642,7 +642,9 @@ class PropertyAdapter(object):
             default_factory = Undef
         super(PropertyAdapter, self).__init__(dbName, allow_none=not notNull,
                                               default_factory=default_factory,
-                                              default=default, **self._kwargs)
+                                              default=default,
+                                              validator=storm_validator,
+                                              **self._kwargs)
 
 
 class AutoUnicodeVariable(Variable):
