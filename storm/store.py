@@ -195,10 +195,20 @@ class Store(object):
         if self._implicit_flush_block_count == 0:
             self.flush()
         if type(cls_spec) is tuple:
-            cls_spec_info = tuple(get_cls_info(cls) for cls in cls_spec)
+            cls_spec_info = []
+            for cls in cls_spec:
+                if isinstance(cls, Expr):
+                    cls_spec_info.append(cls)
+                else:
+                    cls_spec_info.append(get_cls_info(cls))
+            cls_spec_info = tuple(cls_spec_info)
             where = get_where_for_args(args, kwargs)
         else:
-            cls_spec_info = get_cls_info(cls_spec)
+            if isinstance(cls_spec, Expr):
+                cls_spec_info = cls_spec
+                cls_spec = None
+            else:
+                cls_spec_info = get_cls_info(cls_spec)
             where = get_where_for_args(args, kwargs, cls_spec)
         return self._result_set_factory(self, cls_spec_info, where)
 
@@ -937,7 +947,7 @@ class ResultSet(object):
                     default_tables.append(cls_info.table)
         else:
             if isinstance(self._cls_spec_info, Expr):
-                columns = [self._cls_spec_info.columns]
+                columns = [self._cls_spec_info]
                 default_tables = []
             else:
                 columns = list(self._cls_spec_info.columns)
