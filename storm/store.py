@@ -194,22 +194,8 @@ class Store(object):
         """
         if self._implicit_flush_block_count == 0:
             self.flush()
-        if type(cls_spec) is tuple:
-            cls_spec_info = []
-            for cls in cls_spec:
-                if isinstance(cls, Expr):
-                    cls_spec_info.append(cls)
-                else:
-                    cls_spec_info.append(get_cls_info(cls))
-            cls_spec_info = tuple(cls_spec_info)
-            where = get_where_for_args(args, kwargs)
-        else:
-            if isinstance(cls_spec, Expr):
-                cls_spec_info = cls_spec
-                cls_spec = None
-            else:
-                cls_spec_info = get_cls_info(cls_spec)
-            where = get_where_for_args(args, kwargs, cls_spec)
+        cls_spec_info, where = get_cls_spec_info_and_where_for_args(
+            cls_spec, args, kwargs)
         return self._result_set_factory(self, cls_spec_info, where)
 
     def using(self, *tables):
@@ -1423,12 +1409,8 @@ class TableSet(object):
         """
         if self._store._implicit_flush_block_count == 0:
             self._store.flush()
-        if type(cls_spec) is tuple:
-            cls_spec_info = tuple(get_cls_info(cls) for cls in cls_spec)
-            where = get_where_for_args(args, kwargs)
-        else:
-            cls_spec_info = get_cls_info(cls_spec)
-            where = get_where_for_args(args, kwargs, cls_spec)
+        cls_spec_info, where = get_cls_spec_info_and_where_for_args(
+            cls_spec, args, kwargs)
         return self._store._result_set_factory(self._store, cls_spec_info,
                                                where, self._tables)
 
@@ -1448,6 +1430,26 @@ def get_where_for_args(args, kwargs, cls=None):
     if equals:
         return And(*equals)
     return Undef
+
+
+def get_cls_spec_info_and_where_for_args(cls_spec, args, kwargs):
+    if type(cls_spec) is tuple:
+        cls_spec_info = []
+        for cls in cls_spec:
+            if isinstance(cls, Expr):
+                cls_spec_info.append(cls)
+            else:
+                cls_spec_info.append(get_cls_info(cls))
+        cls_spec_info = tuple(cls_spec_info)
+        where = get_where_for_args(args, kwargs)
+    else:
+        if isinstance(cls_spec, Expr):
+            cls_spec_info = cls_spec
+            cls_spec = None
+        else:
+            cls_spec_info = get_cls_info(cls_spec)
+        where = get_where_for_args(args, kwargs, cls_spec)
+    return cls_spec_info, where
 
 
 class AutoReload(LazyValue):
