@@ -618,15 +618,22 @@ class Store(object):
 
     def _load_objects(self, cls_spec_info, result, values):
         if type(cls_spec_info) is not tuple:
-            return self._load_object(cls_spec_info, result, values)
+            if isinstance(cls_spec_info, Expr):
+                return values[0]
+            else:
+                return self._load_object(cls_spec_info, result, values)
         else:
             objects = []
             values_start = values_end = 0
             for cls_info in cls_spec_info:
-                values_end += len(cls_info.columns)
-                obj = self._load_object(cls_info, result,
-                                        values[values_start:values_end])
-                objects.append(obj)
+                if isinstance(cls_info, Expr):
+                    values_end += 1
+                    objects.append(values[values_start])
+                else:
+                    values_end += len(cls_info.columns)
+                    obj = self._load_object(cls_info, result,
+                                            values[values_start:values_end])
+                    objects.append(obj)
                 values_start = values_end
             return tuple(objects)
 
@@ -923,11 +930,18 @@ class ResultSet(object):
             columns = []
             default_tables = []
             for cls_info in self._cls_spec_info:
-                columns.append(cls_info.columns)
-                default_tables.append(cls_info.table)
+                if isinstance(cls_info, Expr):
+                    columns.append(cls_info)
+                else:
+                    columns.append(cls_info.columns)
+                    default_tables.append(cls_info.table)
         else:
-            columns = list(self._cls_spec_info.columns)
-            default_tables = self._cls_spec_info.table
+            if isinstance(self._cls_spec_info, Expr):
+                columns = [self._cls_spec_info.columns]
+                default_tables = []
+            else:
+                columns = list(self._cls_spec_info.columns)
+                default_tables = self._cls_spec_info.table
         if self._select_also is not Undef:
             columns.extend(self._select_also)
         return Select(columns, self._where, self._tables, default_tables,
