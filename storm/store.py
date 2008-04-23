@@ -886,7 +886,6 @@ class ResultSet(object):
         self._offset = Undef
         self._limit = Undef
         self._distinct = False
-        self._select_also = Undef
 
     def copy(self):
         """Return a copy of this ResultSet object, with the same configuration.
@@ -916,17 +915,6 @@ class ResultSet(object):
             self._limit = limit
         return self
 
-    def _add_select_also(self, *args):
-        """Add some additional columns to select.
-
-        This is required to order a distinct result set by a computed
-        value on some databases (such as PostgreSQL).
-        """
-        if self._select_also is Undef:
-            self._select_also = ()
-        self._select_also += args
-        return self
-
     def _get_select(self):
         if self._select is not Undef:
             if self._order_by is not Undef:
@@ -952,8 +940,6 @@ class ResultSet(object):
             else:
                 columns = list(self._cls_spec_info.columns)
                 default_tables = self._cls_spec_info.table
-        if self._select_also is not Undef:
-            columns.extend(self._select_also)
         return Select(columns, self._where, self._tables, default_tables,
                       self._order_by, offset=self._offset, limit=self._limit,
                       distinct=self._distinct)

@@ -463,6 +463,12 @@ class SQLObjectResultSet(object):
             # disrupting anything else.
             args.append(AutoTables(SQL("1=1"), tables))
 
+        if self._selectAlso is not None:
+            if type(find_spec) is not tuple:
+                find_spec = (find_spec, SQL(self._selectAlso))
+            else:
+                find_spec += (SQL(self._selectAlso),)
+
         return store.find(find_spec, *args)
 
     def _finish_result_set(self):
@@ -473,9 +479,6 @@ class SQLObjectResultSet(object):
 
         if self._orderBy is not None:
             result.order_by(*self._cls._parse_orderBy(self._orderBy))
-
-        if self._selectAlso is not None:
-            result._add_select_also(SQL(self._selectAlso))
 
         if self._limit is not None or self._distinct is not None:
             result.config(limit=self._limit, distinct=self._distinct)
