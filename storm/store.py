@@ -615,7 +615,9 @@ class Store(object):
     def _load_objects(self, cls_spec_info, result, values):
         if type(cls_spec_info) is not tuple:
             if isinstance(cls_spec_info, Expr):
-                return values[0]
+                var = getattr(cls_spec_info, "variable_factory", Variable)(
+                    value=values[0], from_db=True)
+                return var.get()
             else:
                 return self._load_object(cls_spec_info, result, values)
         else:
@@ -624,7 +626,9 @@ class Store(object):
             for cls_info in cls_spec_info:
                 if isinstance(cls_info, Expr):
                     values_end += 1
-                    objects.append(values[values_start])
+                    var = getattr(cls_info, "variable_factory", Variable)(
+                        value=values[values_start], from_db=True)
+                    objects.append(var.get())
                 else:
                     values_end += len(cls_info.columns)
                     obj = self._load_object(cls_info, result,

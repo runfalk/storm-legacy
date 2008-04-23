@@ -934,21 +934,22 @@ class StoreTest(object):
         result = self.store.find((Foo, Bar))
         self.assertRaises(FeatureError, result.cached)
 
-    def test_find_expr(self):
+    def test_find_with_expr(self):
         result = self.store.find(Foo.title)
         self.assertEquals(sorted(result),
                           [u"Title 10", u"Title 20", u"Title 30"])
 
-    def test_find_tuple_expr(self):
-        result = self.store.find((Foo, Bar.title), Bar.foo_id == Foo.id)
+    def test_find_tuple_with_expr(self):
+        result = self.store.find((Foo, Bar.id, Bar.title),
+                                 Bar.foo_id == Foo.id)
         result.order_by(Foo.id)
-        self.assertEquals([(foo.id, foo.title, bar_title)
-                           for foo, bar_title in result],
-                           [(10, u'Title 30', u'Title 300'),
-                            (20, u'Title 20', u'Title 200'),
-                            (30, u'Title 10', u'Title 100')])
+        self.assertEquals([(foo.id, foo.title, bar_id, bar_title)
+                           for foo, bar_id, bar_title in result],
+                           [(10, u'Title 30', 100, u'Title 300'),
+                            (20, u'Title 20', 200, u'Title 200'),
+                            (30, u'Title 10', 300, u'Title 100')])
 
-    def test_find_using_expr(self):
+    def test_find_using_with_expr(self):
         result = self.store.using(Foo).find(Foo.title)
         self.assertEquals(sorted(result),
                           [u"Title 10", u"Title 20", u"Title 30"])
