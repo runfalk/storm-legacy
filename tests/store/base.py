@@ -2170,6 +2170,17 @@ class StoreTest(object):
         foo.id = 70
         self.assertEquals(bar.foo_id, 60)
 
+    def test_reference_on_added_unsets_original_key(self):
+        foo = Foo()
+        self.store.add(foo)
+
+        bar = Bar()
+        bar.id = 400
+        bar.foo_id = 40
+        bar.foo = foo
+
+        self.assertEquals(bar.foo_id, None)
+
     def test_reference_on_two_added(self):
         foo1 = Foo()
         foo1.title = u"Title 40"
@@ -2384,6 +2395,55 @@ class StoreTest(object):
         self.assertEquals(bar.bar.id, 100)
         self.assertEquals(bar.bar.title, "Title 300")
 
+    def get_bar_200_title(self):
+        connection = self.store._connection
+        result = connection.execute("SELECT title FROM bar WHERE id=200")
+        return result.get_one()[0]
+
+    def test_reference_wont_touch_store_when_key_is_none(self):
+        bar = self.store.get(Bar, 200)
+        bar.foo_id = None
+        bar.title = u"Don't flush this!"
+
+        self.assertEquals(bar.foo, None)
+
+        # Bypass the store to prevent flushing.
+        self.assertEquals(self.get_bar_200_title(), "Title 200")
+
+    def test_reference_wont_touch_store_when_key_is_unset(self):
+        bar = self.store.get(Bar, 200)
+        del bar.foo_id
+        bar.title = u"Don't flush this!"
+
+        self.assertEquals(bar.foo, None)
+
+        # Bypass the store to prevent flushing.
+        connection = self.store._connection
+        result = connection.execute("SELECT title FROM bar WHERE id=200")
+        self.assertEquals(result.get_one()[0], "Title 200")
+
+    def test_reference_wont_touch_store_with_composed_key_none(self):
+        class Bar(object):
+            __storm_table__ = "bar"
+            id = Int(primary=True)
+            foo_id = Int()
+            title = Unicode()
+            foo = Reference((foo_id, title), (Foo.id, Foo.title))
+
+        bar = self.store.get(Bar, 200)
+        bar.foo_id = None
+        bar.title = None
+
+        self.assertEquals(bar.foo, None)
+
+        # Bypass the store to prevent flushing.
+        self.assertEquals(self.get_bar_200_title(), "Title 200")
+
+    def test_reference_will_resolve_auto_reload(self):
+        bar = self.store.get(Bar, 200)
+        bar.foo_id = AutoReload
+        self.assertTrue(bar.foo)
+
     def test_back_reference(self):
         class MyFoo(Foo):
             bar = Reference(Foo.id, Bar.foo_id, on_remote=True)
@@ -2443,6 +2503,20 @@ class StoreTest(object):
                                     "WHERE foo.id = bar.foo_id AND "
                                     "foo.title = 'Title 40'")
         self.assertEquals(result.get_one(), ("Title 400",))
+
+    def test_reference_on_added_unsets_original_key(self):
+        class MyFoo(Foo):
+            bar = Reference(Foo.id, Bar.foo_id, on_remote=True)
+
+        foo = MyFoo()
+
+        bar = Bar()
+        bar.id = 400
+        bar.foo_id = 40
+
+        foo.bar = bar
+
+        self.assertEquals(bar.foo_id, None)
 
     def test_back_reference_on_added_no_store(self):
         class MyFoo(Foo):
