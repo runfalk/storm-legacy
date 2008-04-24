@@ -29,6 +29,25 @@ from storm.info import get_cls_info, get_obj_info
 __all__ = ["Reference", "ReferenceSet", "Proxy"]
 
 
+class LazyAttribute(object):
+    """
+    This descriptor will call the named attribute builder to
+    initialize the given attribute on first access.  It avoids
+    having a test at every single place where the attribute is
+    touched when lazy initialization is wanted, and prevents
+    paying the price of a normal property when classes are
+    seldomly instantiated (the case of references).
+    """
+
+    def __init__(self, attr, attr_builder):
+        self._attr = attr
+        self._attr_builder = attr_builder
+
+    def __get__(self, obj, cls=None):
+        getattr(obj, self._attr_builder)()
+        return getattr(obj, self._attr)
+
+
 class Reference(object):
     """Descriptor for one-to-one relationships.
 
@@ -69,6 +88,14 @@ class Reference(object):
     C{MyGuy.other_guy_id} or C{OtherGuy.my_guy_id} accordingly.
     """
 
+    # Must initialize _relation later because we don't want to resolve
+    # string references at definition time, since classes refered to might
+    # not be available yet.  Notice that this attribute is "public" to the
+    # Proxy class and the SQLObject wrapper.  It's still underlined because
+    # it's *NOT* part of the public API of Storm (we'll modify it without
+    # warnings!).
+    _relation = LazyAttribute("_relation", "_build_relation")
+
     def __init__(self, local_key, remote_key, on_remote=False):
         """
         Create a Reference property.
@@ -83,26 +110,21 @@ class Reference(object):
             backwards: It is the C{remote_key} which is a foreign key
             onto C{local_key}.
         """
-        # Reference internals are public to the Proxy.
         self._local_key = local_key
         self._remote_key = remote_key
         self._on_remote = on_remote
-        self._relation = None
         self._cls = None
 
     def __get__(self, local, cls=None):
+        if local is not None:
+            # Don't use local here, as it might be security proxied.
+            local = get_obj_info(local).get_obj()
+
+        if self._cls is None:
+            self._cls = _find_descriptor_class(cls or local.__class__, self)
+
         if local is None:
-            if self._cls is None:
-                # Must set earlier, since __eq__() has no access
-                # to the used class.
-                self._cls = _find_descriptor_class(cls, self)
             return self
-
-        # Don't use local here, as it might be security proxied or something.
-        local = get_obj_info(local).get_obj()
-
-        if self._relation is None:
-            self._build_relation(local.__class__)
 
         remote = self._relation.get_remote(local)
         if remote is not None:
@@ -129,8 +151,8 @@ class Reference(object):
         # Don't use local here, as it might be security proxied or something.
         local = get_obj_info(local).get_obj()
 
-        if self._relation is None:
-            self._build_relation(local.__class__)
+        if self._cls is None:
+            self._cls = _find_descriptor_class(local.__class__, self)
 
         if remote is None:
             remote = self._relation.get_remote(local)
@@ -146,10 +168,7 @@ class Reference(object):
                 pass # It might fail when remote is a tuple or a raw value.
             self._relation.link(local, remote, True)
 
-    def _build_relation(self, used_cls=None):
-        if self._cls is None:
-            assert used_cls is not None
-            self._cls = _find_descriptor_class(used_cls, self)
+    def _build_relation(self):
         resolver = PropertyResolver(self, self._cls)
         self._local_key = resolver.resolve(self._local_key)
         self._remote_key = resolver.resolve(self._remote_key)
@@ -157,12 +176,16 @@ class Reference(object):
                                   False, self._on_remote)
 
     def __eq__(self, other):
-        if self._relation is None:
-            self._build_relation()
         return self._relation.get_where_for_local(other)
 
 
 class ReferenceSet(object):
+
+    # Must initialize later because we don't want to resolve string
+    # references at definition time, since classes refered to might
+    # not be available yet.
+    _relation1 = LazyAttribute("_relation1", "_build_relations")
+    _relation2 = LazyAttribute("_relation2", "_build_relations")
 
     def __init__(self, local_key1, remote_key1,
                  remote_key2=None, local_key2=None, order_by=None):
@@ -171,18 +194,18 @@ class ReferenceSet(object):
         self._remote_key2 = remote_key2
         self._local_key2 = local_key2
         self._order_by = order_by
-        self._relation1 = None
-        self._relation2 = None
+        self._cls = None
 
     def __get__(self, local, cls=None):
+        if local is not None:
+            # Don't use local here, as it might be security proxied.
+            local = get_obj_info(local).get_obj()
+
+        if self._cls is None:
+            self._cls = _find_descriptor_class(cls or local.__class__, self)
+
         if local is None:
             return self
-
-        # Don't use local here, as it might be security proxied or something.
-        local = get_obj_info(local).get_obj()
-
-        if self._relation1 is None:
-            self._build_relations(local.__class__)
 
         #store = Store.of(local)
         #if store is None:
@@ -195,8 +218,8 @@ class ReferenceSet(object):
                                              self._relation2, local,
                                              self._order_by)
 
-    def _build_relations(self, used_cls):
-        resolver = PropertyResolver(self, used_cls)
+    def _build_relations(self):
+        resolver = PropertyResolver(self, self._cls)
 
         self._local_key1 = resolver.resolve(self._local_key1)
         self._remote_key1 = resolver.resolve(self._remote_key1)
@@ -208,9 +231,21 @@ class ReferenceSet(object):
             self._remote_key2 = resolver.resolve(self._remote_key2)
             self._relation2 = Relation(self._local_key2, self._remote_key2,
                                        True, True)
+        else:
+            self._relation2 = None
 
 
 class BoundReferenceSetBase(object):
+
+    def find(self, *args, **kwargs):
+        store = Store.of(self._local)
+        if store is None:
+            raise NoStoreError("Can't perform operation without a store")
+        where = self._get_where_clause()
+        result = store.find(self._target_cls, where, *args, **kwargs)
+        if self._order_by is not None:
+            result.order_by(self._order_by)
+        return result
 
     def __iter__(self):
         return self.find().__iter__()
@@ -245,15 +280,8 @@ class BoundReferenceSet(BoundReferenceSetBase):
         self._target_cls = self._relation.remote_cls
         self._order_by = order_by
 
-    def find(self, *args, **kwargs):
-        store = Store.of(self._local)
-        if store is None:
-            raise NoStoreError("Can't perform operation without a store")
-        where = self._relation.get_where_for_remote(self._local)
-        result = store.find(self._target_cls, where, *args, **kwargs)
-        if self._order_by is not None:
-            result.order_by(self._order_by)
-        return result
+    def _get_where_clause(self):
+        return self._relation.get_where_for_remote(self._local)
 
     def clear(self, *args, **kwargs):
         set_kwargs = {}
@@ -284,16 +312,9 @@ class BoundIndirectReferenceSet(BoundReferenceSetBase):
         self._target_cls = relation2.local_cls
         self._link_cls = relation1.remote_cls
 
-    def find(self, *args, **kwargs):
-        store = Store.of(self._local)
-        if store is None:
-            raise NoStoreError("Can't perform operation without a store")
-        where = (self._relation1.get_where_for_remote(self._local) &
-                 self._relation2.get_where_for_join())
-        result = store.find(self._target_cls, where, *args, **kwargs)
-        if self._order_by is not None:
-            result.order_by(self._order_by)
-        return result
+    def _get_where_clause(self):
+        return (self._relation1.get_where_for_remote(self._local) &
+                self._relation2.get_where_for_join())
 
     def clear(self, *args, **kwargs):
         store = Store.of(self._local)
@@ -374,13 +395,6 @@ class Proxy(ComparableExpr):
 
 @compile.when(Proxy)
 def compile_proxy(compile, proxy, state):
-    # References build the relation lazily so that they don't immediately
-    # try to resolve string properties. Unfortunately we have to check that
-    # here as well and make sure that at this point it's actually there.
-    # Maybe this should use the same trick as _remote_prop on Proxy
-    if proxy._reference._relation is None:
-        proxy._reference._build_relation()
-
     # Inject the join between the table of the class holding the proxy
     # and the table of the class which is the target of the reference.
     left_join = LeftJoin(proxy._reference._relation.local_cls,

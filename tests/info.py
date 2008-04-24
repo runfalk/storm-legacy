@@ -524,7 +524,6 @@ class ClassAliasTest(TestHelper):
             __storm_table__ = "table"
             prop1 = Property("column1", primary=True)
         self.Class = Class
-        self.obj = Class()
         self.ClassAlias = ClassAlias(self.Class, "alias")
         
     def test_cls_info_cls(self):
@@ -558,6 +557,22 @@ class ClassAliasTest(TestHelper):
         self.assertEquals(statement,
                           'SELECT "select".column1 FROM "table" AS "select" '
                           'WHERE "select".column1 = ?')
+
+    def test_crazy_metaclass(self):
+        """We don't want metaclasses playing around when we build an alias."""
+        TestHelper.setUp(self)
+        class MetaClass(type):
+            def __new__(meta_cls, name, bases, dict):
+                cls = type.__new__(meta_cls, name, bases, dict)
+                cls.__storm_table__ = "HAH! GOTCH YA!"
+                return cls
+        class Class(object):
+            __metaclass__ = MetaClass
+            __storm_table__ = "table"
+            prop1 = Property("column1", primary=True)
+        Alias = ClassAlias(Class, "USE_THIS")
+        self.assertEquals(Alias.__storm_table__, "USE_THIS")
+        
 
 
 class TypeCompilerTest(TestHelper):

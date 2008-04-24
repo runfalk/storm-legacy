@@ -1744,6 +1744,35 @@ class StoreTest(object):
                           (30, "Title 10"),
                          ])
 
+    def test_wb_block_implicit_flushes(self):
+        # Make sure calling store.flush() will fail.
+        def flush():
+            raise RuntimeError("Flush called")
+        self.store.flush = flush
+
+        # The following operations do not call flush.
+        self.store.block_implicit_flushes()
+        foo = self.store.get(Foo, 20)
+        foo = self.store.find(Foo, Foo.id == 20).one()
+        self.store.execute("SELECT title FROM foo WHERE id = 20")
+
+        self.store.unblock_implicit_flushes()
+        self.assertRaises(RuntimeError, self.store.get, Foo, 20)
+
+    def test_wb_block_implicit_flushes_is_recursive(self):
+        # Make sure calling store.flush() will fail.
+        def flush():
+            raise RuntimeError("Flush called")
+        self.store.flush = flush
+
+        self.store.block_implicit_flushes()
+        self.store.block_implicit_flushes()
+        self.store.unblock_implicit_flushes()
+        # implicit flushes are still blocked, until unblock() is called again.
+        foo = self.store.get(Foo, 20)
+        self.store.unblock_implicit_flushes()
+        self.assertRaises(RuntimeError, self.store.get, Foo, 20)
+
     def test_reload(self):
         foo = self.store.get(Foo, 20)
         self.store.execute("UPDATE foo SET title='Title 40' WHERE id=20")

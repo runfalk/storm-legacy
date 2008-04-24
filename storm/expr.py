@@ -820,14 +820,15 @@ class JoinExpr(FromExpr):
 @compile.when(JoinExpr)
 def compile_join(compile, join, state):
     result = []
-    # Ensure that nested JOINs get parentheses.
-    state.precedence += 0.5
     if join.left is not Undef:
         statement = compile(join.left, state, token=True)
         result.append(statement)
         if state.join_tables is not None:
             state.join_tables.add(statement)
     result.append(join.oper)
+    # Joins are left associative, so ensure joins in the right hand
+    # argument get parentheses.
+    state.precedence += 0.5
     statement = compile(join.right, state, token=True)
     result.append(statement)
     if state.join_tables is not None:
@@ -1272,26 +1273,27 @@ def compare_columns(columns, values):
 # --------------------------------------------------------------------
 # Auto table
 
-class AutoTable(Expr):
-    """This class will inject an entry in state.auto_tables.
+class AutoTables(Expr):
+    """This class will inject one or more entries in state.auto_tables.
 
     If the constructor is passed replace=True, it will also discard any
     auto_table entries injected by compiling the given expression.
     """
 
-    def __init__(self, expr, table, replace=False):
+    def __init__(self, expr, tables, replace=False):
+        assert type(tables) in (list, tuple)
         self.expr = expr
-        self.table = table
+        self.tables = tables
         self.replace = replace
 
-@compile.when(AutoTable)
-def compile_auto_table(compile, expr, state):
+@compile.when(AutoTables)
+def compile_auto_tables(compile, expr, state):
     if expr.replace:
         state.push("auto_tables", [])
     statement = compile(expr.expr, state)
     if expr.replace:
         state.pop()
-    state.auto_tables.append(expr.table)
+    state.auto_tables.extend(expr.tables)
     return statement
 
 
