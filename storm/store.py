@@ -1439,14 +1439,14 @@ class FindSpec(object):
                 info.append((False, get_cls_info(item)))
         self._cls_spec_info = tuple(info)
 
-        self.default_order = Undef
-        self.implicit_table = None
-        if not self._is_tuple:
-            # Is the single item a table?
-            if not info[0][0]:
-                self.implicit_table = info[0][1]
-                self.default_order = getattr(
-                    self.implicit_table, "default_order", Undef)
+        # Do we have a single non-expression item here?
+        if not self._is_tuple and not info[0][0]:
+            self.implicit_table = info[0][1]
+            self.default_order = getattr(
+                self.implicit_table, "default_order", Undef)
+        else:
+            self.implicit_table = None
+            self.default_order = Undef
 
     def get_columns_and_tables(self):
         columns = []
