@@ -14,8 +14,8 @@ Bug fixes
  - When a reference is set to an object that wasn't yet inserted in
    the database, the foreign key is immediately unset instead of
    keeping the old value up to the flushing.
- - Setting a reference to None works even if the referenced object
-   isn't in memory.
+ - Setting a reference to None works even if the previously referenced
+   object isn't in memory.
 
 
 0.12 (2008-01-28)
