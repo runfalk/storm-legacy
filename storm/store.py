@@ -1443,7 +1443,7 @@ class FindSpec(object):
             if is_expr:
                 columns.append(info)
             else:
-                columns.append(info.columns)
+                columns.extend(info.columns)
                 default_tables.append(info.table)
         return columns, default_tables
 
