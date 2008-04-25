@@ -123,10 +123,10 @@ class Variable(object):
             set the variable to a non-db value.  The function should
             look like validator(object, attr, value), where the first and
             second arguments are the result of validator_object_factory()
-            and the value of validator_attribute, respectively.  When
-            called, the function should raise an error if the value is
-            unacceptable, or return the value to be used in place of the
-            original value otherwise.
+            (or None, if this parameter isn't provided) and the value of
+            validator_attribute, respectively.  When called, the function
+            should raise an error if the value is unacceptable, or return
+            the value to be used in place of the original value otherwise.
         @type column: L{storm.expr.Column}
         @param column: The column that this variable represents. It's
             used for reporting better error messages.
@@ -142,10 +142,8 @@ class Variable(object):
             self.set(value_factory(), from_db)
         if validator is not None:
             self._validator = validator
-            if validator_object_factory is not None:
-                self._validator_object_factory = validator_object_factory
-            if validator_attribute is not None:
-                self._validator_attribute = validator_attribute
+            self._validator_object_factory = validator_object_factory
+            self._validator_attribute = validator_attribute
         self.column = column
         self.event = event
 

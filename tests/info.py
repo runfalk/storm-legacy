@@ -465,7 +465,9 @@ class ObjectInfoTest(TestHelper):
         self.assertTrue(self.obj_info.get_obj() is self.obj)
 
     def test_get_obj_reference(self):
-        """We used to assign the get_obj() manually. This breaks references.
+        """
+        We used to assign the get_obj() manually. This breaks stored
+        references to the method (IOW, what we do in the test below).
 
         It was a bit faster, but in exchange for the danger of introducing
         subtle bugs which are super hard to debug.
