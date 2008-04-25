@@ -116,8 +116,10 @@ class PropertyTest(TestHelper):
         args = []
         def validator(obj, attr, value):
             args.append((obj, attr, value))
-        variable1 = Class1.prop1.variable_factory(validator=validator, value=1)
-        variable2 = Class2.prop2.variable_factory(validator=validator, value=2)
+        variable1 = Class1.prop1.variable_factory(validator=validator)
+        variable2 = Class2.prop2.variable_factory(validator=validator)
+        variable1.set(1)
+        variable2.set(2)
         self.assertEquals(args, [(None, "prop1", 1), (None, "prop2", 2)])
 
     def test_default(self):
@@ -763,6 +765,10 @@ class PropertyKindsTest(TestHelper):
             del validator_args[:]
             variable = column.variable_factory()
             self.assertTrue(isinstance(variable, cls))
+            # Validator is not called on instantiation.
+            self.assertEquals(validator_args, [])
+            # But is when setting the variable.
+            variable.set(value)
             self.assertEquals(validator_args, [None, "prop", value])
 
 
