@@ -826,6 +826,10 @@ class Store(object):
         the store, and then set all variables set to AutoReload to
         their database values.
         """
+        if lazy_value is not AutoReload and not isinstance(lazy_value, Expr):
+            # It's not something we handle.
+            return
+
         # XXX This will do it for now, but it should really flush
         #     just this single object and ones that it depends on.
         #     _flush_one() doesn't consider dependencies, so it may

@@ -104,7 +104,7 @@ class DebugTracerTest(TestHelper):
 
     def test_connection_raw_execute_error(self):
         stderr = self.mocker.replace("sys.stderr")
-        stderr.write("[04:05:06.000007] ERROR: 'ERROR'\n")
+        stderr.write("[04:05:06.000007] ERROR: ERROR\n")
         stderr.flush()
         self.mocker.replay()
 
