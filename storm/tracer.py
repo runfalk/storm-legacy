@@ -17,7 +17,7 @@ class DebugTracer(object):
     def connection_raw_execute_error(self, connection, raw_cursor,
                                      statement, params, error):
         time = datetime.now().isoformat()[11:]
-        self._stream.write("[%s] ERROR: %r\n" % (time, error))
+        self._stream.write("[%s] ERROR: %s\n" % (time, error))
         self._stream.flush()
 
     def connection_raw_execute_success(self, connection, raw_cursor,

@@ -20,6 +20,7 @@
 #
 from storm.exceptions import WrongStoreError, NoStoreError, ClassInfoError
 from storm.store import Store, get_where_for_args
+from storm.variables import LazyValue
 from storm.expr import (
     Select, Column, Exists, ComparableExpr, LeftJoin, SQLRaw,
     compare_columns, compile)
@@ -46,6 +47,17 @@ class LazyAttribute(object):
     def __get__(self, obj, cls=None):
         getattr(obj, self._attr_builder)()
         return getattr(obj, self._attr)
+
+
+class PendingReferenceValue(LazyValue):
+    """Lazy value to be used as a marker for unflushed foreign keys.
+
+    When a reference is set to an object which is still unflushed,
+    the foreign key in the local object remains set to this value
+    until the object is flushed.
+    """
+
+PendingReferenceValue = PendingReferenceValue()
 
 
 class Reference(object):
@@ -130,6 +142,9 @@ class Reference(object):
         if remote is not None:
             return remote
 
+        if self._relation.local_variables_are_none(local):
+            return None
+
         store = Store.of(local)
         if store is None:
             return None
@@ -155,10 +170,17 @@ class Reference(object):
             self._cls = _find_descriptor_class(local.__class__, self)
 
         if remote is None:
-            remote = self._relation.get_remote(local)
-            if remote is not None:
-                self._relation.unlink(get_obj_info(local),
-                                      get_obj_info(remote), True)
+            if self._on_remote:
+                remote = self.__get__(local)
+                if remote is None:
+                    return
+            else:
+                remote = self._relation.get_remote(local)
+            if remote is None:
+                remote_info = None
+            else:
+                remote_info = get_obj_info(remote)
+            self._relation.unlink(get_obj_info(local), remote_info, True)
         else:
             # Don't use remote here, as it might be
             # security proxied or something.
@@ -488,6 +510,14 @@ class Relation(object):
         return tuple(local_info.variables[column]
                      for column in self._get_local_columns(local.__class__))
 
+    def local_variables_are_none(self, local):
+        """Return true if all variables of the local key have None values."""
+        local_info = get_obj_info(local)
+        for column in self._get_local_columns(local.__class__):
+            if local_info.variables[column].get() is not None:
+                return False
+        return True
+
     def get_remote_variables(self, remote):
         remote_info = get_obj_info(remote)
         return tuple(remote_info.variables[column]
@@ -560,6 +590,7 @@ class Relation(object):
                     local_var = local_vars[local_column]
                     if not local_var.is_defined():
                         track_changes = True
+                        remote_vars[remote_column].set(PendingReferenceValue)
                     else:
                         remote_vars[remote_column].set(local_var.get())
 
@@ -577,6 +608,7 @@ class Relation(object):
                     remote_var = remote_vars[remote_column]
                     if not remote_var.is_defined():
                         track_changes = True
+                        local_vars[local_column].set(PendingReferenceValue)
                     else:
                         local_vars[local_column].set(remote_var.get())
 
