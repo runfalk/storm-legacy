@@ -205,9 +205,24 @@ class ObjectInfoTest(TestHelper):
         for column in self.cls_info.columns:
             variable = self.obj_info.variables.get(column)
             self.assertTrue(isinstance(variable, Variable))
+            self.assertTrue(variable.column is column)
 
         self.assertEquals(len(self.obj_info.variables),
                           len(self.cls_info.columns))
+
+    def test_variable_has_validator_object_factory(self):
+        args = []
+        def validator(obj, attr, value):
+            args.append((obj, attr, value))
+        class Class(object):
+            __storm_table__ = "table"
+            prop = Property(primary=True,
+                            variable_kwargs={"validator": validator})
+
+        obj = Class()
+        get_obj_info(obj).variables[Class.prop].set(123)
+
+        self.assertEquals(args, [(obj, "prop", 123)])
 
     def test_primary_vars(self):
         self.assertTrue(isinstance(self.obj_info.primary_vars, tuple))
@@ -448,6 +463,20 @@ class ObjectInfoTest(TestHelper):
 
     def test_get_obj(self):
         self.assertTrue(self.obj_info.get_obj() is self.obj)
+
+    def test_get_obj_reference(self):
+        """
+        We used to assign the get_obj() manually. This breaks stored
+        references to the method (IOW, what we do in the test below).
+
+        It was a bit faster, but in exchange for the danger of introducing
+        subtle bugs which are super hard to debug.
+        """
+        get_obj = self.obj_info.get_obj
+        self.assertTrue(get_obj() is self.obj)
+        another_obj = self.Class()
+        self.obj_info.set_obj(another_obj)
+        self.assertTrue(get_obj() is another_obj)
 
     def test_set_obj(self):
         obj = self.Class()
