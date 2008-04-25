@@ -1460,8 +1460,9 @@ class FindSpec(object):
             if is_expr1:
                 # For expressions, the best we can do is see if they
                 # have the same variable types.
-                if (getattr(info1, "variable_factory", Variable) != 
-                    getattr(info2, "variable_factory", Variable)):
+                var1 = getattr(info1, "variable_factory", Variable)()
+                var2 = getattr(info2, "variable_factory", Variable)()
+                if type(var1) != type(var2):
                     return False
             else:
                 if info1 != info2:
