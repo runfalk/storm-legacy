@@ -1423,6 +1423,80 @@ Store._result_set_factory = ResultSet
 Store._table_set = TableSet
 
 
+class FindSpec(object):
+    """The set of tables or expressions in the result of L{Store.find}."""
+
+    def __init__(self, cls_spec):
+        self._is_tuple = type(cls_spec) == tuple
+        if not self._is_tuple:
+            cls_spec = (cls_spec,)
+
+        info = []
+        for item in cls_spec:
+            if isinstance(item, Expr):
+                info.append((True, item))
+            else:
+                info.append((False, get_cls_info(item)))
+        self._cls_spec_info = tuple(info)
+
+        self.default_order = Undef
+        self.implicit_table = None
+        if not self._is_tuple:
+            # Is the single item a table?
+            if not info[0][0]:
+                self.implicit_table = info[0][1]
+                self.default_order = getattr(
+                    self.implicit_table, "default_order", Undef)
+
+    def get_columns_and_tables(self):
+        columns = []
+        default_tables = []
+        for is_expr, info in self._cls_spec_info:
+            if is_expr:
+                columns.append(
+
+    def is_compatible(self, find_spec):
+        """Return True if this FindSpec is compatible with a second one."""
+        if self._is_tuple != find_spec._is_tuple:
+            return False
+        if len(self._cls_spec_info) != len(find_spec._cls_spec_info):
+            return False
+        for (is_expr1, info1), (is_expr2, info2) in zip(
+            self._cls_spec_info, find_spec._cls_spec_info):
+            if is_expr1 != is_expr2:
+                return False
+            if is_expr1:
+                # For expressions, the best we can do is see if they
+                # have the same variable types.
+                if (getattr(info1, "variable_factory", Variable) != 
+                    getattr(info2, "variable_factory", Variable)):
+                    return False
+            else:
+                if info1 != info2:
+                    return False
+        return True
+
+    def load_objects(self, store, result, values):
+        objects = []
+        values_start = values_end = 0
+        for is_expr, info in self._cls_spec_info:
+            if is_expr:
+                values_end += 1
+                variable = getattr(info, "variable_factory", Variable)(
+                    value=values[values_start], from_db=True)
+                objects.append(variable.get())
+            else:
+                values_end += len(info.columns)
+                obj = store._load_object(info, result,
+                                         values[values_start:values_end])
+                objects.append(obj)
+            values_start = values_end
+        if self._is_tuple:
+            return tuple(objects)
+        else:
+            return objects[0]
+
+
 def get_where_for_args(args, kwargs, cls=None):
     equals = list(args)
     if kwargs:
