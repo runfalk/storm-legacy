@@ -2098,6 +2098,11 @@ class StoreTest(object):
         self.assertEquals(type(bar.id), int)
         self.assertEquals(foo.id, None)
 
+    def test_reference_assign_none_with_unseen(self):
+        bar = self.store.get(Bar, 200)
+        bar.foo = None
+        self.assertEquals(bar.foo, None)
+
     def test_reference_on_added_composed_key(self):
         class Bar(object):
             __storm_table__ = "bar"
@@ -2503,6 +2508,13 @@ class StoreTest(object):
                                     "WHERE foo.id = bar.foo_id AND "
                                     "foo.title = 'Title 40'")
         self.assertEquals(result.get_one(), ("Title 400",))
+
+    def test_back_reference_assign_none_with_unseen(self):
+        class MyFoo(Foo):
+            bar = Reference(Foo.id, Bar.foo_id, on_remote=True)
+        foo = self.store.get(MyFoo, 20)
+        foo.bar = None
+        self.assertEquals(foo.bar, None)
 
     def test_reference_on_added_unsets_original_key(self):
         class MyFoo(Foo):

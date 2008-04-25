@@ -170,10 +170,17 @@ class Reference(object):
             self._cls = _find_descriptor_class(local.__class__, self)
 
         if remote is None:
-            remote = self._relation.get_remote(local)
-            if remote is not None:
-                self._relation.unlink(get_obj_info(local),
-                                      get_obj_info(remote), True)
+            if self._on_remote:
+                remote = self.__get__(local)
+                if remote is None:
+                    return
+            else:
+                remote = self._relation.get_remote(local)
+            if remote is None:
+                remote_info = None
+            else:
+                remote_info = get_obj_info(remote)
+            self._relation.unlink(get_obj_info(local), remote_info, True)
         else:
             # Don't use remote here, as it might be
             # security proxied or something.
