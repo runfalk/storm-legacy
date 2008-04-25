@@ -612,31 +612,6 @@ class Store(object):
             raise LostObjectError("Object is not in the database anymore")
         obj_info.pop("invalidated", None)
 
-    def _load_objects(self, cls_spec_info, result, values):
-        if type(cls_spec_info) is not tuple:
-            if isinstance(cls_spec_info, Expr):
-                var = getattr(cls_spec_info, "variable_factory", Variable)(
-                    value=values[0], from_db=True)
-                return var.get()
-            else:
-                return self._load_object(cls_spec_info, result, values)
-        else:
-            objects = []
-            values_start = values_end = 0
-            for cls_info in cls_spec_info:
-                if isinstance(cls_info, Expr):
-                    values_end += 1
-                    var = getattr(cls_info, "variable_factory", Variable)(
-                        value=values[values_start], from_db=True)
-                    objects.append(var.get())
-                else:
-                    values_end += len(cls_info.columns)
-                    obj = self._load_object(cls_info, result,
-                                            values[values_start:values_end])
-                    objects.append(obj)
-                values_start = values_end
-            return tuple(objects)
-
     def _load_object(self, cls_info, result, values):
         # _set_values() need the cls_info columns for the class of the
         # actual object, not from a possible wrapper (e.g. an alias).
