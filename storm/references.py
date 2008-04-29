@@ -586,15 +586,17 @@ class Relation(object):
             pairs = zip(self._get_local_columns(local.__class__),
                         self.remote_key)
             if self.on_remote:
+                local_has_changed = False
                 for local_column, remote_column in pairs:
                     local_var = local_vars[local_column]
                     if not local_var.is_defined():
-                        track_changes = True
                         remote_vars[remote_column].set(PendingReferenceValue)
                     else:
                         remote_vars[remote_column].set(local_var.get())
+                    if local_var.has_changed():
+                        local_has_changed = True
 
-                if local_store is not None:
+                if local_store is not None and local_has_changed:
                     local_store.add_flush_order(local, remote)
 
                 local_info.event.hook("changed", self._track_local_changes,
@@ -604,15 +606,17 @@ class Relation(object):
                 #local_info.event.hook("removed", self._break_on_local_removed,
                 #                      remote_info)
             else:
+                remote_has_changed = False
                 for local_column, remote_column in pairs:
                     remote_var = remote_vars[remote_column]
                     if not remote_var.is_defined():
-                        track_changes = True
                         local_vars[local_column].set(PendingReferenceValue)
                     else:
                         local_vars[local_column].set(remote_var.get())
+                    if remote_var.has_changed():
+                        remote_has_changed = True
 
-                if local_store is not None:
+                if local_store is not None and remote_has_changed:
                     local_store.add_flush_order(remote, local)
 
                 remote_info.event.hook("changed", self._track_remote_changes,
