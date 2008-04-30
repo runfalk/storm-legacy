@@ -57,7 +57,8 @@ class MySQLStoreTest(TestHelper, StoreTest):
                            " bin BLOB) "
                            "ENGINE=InnoDB")
         connection.execute("CREATE TABLE link "
-                           "(foo_id INTEGER, bar_id INTEGER) "
+                           "(foo_id INTEGER, bar_id INTEGER,"
+                           " PRIMARY KEY (foo_id, bar_id)) "
                            "ENGINE=InnoDB")
         connection.execute("CREATE TABLE money "
                            "(id INT PRIMARY KEY AUTO_INCREMENT,"
