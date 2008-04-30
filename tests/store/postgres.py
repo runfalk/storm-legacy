@@ -71,9 +71,13 @@ class PostgresStoreTest(TestHelper, StoreTest):
         connection.execute("CREATE TABLE bin "
                            "(id SERIAL PRIMARY KEY, bin BYTEA)")
         connection.execute("CREATE TABLE link "
-                           "(foo_id INTEGER, bar_id INTEGER)")
+                           "(foo_id INTEGER, bar_id INTEGER,"
+                           " PRIMARY KEY (foo_id, bar_id))")
         connection.execute("CREATE TABLE money "
                            "(id SERIAL PRIMARY KEY, value NUMERIC(6,4))")
+        connection.execute("CREATE TABLE selfref "
+                           "(id SERIAL PRIMARY KEY, title VARCHAR,"
+                           " selfref_id INTEGER REFERENCES selfref(id))")
         connection.execute("CREATE TABLE lst1 "
                            "(id SERIAL PRIMARY KEY, ints INTEGER[])")
         connection.execute("CREATE TABLE lst2 "
@@ -82,8 +86,8 @@ class PostgresStoreTest(TestHelper, StoreTest):
 
     def drop_tables(self):
         StoreTest.drop_tables(self)
+        connection = self.database.connect()
         for table in ["lst1", "lst2"]:
-            connection = self.database.connect()
             try:
                 connection.execute("DROP TABLE %s" % table)
                 connection.commit()

@@ -63,6 +63,10 @@ class MySQLStoreTest(TestHelper, StoreTest):
                            "(id INT PRIMARY KEY AUTO_INCREMENT,"
                            " value NUMERIC(6,4)) "
                            "ENGINE=InnoDB")
+        connection.execute("CREATE TABLE selfref "
+                           "(id INT PRIMARY KEY AUTO_INCREMENT, title VARCHAR,"
+                           " selfref_id INTEGER REFERENCES selfref(id)) "
+                           "ENGINE=InnoDB")
         connection.commit()
 
 

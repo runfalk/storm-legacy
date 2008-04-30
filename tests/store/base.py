@@ -59,6 +59,13 @@ class Link(object):
     foo_id = Int()
     bar_id = Int()
 
+class Selfref(object):
+    __storm_table__ = "selfref"
+    id = Int(primary=True)
+    title = Unicode()
+    selfref_id = Int()
+    selfref = Reference(selfref_id, id)
+
 class FooRef(Foo):
     bar = Reference(Foo.id, Bar.foo_id)
 
@@ -134,12 +141,18 @@ class StoreTest(object):
 
     def create_sample_data(self):
         connection = self.database.connect()
-        connection.execute("INSERT INTO foo (id, title) VALUES (10, 'Title 30')")
-        connection.execute("INSERT INTO foo (id, title) VALUES (20, 'Title 20')")
-        connection.execute("INSERT INTO foo (id, title) VALUES (30, 'Title 10')")
-        connection.execute("INSERT INTO bar (id, foo_id, title) VALUES (100, 10, 'Title 300')")
-        connection.execute("INSERT INTO bar (id, foo_id, title) VALUES (200, 20, 'Title 200')")
-        connection.execute("INSERT INTO bar (id, foo_id, title) VALUES (300, 30, 'Title 100')")
+        connection.execute("INSERT INTO foo (id, title)"
+                           " VALUES (10, 'Title 30')")
+        connection.execute("INSERT INTO foo (id, title)"
+                           " VALUES (20, 'Title 20')")
+        connection.execute("INSERT INTO foo (id, title)"
+                           " VALUES (30, 'Title 10')")
+        connection.execute("INSERT INTO bar (id, foo_id, title)"
+                           " VALUES (100, 10, 'Title 300')")
+        connection.execute("INSERT INTO bar (id, foo_id, title)"
+                           " VALUES (200, 20, 'Title 200')")
+        connection.execute("INSERT INTO bar (id, foo_id, title)"
+                           " VALUES (300, 30, 'Title 100')")
         connection.execute("INSERT INTO bin (id, bin) VALUES (10, 'Blob 30')")
         connection.execute("INSERT INTO bin (id, bin) VALUES (20, 'Blob 20')")
         connection.execute("INSERT INTO bin (id, bin) VALUES (30, 'Blob 10')")
@@ -149,7 +162,14 @@ class StoreTest(object):
         connection.execute("INSERT INTO link (foo_id, bar_id) VALUES (20, 100)")
         connection.execute("INSERT INTO link (foo_id, bar_id) VALUES (20, 200)")
         connection.execute("INSERT INTO link (foo_id, bar_id) VALUES (30, 300)")
-        connection.execute("INSERT INTO money (id, value) VALUES (10, '12.3455')")
+        connection.execute("INSERT INTO money (id, value)"
+                           " VALUES (10, '12.3455')")
+        connection.execute("INSERT INTO selfref (id, title, selfref_id)"
+                           " VALUES (15, 'Selfref 15', NULL)")
+        connection.execute("INSERT INTO selfref (id, title, selfref_id)"
+                           " VALUES (25, 'Selfref 25', NULL)")
+        connection.execute("INSERT INTO selfref (id, title, selfref_id)"
+                           " VALUES (35, 'Selfref 35', 15)")
 
         connection.commit()
 
@@ -172,8 +192,8 @@ class StoreTest(object):
         pass
 
     def drop_tables(self):
-        for table in ["foo", "bar", "bin", "link", "money"]:
-            connection = self.database.connect()
+        connection = self.database.connect()
+        for table in ["foo", "bar", "bin", "link", "money", "selfref"]:
             try:
                 connection.execute("DROP TABLE %s" % table)
                 connection.commit()
@@ -2425,19 +2445,12 @@ class StoreTest(object):
         self.assertEquals(bar.foo, foo)
 
     def test_reference_self(self):
-        class Bar(object):
-            __storm_table__ = "bar"
-            id = Int(primary=True)
-            title = Unicode()
-            bar_id = Int("foo_id")
-            bar = Reference(bar_id, id)
-
-        bar = self.store.add(Bar())
-        bar.id = 400
-        bar.title = u"Title 400"
-        bar.bar_id = 100
-        self.assertEquals(bar.bar.id, 100)
-        self.assertEquals(bar.bar.title, "Title 300")
+        selfref = self.store.add(Selfref())
+        selfref.id = 400
+        selfref.title = u"Title 400"
+        selfref.selfref_id = 25
+        self.assertEquals(selfref.selfref.id, 25)
+        self.assertEquals(selfref.selfref.title, "Selfref 25")
 
     def get_bar_200_title(self):
         connection = self.store._connection
