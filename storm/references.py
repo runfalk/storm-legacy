@@ -596,6 +596,8 @@ class Relation(object):
                     if local_var.has_changed():
                         local_has_changed = True
 
+                # XXX: We need to conditionally remove the flush order
+                # in unlink() only if we added it here.
                 if local_store is not None and local_has_changed:
                     local_store.add_flush_order(local, remote)
 
@@ -616,6 +618,8 @@ class Relation(object):
                     if remote_var.has_changed():
                         remote_has_changed = True
 
+                # XXX: We need to conditionally remove the flush order
+                # in unlink() only if we added it here.
                 if local_store is not None and remote_has_changed:
                     local_store.add_flush_order(remote, local)
 
@@ -670,6 +674,8 @@ class Relation(object):
                     local_info.event.unhook("added", self._add_all, local_info)
                 remote_info.event.unhook("added", self._add_all, local_info)
             else:
+                # XXX: This should only occur if we previously added
+                # the flush order.
                 if self.on_remote:
                     local_store.remove_flush_order(local_info, remote_info)
                 else:
@@ -698,6 +704,8 @@ class Relation(object):
                                                 local_variable.column)
         if remote_column is not None:
             remote_info.variables[remote_column].set(new_value)
+            # XXX: if we previously hadn't added a flush order, we
+            # should do so here.
 
     def _track_remote_changes(self, remote_info, remote_variable,
                               old_value, new_value, fromdb, local_info):
@@ -711,6 +719,8 @@ class Relation(object):
                                               remote_variable.column)
         if local_column is not None:
             local_info.variables[local_column].set(new_value)
+            # XXX: if we previously hadn't added a flush order, we
+            # should do so here.
 
     def _break_on_local_diverged(self, local_info, local_variable,
                                  old_value, new_value, fromdb, remote_info):

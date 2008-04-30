@@ -2622,6 +2622,81 @@ class StoreTest(object):
 
         self.assertEquals(type(bar.foo_id), int)
 
+    def test_reference_loop_with_undefined_keys_fails(self):
+        """A loop of references with undefined keys raises OrderLoopError."""
+        ref1 = Selfref()
+        self.store.add(ref1)
+        ref2 = Selfref()
+        ref2.selfref = ref1
+        ref1.selfref = ref2
+
+        self.assertRaises(OrderLoopError, self.store.flush)
+
+    def test_reference_loop_with_dirty_keys_fails(self):
+        """A loop of references with dirty keys raises OrderLoopError."""
+        ref1 = Selfref()
+        self.store.add(ref1)
+        ref1.id = 42
+        ref2 = Selfref()
+        ref1.id = 43
+        ref2.selfref = ref1
+        ref1.selfref = ref2
+
+        self.assertRaises(OrderLoopError, self.store.flush)
+
+    def test_reference_loop_with_unchanged_keys_succeeds(self):
+        ref1 = Selfref()
+        self.store.add(ref1)
+        ref1.id = 42
+        ref2 = Selfref()
+        self.store.add(ref2)
+        ref1.id = 43
+
+        self.store.flush()
+
+        # As ref1 and ref2 have been flushed to the database, so these
+        # changes can be flushed.
+        ref2.selfref = ref1
+        ref1.selfref = ref2
+        self.store.flush()
+
+    def test_reference_loop_with_one_unchanged_key_succeeds(self):
+        ref1 = Selfref()
+        self.store.add(ref1)
+        self.store.flush()
+
+        ref2 = Selfref()
+        ref2.selfref = ref1
+        ref1.selfref = ref2
+
+        # As ref1 and ref2 have been flushed to the database, so these
+        # changes can be flushed.
+        self.store.flush()
+
+    def test_reference_loop_with_undefined_and_changed_keys_fails(self):
+        ref1 = Selfref()
+        self.store.add(ref1)
+        self.store.flush()
+
+        ref1.id = 400
+        ref2 = Selfref()
+        ref2.selfref = ref1
+        ref1.selfref = ref2
+
+        self.assertRaises(OrderLoopError, self.store.flush)
+
+    def test_reference_loop_with_undefined_and_changed_keys_fails2(self):
+        ref1 = Selfref()
+        self.store.add(ref1)
+        self.store.flush()
+
+        ref2 = Selfref()
+        ref2.selfref = ref1
+        ref1.selfref = ref2
+        ref1.id = 400
+
+        self.assertRaises(OrderLoopError, self.store.flush)
+
     def add_reference_set_bar_400(self):
         bar = Bar()
         bar.id = 400
