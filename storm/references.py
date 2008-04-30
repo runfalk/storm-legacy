@@ -459,7 +459,7 @@ class Relation(object):
         self._r_to_l = {}
 
     def get_remote(self, local):
-        return get_obj_info(local).get(self, {}).get('relation')
+        return get_obj_info(local).get(self, {}).get("relation")
 
     def get_where_for_remote(self, local):
         """Generate a column comparison expression for reference properties.
@@ -570,12 +570,12 @@ class Relation(object):
         # to make sure it won't get deallocated while the link is active.
         rel_info = local_info.setdefault(self, {})
         if self.many:
-            rel_info.setdefault('relation', {})[remote_info] = remote
+            rel_info.setdefault("relation", {})[remote_info] = remote
         else:
-            old_remote = rel_info.get('relation')
+            old_remote = rel_info.get("relation")
             if old_remote is not None:
                 self.unlink(local_info, get_obj_info(old_remote))
-            rel_info['relation'] = remote
+            rel_info["relation"] = remote
 
         if setting:
             local_vars = local_info.variables
@@ -597,6 +597,7 @@ class Relation(object):
                 # in unlink() only if we added it here.
                 if local_store is not None and local_has_changed:
                     local_store.add_flush_order(local, remote)
+                    rel_info.setdefault("flush_order", {})[remote_info] = True
 
                 local_info.event.hook("changed", self._track_local_changes,
                                       remote_info)
@@ -619,6 +620,7 @@ class Relation(object):
                 # in unlink() only if we added it here.
                 if local_store is not None and remote_has_changed:
                     local_store.add_flush_order(remote, local)
+                    rel_info.setdefault("flush_order", {})[remote_info] = True
 
                 remote_info.event.hook("changed", self._track_remote_changes,
                                        local_info)
@@ -644,12 +646,12 @@ class Relation(object):
         rel_info = local_info.get(self)
         if rel_info is not None:
             if self.many:
-                relations = rel_info.get('relation')
+                relations = rel_info.get("relation")
                 if relations is not None and remote_info in relations:
                     relations.pop(remote_info, None)
                     unhook = True
             else:
-                if rel_info.pop('relation', None) is not None:
+                if rel_info.pop("relation", None) is not None:
                     unhook = True
 
         if unhook:
@@ -674,12 +676,13 @@ class Relation(object):
                     local_info.event.unhook("added", self._add_all, local_info)
                 remote_info.event.unhook("added", self._add_all, local_info)
             else:
-                # XXX: This should only occur if we previously added
-                # the flush order.
-                if self.on_remote:
-                    local_store.remove_flush_order(local_info, remote_info)
-                else:
-                    local_store.remove_flush_order(remote_info, local_info)
+                flush_order = rel_info.get("flush_order")
+                if flush_order is not None and remote_info in flush_order:
+                    if self.on_remote:
+                        local_store.remove_flush_order(local_info, remote_info)
+                    else:
+                        local_store.remove_flush_order(remote_info, local_info)
+                    del flush_order[remote_info]
 
         if setting:
             if self.on_remote:
@@ -704,8 +707,13 @@ class Relation(object):
                                                 local_variable.column)
         if remote_column is not None:
             remote_info.variables[remote_column].set(new_value)
-            # XXX: if we previously hadn't added a flush order, we
-            # should do so here.
+
+            local_store = Store.of(local_info)
+            flush_order = local_info.get(self, {}).setdefault("flush_order", {})
+            if local_store is not None and remote_info not in flush_order:
+                local_store.add_flush_order(local_info, remote_info)
+                flush_order[remote_info] = True
+
 
     def _track_remote_changes(self, remote_info, remote_variable,
                               old_value, new_value, fromdb, local_info):
@@ -719,8 +727,12 @@ class Relation(object):
                                               remote_variable.column)
         if local_column is not None:
             local_info.variables[local_column].set(new_value)
-            # XXX: if we previously hadn't added a flush order, we
-            # should do so here.
+
+            local_store = Store.of(local_info)
+            flush_order = local_info.get(self, {}).setdefault("flush_order", {})
+            if local_store is not None and remote_info not in flush_order:
+                local_store.add_flush_order(remote_info, local_info)
+                flush_order[remote_info] = True
 
     def _break_on_local_diverged(self, local_info, local_variable,
                                  old_value, new_value, fromdb, remote_info):
@@ -764,6 +776,8 @@ class Relation(object):
         store = Store.of(obj_info)
         store.add(local_info)
         local_info.event.unhook("added", self._add_all, local_info)
+        rel_info = local_info[self]
+        flush_order = rel_info.setdefault("flush_order", {})
 
         def add(remote_info):
             remote_info.event.unhook("added", self._add_all, local_info)
@@ -772,12 +786,13 @@ class Relation(object):
                 store.add_flush_order(local_info, remote_info)
             else:
                 store.add_flush_order(remote_info, local_info)
+            flush_order[remote_info] = True
 
         if self.many:
-            for remote_info in local_info[self]['relation']:
+            for remote_info in rel_info["relation"]:
                 add(remote_info)
         else:
-            add(get_obj_info(local_info[self]['relation']))
+            add(get_obj_info(rel_info["relation"]))
 
     def _get_remote_columns(self, remote_cls):
         try:
