@@ -459,7 +459,7 @@ class Relation(object):
         self._r_to_l = {}
 
     def get_remote(self, local):
-        return get_obj_info(local).get(self)
+        return get_obj_info(local).get(self, {}).get('relation')
 
     def get_where_for_remote(self, local):
         """Generate a column comparison expression for reference properties.
@@ -568,17 +568,14 @@ class Relation(object):
 
         # In cases below, we maintain a reference to the remote object
         # to make sure it won't get deallocated while the link is active.
+        rel_info = local_info.setdefault(self, {})
         if self.many:
-            relations = local_info.get(self)
-            if relations is None:
-                local_info[self] = {remote_info: remote}
-            else:
-                relations[remote_info] = remote
+            rel_info.setdefault('relation', {})[remote_info] = remote
         else:
-            old_remote = local_info.get(self)
+            old_remote = rel_info.get('relation')
             if old_remote is not None:
                 self.unlink(local_info, get_obj_info(old_remote))
-            local_info[self] = remote
+            rel_info['relation'] = remote
 
         if setting:
             local_vars = local_info.variables
@@ -644,13 +641,16 @@ class Relation(object):
         @param setting: If true objects will be changed to persist breakage.
         """
         unhook = False
-        if self.many:
-            relations = local_info.get(self)
-            if relations is not None and remote_info in relations:
-                relations.pop(remote_info, None)
-                unhook = True
-        elif local_info.pop(self, None) is not None:
-            unhook = True
+        rel_info = local_info.get(self)
+        if rel_info is not None:
+            if self.many:
+                relations = rel_info.get('relation')
+                if relations is not None and remote_info in relations:
+                    relations.pop(remote_info, None)
+                    unhook = True
+            else:
+                if rel_info.pop('relation', None) is not None:
+                    unhook = True
 
         if unhook:
             local_store = Store.of(local_info)
@@ -774,10 +774,10 @@ class Relation(object):
                 store.add_flush_order(remote_info, local_info)
 
         if self.many:
-            for remote_info in local_info[self]:
+            for remote_info in local_info[self]['relation']:
                 add(remote_info)
         else:
-            add(get_obj_info(local_info[self]))
+            add(get_obj_info(local_info[self]['relation']))
 
     def _get_remote_columns(self, remote_cls):
         try:
