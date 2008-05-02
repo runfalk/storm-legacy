@@ -277,10 +277,12 @@ class Store(object):
             del obj_info["pending"]
             self._set_clean(obj_info)
             self._disable_lazy_resolving(obj_info)
+            obj_info.event.emit("removed")
         else:
             obj_info["pending"] = PENDING_REMOVE
             self._set_dirty(obj_info)
             self._disable_lazy_resolving(obj_info)
+            obj_info.event.emit("removed")
 
     def reload(self, obj):
         """Reload the given object.
