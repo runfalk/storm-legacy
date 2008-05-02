@@ -33,7 +33,6 @@ from storm.exceptions import *
 from storm.store import *
 
 from tests.info import Wrapper
-from tests.helper import run_this
 
 
 class Foo(object):
@@ -920,7 +919,7 @@ class StoreTest(object):
         self.assertEquals(bar.id, 300)
         self.assertEquals(bar.title, u"Title 100")
 
-    def test_find_tuple_first(self):
+    def test_find_tuple_one(self):
         bar = self.store.get(Bar, 200)
         bar.foo_id = None
 
@@ -2568,7 +2567,7 @@ class StoreTest(object):
         foo.bar = None
         self.assertEquals(foo.bar, None)
 
-    def test_reference_on_added_unsets_original_key(self):
+    def test_back_reference_on_added_unsets_original_key(self):
         class MyFoo(Foo):
             bar = Reference(Foo.id, Bar.foo_id, on_remote=True)
 
