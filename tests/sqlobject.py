@@ -137,6 +137,16 @@ class SQLObjectTest(TestHelper):
         self.assertEquals(type(person.id), int)
         self.assertEquals(person.name, "John Joe")
 
+    def test_SO_creating(self):
+        test = self
+        class Person(self.Person):
+            def set(self, **args):
+                test.assertEquals(self._SO_creating, True)
+                test.assertEquals(args, {"name": "John Joe"})
+
+        person = Person(name="John Joe")
+        self.assertEquals(person._SO_creating, False)
+
     def test_init_hook(self):
         called = []
         class Person(self.Person):
