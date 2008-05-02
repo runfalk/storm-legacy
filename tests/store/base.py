@@ -2621,6 +2621,24 @@ class StoreTest(object):
 
         self.assertEquals(type(bar.foo_id), int)
 
+    def test_back_reference_remove_remote(self):
+        class MyFoo(Foo):
+            bar = Reference(Foo.id, Bar.foo_id, on_remote=True)
+
+        bar = Bar()
+        bar.title = u"Title 400"
+
+        foo = MyFoo()
+        foo.title = u"Title 40"
+        foo.bar = bar
+
+        self.store.add(foo)
+        self.store.flush()
+
+        self.assertEquals(foo.bar, bar)
+        self.store.remove(bar)
+        self.assertEquals(foo.bar, None)
+
     def test_reference_loop_with_undefined_keys_fails(self):
         """A loop of references with undefined keys raises OrderLoopError."""
         ref1 = Selfref()
