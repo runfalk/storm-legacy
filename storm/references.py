@@ -605,6 +605,8 @@ class Relation(object):
                                       remote_info)
                 #local_info.event.hook("removed", self._break_on_local_removed,
                 #                      remote_info)
+                remote_info.event.hook("removed", self._break_on_remote_removed,
+                                       local_info)
             else:
                 remote_has_changed = False
                 for local_column, remote_column in pairs:
@@ -636,6 +638,9 @@ class Relation(object):
                                   remote_info)
             remote_info.event.hook("changed", self._break_on_remote_diverged,
                                    local_info)
+            if self.on_remote:
+                remote_info.event.hook("removed", self._break_on_remote_removed,
+                                       local_info)
 
     def unlink(self, local_info, remote_info, setting=False):
         """Break the relation between the local and remote objects.
@@ -669,6 +674,8 @@ class Relation(object):
             remote_info.event.unhook("changed", self._break_on_remote_diverged,
                                      local_info)
             remote_info.event.unhook("flushed", self._break_on_remote_flushed,
+                                     local_info)
+            remote_info.event.unhook("removed", self._break_on_remote_removed,
                                      local_info)
 
             if local_store is None:
@@ -770,6 +777,10 @@ class Relation(object):
 
     def _break_on_remote_flushed(self, remote_info, local_info):
         """Break the remote/local relationship on flush."""
+        self.unlink(local_info, remote_info)
+
+    def _break_on_remote_removed(self, remote_info, local_info):
+        """Break the remote relationship when the remote object is removed."""
         self.unlink(local_info, remote_info)
 
     def _add_all(self, obj_info, local_info):

@@ -33,7 +33,6 @@ from storm.exceptions import *
 from storm.store import *
 
 from tests.info import Wrapper
-from tests.helper import run_this
 
 
 class Foo(object):
@@ -920,7 +919,7 @@ class StoreTest(object):
         self.assertEquals(bar.id, 300)
         self.assertEquals(bar.title, u"Title 100")
 
-    def test_find_tuple_first(self):
+    def test_find_tuple_one(self):
         bar = self.store.get(Bar, 200)
         bar.foo_id = None
 
@@ -2654,7 +2653,7 @@ class StoreTest(object):
         foo.bar = None
         self.assertEquals(foo.bar, None)
 
-    def test_reference_on_added_unsets_original_key(self):
+    def test_back_reference_on_added_unsets_original_key(self):
         class MyFoo(Foo):
             bar = Reference(Foo.id, Bar.foo_id, on_remote=True)
 
@@ -2707,6 +2706,41 @@ class StoreTest(object):
         self.store.flush()
 
         self.assertEquals(type(bar.foo_id), int)
+
+    def test_back_reference_remove_remote(self):
+        class MyFoo(Foo):
+            bar = Reference(Foo.id, Bar.foo_id, on_remote=True)
+
+        bar = Bar()
+        bar.title = u"Title 400"
+
+        foo = MyFoo()
+        foo.title = u"Title 40"
+        foo.bar = bar
+
+        self.store.add(foo)
+        self.store.flush()
+
+        self.assertEquals(foo.bar, bar)
+        self.store.remove(bar)
+        self.assertEquals(foo.bar, None)
+
+    def test_back_reference_remove_remote_pending_add(self):
+        class MyFoo(Foo):
+            bar = Reference(Foo.id, Bar.foo_id, on_remote=True)
+
+        bar = Bar()
+        bar.title = u"Title 400"
+
+        foo = MyFoo()
+        foo.title = u"Title 40"
+        foo.bar = bar
+
+        self.store.add(foo)
+
+        self.assertEquals(foo.bar, bar)
+        self.store.remove(bar)
+        self.assertEquals(foo.bar, None)
 
     def test_reference_loop_with_undefined_keys_fails(self):
         """A loop of references with undefined keys raises OrderLoopError."""
