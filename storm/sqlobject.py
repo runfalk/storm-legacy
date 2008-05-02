@@ -269,6 +269,7 @@ class SQLObjectBase(Storm):
     __metaclass__ = SQLObjectMeta
 
     q = DotQ()
+    _SO_creating = False
 
     def __init__(self, *args, **kwargs):
         self._get_store().add(self)
@@ -281,7 +282,9 @@ class SQLObjectBase(Storm):
         pass
 
     def _create(self, _id_, **kwargs):
+        self._SO_creating = True
         self.set(**kwargs)
+        del self._SO_creating
         self._init(None)
 
     def set(self, **kwargs):
@@ -723,7 +726,8 @@ class SingleJoin(Reference):
 
     def __init__(self, otherClass, joinColumn, prejoins=_IGNORED):
         super(SingleJoin, self).__init__(
-            "<primary key>", "%s.%s" % (otherClass, joinColumn))
+            "<primary key>", "%s.%s" % (otherClass, joinColumn),
+            on_remote=True)
 
 
 class CONTAINSSTRING(Like):
