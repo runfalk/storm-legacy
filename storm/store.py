@@ -393,6 +393,17 @@ class Store(object):
         except KeyError:
             pass
 
+    def has_flush_order(self, before, after):
+        """Check if flush ordering was specified with L{add_flush_order}.
+
+        @param before: The C{before} object previously specified in a
+            call to L{add_flush_order}.
+        @param after: The C{after} object previously specified in a
+            call to L{add_flush_order}.
+        """
+        pair = (get_obj_info(before), get_obj_info(after))
+        return self._order.get(pair, 0) > 0
+
     def flush(self):
         """Flush all dirty objects in cache to database.
 
