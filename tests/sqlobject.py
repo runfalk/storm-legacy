@@ -137,6 +137,16 @@ class SQLObjectTest(TestHelper):
         self.assertEquals(type(person.id), int)
         self.assertEquals(person.name, "John Joe")
 
+    def test_SO_creating(self):
+        test = self
+        class Person(self.Person):
+            def set(self, **args):
+                test.assertEquals(self._SO_creating, True)
+                test.assertEquals(args, {"name": "John Joe"})
+
+        person = Person(name="John Joe")
+        self.assertEquals(person._SO_creating, False)
+
     def test_init_hook(self):
         called = []
         class Person(self.Person):
@@ -390,6 +400,17 @@ class SQLObjectTest(TestHelper):
         person = Person.get(2)
         self.assertRaises(NoneError, setattr, person, "name", None)
 
+    def test_col_storm_validator(self):
+        calls = []
+        def validator(obj, attr, value):
+            calls.append((obj, attr, value))
+            return value
+        class Person(self.SQLObject):
+            name = StringCol(storm_validator=validator)
+        person = Person.get(2)
+        person.name = u'foo'
+        self.assertEquals(calls, [(person, 'name', u'foo')])
+
     def test_string_col(self):
         class Person(self.SQLObject):
             name = StringCol()
@@ -476,6 +497,23 @@ class SQLObjectTest(TestHelper):
         person = Person.selectFirst()
         self.assertEquals(person.addressID, 1)
 
+    def test_foreign_key_storm_validator(self):
+        calls = []
+        def validator(obj, attr, value):
+            calls.append((obj, attr, value))
+            return value
+
+        class Person(self.SQLObject):
+            address = ForeignKey(foreignKey="Address", dbName="address_id",
+                                 storm_validator=validator)
+
+        class Address(self.SQLObject):
+            city = StringCol()
+
+        person = Person.get(2)
+        address = Address.get(1)
+        person.address = address
+        self.assertEquals(calls, [(person, 'addressID', 1)])
 
     def test_multiple_join(self):
         class AnotherPerson(self.Person):
