@@ -33,7 +33,6 @@ from storm.exceptions import *
 from storm.store import *
 
 from tests.info import Wrapper
-from tests.helper import run_this
 
 
 class Foo(object):
@@ -3563,26 +3562,6 @@ class StoreTest(object):
         self.assertTrue(foo4.id < foo1.id)
         self.assertTrue(foo1.id < foo3.id)
         self.assertTrue(foo3.id < foo5.id)
-
-    @run_this
-    def test_has_flush_order(self):
-        foo1 = self.store.get(Foo, 10)
-        foo2 = self.store.get(Foo, 20)
-
-        self.assertFalse(self.store.has_flush_order(foo1, foo2))
-        self.assertFalse(self.store.has_flush_order(foo2, foo1))
-        self.store.add_flush_order(foo1, foo2)
-        self.assertTrue(self.store.has_flush_order(foo1, foo2))
-        self.assertFalse(self.store.has_flush_order(foo2, foo1))
-        self.store.add_flush_order(foo1, foo2)
-        self.assertTrue(self.store.has_flush_order(foo1, foo2))
-        self.assertFalse(self.store.has_flush_order(foo2, foo1))
-        self.store.remove_flush_order(foo1, foo2)
-        self.assertTrue(self.store.has_flush_order(foo1, foo2))
-        self.assertFalse(self.store.has_flush_order(foo2, foo1))
-        self.store.remove_flush_order(foo1, foo2)
-        self.assertFalse(self.store.has_flush_order(foo1, foo2))
-        self.assertFalse(self.store.has_flush_order(foo2, foo1))
 
     def test_variable_filter_on_load(self):
         foo = self.store.get(FooVariable, 20)
