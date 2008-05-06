@@ -33,7 +33,6 @@ from storm.exceptions import *
 from storm.store import *
 
 from tests.info import Wrapper
-from tests.helper import run_this
 
 
 class Foo(object):
@@ -58,6 +57,13 @@ class Link(object):
     __storm_primary__ = "foo_id", "bar_id"
     foo_id = Int()
     bar_id = Int()
+
+class Selfref(object):
+    __storm_table__ = "selfref"
+    id = Int(primary=True)
+    title = Unicode()
+    selfref_id = Int()
+    selfref = Reference(selfref_id, id)
 
 class FooRef(Foo):
     bar = Reference(Foo.id, Bar.foo_id)
@@ -134,22 +140,35 @@ class StoreTest(object):
 
     def create_sample_data(self):
         connection = self.database.connect()
-        connection.execute("INSERT INTO foo VALUES (10, 'Title 30')")
-        connection.execute("INSERT INTO foo VALUES (20, 'Title 20')")
-        connection.execute("INSERT INTO foo VALUES (30, 'Title 10')")
-        connection.execute("INSERT INTO bar VALUES (100, 10, 'Title 300')")
-        connection.execute("INSERT INTO bar VALUES (200, 20, 'Title 200')")
-        connection.execute("INSERT INTO bar VALUES (300, 30, 'Title 100')")
-        connection.execute("INSERT INTO bin VALUES (10, 'Blob 30')")
-        connection.execute("INSERT INTO bin VALUES (20, 'Blob 20')")
-        connection.execute("INSERT INTO bin VALUES (30, 'Blob 10')")
-        connection.execute("INSERT INTO link VALUES (10, 100)")
-        connection.execute("INSERT INTO link VALUES (10, 200)")
-        connection.execute("INSERT INTO link VALUES (10, 300)")
-        connection.execute("INSERT INTO link VALUES (20, 100)")
-        connection.execute("INSERT INTO link VALUES (20, 200)")
-        connection.execute("INSERT INTO link VALUES (30, 300)")
-        connection.execute("INSERT INTO money VALUES (10, '12.3455')")
+        connection.execute("INSERT INTO foo (id, title)"
+                           " VALUES (10, 'Title 30')")
+        connection.execute("INSERT INTO foo (id, title)"
+                           " VALUES (20, 'Title 20')")
+        connection.execute("INSERT INTO foo (id, title)"
+                           " VALUES (30, 'Title 10')")
+        connection.execute("INSERT INTO bar (id, foo_id, title)"
+                           " VALUES (100, 10, 'Title 300')")
+        connection.execute("INSERT INTO bar (id, foo_id, title)"
+                           " VALUES (200, 20, 'Title 200')")
+        connection.execute("INSERT INTO bar (id, foo_id, title)"
+                           " VALUES (300, 30, 'Title 100')")
+        connection.execute("INSERT INTO bin (id, bin) VALUES (10, 'Blob 30')")
+        connection.execute("INSERT INTO bin (id, bin) VALUES (20, 'Blob 20')")
+        connection.execute("INSERT INTO bin (id, bin) VALUES (30, 'Blob 10')")
+        connection.execute("INSERT INTO link (foo_id, bar_id) VALUES (10, 100)")
+        connection.execute("INSERT INTO link (foo_id, bar_id) VALUES (10, 200)")
+        connection.execute("INSERT INTO link (foo_id, bar_id) VALUES (10, 300)")
+        connection.execute("INSERT INTO link (foo_id, bar_id) VALUES (20, 100)")
+        connection.execute("INSERT INTO link (foo_id, bar_id) VALUES (20, 200)")
+        connection.execute("INSERT INTO link (foo_id, bar_id) VALUES (30, 300)")
+        connection.execute("INSERT INTO money (id, value)"
+                           " VALUES (10, '12.3455')")
+        connection.execute("INSERT INTO selfref (id, title, selfref_id)"
+                           " VALUES (15, 'Selfref 15', NULL)")
+        connection.execute("INSERT INTO selfref (id, title, selfref_id)"
+                           " VALUES (25, 'Selfref 25', NULL)")
+        connection.execute("INSERT INTO selfref (id, title, selfref_id)"
+                           " VALUES (35, 'Selfref 35', 15)")
 
         connection.commit()
 
@@ -172,8 +191,8 @@ class StoreTest(object):
         pass
 
     def drop_tables(self):
-        for table in ["foo", "bar", "bin", "link", "money"]:
-            connection = self.database.connect()
+        connection = self.database.connect()
+        for table in ["foo", "bar", "bin", "link", "money", "selfref"]:
             try:
                 connection.execute("DROP TABLE %s" % table)
                 connection.commit()
@@ -900,7 +919,7 @@ class StoreTest(object):
         self.assertEquals(bar.id, 300)
         self.assertEquals(bar.title, u"Title 100")
 
-    def test_find_tuple_first(self):
+    def test_find_tuple_one(self):
         bar = self.store.get(Bar, 200)
         bar.foo_id = None
 
@@ -2425,19 +2444,12 @@ class StoreTest(object):
         self.assertEquals(bar.foo, foo)
 
     def test_reference_self(self):
-        class Bar(object):
-            __storm_table__ = "bar"
-            id = Int(primary=True)
-            title = Unicode()
-            bar_id = Int("foo_id")
-            bar = Reference(bar_id, id)
-
-        bar = self.store.add(Bar())
-        bar.id = 400
-        bar.title = u"Title 400"
-        bar.bar_id = 100
-        self.assertEquals(bar.bar.id, 100)
-        self.assertEquals(bar.bar.title, "Title 300")
+        selfref = self.store.add(Selfref())
+        selfref.id = 400
+        selfref.title = u"Title 400"
+        selfref.selfref_id = 25
+        self.assertEquals(selfref.selfref.id, 25)
+        self.assertEquals(selfref.selfref.title, "Selfref 25")
 
     def get_bar_200_title(self):
         connection = self.store._connection
@@ -2555,7 +2567,7 @@ class StoreTest(object):
         foo.bar = None
         self.assertEquals(foo.bar, None)
 
-    def test_reference_on_added_unsets_original_key(self):
+    def test_back_reference_on_added_unsets_original_key(self):
         class MyFoo(Foo):
             bar = Reference(Foo.id, Bar.foo_id, on_remote=True)
 
@@ -2608,6 +2620,116 @@ class StoreTest(object):
         self.store.flush()
 
         self.assertEquals(type(bar.foo_id), int)
+
+    def test_back_reference_remove_remote(self):
+        class MyFoo(Foo):
+            bar = Reference(Foo.id, Bar.foo_id, on_remote=True)
+
+        bar = Bar()
+        bar.title = u"Title 400"
+
+        foo = MyFoo()
+        foo.title = u"Title 40"
+        foo.bar = bar
+
+        self.store.add(foo)
+        self.store.flush()
+
+        self.assertEquals(foo.bar, bar)
+        self.store.remove(bar)
+        self.assertEquals(foo.bar, None)
+
+    def test_back_reference_remove_remote_pending_add(self):
+        class MyFoo(Foo):
+            bar = Reference(Foo.id, Bar.foo_id, on_remote=True)
+
+        bar = Bar()
+        bar.title = u"Title 400"
+
+        foo = MyFoo()
+        foo.title = u"Title 40"
+        foo.bar = bar
+
+        self.store.add(foo)
+
+        self.assertEquals(foo.bar, bar)
+        self.store.remove(bar)
+        self.assertEquals(foo.bar, None)
+
+    def test_reference_loop_with_undefined_keys_fails(self):
+        """A loop of references with undefined keys raises OrderLoopError."""
+        ref1 = Selfref()
+        self.store.add(ref1)
+        ref2 = Selfref()
+        ref2.selfref = ref1
+        ref1.selfref = ref2
+
+        self.assertRaises(OrderLoopError, self.store.flush)
+
+    def test_reference_loop_with_dirty_keys_fails(self):
+        """A loop of references with dirty keys raises OrderLoopError."""
+        ref1 = Selfref()
+        self.store.add(ref1)
+        ref1.id = 42
+        ref2 = Selfref()
+        ref1.id = 43
+        ref2.selfref = ref1
+        ref1.selfref = ref2
+
+        self.assertRaises(OrderLoopError, self.store.flush)
+
+    def test_reference_loop_with_unchanged_keys_succeeds(self):
+        ref1 = Selfref()
+        self.store.add(ref1)
+        ref1.id = 42
+        ref2 = Selfref()
+        self.store.add(ref2)
+        ref1.id = 43
+
+        self.store.flush()
+
+        # As ref1 and ref2 have been flushed to the database, so these
+        # changes can be flushed.
+        ref2.selfref = ref1
+        ref1.selfref = ref2
+        self.store.flush()
+
+    def test_reference_loop_with_one_unchanged_key_succeeds(self):
+        ref1 = Selfref()
+        self.store.add(ref1)
+        self.store.flush()
+
+        ref2 = Selfref()
+        ref2.selfref = ref1
+        ref1.selfref = ref2
+
+        # As ref1 and ref2 have been flushed to the database, so these
+        # changes can be flushed.
+        self.store.flush()
+
+    def test_reference_loop_with_undefined_and_changed_keys_fails(self):
+        ref1 = Selfref()
+        self.store.add(ref1)
+        self.store.flush()
+
+        ref1.id = 400
+        ref2 = Selfref()
+        ref2.selfref = ref1
+        ref1.selfref = ref2
+
+        self.assertRaises(OrderLoopError, self.store.flush)
+
+    def test_reference_loop_with_undefined_and_changed_keys_fails2(self):
+        ref1 = Selfref()
+        self.store.add(ref1)
+        self.store.flush()
+
+        ref2 = Selfref()
+        ref2.selfref = ref1
+        ref1.selfref = ref2
+        ref1.id = 400
+
+        self.assertRaises(OrderLoopError, self.store.flush)
 
     def add_reference_set_bar_400(self):
         bar = Bar()
