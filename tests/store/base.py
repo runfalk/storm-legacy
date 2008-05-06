@@ -58,7 +58,7 @@ class Link(object):
     foo_id = Int()
     bar_id = Int()
 
-class Selfref(object):
+class SelfRef(object):
     __storm_table__ = "selfref"
     id = Int(primary=True)
     title = Unicode()
@@ -164,11 +164,11 @@ class StoreTest(object):
         connection.execute("INSERT INTO money (id, value)"
                            " VALUES (10, '12.3455')")
         connection.execute("INSERT INTO selfref (id, title, selfref_id)"
-                           " VALUES (15, 'Selfref 15', NULL)")
+                           " VALUES (15, 'SelfRef 15', NULL)")
         connection.execute("INSERT INTO selfref (id, title, selfref_id)"
-                           " VALUES (25, 'Selfref 25', NULL)")
+                           " VALUES (25, 'SelfRef 25', NULL)")
         connection.execute("INSERT INTO selfref (id, title, selfref_id)"
-                           " VALUES (35, 'Selfref 35', 15)")
+                           " VALUES (35, 'SelfRef 35', 15)")
 
         connection.commit()
 
@@ -2444,12 +2444,12 @@ class StoreTest(object):
         self.assertEquals(bar.foo, foo)
 
     def test_reference_self(self):
-        selfref = self.store.add(Selfref())
+        selfref = self.store.add(SelfRef())
         selfref.id = 400
         selfref.title = u"Title 400"
         selfref.selfref_id = 25
         self.assertEquals(selfref.selfref.id, 25)
-        self.assertEquals(selfref.selfref.title, "Selfref 25")
+        self.assertEquals(selfref.selfref.title, "SelfRef 25")
 
     def get_bar_200_title(self):
         connection = self.store._connection
@@ -2658,9 +2658,9 @@ class StoreTest(object):
 
     def test_reference_loop_with_undefined_keys_fails(self):
         """A loop of references with undefined keys raises OrderLoopError."""
-        ref1 = Selfref()
+        ref1 = SelfRef()
         self.store.add(ref1)
-        ref2 = Selfref()
+        ref2 = SelfRef()
         ref2.selfref = ref1
         ref1.selfref = ref2
 
@@ -2668,10 +2668,10 @@ class StoreTest(object):
 
     def test_reference_loop_with_dirty_keys_fails(self):
         """A loop of references with dirty keys raises OrderLoopError."""
-        ref1 = Selfref()
+        ref1 = SelfRef()
         self.store.add(ref1)
         ref1.id = 42
-        ref2 = Selfref()
+        ref2 = SelfRef()
         ref1.id = 43
         ref2.selfref = ref1
         ref1.selfref = ref2
@@ -2679,10 +2679,10 @@ class StoreTest(object):
         self.assertRaises(OrderLoopError, self.store.flush)
 
     def test_reference_loop_with_unchanged_keys_succeeds(self):
-        ref1 = Selfref()
+        ref1 = SelfRef()
         self.store.add(ref1)
         ref1.id = 42
-        ref2 = Selfref()
+        ref2 = SelfRef()
         self.store.add(ref2)
         ref1.id = 43
 
@@ -2695,11 +2695,11 @@ class StoreTest(object):
         self.store.flush()
 
     def test_reference_loop_with_one_unchanged_key_succeeds(self):
-        ref1 = Selfref()
+        ref1 = SelfRef()
         self.store.add(ref1)
         self.store.flush()
 
-        ref2 = Selfref()
+        ref2 = SelfRef()
         ref2.selfref = ref1
         ref1.selfref = ref2
 
@@ -2708,23 +2708,23 @@ class StoreTest(object):
         self.store.flush()
 
     def test_reference_loop_with_undefined_and_changed_keys_fails(self):
-        ref1 = Selfref()
+        ref1 = SelfRef()
         self.store.add(ref1)
         self.store.flush()
 
         ref1.id = 400
-        ref2 = Selfref()
+        ref2 = SelfRef()
         ref2.selfref = ref1
         ref1.selfref = ref2
 
         self.assertRaises(OrderLoopError, self.store.flush)
 
     def test_reference_loop_with_undefined_and_changed_keys_fails2(self):
-        ref1 = Selfref()
+        ref1 = SelfRef()
         self.store.add(ref1)
         self.store.flush()
 
-        ref2 = Selfref()
+        ref2 = SelfRef()
         ref2.selfref = ref1
         ref1.selfref = ref2
         ref1.id = 400
