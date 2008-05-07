@@ -2800,6 +2800,26 @@ class StoreTest(object):
         ref1.selfref = None
         self.store.flush()
 
+    def test_reference_loop_set_only_removes_own_flush_order(self):
+        ref1 = SelfRef()
+        ref2 = SelfRef()
+        self.store.add(ref2)
+        self.store.flush()
+
+        # The following does not create a loop since the keys are
+        # dirty (as shown in another test).
+        ref1.selfref = ref2
+        ref2.selfref = ref1
+
+        # Now add a flush order loop.
+        self.store.add_flush_order(ref1, ref2)
+        self.store.add_flush_order(ref2, ref1)
+
+        # Now break the reference.  This should leave the flush
+        # ordering loop we previously created in place..
+        ref1.selfref = None
+        self.assertRaises(OrderLoopError, self.store.flush)
+
     def add_reference_set_bar_400(self):
         bar = Bar()
         bar.id = 400
