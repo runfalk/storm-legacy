@@ -388,10 +388,7 @@ class Store(object):
             call to L{add_flush_order}.
         """
         pair = (get_obj_info(before), get_obj_info(after))
-        try:
-            self._order[pair] -= 1
-        except KeyError:
-            pass
+        self._order[pair] -= 1
 
     def flush(self):
         """Flush all dirty objects in cache to database.

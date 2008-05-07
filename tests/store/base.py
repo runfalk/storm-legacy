@@ -2569,6 +2569,16 @@ class StoreTest(object):
         foo.bar = None
         self.assertEquals(foo.bar, None)
 
+    def test_back_reference_assign_none_from_none(self):
+        class MyFoo(Foo):
+            bar = Reference(Foo.id, Bar.foo_id, on_remote=True)
+        self.store.execute("INSERT INTO foo (id, title)"
+                           " VALUES (40, 'Title 40')")
+        self.store.commit()
+        foo = self.store.get(MyFoo, 40)
+        foo.bar = None
+        self.assertEquals(foo.bar, None)
+
     def test_back_reference_on_added_unsets_original_key(self):
         class MyFoo(Foo):
             bar = Reference(Foo.id, Bar.foo_id, on_remote=True)
