@@ -33,6 +33,7 @@ from storm.exceptions import *
 from storm.store import *
 
 from tests.info import Wrapper
+from tests.helper import run_this
 
 
 class Foo(object):
@@ -64,6 +65,7 @@ class SelfRef(object):
     title = Unicode()
     selfref_id = Int()
     selfref = Reference(selfref_id, id)
+    selfref_on_remote = Reference(id, selfref_id, on_remote=True)
 
 class FooRef(Foo):
     bar = Reference(Foo.id, Bar.foo_id)
@@ -2667,14 +2669,48 @@ class StoreTest(object):
         self.assertRaises(OrderLoopError, self.store.flush)
 
     def test_reference_loop_with_dirty_keys_fails(self):
-        """A loop of references with dirty keys raises OrderLoopError."""
         ref1 = SelfRef()
         self.store.add(ref1)
         ref1.id = 42
         ref2 = SelfRef()
-        ref1.id = 43
+        ref2.id = 43
         ref2.selfref = ref1
         ref1.selfref = ref2
+
+        self.assertRaises(OrderLoopError, self.store.flush)
+
+    def test_reference_loop_with_dirty_keys_changed_later_fails(self):
+        ref1 = SelfRef()
+        ref2 = SelfRef()
+        self.store.add(ref1)
+        self.store.flush()
+        ref2.selfref = ref1
+        ref1.selfref = ref2
+        ref1.id = 42
+        ref2.id = 43
+
+        self.assertRaises(OrderLoopError, self.store.flush)
+
+    def test_reference_loop_with_dirty_keys_on_remote_fails(self):
+        ref1 = SelfRef()
+        self.store.add(ref1)
+        ref1.id = 42
+        ref2 = SelfRef()
+        ref2.id = 43
+        ref2.selfref_on_remote = ref1
+        ref1.selfref_on_remote = ref2
+
+        self.assertRaises(OrderLoopError, self.store.flush)
+
+    def test_reference_loop_with_dirty_keys_on_remote_changed_later_fails(self):
+        ref1 = SelfRef()
+        ref2 = SelfRef()
+        self.store.add(ref1)
+        self.store.flush()
+        ref2.selfref_on_remote = ref1
+        ref1.selfref_on_remote = ref2
+        ref1.id = 42
+        ref2.id = 43
 
         self.assertRaises(OrderLoopError, self.store.flush)
 
@@ -2705,6 +2741,28 @@ class StoreTest(object):
 
         # As ref1 and ref2 have been flushed to the database, so these
         # changes can be flushed.
+        self.store.flush()
+
+    def test_reference_loop_with_key_changed_later_succeeds(self):
+        ref1 = SelfRef()
+        self.store.add(ref1)
+        self.store.flush()
+
+        ref2 = SelfRef()
+        ref1.selfref = ref2
+        ref2.id = 42
+
+        self.store.flush()
+
+    def test_reference_loop_with_key_changed_later_on_remote_succeeds(self):
+        ref1 = SelfRef()
+        self.store.add(ref1)
+        self.store.flush()
+
+        ref2 = SelfRef()
+        ref2.selfref_on_remote = ref1
+        ref2.id = 42
+
         self.store.flush()
 
     def test_reference_loop_with_undefined_and_changed_keys_fails(self):
