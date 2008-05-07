@@ -725,7 +725,7 @@ class Relation(object):
         if local_store is not None:
             flush_order = local_info[self].setdefault("flush_order", set())
             if remote_info not in flush_order:
-                flush_order.add(remote_info) # XXX UNTESTED
+                flush_order.add(remote_info)
                 if remote_first:
                     local_store.add_flush_order(remote_info, local_info)
                 else:
