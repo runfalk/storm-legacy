@@ -56,6 +56,9 @@ class SQLiteStoreTest(TestHelper, StoreTest):
         # to interpret values as float, and thus lose precision.
         connection.execute("CREATE TABLE money "
                            "(id INTEGER PRIMARY KEY, value TEXT)")
+        connection.execute("CREATE TABLE selfref "
+                           "(id INTEGER PRIMARY KEY, title VARCHAR,"
+                           " selfref_id INTEGER)")
         connection.commit()
 
     def drop_tables(self):

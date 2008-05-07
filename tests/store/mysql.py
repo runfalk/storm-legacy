@@ -57,11 +57,19 @@ class MySQLStoreTest(TestHelper, StoreTest):
                            " bin BLOB) "
                            "ENGINE=InnoDB")
         connection.execute("CREATE TABLE link "
-                           "(foo_id INTEGER, bar_id INTEGER) "
+                           "(foo_id INTEGER, bar_id INTEGER,"
+                           " PRIMARY KEY (foo_id, bar_id)) "
                            "ENGINE=InnoDB")
         connection.execute("CREATE TABLE money "
                            "(id INT PRIMARY KEY AUTO_INCREMENT,"
                            " value NUMERIC(6,4)) "
+                           "ENGINE=InnoDB")
+        connection.execute("CREATE TABLE selfref "
+                           "(id INT PRIMARY KEY AUTO_INCREMENT,"
+                           " title VARCHAR(50),"
+                           " selfref_id INTEGER,"
+                           " INDEX (selfref_id),"
+                           " FOREIGN KEY (selfref_id) REFERENCES selfref(id)) "
                            "ENGINE=InnoDB")
         connection.commit()
 

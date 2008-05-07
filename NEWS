@@ -15,6 +15,18 @@ Improvements
 
 Bug fixes
 ---------
+ - References now won't flush the store or query the database when
+   the foreign key is None.
+ - When a reference is set to an object that wasn't yet inserted in
+   the database, the foreign key is immediately unset instead of
+   keeping the old value up to the flushing.
+ - Setting a reference to None works even if the previously referenced
+   object isn't in memory.
+ - When setting a reference, flush ordering is only enforced if the
+   key is dirty.  This allows a number of changes that would
+   previously raise OrderLoopError.
+ - If the remote object in a back reference is removed, the reference
+   will now be broken.
 
 
 0.12 (2008-01-28)

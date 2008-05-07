@@ -277,10 +277,12 @@ class Store(object):
             del obj_info["pending"]
             self._set_clean(obj_info)
             self._disable_lazy_resolving(obj_info)
+            obj_info.event.emit("removed")
         else:
             obj_info["pending"] = PENDING_REMOVE
             self._set_dirty(obj_info)
             self._disable_lazy_resolving(obj_info)
+            obj_info.event.emit("removed")
 
     def reload(self, obj):
         """Reload the given object.
@@ -386,10 +388,7 @@ class Store(object):
             call to L{add_flush_order}.
         """
         pair = (get_obj_info(before), get_obj_info(after))
-        try:
-            self._order[pair] -= 1
-        except KeyError:
-            pass
+        self._order[pair] -= 1
 
     def flush(self):
         """Flush all dirty objects in cache to database.
@@ -826,6 +825,10 @@ class Store(object):
         the store, and then set all variables set to AutoReload to
         their database values.
         """
+        if lazy_value is not AutoReload and not isinstance(lazy_value, Expr):
+            # It's not something we handle.
+            return
+
         # XXX This will do it for now, but it should really flush
         #     just this single object and ones that it depends on.
         #     _flush_one() doesn't consider dependencies, so it may

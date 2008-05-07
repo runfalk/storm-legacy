@@ -20,6 +20,7 @@
 #
 from storm.exceptions import WrongStoreError, NoStoreError, ClassInfoError
 from storm.store import Store, get_where_for_args
+from storm.variables import LazyValue
 from storm.expr import (
     Select, Column, Exists, ComparableExpr, LeftJoin, SQLRaw,
     compare_columns, compile)
@@ -46,6 +47,17 @@ class LazyAttribute(object):
     def __get__(self, obj, cls=None):
         getattr(obj, self._attr_builder)()
         return getattr(obj, self._attr)
+
+
+class PendingReferenceValue(LazyValue):
+    """Lazy value to be used as a marker for unflushed foreign keys.
+
+    When a reference is set to an object which is still unflushed,
+    the foreign key in the local object remains set to this value
+    until the object is flushed.
+    """
+
+PendingReferenceValue = PendingReferenceValue()
 
 
 class Reference(object):
@@ -130,6 +142,9 @@ class Reference(object):
         if remote is not None:
             return remote
 
+        if self._relation.local_variables_are_none(local):
+            return None
+
         store = Store.of(local)
         if store is None:
             return None
@@ -155,10 +170,17 @@ class Reference(object):
             self._cls = _find_descriptor_class(local.__class__, self)
 
         if remote is None:
-            remote = self._relation.get_remote(local)
-            if remote is not None:
-                self._relation.unlink(get_obj_info(local),
-                                      get_obj_info(remote), True)
+            if self._on_remote:
+                remote = self.__get__(local)
+                if remote is None:
+                    return
+            else:
+                remote = self._relation.get_remote(local)
+            if remote is None:
+                remote_info = None
+            else:
+                remote_info = get_obj_info(remote)
+            self._relation.unlink(get_obj_info(local), remote_info, True)
         else:
             # Don't use remote here, as it might be
             # security proxied or something.
@@ -437,7 +459,11 @@ class Relation(object):
         self._r_to_l = {}
 
     def get_remote(self, local):
-        return get_obj_info(local).get(self)
+        local_info = get_obj_info(local)
+        try:
+            return local_info[self]["remote"]
+        except KeyError:
+            return None
 
     def get_where_for_remote(self, local):
         """Generate a column comparison expression for reference properties.
@@ -487,6 +513,14 @@ class Relation(object):
         local_info = get_obj_info(local)
         return tuple(local_info.variables[column]
                      for column in self._get_local_columns(local.__class__))
+
+    def local_variables_are_none(self, local):
+        """Return true if all variables of the local key have None values."""
+        local_info = get_obj_info(local)
+        for column in self._get_local_columns(local.__class__):
+            if local_info.variables[column].get() is not None:
+                return False
+        return True
 
     def get_remote_variables(self, remote):
         remote_info = get_obj_info(remote)
@@ -538,17 +572,21 @@ class Relation(object):
 
         # In cases below, we maintain a reference to the remote object
         # to make sure it won't get deallocated while the link is active.
+        relation_data = local_info.get(self)
         if self.many:
-            relations = local_info.get(self)
-            if relations is None:
-                local_info[self] = {remote_info: remote}
+            if relation_data is None:
+                relation_data = local_info[self] = {"remote":
+                                                    {remote_info: remote}}
             else:
-                relations[remote_info] = remote
+                relation_data["remote"][remote_info] = remote
         else:
-            old_remote = local_info.get(self)
-            if old_remote is not None:
-                self.unlink(local_info, get_obj_info(old_remote))
-            local_info[self] = remote
+            if relation_data is None:
+                relation_data = local_info[self] = {"remote": remote}
+            else:
+                old_remote = relation_data.get("remote")
+                if old_remote is not None:
+                    self.unlink(local_info, get_obj_info(old_remote))
+                relation_data["remote"] = remote
 
         if setting:
             local_vars = local_info.variables
@@ -556,15 +594,18 @@ class Relation(object):
             pairs = zip(self._get_local_columns(local.__class__),
                         self.remote_key)
             if self.on_remote:
+                local_has_changed = False
                 for local_column, remote_column in pairs:
                     local_var = local_vars[local_column]
                     if not local_var.is_defined():
-                        track_changes = True
+                        remote_vars[remote_column].set(PendingReferenceValue)
                     else:
                         remote_vars[remote_column].set(local_var.get())
+                    if local_var.has_changed():
+                        local_has_changed = True
 
-                if local_store is not None:
-                    local_store.add_flush_order(local, remote)
+                if local_has_changed:
+                    self._add_flush_order(local_info, remote_info)
 
                 local_info.event.hook("changed", self._track_local_changes,
                                       remote_info)
@@ -572,16 +613,22 @@ class Relation(object):
                                       remote_info)
                 #local_info.event.hook("removed", self._break_on_local_removed,
                 #                      remote_info)
+                remote_info.event.hook("removed", self._break_on_remote_removed,
+                                       local_info)
             else:
+                remote_has_changed = False
                 for local_column, remote_column in pairs:
                     remote_var = remote_vars[remote_column]
                     if not remote_var.is_defined():
-                        track_changes = True
+                        local_vars[local_column].set(PendingReferenceValue)
                     else:
                         local_vars[local_column].set(remote_var.get())
+                    if remote_var.has_changed():
+                        remote_has_changed = True
 
-                if local_store is not None:
-                    local_store.add_flush_order(remote, local)
+                if remote_has_changed:
+                    self._add_flush_order(local_info, remote_info,
+                                          remote_first=True)
 
                 remote_info.event.hook("changed", self._track_remote_changes,
                                        local_info)
@@ -597,6 +644,9 @@ class Relation(object):
                                   remote_info)
             remote_info.event.hook("changed", self._break_on_remote_diverged,
                                    local_info)
+            if self.on_remote:
+                remote_info.event.hook("removed", self._break_on_remote_removed,
+                                       local_info)
 
     def unlink(self, local_info, remote_info, setting=False):
         """Break the relation between the local and remote objects.
@@ -604,13 +654,16 @@ class Relation(object):
         @param setting: If true objects will be changed to persist breakage.
         """
         unhook = False
-        if self.many:
-            relations = local_info.get(self)
-            if relations is not None and remote_info in relations:
-                relations.pop(remote_info, None)
-                unhook = True
-        elif local_info.pop(self, None) is not None:
-            unhook = True
+        relation_data = local_info.get(self)
+        if relation_data is not None:
+            if self.many:
+                remote_infos = relation_data["remote"]
+                if remote_info in remote_infos:
+                    remote_infos.pop(remote_info, None)
+                    unhook = True
+            else:
+                if relation_data.pop("remote", None) is not None:
+                    unhook = True
 
         if unhook:
             local_store = Store.of(local_info)
@@ -628,16 +681,21 @@ class Relation(object):
                                      local_info)
             remote_info.event.unhook("flushed", self._break_on_remote_flushed,
                                      local_info)
+            remote_info.event.unhook("removed", self._break_on_remote_removed,
+                                     local_info)
 
             if local_store is None:
-                if not self.many or not relations:
+                if not self.many or not remote_infos:
                     local_info.event.unhook("added", self._add_all, local_info)
                 remote_info.event.unhook("added", self._add_all, local_info)
             else:
-                if self.on_remote:
-                    local_store.remove_flush_order(local_info, remote_info)
-                else:
-                    local_store.remove_flush_order(remote_info, local_info)
+                flush_order = relation_data.get("flush_order")
+                if flush_order is not None and remote_info in flush_order:
+                    if self.on_remote:
+                        local_store.remove_flush_order(local_info, remote_info)
+                    else:
+                        local_store.remove_flush_order(remote_info, local_info)
+                    flush_order.remove(remote_info)
 
         if setting:
             if self.on_remote:
@@ -649,6 +707,29 @@ class Relation(object):
                 local_cols = self._get_local_columns(local_info.cls_info.cls)
                 for local_column in local_cols:
                     local_vars[local_column].set(None)
+
+    def _add_flush_order(self, local_info, remote_info, remote_first=False):
+        """Tell the Store to flush objects in the specified order.
+
+        @param local_info: The object info for the local object.
+        @param remote_info: The object info for the remote object.
+        @param remote_first: If True, remote_info will be flushed
+                             before local_info.
+
+        We need to conditionally remove the flush order in unlink() only
+        if we added it here.  Note that we can't just check if the Store
+        has ordering on the (local, remote) pair, since it may have more
+        than one request for ordering it, from different relations.
+        """
+        local_store = Store.of(local_info)
+        if local_store is not None:
+            flush_order = local_info[self].setdefault("flush_order", set())
+            if remote_info not in flush_order:
+                flush_order.add(remote_info) # XXX UNTESTED
+                if remote_first:
+                    local_store.add_flush_order(remote_info, local_info)
+                else:
+                    local_store.add_flush_order(local_info, remote_info)
 
     def _track_local_changes(self, local_info, local_variable,
                              old_value, new_value, fromdb, remote_info):
@@ -662,6 +743,7 @@ class Relation(object):
                                                 local_variable.column)
         if remote_column is not None:
             remote_info.variables[remote_column].set(new_value)
+            self._add_flush_order(local_info, remote_info)
 
     def _track_remote_changes(self, remote_info, remote_variable,
                               old_value, new_value, fromdb, local_info):
@@ -675,6 +757,7 @@ class Relation(object):
                                               remote_variable.column)
         if local_column is not None:
             local_info.variables[local_column].set(new_value)
+            self._add_flush_order(local_info, remote_info, remote_first=True)
 
     def _break_on_local_diverged(self, local_info, local_variable,
                                  old_value, new_value, fromdb, remote_info):
@@ -714,6 +797,10 @@ class Relation(object):
         """Break the remote/local relationship on flush."""
         self.unlink(local_info, remote_info)
 
+    def _break_on_remote_removed(self, remote_info, local_info):
+        """Break the remote relationship when the remote object is removed."""
+        self.unlink(local_info, remote_info)
+
     def _add_all(self, obj_info, local_info):
         store = Store.of(obj_info)
         store.add(local_info)
@@ -722,16 +809,14 @@ class Relation(object):
         def add(remote_info):
             remote_info.event.unhook("added", self._add_all, local_info)
             store.add(remote_info)
-            if self.on_remote:
-                store.add_flush_order(local_info, remote_info)
-            else:
-                store.add_flush_order(remote_info, local_info)
+            self._add_flush_order(local_info, remote_info,
+                                  remote_first=(not self.on_remote))
 
         if self.many:
-            for remote_info in local_info[self]:
+            for remote_info in local_info[self]["remote"]:
                 add(remote_info)
         else:
-            add(get_obj_info(local_info[self]))
+            add(get_obj_info(local_info[self]["remote"]))
 
     def _get_remote_columns(self, remote_cls):
         try:
