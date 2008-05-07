@@ -57,7 +57,7 @@ class SQLiteStoreTest(TestHelper, StoreTest):
         connection.execute("CREATE TABLE money "
                            "(id INTEGER PRIMARY KEY, value TEXT)")
         connection.execute("CREATE TABLE selfref "
-                           "(id SERIAL PRIMARY KEY, title VARCHAR,"
+                           "(id INTEGER PRIMARY KEY, title VARCHAR,"
                            " selfref_id INTEGER)")
         connection.commit()
 
