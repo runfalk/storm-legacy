@@ -2683,6 +2683,7 @@ class StoreTest(object):
         ref1 = SelfRef()
         ref2 = SelfRef()
         self.store.add(ref1)
+        self.store.add(ref2)
         self.store.flush()
         ref2.selfref = ref1
         ref1.selfref = ref2
@@ -2788,6 +2789,16 @@ class StoreTest(object):
         ref1.id = 400
 
         self.assertRaises(OrderLoopError, self.store.flush)
+
+    def test_reference_loop_broken_by_set(self):
+        ref1 = SelfRef()
+        ref2 = SelfRef()
+        ref1.selfref = ref2
+        ref2.selfref = ref1
+        self.store.add(ref1)
+
+        ref1.selfref = None
+        self.store.flush()
 
     def add_reference_set_bar_400(self):
         bar = Bar()

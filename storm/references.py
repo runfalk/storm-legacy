@@ -691,7 +691,6 @@ class Relation(object):
             else:
                 flush_order = relation_data.get("flush_order")
                 if flush_order is not None and remote_info in flush_order:
-                    # XXX UNTESTED This whole branch seems to be untested.
                     if self.on_remote:
                         local_store.remove_flush_order(local_info, remote_info)
                     else:
