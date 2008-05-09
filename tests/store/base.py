@@ -989,9 +989,7 @@ class StoreTest(object):
 
     def test_find_with_expr_count(self):
         result = self.store.find(Foo.title)
-        # XXX: It'd be good to pick tables from expressions in the find spec.
-        # self.assertEquals(result.count(), 3)
-        self.assertRaises(NoTableError, result.count)
+        self.assertEquals(result.count(), 3)
 
     def test_find_tuple_with_expr_count(self):
         result = self.store.find((Foo, Bar.title), Bar.foo_id == Foo.id)

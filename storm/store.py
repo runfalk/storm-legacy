@@ -1420,6 +1420,8 @@ class FindSpec(object):
         for is_expr, info in self._cls_spec_info:
             if is_expr:
                 columns.append(info)
+                if isinstance(info, Column):
+                    default_tables.append(info.table)
             else:
                 columns.extend(info.columns)
                 default_tables.append(info.table)
