@@ -405,7 +405,7 @@ class SQLObjectResultSet(object):
         store = self._cls._get_store()
 
         args = []
-        if self._clause is not None:
+        if self._clause:
             args.append(self._clause)
 
         for key, value in self._by.items():
