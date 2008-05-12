@@ -196,6 +196,10 @@ class SQLObjectTest(TestHelper):
         result = self.Person.select()
         self.assertEquals(result[0].name, "John Joe")
 
+    def test_select_empty_string(self):
+        result = self.Person.select('')
+        self.assertEquals(result[0].name, "John Joe")
+
     def test_select_limit(self):
         result = self.Person.select(limit=1)
         self.assertEquals(len(list(result)), 1)
