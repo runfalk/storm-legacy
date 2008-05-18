@@ -72,11 +72,11 @@ class Result(object):
     def get_one(self):
         """Fetch one result from the cursor.
 
-        @raise DisconnectionError: Raised when the connection is lost.
-            Reconnection happens automatically on rollback.
-
         The result will be converted to an appropriate format via
         L{from_database}.
+
+        @raise DisconnectionError: Raised when the connection is lost.
+            Reconnection happens automatically on rollback.
 
         @return: A converted row or None, if no data is left.
         """
@@ -88,11 +88,11 @@ class Result(object):
     def get_all(self):
         """Fetch all results from the cursor.
 
-        @raise DisconnectionError: Raised when the connection is lost.
-            Reconnection happens automatically on rollback.
-
         The results will be converted to an appropriate format via
         L{from_database}.
+
+        @raise DisconnectionError: Raised when the connection is lost.
+            Reconnection happens automatically on rollback.
         """
         result = self._connection._check_disconnect(self._raw_cursor.fetchall)
         if result:
@@ -102,11 +102,11 @@ class Result(object):
     def __iter__(self):
         """Yield all results, one at a time.
 
-        @raise DisconnectionError: Raised when the connection is lost.
-            Reconnection happens automatically on rollback.
-
         The results will be converted to an appropriate format via
         L{from_database}.
+
+        @raise DisconnectionError: Raised when the connection is lost.
+            Reconnection happens automatically on rollback.
         """
         while True:
             results = self._connection._check_disconnect(

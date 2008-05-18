@@ -711,15 +711,15 @@ class Relation(object):
     def _add_flush_order(self, local_info, remote_info, remote_first=False):
         """Tell the Store to flush objects in the specified order.
 
-        @param local_info: The object info for the local object.
-        @param remote_info: The object info for the remote object.
-        @param remote_first: If True, remote_info will be flushed
-                             before local_info.
-
         We need to conditionally remove the flush order in unlink() only
         if we added it here.  Note that we can't just check if the Store
         has ordering on the (local, remote) pair, since it may have more
         than one request for ordering it, from different relations.
+
+        @param local_info: The object info for the local object.
+        @param remote_info: The object info for the remote object.
+        @param remote_first: If True, remote_info will be flushed
+                             before local_info.
         """
         local_store = Store.of(local_info)
         if local_store is not None:
