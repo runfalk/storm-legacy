@@ -854,6 +854,8 @@ class ResultSet(object):
         self._offset = Undef
         self._limit = Undef
         self._distinct = False
+        self._group_by = Undef
+        self._having = Undef
 
     def copy(self):
         """Return a copy of this ResultSet object, with the same configuration.
@@ -895,7 +897,8 @@ class ResultSet(object):
         columns, default_tables = self._find_spec.get_columns_and_tables()
         return Select(columns, self._where, self._tables, default_tables,
                       self._order_by, offset=self._offset, limit=self._limit,
-                      distinct=self._distinct)
+                      distinct=self._distinct, group_by=self._group_by,
+                      having=self._having)
 
     def _load_objects(self, result, values):
         return self._find_spec.load_objects(self._store, result, values)
@@ -1057,6 +1060,23 @@ class ResultSet(object):
         self._store._connection.execute(
             Delete(self._where, self._find_spec.default_cls_info.table),
             noresult=True)
+
+    def group_by(self, expr, having=Undef):
+        """Group by this ResultSet by the given expression, possibly filtering
+        by the criterias in HAVING.
+
+        @param expr: The expression used in the GROUP BY statement.
+        @param having: The expression used in the HAVING statement, if any.
+
+        @return: self (not a copy).
+        """
+        find_spec = FindSpec(expr)
+        columns, dummy = find_spec.get_columns_and_tables()
+        # XXX: it may be nice to check if columns in SELECT match ones in
+        # GROUP BY
+        self._group_by = columns
+        self._having = having
+        return self
 
     def _aggregate(self, expr, column=None):
         dummy, default_tables = self._find_spec.get_columns_and_tables()
