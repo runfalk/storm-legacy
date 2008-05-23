@@ -339,6 +339,27 @@ class Store(object):
             self._cache.remove(get_obj_info(obj))
         self._mark_autoreload(obj, True)
 
+    def reset(self):
+        """Reset this store, causing all future queries to return new objects.
+
+        Beware this method: it breaks the assumption that there will never be
+        two objects in memory which represent the same database object.
+
+        This is useful if you've got in-memory changes to an object that you
+        want to "throw out"; next time they're fetched the objects will be
+        recreated, so in-memory modifications will not be in effect for future
+        queries.
+        """
+        for obj_info in self._iter_alive():
+            del obj_info["store"]
+        self._alive.clear()
+        self._dirty.clear()
+        self._cache.clear()
+        # The following line is untested, but then, I can't really find a way
+        # to test it without whitebox.
+        self._order.clear()
+
+
     def _mark_autoreload(self, obj=None, invalidate=False):
         if obj is None:
             obj_infos = self._iter_alive()
