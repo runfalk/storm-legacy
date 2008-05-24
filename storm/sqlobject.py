@@ -272,8 +272,13 @@ class SQLObjectBase(Storm):
     _SO_creating = False
 
     def __init__(self, *args, **kwargs):
-        self._get_store().add(self)
-        self._create(None, **kwargs)
+        store = self._get_store()
+        store.add(self)
+        try:
+            self._create(None, **kwargs)
+        except:
+            store.remove(self)
+            raise
 
     def __storm_loaded__(self):
         self._init(None)

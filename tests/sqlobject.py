@@ -147,6 +147,17 @@ class SQLObjectTest(TestHelper):
         person = Person(name="John Joe")
         self.assertEquals(person._SO_creating, False)
 
+    def test_object_not_added_if__create_fails(self):
+        objects = []
+        class Person(self.Person):
+            def _create(self, id, **kwargs):
+                objects.append(self)
+                raise RuntimeError
+        self.assertRaises(RuntimeError, Person, name="John Joe")
+        self.assertEquals(len(objects), 1)
+        person = objects[0]
+        self.assertEquals(Store.of(person), None)
+
     def test_init_hook(self):
         called = []
         class Person(self.Person):
