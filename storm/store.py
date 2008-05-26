@@ -194,13 +194,9 @@ class Store(object):
         """
         if self._implicit_flush_block_count == 0:
             self.flush()
-        if type(cls_spec) is tuple:
-            cls_spec_info = tuple(get_cls_info(cls) for cls in cls_spec)
-            where = get_where_for_args(args, kwargs)
-        else:
-            cls_spec_info = get_cls_info(cls_spec)
-            where = get_where_for_args(args, kwargs, cls_spec)
-        return self._result_set_factory(self, cls_spec_info, where)
+        find_spec = FindSpec(cls_spec)
+        where = get_where_for_args(args, kwargs, find_spec.default_cls)
+        return self._result_set_factory(self, find_spec, where)
 
     def using(self, *tables):
         """Specify tables to use explicitly.
@@ -615,20 +611,6 @@ class Store(object):
             raise LostObjectError("Object is not in the database anymore")
         obj_info.pop("invalidated", None)
 
-    def _load_objects(self, cls_spec_info, result, values):
-        if type(cls_spec_info) is not tuple:
-            return self._load_object(cls_spec_info, result, values)
-        else:
-            objects = []
-            values_start = values_end = 0
-            for cls_info in cls_spec_info:
-                values_end += len(cls_info.columns)
-                obj = self._load_object(cls_info, result,
-                                        values[values_start:values_end])
-                objects.append(obj)
-                values_start = values_end
-            return tuple(objects)
-
     def _load_object(self, cls_info, result, values):
         # _set_values() need the cls_info columns for the class of the
         # actual object, not from a possible wrapper (e.g. an alias).
@@ -861,14 +843,14 @@ class ResultSet(object):
     Generally these should not be constructed directly, but instead
     retrieved from calls to L{Store.find}.
     """
-    def __init__(self, store, cls_spec_info,
+    def __init__(self, store, find_spec,
                  where=Undef, tables=Undef, select=Undef):
         self._store = store
-        self._cls_spec_info = cls_spec_info
+        self._find_spec = find_spec
         self._where = where
         self._tables = tables
         self._select = select
-        self._order_by = getattr(cls_spec_info, "default_order", Undef)
+        self._order_by = find_spec.default_order
         self._offset = Undef
         self._limit = Undef
         self._distinct = False
@@ -910,21 +892,13 @@ class ResultSet(object):
             if self._offset is not Undef: # XXX UNTESTED!
                 self._select.offset = self._offset
             return self._select
-        if type(self._cls_spec_info) is tuple:
-            columns = []
-            default_tables = []
-            for cls_info in self._cls_spec_info:
-                columns.append(cls_info.columns)
-                default_tables.append(cls_info.table)
-        else:
-            columns = self._cls_spec_info.columns
-            default_tables = self._cls_spec_info.table
+        columns, default_tables = self._find_spec.get_columns_and_tables()
         return Select(columns, self._where, self._tables, default_tables,
                       self._order_by, offset=self._offset, limit=self._limit,
                       distinct=self._distinct)
 
     def _load_objects(self, result, values):
-        return self._store._load_objects(self._cls_spec_info, result, values)
+        return self._find_spec.load_objects(self._store, result, values)
 
     def __iter__(self):
         """Iterate the results of the query.
@@ -1074,21 +1048,18 @@ class ResultSet(object):
         """
         if self._offset is not Undef or self._limit is not Undef:
             raise FeatureError("Can't remove a sliced result set")
-        if type(self._cls_spec_info) is tuple:
-            raise FeatureError("Removing not yet supported with tuple finds")
+        if self._find_spec.default_cls_info is None:
+            raise FeatureError("Removing not yet supported for tuple or "
+                               "expression finds")
         if self._select is not Undef:
             raise FeatureError("Removing isn't supported with "
                                "set expressions (unions, etc)")
-        self._store._connection.execute(Delete(self._where,
-                                               self._cls_spec_info.table),
-                                        noresult=True)
+        self._store._connection.execute(
+            Delete(self._where, self._find_spec.default_cls_info.table),
+            noresult=True)
 
     def _aggregate(self, expr, column=None):
-        if type(self._cls_spec_info) is tuple:
-            default_tables = [cls_info.table
-                              for cls_info in self._cls_spec_info]
-        else:
-            default_tables = self._cls_spec_info.table
+        dummy, default_tables = self._find_spec.get_columns_and_tables()
         if self._select is Undef:
             select = Select(expr, self._where, self._tables, default_tables)
         else:
@@ -1165,8 +1136,9 @@ class ResultSet(object):
         C{attr1} to 1 and C{attr2} to 2, on all matching objects.
         """
 
-        if type(self._cls_spec_info) is tuple:
-            raise FeatureError("Setting isn't supported with tuple finds")
+        if self._find_spec.default_cls_info is None:
+            raise FeatureError("Setting isn't supported with tuple or "
+                               "expression finds")
         if self._select is not Undef:
             raise FeatureError("Setting isn't supported with "
                                "set expressions (unions, etc)")
@@ -1175,7 +1147,7 @@ class ResultSet(object):
             return
 
         changes = {}
-        cls = self._cls_spec_info.cls
+        cls = self._find_spec.default_cls_info.cls
 
         # For now only "Class.attr == var" is supported in args.
         for expr in args:
@@ -1198,7 +1170,8 @@ class ResultSet(object):
             else:
                 changes[column] = column.variable_factory(value=value)
 
-        expr = Update(changes, self._where, self._cls_spec_info.table)
+        expr = Update(changes, self._where,
+                      self._find_spec.default_cls_info.table)
         self._store.execute(expr, noresult=True)
 
         try:
@@ -1223,23 +1196,25 @@ class ResultSet(object):
 
     def cached(self):
         """Return matching objects from the cache for the current query."""
-        if type(self._cls_spec_info) is tuple:
-            raise FeatureError("Cache finds not supported with tuples")
+        if self._find_spec.default_cls_info is None:
+            raise FeatureError("Cache finds not supported with tuples "
+                               "or expressions")
         if self._tables is not Undef:
             raise FeatureError("Cache finds not supported with custom tables")
         if self._where is Undef:
             match = None
         else:
             match = compile_python.get_matcher(self._where)
-            name_to_column = dict((column.name, column)
-                                  for column in self._cls_spec_info.columns)
+            name_to_column = dict(
+                (column.name, column)
+                for column in self._find_spec.default_cls_info.columns)
             def get_column(name, name_to_column=name_to_column):
                 return obj_info.variables[name_to_column[name]].get()
         objects = []
-        cls = self._cls_spec_info.cls
+        cls = self._find_spec.default_cls_info.cls
         for obj_info in self._store._iter_alive():
             try:
-                if (obj_info.cls_info is self._cls_spec_info and
+                if (obj_info.cls_info is self._find_spec.default_cls_info and
                     (match is None or match(get_column))):
                     objects.append(self._store._get_object(obj_info))
             except LostObjectError:
@@ -1248,11 +1223,11 @@ class ResultSet(object):
         return objects
 
     def _set_expr(self, expr_cls, other, all=False):
-        if self._cls_spec_info != other._cls_spec_info:
+        if not self._find_spec.is_compatible(other._find_spec):
             raise FeatureError("Incompatible results for set operation")
 
         expr = expr_cls(self._get_select(), other._get_select(), all=all)
-        return ResultSet(self._store, self._cls_spec_info, select=expr)
+        return ResultSet(self._store, self._find_spec, select=expr)
 
     def union(self, other, all=False):
         """Get the L{Union} of this result set and another.
@@ -1402,18 +1377,96 @@ class TableSet(object):
         """
         if self._store._implicit_flush_block_count == 0:
             self._store.flush()
-        if type(cls_spec) is tuple:
-            cls_spec_info = tuple(get_cls_info(cls) for cls in cls_spec)
-            where = get_where_for_args(args, kwargs)
-        else:
-            cls_spec_info = get_cls_info(cls_spec)
-            where = get_where_for_args(args, kwargs, cls_spec)
-        return self._store._result_set_factory(self._store, cls_spec_info,
+        find_spec = FindSpec(cls_spec)
+        where = get_where_for_args(args, kwargs, find_spec.default_cls)
+        return self._store._result_set_factory(self._store, find_spec,
                                                where, self._tables)
 
 
 Store._result_set_factory = ResultSet
 Store._table_set = TableSet
+
+
+class FindSpec(object):
+    """The set of tables or expressions in the result of L{Store.find}."""
+
+    def __init__(self, cls_spec):
+        self.is_tuple = type(cls_spec) == tuple
+        if not self.is_tuple:
+            cls_spec = (cls_spec,)
+
+        info = []
+        for item in cls_spec:
+            if isinstance(item, Expr):
+                info.append((True, item))
+            else:
+                info.append((False, get_cls_info(item)))
+        self._cls_spec_info = tuple(info)
+
+        # Do we have a single non-expression item here?
+        if not self.is_tuple and not info[0][0]:
+            self.default_cls = cls_spec[0]
+            self.default_cls_info = info[0][1]
+            self.default_order = self.default_cls_info.default_order
+        else:
+            self.default_cls = None
+            self.default_cls_info = None
+            self.default_order = Undef
+
+    def get_columns_and_tables(self):
+        columns = []
+        default_tables = []
+        for is_expr, info in self._cls_spec_info:
+            if is_expr:
+                columns.append(info)
+                if isinstance(info, Column):
+                    default_tables.append(info.table)
+            else:
+                columns.extend(info.columns)
+                default_tables.append(info.table)
+        return columns, default_tables
+
+    def is_compatible(self, find_spec):
+        """Return True if this FindSpec is compatible with a second one."""
+        if self.is_tuple != find_spec.is_tuple:
+            return False
+        if len(self._cls_spec_info) != len(find_spec._cls_spec_info):
+            return False
+        for (is_expr1, info1), (is_expr2, info2) in zip(
+            self._cls_spec_info, find_spec._cls_spec_info):
+            if is_expr1 != is_expr2:
+                return False
+            if is_expr1:
+                # For expressions, the best we can do is see if they
+                # have the same variable types.
+                var1 = getattr(info1, "variable_factory", Variable)()
+                var2 = getattr(info2, "variable_factory", Variable)()
+                if type(var1) != type(var2):
+                    return False
+            else:
+                if info1 != info2:
+                    return False
+        return True
+
+    def load_objects(self, store, result, values):
+        objects = []
+        values_start = values_end = 0
+        for is_expr, info in self._cls_spec_info:
+            if is_expr:
+                values_end += 1
+                variable = getattr(info, "variable_factory", Variable)(
+                    value=values[values_start], from_db=True)
+                objects.append(variable.get())
+            else:
+                values_end += len(info.columns)
+                obj = store._load_object(info, result,
+                                         values[values_start:values_end])
+                objects.append(obj)
+            values_start = values_end
+        if self.is_tuple:
+            return tuple(objects)
+        else:
+            return objects[0]
 
 
 def get_where_for_args(args, kwargs, cls=None):

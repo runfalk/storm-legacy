@@ -381,7 +381,7 @@ class SQLObjectResultSet(object):
 
     def __init__(self, cls, clause=None, clauseTables=None, orderBy=None,
                  limit=None, distinct=None, prejoins=None,
-                 prejoinClauseTables=None,
+                 prejoinClauseTables=None, selectAlso=None,
                  by={}, prepared_result_set=None, slice=None):
         self._cls = cls
         self._clause = clause
@@ -391,6 +391,7 @@ class SQLObjectResultSet(object):
         self._distinct = distinct
         self._prejoins = prejoins
         self._prejoinClauseTables = prejoinClauseTables
+        self._selectAlso = selectAlso
 
         # Parameters not mapping SQLObject:
         self._by = by
@@ -469,6 +470,12 @@ class SQLObjectResultSet(object):
             # tables into the dynamic table handling of Storm without
             # disrupting anything else.
             args.append(AutoTables(SQL("1=1"), tables))
+
+        if self._selectAlso is not None:
+            if type(find_spec) is not tuple:
+                find_spec = (find_spec, SQL(self._selectAlso))
+            else:
+                find_spec += (SQL(self._selectAlso),)
 
         return store.find(find_spec, *args)
 

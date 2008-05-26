@@ -959,6 +959,95 @@ class StoreTest(object):
         result = self.store.using(Foo, Bar).find(Foo)
         self.assertRaises(FeatureError, result.cached)
 
+    def test_find_with_expr(self):
+        result = self.store.find(Foo.title)
+        self.assertEquals(sorted(result),
+                          [u"Title 10", u"Title 20", u"Title 30"])
+
+    def test_find_with_expr_uses_variable_set(self):
+        result = self.store.find(FooVariable.title,
+                                 FooVariable.id == 10)
+        self.assertEquals(list(result), [u"to_py(from_db(Title 30))"])
+
+    def test_find_tuple_with_expr(self):
+        result = self.store.find((Foo, Bar.id, Bar.title),
+                                 Bar.foo_id == Foo.id)
+        result.order_by(Foo.id)
+        self.assertEquals([(foo.id, foo.title, bar_id, bar_title)
+                           for foo, bar_id, bar_title in result],
+                           [(10, u"Title 30", 100, u"Title 300"),
+                            (20, u"Title 20", 200, u"Title 200"),
+                            (30, u"Title 10", 300, u"Title 100")])
+
+    def test_find_using_with_expr(self):
+        result = self.store.using(Foo).find(Foo.title)
+        self.assertEquals(sorted(result),
+                          [u"Title 10", u"Title 20", u"Title 30"])
+
+    def test_find_with_expr_remove_unsupported(self):
+        result = self.store.find(Foo.title)
+        self.assertRaises(FeatureError, result.remove)
+
+    def test_find_tuple_with_expr_remove_unsupported(self):
+        result = self.store.find((Foo, Bar.title), Bar.foo_id == Foo.id)
+        self.assertRaises(FeatureError, result.remove)
+
+    def test_find_with_expr_count(self):
+        result = self.store.find(Foo.title)
+        self.assertEquals(result.count(), 3)
+
+    def test_find_tuple_with_expr_count(self):
+        result = self.store.find((Foo, Bar.title), Bar.foo_id == Foo.id)
+        self.assertEquals(result.count(), 3)
+
+    def test_find_with_expr_values(self):
+        result = self.store.find(Foo.title)
+        self.assertEquals(sorted(result.values(Foo.title)),
+                          [u"Title 10", u"Title 20", u"Title 30"])
+
+    def test_find_tuple_with_expr_values(self):
+        result = self.store.find((Foo, Bar.title), Bar.foo_id == Foo.id)
+        self.assertEquals(sorted(result.values(Foo.title)),
+                          [u"Title 10", u"Title 20", u"Title 30"])
+
+    def test_find_with_expr_set_unsupported(self):
+        result = self.store.find(Foo.title)
+        self.assertRaises(FeatureError, result.set)
+
+    def test_find_tuple_with_expr_set_unsupported(self):
+        result = self.store.find((Foo, Bar.title), Bar.foo_id == Foo.id)
+        self.assertRaises(FeatureError, result.set)
+
+    def test_find_with_expr_cached_unsupported(self):
+        result = self.store.find(Foo.title)
+        self.assertRaises(FeatureError, result.cached)
+
+    def test_find_tuple_with_expr_cached_unsupported(self):
+        result = self.store.find((Foo, Bar.title), Bar.foo_id == Foo.id)
+        self.assertRaises(FeatureError, result.cached)
+
+    def test_find_with_expr_union(self):
+        result1 = self.store.find(Foo.title)
+        result2 = self.store.find(Bar.title)
+        result = result1.union(result2)
+        self.assertEquals(sorted(result), [u"Title 10", u"Title 100",
+                                           u"Title 20", u"Title 200",
+                                           u"Title 30", u"Title 300"])
+
+    def test_find_with_expr_union_mismatch(self):
+        result1 = self.store.find(Foo.title)
+        result2 = self.store.find(Bar.foo_id)
+        self.assertRaises(FeatureError, result1.union, result2)
+
+    def test_find_tuple_with_expr_union(self):
+        result1 = self.store.find(
+            (Foo, Bar.title), Bar.foo_id == Foo.id, Bar.title == u"Title 100")
+        result2 = self.store.find(
+            (Foo, Bar.title), Bar.foo_id == Foo.id, Bar.title == u"Title 200")
+        result = result1.union(result2)
+        self.assertEquals(sorted((foo.id, title) for (foo, title) in result),
+                          [(20, u"Title 200"), (30, u"Title 100")])
+
     def test_get_does_not_validate(self):
         def validator(object, attr, value):
             self.fail("validator called with arguments (%r, %r, %r)" %
