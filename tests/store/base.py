@@ -180,7 +180,7 @@ class StoreTest(object):
         connection.execute("INSERT INTO selfref (id, title, selfref_id)"
                            " VALUES (35, 'SelfRef 35', 15)")
         connection.execute("INSERT INTO foovalue (id, foo_id, value1, value2)"
-                           " VALUES (1, 10, 1, 1)")
+                           " VALUES (1, 10, 2, 1)")
         connection.execute("INSERT INTO foovalue (id, foo_id, value1, value2)"
                            " VALUES (2, 10, 2, 1)")
         connection.execute("INSERT INTO foovalue (id, foo_id, value1, value2)"
@@ -190,13 +190,13 @@ class StoreTest(object):
         connection.execute("INSERT INTO foovalue (id, foo_id, value1, value2)"
                            " VALUES (5, 20, 1, 3)")
         connection.execute("INSERT INTO foovalue (id, foo_id, value1, value2)"
-                           " VALUES (6, 20, 2, 3)")
+                           " VALUES (6, 20, 1, 3)")
         connection.execute("INSERT INTO foovalue (id, foo_id, value1, value2)"
-                           " VALUES (7, 20, 2, 4)")
+                           " VALUES (7, 20, 1, 4)")
         connection.execute("INSERT INTO foovalue (id, foo_id, value1, value2)"
                            " VALUES (8, 20, 1, 4)")
         connection.execute("INSERT INTO foovalue (id, foo_id, value1, value2)"
-                           " VALUES (9, 20, 2, 2)")
+                           " VALUES (9, 20, 1, 2)")
 
         connection.commit()
 
@@ -1115,21 +1115,11 @@ class StoreTest(object):
         self.assertEqual(foo.title, "Title 30")
 
     def test_find_group_by(self):
-        connection = self.database.connect()
-        connection.execute("INSERT INTO money (id, value)"
-                           " VALUES (11, '13.1')")
-        connection.execute("INSERT INTO money (id, value)"
-                           " VALUES (12, '14.7')")
-        connection.execute("INSERT INTO money (id, value)"
-                           " VALUES (13, '13.1')")
-        connection.execute("INSERT INTO money (id, value)"
-                           " VALUES (14, '13.1')")
-        connection.commit()
-        result = self.store.find((Count(Money.id), Sum(Money.value))
-            ).group_by(Money.value)
-        self.assertEquals(list(result), [(1, decimal.Decimal("12.3455")),
-                                         (3, decimal.Decimal("39.3")),
-                                         (1, decimal.Decimal("14.7"))])
+        result = self.store.find((Count(FooValue.id), Sum(FooValue.value1))
+            ).group_by(FooValue.value2)
+        result = list(result)
+        result.sort()
+        self.assertEquals(result, [(2L, 2L), (2L, 2L), (2L, 3L), (3L, 6L)])
 
     def test_find_group_by_table(self):
         result = self.store.find(
@@ -1159,8 +1149,8 @@ class StoreTest(object):
             Foo.id == FooValue.foo_id).group_by(Foo.id)
         result = list(result)
         result.sort()
-        self.assertEquals(result, [(10, 5, decimal.Decimal("1.75")),
-                                   (20, 16, decimal.Decimal("1.6"))])
+        self.assertEquals(result, [(10, 5, 2),
+                                   (20, 16, 1)])
 
     def test_find_group_by_having(self):
         result = self.store.find(
