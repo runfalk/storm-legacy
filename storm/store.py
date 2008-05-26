@@ -35,7 +35,8 @@ from storm.expr import (
     Union, Except, Intersect, Alias)
 from storm.exceptions import (
     WrongStoreError, NotFlushedError, OrderLoopError, UnorderedError,
-    NotOneError, FeatureError, CompileError, LostObjectError, ClassInfoError)
+    NotOneError, FeatureError, CompileError, LostObjectError, ClassInfoError,
+    ExprError)
 from storm import Undef
 from storm.cache import Cache
 
@@ -1072,8 +1073,16 @@ class ResultSet(object):
         """
         find_spec = FindSpec(expr)
         columns, dummy = find_spec.get_columns_and_tables()
-        # XXX: it may be nice to check if columns in SELECT match ones in
-        # GROUP BY
+        selected_columns, dummy = self._find_spec.get_columns_and_tables()
+        for column in selected_columns:
+            if isinstance(column, Column):
+                for group_column in columns:
+                    if column is group_column:
+                        break
+                else:
+                    raise ExprError(
+                        "Selected column not in GROUP BY: %s" % (column.name,))
+
         self._group_by = columns
         self._having = having
         return self

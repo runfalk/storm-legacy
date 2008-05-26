@@ -1162,6 +1162,11 @@ class StoreTest(object):
             having=Count() == 5)
         self.assertEquals(list(result), [16])
 
+    def test_find_group_by_wrong_columns(self):
+        self.assertRaises(ExprError,
+            self.store.find(FooValue.value1).group_by, FooValue.value2)
+        
+
     def test_add_commit(self):
         foo = Foo()
         foo.id = 40
