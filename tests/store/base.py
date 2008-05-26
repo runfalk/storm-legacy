@@ -220,7 +220,8 @@ class StoreTest(object):
 
     def drop_tables(self):
         connection = self.database.connect()
-        for table in ["foo", "bar", "bin", "link", "money", "selfref"]:
+        for table in ["foo", "bar", "bin", "link", "money", "selfref",
+                      "foovalue"]:
             try:
                 connection.execute("DROP TABLE %s" % table)
                 connection.commit()
@@ -1126,7 +1127,9 @@ class StoreTest(object):
         connection.commit()
         result = self.store.find((Count(Money.id), Sum(Money.value))
             ).group_by(Money.value)
-        self.assertEquals(list(result), [(1, 12.3455), (3, 39.3), (1, 14.7)])
+        self.assertEquals(list(result), [(1, decimal.Decimal("12.3455")),
+                                         (3, decimal.Decimal("39.3")),
+                                         (1, decimal.Decimal("14.7"))])
 
     def test_find_group_by_table(self):
         result = self.store.find(
@@ -1139,19 +1142,25 @@ class StoreTest(object):
     def test_find_group_by_multiple_tables(self):
         result = self.store.find(
             Sum(FooValue.value2), Foo.id == FooValue.foo_id).group_by(Foo.id)
-        self.assertEquals(list(result), [5, 16])
+        result = list(result)
+        result.sort()
+        self.assertEquals(result, [5, 16])
 
         result = self.store.find(
-            (Foo, Sum(FooValue.value2)), Foo.id == FooValue.foo_id).group_by(Foo.id)
+            (Sum(FooValue.value2), Foo), Foo.id == FooValue.foo_id).group_by(Foo)
         result = list(result)
         foo1 = self.store.get(Foo, 10)
         foo2 = self.store.get(Foo, 20)
-        self.assertEquals(list(result), [(foo1, 5), (foo2, 16)])
+        result.sort()
+        self.assertEquals(result, [(5, foo1), (16, foo2)])
 
         result = self.store.find(
             (Foo.id, Sum(FooValue.value2), Avg(FooValue.value1)),
             Foo.id == FooValue.foo_id).group_by(Foo.id)
-        self.assertEquals(list(result), [(10, 5, 1.75), (20, 16, 1.6)])
+        result = list(result)
+        result.sort()
+        self.assertEquals(result, [(10, 5, decimal.Decimal("1.75")),
+                                   (20, 16, decimal.Decimal("1.6"))])
 
     def test_find_group_by_having(self):
         result = self.store.find(
