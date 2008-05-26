@@ -147,6 +147,17 @@ class SQLObjectTest(TestHelper):
         person = Person(name="John Joe")
         self.assertEquals(person._SO_creating, False)
 
+    def test_object_not_added_if__create_fails(self):
+        objects = []
+        class Person(self.Person):
+            def _create(self, id, **kwargs):
+                objects.append(self)
+                raise RuntimeError
+        self.assertRaises(RuntimeError, Person, name="John Joe")
+        self.assertEquals(len(objects), 1)
+        person = objects[0]
+        self.assertEquals(Store.of(person), None)
+
     def test_init_hook(self):
         called = []
         class Person(self.Person):
@@ -230,6 +241,25 @@ class SQLObjectTest(TestHelper):
         self.assertEquals(len(people), 2)
         self.assertEquals(people[0].name, "John Doe")
         self.assertEquals(people[1].name, "John Joe")
+
+    def test_select_selectAlso_with_prejoin(self):
+        class Person(self.Person):
+            address = ForeignKey(foreignKey="Address", dbName="address_id",
+                                 notNull=True)
+
+        class Address(self.SQLObject):
+            city = StringCol()
+
+        result = Person.select(
+            prejoins=["address"],
+            selectAlso="LOWER(person.name) AS lower_name",
+            orderBy="lower_name")
+        people = list(result)
+        self.assertEquals(len(people), 2)
+        self.assertEquals([(person.name, person.address.city)
+                           for person in people],
+                          [("John Doe", "Sao Carlos"),
+                           ("John Joe", "Curitiba")])
 
     def test_select_clauseTables_simple(self):
         result = self.Person.select("name = 'John Joe'", ["person"])

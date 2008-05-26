@@ -12,6 +12,9 @@ Improvements
    the property.  The value assigned to the property is the result
    of the validator, so the original value should be returned if
    changing it isn't intended.
+ - Expressions can be passed to Store.find() as well as classes.  This
+   makes it possible to request individual columns from a table,
+   computed expressions or aggregates.
 
 Bug fixes
 ---------

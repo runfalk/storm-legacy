@@ -1427,8 +1427,7 @@ class FindSpec(object):
         if not self.is_tuple and not info[0][0]:
             self.default_cls = cls_spec[0]
             self.default_cls_info = info[0][1]
-            self.default_order = getattr(
-                self.default_cls_info, "default_order", Undef)
+            self.default_order = self.default_cls_info.default_order
         else:
             self.default_cls = None
             self.default_cls_info = None
