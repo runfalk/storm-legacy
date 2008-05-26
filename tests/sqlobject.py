@@ -231,6 +231,25 @@ class SQLObjectTest(TestHelper):
         self.assertEquals(people[0].name, "John Doe")
         self.assertEquals(people[1].name, "John Joe")
 
+    def test_select_selectAlso_with_prejoin(self):
+        class Person(self.Person):
+            address = ForeignKey(foreignKey="Address", dbName="address_id",
+                                 notNull=True)
+
+        class Address(self.SQLObject):
+            city = StringCol()
+
+        result = Person.select(
+            prejoins=["address"],
+            selectAlso="LOWER(person.name) AS lower_name",
+            orderBy="lower_name")
+        people = list(result)
+        self.assertEquals(len(people), 2)
+        self.assertEquals([(person.name, person.address.city)
+                           for person in people],
+                          [("John Doe", "Sao Carlos"),
+                           ("John Joe", "Curitiba")])
+
     def test_select_clauseTables_simple(self):
         result = self.Person.select("name = 'John Joe'", ["person"])
         self.assertEquals(result[0].name, "John Joe")
