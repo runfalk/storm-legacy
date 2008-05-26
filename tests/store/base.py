@@ -964,6 +964,11 @@ class StoreTest(object):
         self.assertEquals(sorted(result),
                           [u"Title 10", u"Title 20", u"Title 30"])
 
+    def test_find_with_expr_uses_variable_set(self):
+        result = self.store.find(FooVariable.title,
+                                 FooVariable.id == 10)
+        self.assertEquals(list(result), [u"to_py(from_db(Title 30))"])
+
     def test_find_tuple_with_expr(self):
         result = self.store.find((Foo, Bar.id, Bar.title),
                                  Bar.foo_id == Foo.id)
