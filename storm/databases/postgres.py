@@ -77,7 +77,7 @@ def compile_currval(compile, expr, state):
     """Compile a currval.
 
     This is a bit involved because we have to get escaping right.  Here
-    are a few cases to keep in mind:
+    are a few cases to keep in mind::
 
         currval('thetable_thecolumn_seq')
         currval('theschema.thetable_thecolumn_seq')
@@ -198,7 +198,7 @@ def compile_str_variable_with_E(compile, variable, state):
 
     PostgreSQL 8.2 will issue a warning without it, and psycopg
     will use the plain '' rather than E''.  The problem is being
-    tracked at the following URL:
+    tracked at the following URL::
 
         http://www.initd.org/tracker/psycopg/ticket/202
 

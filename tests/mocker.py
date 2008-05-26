@@ -627,15 +627,6 @@ class MockerBase(object):
     def patch(self, object, spec=True):
         """Patch an existing object to reproduce recorded events.
 
-        @param object: Class or instance to be patched.
-        @param spec: Method calls will be checked for correctness against
-                     the given object, which may be a class or an instance
-                     where attributes will be looked up.  Defaults to the
-                     the C{object} parameter.  May be set to None explicitly,
-                     in which case spec checking is disabled.  Checks may
-                     also be disabled explicitly on a per-event basis with
-                     the L{nospec()} method.
-
         The result of this method is still a mock object, which can be
         used like any other mock object to record events.  The difference
         is that when the mocker is put on replay mode, the *real* object
@@ -661,6 +652,15 @@ class MockerBase(object):
         to its original state once the L{restore()} method is called
         (explicitly, or implicitly with alternative conventions, such as
         a C{with mocker:} block, or a MockerTestCase class).
+
+        @param object: Class or instance to be patched.
+        @param spec: Method calls will be checked for correctness against
+                     the given object, which may be a class or an instance
+                     where attributes will be looked up.  Defaults to the
+                     the C{object} parameter.  May be set to None explicitly,
+                     in which case spec checking is disabled.  Checks may
+                     also be disabled explicitly on a per-event basis with
+                     the L{nospec()} method.
         """
         if spec is True:
             spec = object
@@ -875,9 +875,6 @@ class MockerBase(object):
     def after(self, *path_holders):
         """Last recorded event must happen after events referred to.
 
-        @param path_holders: Objects returned as the result of recorded events
-                             which should happen before the last recorded event
-
         As an example, the idiom::
 
             expect(mock.x).after(mock.y, mock.z)
@@ -891,6 +888,9 @@ class MockerBase(object):
             mocker.order(expr_z, expr_x)
 
         See L{order()} for more information.
+
+        @param path_holders: Objects returned as the result of recorded events
+                             which should happen before the last recorded event
         """
         last_path = self._events[-1].path
         for path_holder in path_holders:
@@ -898,9 +898,6 @@ class MockerBase(object):
 
     def before(self, *path_holders):
         """Last recorded event must happen before events referred to.
-
-        @param path_holders: Objects returned as the result of recorded events
-                             which should happen after the last recorded event
 
         As an example, the idiom::
 
@@ -915,6 +912,9 @@ class MockerBase(object):
             mocker.order(expr_x, expr_z)
 
         See L{order()} for more information.
+
+        @param path_holders: Objects returned as the result of recorded events
+                             which should happen after the last recorded event
         """
         last_path = self._events[-1].path
         for path_holder in path_holders:
@@ -940,12 +940,12 @@ class MockerBase(object):
     def passthrough(self, result_callback=None):
         """Make the last recorded event run on the real object once seen.
 
-        @param result_callback: If given, this function will be called with
-            the result of the *real* method call as the only argument.
-
         This can only be used on proxies, as returned by the L{proxy()}
         and L{replace()} methods, or on mocks representing patched objects,
         as returned by the L{patch()} method.
+
+        @param result_callback: If given, this function will be called with
+            the result of the *real* method call as the only argument.
         """
         event = self._events[-1]
         if event.path.root_object is None:
