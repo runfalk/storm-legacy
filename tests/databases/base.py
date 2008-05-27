@@ -525,3 +525,11 @@ class DatabaseDisconnectionTest(object):
         self.connection.rollback()
         self.assertRaises(DisconnectionError,
                           self.connection.execute, "SELECT 1")
+
+    def test_close_connection_after_disconnect(self):
+        result = self.connection.execute("SELECT 1")
+        self.assertTrue(result.get_one())
+        self.proxy.stop()
+        self.assertRaises(DisconnectionError,
+                          self.connection.execute, "SELECT 1")
+        self.connection.close()

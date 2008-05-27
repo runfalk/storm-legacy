@@ -207,8 +207,9 @@ class Connection(object):
         """Close the connection if it is not already closed."""
         if not self._closed:
             self._closed = True
-            self._raw_connection.close()
-            self._raw_connection = None
+            if self._raw_connection is not None:
+                self._raw_connection.close()
+                self._raw_connection = None
 
     def commit(self):
         """Commit the connection.
