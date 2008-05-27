@@ -1171,7 +1171,7 @@ class StoreTest(object):
             self.store.find((Sum(FooValue.value1), Foo),
                 Foo.id == FooValue.foo_id).group_by, FooValue.value2)
 
-    def test_find_multiple_group_by(self):
+    def test_find_successive_group_by(self):
         result = self.store.find(Count()).group_by(FooValue.value2)
         list_result = list(result)
         list_result.sort()
@@ -1180,6 +1180,24 @@ class StoreTest(object):
         list_result = list(result)
         list_result.sort()
         self.assertEquals(list_result, [4, 5])
+
+    def test_find_multiple_group_by(self):
+        result = self.store.find(Count()).group_by(FooValue.value2,
+                                                   FooValue.value1)
+        list_result = list(result)
+        list_result.sort()
+        self.assertEquals(list_result, [1, 1, 2, 2, 3])
+
+    def test_find_multiple_group_by_with_having(self):
+        result = self.store.find((Count(), FooValue.value2)).group_by(
+            FooValue.value2, FooValue.value1, having=Count() == 2)
+        list_result = list(result)
+        list_result.sort()
+        self.assertEquals(list_result, [(2, 3), (2, 4)])
+
+    def test_find_group_by_unknown_kwarg(self):
+        self.assertRaises(ValueError, self.store.find(Count()).group_by,
+            FooValue.value1, something=FooValue.value2)
 
     def test_find_group_by_avg(self):
         result = self.store.find((Count(FooValue.id), Sum(FooValue.value1))

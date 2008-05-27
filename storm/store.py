@@ -1062,11 +1062,11 @@ class ResultSet(object):
             Delete(self._where, self._find_spec.default_cls_info.table),
             noresult=True)
 
-    def group_by(self, expr, having=Undef):
+    def group_by(self, *expr, **kwargs):
         """Group by this ResultSet by the given expression, possibly filtering
         by the criterias in HAVING.
 
-        @param expr: The expression used in the GROUP BY statement.
+        @param expr: The expressions used in the GROUP BY statement.
         @param having: The expression used in the HAVING statement, if any.
 
         @return: self (not a copy).
@@ -1074,6 +1074,11 @@ class ResultSet(object):
         if self._select is not Undef:
             raise FeatureError("Grouping isn't supported with "
                                "set expressions (unions, etc)")
+
+        if kwargs and kwargs.keys() != ["having"]:
+            raise ValueError("Unknown keyword arguments passed.")
+        having = kwargs.get("having", Undef)
+
         find_spec = FindSpec(expr)
         columns, dummy = find_spec.get_columns_and_tables()
         selected_columns, dummy = self._find_spec.get_columns_and_tables()
