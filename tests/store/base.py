@@ -1165,7 +1165,34 @@ class StoreTest(object):
     def test_find_group_by_wrong_columns(self):
         self.assertRaises(ExprError,
             self.store.find(FooValue.value1).group_by, FooValue.value2)
-        
+
+    def test_find_group_by_wrong_tables(self):
+        self.assertRaises(ExprError,
+            self.store.find((Sum(FooValue.value1), Foo),
+                Foo.id == FooValue.foo_id).group_by, FooValue.value2)
+
+    def test_find_multiple_group_by(self):
+        result = self.store.find(Count()).group_by(FooValue.value2)
+        list_result = list(result)
+        list_result.sort()
+        self.assertEquals(list_result, [2, 2, 2, 3])
+        result.group_by(FooValue.value1)
+        list_result = list(result)
+        list_result.sort()
+        self.assertEquals(list_result, [4, 5])
+
+    def test_find_group_by_avg(self):
+        result = self.store.find((Count(FooValue.id), Sum(FooValue.value1))
+            ).group_by(FooValue.value2)
+        self.assertRaises(FeatureError, result.avg, FooValue.value2)
+
+    def test_find_group_by_values(self):
+        result = self.store.find(
+            (Sum(FooValue.value2), Foo), Foo.id == FooValue.foo_id
+            ).group_by(Foo)
+        result = list(result.values(Foo.title))
+        result.sort()
+        self.assertEquals(result, [u'Title 20', u'Title 30'])
 
     def test_add_commit(self):
         foo = Foo()

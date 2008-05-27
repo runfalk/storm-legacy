@@ -1071,6 +1071,10 @@ class ResultSet(object):
 
         @return: self (not a copy).
         """
+        if self._select is not Undef:
+            # XXX test
+            raise FeatureError("Grouping isn't supported with "
+                               "set expressions (unions, etc)")
         find_spec = FindSpec(expr)
         columns, dummy = find_spec.get_columns_and_tables()
         selected_columns, dummy = self._find_spec.get_columns_and_tables()
@@ -1088,6 +1092,9 @@ class ResultSet(object):
         return self
 
     def _aggregate(self, expr, column=None):
+        if self._group_by is not Undef:
+            raise FeatureError("Single aggregates aren't supported after a "
+                               " GROUP BY clause ")
         dummy, default_tables = self._find_spec.get_columns_and_tables()
         if self._select is Undef:
             select = Select(expr, self._where, self._tables, default_tables)
