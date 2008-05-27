@@ -1072,7 +1072,6 @@ class ResultSet(object):
         @return: self (not a copy).
         """
         if self._select is not Undef:
-            # XXX test
             raise FeatureError("Grouping isn't supported with "
                                "set expressions (unions, etc)")
         find_spec = FindSpec(expr)

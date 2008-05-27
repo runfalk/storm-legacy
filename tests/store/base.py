@@ -1194,6 +1194,12 @@ class StoreTest(object):
         result.sort()
         self.assertEquals(result, [u'Title 20', u'Title 30'])
 
+    def test_find_group_by_union(self):
+        result1 = self.store.find(Foo, id=30)
+        result2 = self.store.find(Foo, id=10)
+        result3 = result1.union(result2)
+        self.assertRaises(FeatureError, result3.group_by, Foo.title)
+
     def test_add_commit(self):
         foo = Foo()
         foo.id = 40
