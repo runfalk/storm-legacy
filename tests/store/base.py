@@ -1154,13 +1154,24 @@ class StoreTest(object):
 
     def test_find_group_by_having(self):
         result = self.store.find(
-            Sum(FooValue.value2), Foo.id == FooValue.foo_id).group_by(Foo.id,
-            having=Sum(FooValue.value2) == 5)
+            Sum(FooValue.value2), Foo.id == FooValue.foo_id).group_by(Foo.id
+            ).having(Sum(FooValue.value2) == 5)
         self.assertEquals(list(result), [5])
         result = self.store.find(
-            Sum(FooValue.value2), Foo.id == FooValue.foo_id).group_by(Foo.id,
-            having=Count() == 5)
+            Sum(FooValue.value2), Foo.id == FooValue.foo_id).group_by(Foo.id
+            ).having(Count() == 5)
         self.assertEquals(list(result), [16])
+
+    def test_find_group_by_multiple_having(self):
+        result = self.store.find((Count(), FooValue.value2)
+            ).group_by(FooValue.value2
+            ).having(Count() == 2, FooValue.value2 >= 3)
+        list_result = list(result)
+        list_result.sort()
+        self.assertEquals(list_result, [(2, 3), (2, 4)])
+
+    def test_find_group_by_having_columns_names(self):
+        pass
 
     def test_find_group_by_wrong_columns(self):
         self.assertRaises(ExprError,
@@ -1190,14 +1201,10 @@ class StoreTest(object):
 
     def test_find_multiple_group_by_with_having(self):
         result = self.store.find((Count(), FooValue.value2)).group_by(
-            FooValue.value2, FooValue.value1, having=Count() == 2)
+            FooValue.value2, FooValue.value1).having(Count() == 2)
         list_result = list(result)
         list_result.sort()
         self.assertEquals(list_result, [(2, 3), (2, 4)])
-
-    def test_find_group_by_unknown_kwarg(self):
-        self.assertRaises(ValueError, self.store.find(Count()).group_by,
-            FooValue.value1, something=FooValue.value2)
 
     def test_find_group_by_avg(self):
         result = self.store.find((Count(FooValue.id), Sum(FooValue.value1))
