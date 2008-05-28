@@ -1170,9 +1170,6 @@ class StoreTest(object):
         list_result.sort()
         self.assertEquals(list_result, [(2, 3), (2, 4)])
 
-    def test_find_group_by_having_columns_names(self):
-        pass
-
     def test_find_group_by_wrong_columns(self):
         self.assertRaises(ExprError,
             self.store.find(FooValue.value1).group_by, FooValue.value2)
