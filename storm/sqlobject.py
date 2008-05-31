@@ -31,7 +31,7 @@ from storm.properties import (
 from storm.references import Reference, ReferenceSet
 from storm.properties import SimpleProperty, PropertyPublisherMeta
 from storm.variables import Variable
-from storm.exceptions import StormError
+from storm.exceptions import StormError, NotOneError
 from storm.info import get_cls_info, ClassAlias
 from storm.store import AutoReload, Store
 from storm.base import Storm
@@ -42,14 +42,17 @@ from storm.tz import tzutc
 from storm import Undef
 
 
-__all__ = ["SQLObjectBase", "StringCol", "IntCol", "BoolCol", "FloatCol",
-           "DateCol", "UtcDateTimeCol", "IntervalCol", "ForeignKey",
-           "SQLMultipleJoin", "SQLRelatedJoin", "SingleJoin", "DESC",
-           "AND", "OR", "NOT", "IN", "LIKE", "SQLConstant",
-           "SQLObjectNotFound", "CONTAINSSTRING"]
+__all__ = [
+    "SQLObjectBase", "StringCol", "IntCol", "BoolCol", "FloatCol",
+    "DateCol", "UtcDateTimeCol", "IntervalCol", "ForeignKey",
+    "SQLMultipleJoin", "SQLRelatedJoin", "SingleJoin", "DESC",
+    "AND", "OR", "NOT", "IN", "LIKE", "SQLConstant",
+    "CONTAINSSTRING", "SQLObjectMoreThanOneResultError", "SQLObjectNotFound",
+    "SQLObjectResultSet"]
 
 
 DESC, AND, OR, NOT, IN, LIKE, SQLConstant = Desc, And, Or, Not, In, Like, SQL
+SQLObjectMoreThanOneResultError = NotOneError
 
 _IGNORED = object()
 
