@@ -1162,6 +1162,10 @@ class StoreTest(object):
             ).having(Count() == 5)
         self.assertEquals(list(result), [16])
 
+    def test_find_having_without_group_by(self):
+        result = self.store.find(FooValue)
+        self.assertRaises(ExprError, result.having, FooValue.value1 == 1)
+
     def test_find_group_by_multiple_having(self):
         result = self.store.find((Count(), FooValue.value2)
             ).group_by(FooValue.value2
