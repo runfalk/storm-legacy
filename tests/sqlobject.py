@@ -304,6 +304,10 @@ class SQLObjectTest(TestHelper):
         self.assertNotEqual(person, None)
         self.assertEqual(person.name, "John Joe")
 
+    def test_selectOne_multiple_results(self):
+        self.assertRaises(SQLObjectMoreThanOneResultError,
+                          self.Person.selectOne)
+
     def test_selectOne_clauseTables(self):
         person = self.Person.selectOne("person.name = 'John Joe' and "
                                        "phone.person_id = person.id",
@@ -319,6 +323,10 @@ class SQLObjectTest(TestHelper):
         nobody = self.Person.selectOneBy(name="John None")
 
         self.assertEquals(nobody, None)
+
+    def test_selectOneBy_multiple_results(self):
+        self.assertRaises(SQLObjectMoreThanOneResultError,
+                          self.Person.selectOneBy)
 
     def test_selectFirst(self):
         person = self.Person.selectFirst("name LIKE 'John%'", orderBy="name")
@@ -1064,6 +1072,14 @@ class SQLObjectTest(TestHelper):
                           ["Sao Carlos"])
         self.assertEquals([person.phone.number for person in people],
                           ["1234-5678"])
+
+    def test_result_set_sum_string(self):
+        result = self.Person.select()
+        self.assertEquals(result.sum('age'), 40)
+
+    def test_result_set_sum_expr(self):
+        result = self.Person.select()
+        self.assertEquals(result.sum(self.Person.q.age), 40)
 
     def test_table_dot_q(self):
         # Table.q.fieldname is a syntax used in SQLObject for
