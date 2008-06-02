@@ -595,6 +595,12 @@ class SQLObjectResultSet(object):
     def prejoinClauseTables(self, prejoinClauseTables):
         return self._copy(prejoinClauseTables=prejoinClauseTables)
 
+    def sum(self, attribute):
+        if isinstance(attribute, basestring):
+            attribute = SQL(attribute)
+        result_set = self._without_prejoins()._result_set
+        return result_set.sum(attribute)
+
 
 def detuplelize(item):
     """If item is a tuple, return first element, otherwise the item itself.

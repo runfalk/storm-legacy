@@ -1073,6 +1073,14 @@ class SQLObjectTest(TestHelper):
         self.assertEquals([person.phone.number for person in people],
                           ["1234-5678"])
 
+    def test_result_set_sum_string(self):
+        result = self.Person.select()
+        self.assertEquals(result.sum('age'), 40)
+
+    def test_result_set_sum_expr(self):
+        result = self.Person.select()
+        self.assertEquals(result.sum(self.Person.q.age), 40)
+
     def test_table_dot_q(self):
         # Table.q.fieldname is a syntax used in SQLObject for
         # sqlbuilder expressions.  Storm can use the main properties
