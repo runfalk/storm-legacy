@@ -1096,7 +1096,7 @@ class ResultSet(object):
         @return: self (not a copy).
         """
         if self._group_by is Undef:
-            raise ExprError("having can only be called after group_by.")
+            raise FeatureError("having can only be called after group_by.")
         self._having = And(*expr)
         return self
 

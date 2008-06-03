@@ -1164,7 +1164,7 @@ class StoreTest(object):
 
     def test_find_having_without_group_by(self):
         result = self.store.find(FooValue)
-        self.assertRaises(ExprError, result.having, FooValue.value1 == 1)
+        self.assertRaises(FeatureError, result.having, FooValue.value1 == 1)
 
     def test_find_group_by_multiple_having(self):
         result = self.store.find((Count(), FooValue.value2)
@@ -1225,6 +1225,16 @@ class StoreTest(object):
         result2 = self.store.find(Foo, id=10)
         result3 = result1.union(result2)
         self.assertRaises(FeatureError, result3.group_by, Foo.title)
+
+    def test_find_group_by_remove(self):
+        result = self.store.find((Count(FooValue.id), Sum(FooValue.value1))
+            ).group_by(FooValue.value2)
+        self.assertRaises(FeatureError, result.remove)
+    
+    def test_find_group_by_set(self):
+        result = self.store.find((Count(FooValue.id), Sum(FooValue.value1))
+            ).group_by(FooValue.value2)
+        self.assertRaises(FeatureError, result.set, FooValue.value1 == 1)
 
     def test_add_commit(self):
         foo = Foo()
