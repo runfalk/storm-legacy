@@ -439,9 +439,9 @@ class Comparable(object):
 
     def is_in(self, others):
         if not isinstance(others, Expr):
-            if not others:
-                return None
             others = list(others)
+            if not others:
+                return SQLFalse()
             variable_factory = getattr(self, "variable_factory", Variable)
             for i, other in enumerate(others):
                 if not isinstance(other, (Expr, Variable)):
@@ -1208,7 +1208,6 @@ def compile_sql_token(compile, expr, state):
 def compile_python_sql_token(compile, expr, state):
     return expr
 
-
 class SQL(ComparableExpr):
 
     def __init__(self, expr, params=Undef, tables=Undef):
@@ -1248,6 +1247,24 @@ class Sequence(Expr):
 
     def __init__(self, name):
         self.name = name
+
+
+class SQLTrue(ComparableExpr):
+    """The true expression. Defined to be overriden when 'true' doesn't exist.
+    """
+
+@compile.when(SQLTrue)
+def compile_sql_true(compile, expr, state):
+    return "true"
+
+
+class SQLFalse(ComparableExpr):
+    """The false expression. Defined to be overriden when 'false' doesn't
+    exist."""
+
+@compile.when(SQLFalse)
+def compile_sql_false(compile, expr, state):
+    return "false"
 
 
 # --------------------------------------------------------------------

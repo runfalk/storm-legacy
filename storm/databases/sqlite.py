@@ -37,7 +37,7 @@ from storm.database import Database, Connection, Result
 from storm.exceptions import install_exceptions, DatabaseModuleError
 from storm.expr import (
     Insert, Select, SELECT, Undef, SQLRaw, Union, Except, Intersect,
-    compile, compile_insert, compile_select)
+    compile, compile_insert, compile_select, SQLTrue, SQLFalse)
 
 
 install_exceptions(sqlite)
@@ -69,6 +69,13 @@ def compile_insert_sqlite(compile, insert, state):
         insert.map.update(dict.fromkeys(insert.primary_columns, None))
     return compile_insert(compile, insert, state)
 
+@compile.when(SQLTrue)
+def compile_sql_true(compile, expr, state):
+    return "1"
+
+@compile.when(SQLFalse)
+def compile_sql_false(compile, expr, state):
+    return "0"
 
 class SQLiteResult(Result):
 
