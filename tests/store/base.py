@@ -123,25 +123,26 @@ class StoreTest(object):
         self.store = None
         self.stores = []
         self.create_database()
-        self.drop_tables()
-        self.create_tables()
-        self.create_sample_data()
+        connection = self.database.connect()
+        self.drop_tables(connection)
+        self.create_tables(connection)
+        self.create_sample_data(connection)
         self.create_store()
 
     def tearDown(self):
         self.drop_store()
         self.drop_sample_data()
-        self.drop_tables()
+        connection = self.database.connect()
+        self.drop_tables(connection)
         self.drop_database()
 
     def create_database(self):
         raise NotImplementedError
 
-    def create_tables(self):
+    def create_tables(self, connection):
         raise NotImplementedError
 
-    def create_sample_data(self):
-        connection = self.database.connect()
+    def create_sample_data(self, connection):
         connection.execute("INSERT INTO foo (id, title)"
                            " VALUES (10, 'Title 30')")
         connection.execute("INSERT INTO foo (id, title)"
@@ -192,8 +193,7 @@ class StoreTest(object):
     def drop_sample_data(self):
         pass
 
-    def drop_tables(self):
-        connection = self.database.connect()
+    def drop_tables(self, connection):
         for table in ["foo", "bar", "bin", "link", "money", "selfref"]:
             try:
                 connection.execute("DROP TABLE %s" % table)
@@ -4765,21 +4765,23 @@ class EmptyResultSetTest(object):
 
     def setUp(self):
         self.create_database()
-        self.drop_tables()
-        self.create_tables()
+        connection = self.database.connect()
+        self.drop_tables(connection)
+        self.create_tables(connection)
         self.create_store()
         self.empty = EmptyResultSet()
         self.result = self.store.find(Foo)
 
     def tearDown(self):
         self.drop_store()
-        self.drop_tables()
+        connection = self.database.connect()
+        self.drop_tables(connection)
         self.drop_database()
 
     def create_database(self):
         raise NotImplementedError
 
-    def create_tables(self):
+    def create_tables(self, connection):
         raise NotImplementedError
 
     def create_store(self):
@@ -4788,9 +4790,8 @@ class EmptyResultSetTest(object):
     def drop_database(self):
         pass
 
-    def drop_tables(self):
+    def drop_tables(self, connection):
         for table in ["foo", "bar", "bin", "link"]:
-            connection = self.database.connect()
             try:
                 connection.execute("DROP TABLE %s" % table)
                 connection.commit()
