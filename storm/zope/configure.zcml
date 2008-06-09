@@ -11,10 +11,12 @@
 
     <class class="storm.store.ResultSet">
         <allow interface=".interfaces.IResultSet" />
+        <allow attributes="__getslice__" />
     </class>
 
     <class class="storm.store.EmptyResultSet">
         <allow interface=".interfaces.IResultSet" />
+        <allow attributes="__getslice__" />
     </class>
 
     <class class="storm.sqlobject.SQLObjectResultSet">
