@@ -34,8 +34,8 @@ class SQLiteStoreTest(TestHelper, StoreTest):
         StoreTest.setUp(self)
 
     def tearDown(self):
-        StoreTest.tearDown(self)
         TestHelper.tearDown(self)
+        StoreTest.tearDown(self)
 
     def create_database(self):
         self.database = SQLite(URI("sqlite:" + self.make_path()))
@@ -74,8 +74,8 @@ class SQLiteEmptyResultSetTest(TestHelper, EmptyResultSetTest):
         EmptyResultSetTest.setUp(self)
 
     def tearDown(self):
-        EmptyResultSetTest.tearDown(self)
         TestHelper.tearDown(self)
+        EmptyResultSetTest.tearDown(self)
 
     def create_database(self):
         self.database = SQLite(URI("sqlite:" + self.make_path()))
