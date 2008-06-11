@@ -60,7 +60,8 @@ class PostgresStoreTest(TestHelper, StoreTest):
     def create_database(self):
         self.database = create_database(os.environ["STORM_POSTGRES_URI"])
 
-    def create_tables(self, connection):
+    def create_tables(self):
+        connection = self.connection
         connection.execute("CREATE TABLE foo "
                            "(id SERIAL PRIMARY KEY,"
                            " title VARCHAR DEFAULT 'Default Title')")
@@ -83,14 +84,14 @@ class PostgresStoreTest(TestHelper, StoreTest):
                            "(id SERIAL PRIMARY KEY, ints INTEGER[][])")
         connection.commit()
 
-    def drop_tables(self, connection):
-        StoreTest.drop_tables(self, connection)
+    def drop_tables(self):
+        StoreTest.drop_tables(self)
         for table in ["lst1", "lst2"]:
             try:
-                connection.execute("DROP TABLE %s" % table)
-                connection.commit()
+                self.connection.execute("DROP TABLE %s" % table)
+                self.connection.commit()
             except:
-                connection.rollback()
+                self.connection.rollback()
 
     def test_list_variable(self):
 
@@ -174,8 +175,8 @@ class PostgresEmptyResultSetTest(TestHelper, EmptyResultSetTest):
     def create_database(self):
         self.database = create_database(os.environ["STORM_POSTGRES_URI"])
 
-    def create_tables(self, connection):
-        connection.execute("CREATE TABLE foo "
+    def create_tables(self):
+        self.connection.execute("CREATE TABLE foo "
                            "(id SERIAL PRIMARY KEY,"
                            " title VARCHAR DEFAULT 'Default Title')")
-        connection.commit()
+        self.connection.commit()

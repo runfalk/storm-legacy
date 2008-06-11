@@ -42,7 +42,8 @@ class MySQLStoreTest(TestHelper, StoreTest):
     def create_database(self):
         self.database = create_database(os.environ["STORM_MYSQL_URI"])
 
-    def create_tables(self, connection):
+    def create_tables(self):
+        connection = self.connection
         connection.execute("CREATE TABLE foo "
                            "(id INT PRIMARY KEY AUTO_INCREMENT,"
                            " title VARCHAR(50) DEFAULT 'Default Title') "
@@ -89,9 +90,9 @@ class MySQLEmptyResultSetTest(TestHelper, EmptyResultSetTest):
     def create_database(self):
         self.database = create_database(os.environ["STORM_MYSQL_URI"])
 
-    def create_tables(self, connection):
-        connection.execute("CREATE TABLE foo "
-                           "(id INT PRIMARY KEY AUTO_INCREMENT,"
-                           " title VARCHAR(50) DEFAULT 'Default Title') "
-                           "ENGINE=InnoDB")
-        connection.commit()
+    def create_tables(self):
+        self.connection.execute("CREATE TABLE foo "
+                                "(id INT PRIMARY KEY AUTO_INCREMENT,"
+                                " title VARCHAR(50) DEFAULT 'Default Title') "
+                                "ENGINE=InnoDB")
+        self.connection.commit()
