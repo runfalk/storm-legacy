@@ -60,6 +60,6 @@ class EventSystem(object):
         if owner is not None:
             callbacks = self._hooks.get(name)
             if callbacks is not None:
-                for callback, data in callbacks.copy():
+                for callback, data in tuple(callbacks):
                     if callback(owner, *(args+data)) is False:
                         callbacks.discard((callback, data))
