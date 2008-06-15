@@ -20,6 +20,8 @@
 #
 import weakref
 
+from storm import psycer
+
 
 __all__ = ["EventSystem"]
 
@@ -63,3 +65,6 @@ class EventSystem(object):
                 for callback, data in tuple(callbacks):
                     if callback(owner, *(args+data)) is False:
                         callbacks.discard((callback, data))
+
+
+psycer.bind(EventSystem, 0)

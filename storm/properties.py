@@ -30,6 +30,7 @@ from storm.variables import (
     DecimalVariable, RawStrVariable, UnicodeVariable, DateTimeVariable,
     DateVariable, TimeVariable, TimeDeltaVariable, PickleVariable,
     ListVariable, EnumVariable)
+from storm import psycer
 
 
 
@@ -334,3 +335,6 @@ class PropertyPublisherMeta(type):
             self._storm_property_registry = PropertyRegistry()
         elif hasattr(self, "__storm_table__"):
             self._storm_property_registry.add_class(self)
+
+
+psycer.bind(Property)
