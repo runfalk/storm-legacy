@@ -988,7 +988,7 @@ Compile_when(CompileObject *self, PyObject *types)
     CATCH(NULL, args = PyTuple_New(PyTuple_GET_SIZE(types) + 1));
 
     Py_INCREF(self);
-    PyTuple_SET_ITEM(args, 0, self);
+    PyTuple_SET_ITEM(args, 0, (PyObject *)self);
 
     for (i = 0; i != PyTuple_GET_SIZE(types); i++) {
         PyObject *item = PyTuple_GET_ITEM(types, i);
