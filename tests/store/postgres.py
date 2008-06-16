@@ -177,6 +177,6 @@ class PostgresEmptyResultSetTest(TestHelper, EmptyResultSetTest):
 
     def create_tables(self):
         self.connection.execute("CREATE TABLE foo "
-                           "(id SERIAL PRIMARY KEY,"
-                           " title VARCHAR DEFAULT 'Default Title')")
+                                "(id SERIAL PRIMARY KEY,"
+                                " title VARCHAR DEFAULT 'Default Title')")
         self.connection.commit()
