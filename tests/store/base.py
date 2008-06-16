@@ -27,7 +27,6 @@ from storm.database import Result
 from storm.properties import Int, Float, RawStr, Unicode, Property, Pickle
 from storm.properties import PropertyPublisherMeta, Decimal
 from storm.expr import Asc, Desc, Select, Func, LeftJoin, SQL, Or, And, Eq
-from storm.expr import SQLTrue, SQLFalse
 from storm.variables import Variable, UnicodeVariable, IntVariable
 from storm.info import get_obj_info, ClassAlias
 from storm.exceptions import *
@@ -4525,7 +4524,7 @@ class StoreTest(object):
         self.assertEquals(result2.count(), 1)
 
     def test_is_in_empty_list(self):
-        result2 = self.store.find(Foo, Eq(SQLFalse(), And(SQLTrue(), Foo.id.is_in([]))))
+        result2 = self.store.find(Foo, Eq(False, And(True, Foo.id.is_in([]))))
         self.assertEquals(result2.count(), 3)
 
     def test_result_intersection(self):

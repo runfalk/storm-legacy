@@ -441,7 +441,7 @@ class Comparable(object):
         if not isinstance(others, Expr):
             others = list(others)
             if not others:
-                return SQLFalse()
+                return False
             variable_factory = getattr(self, "variable_factory", Variable)
             for i, other in enumerate(others):
                 if not isinstance(other, (Expr, Variable)):
@@ -1247,24 +1247,6 @@ class Sequence(Expr):
 
     def __init__(self, name):
         self.name = name
-
-
-class SQLTrue(ComparableExpr):
-    """The true expression. Defined to be overriden when 'true' doesn't exist.
-    """
-
-@compile.when(SQLTrue)
-def compile_sql_true(compile, expr, state):
-    return "true"
-
-
-class SQLFalse(ComparableExpr):
-    """The false expression. Defined to be overriden when 'false' doesn't
-    exist."""
-
-@compile.when(SQLFalse)
-def compile_sql_false(compile, expr, state):
-    return "false"
 
 
 # --------------------------------------------------------------------
