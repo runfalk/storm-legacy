@@ -29,7 +29,7 @@ from storm.variables import (
     Variable, RawStrVariable, UnicodeVariable, LazyValue,
     DateTimeVariable, DateVariable, TimeVariable, TimeDeltaVariable,
     BoolVariable, IntVariable, FloatVariable, DecimalVariable)
-from storm import Undef, psycer
+from storm import Undef, psycer, _have_cextensions
 
 
 # --------------------------------------------------------------------
@@ -199,10 +199,8 @@ class Compile(object):
         return statement
 
 
-try:
+if _have_cextensions:
     from storm.cextensions import Compile
-except ImportError:
-    pass
 
 
 class CompilePython(Compile):
