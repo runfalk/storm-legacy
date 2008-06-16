@@ -2,8 +2,10 @@ PYTHON = python$(PYTHON_VERSION)
 PYTHON_VERSION = 2.4
 TESTDB = storm_test
 
-all:
-	@:
+all: build
+
+build:
+	$(PYTHON) setup.py build_ext -i
 
 check:
 	@echo "* Creating $(TESTDB)"
@@ -13,4 +15,4 @@ check:
 	createdb $(TESTDB)
 	STORM_POSTGRES_URI=postgres:$(TESTDB) $(PYTHON) test --verbose
 
-.PHONY: all check
+.PHONY: all build check
