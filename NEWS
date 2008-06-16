@@ -3,6 +3,8 @@
 
 Improvements
 ------------
+ - Change tests/store to keep the connection during the tests to make it
+   faster.
  - Implemented support for plugging generic "tracers".  Statement
    debugging is now implemented using a tracer, and easily enabled
    with storm.tracer.debug(True) (storm.database.DEBUG = True is gone).

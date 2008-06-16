@@ -123,6 +123,7 @@ class StoreTest(object):
         self.store = None
         self.stores = []
         self.create_database()
+        self.connection = self.database.connect()
         self.drop_tables()
         self.create_tables()
         self.create_sample_data()
@@ -133,6 +134,7 @@ class StoreTest(object):
         self.drop_sample_data()
         self.drop_tables()
         self.drop_database()
+        self.connection.close()
 
     def create_database(self):
         raise NotImplementedError
@@ -141,7 +143,7 @@ class StoreTest(object):
         raise NotImplementedError
 
     def create_sample_data(self):
-        connection = self.database.connect()
+        connection = self.connection
         connection.execute("INSERT INTO foo (id, title)"
                            " VALUES (10, 'Title 30')")
         connection.execute("INSERT INTO foo (id, title)"
@@ -193,13 +195,12 @@ class StoreTest(object):
         pass
 
     def drop_tables(self):
-        connection = self.database.connect()
         for table in ["foo", "bar", "bin", "link", "money", "selfref"]:
             try:
-                connection.execute("DROP TABLE %s" % table)
-                connection.commit()
+                self.connection.execute("DROP TABLE %s" % table)
+                self.connection.commit()
             except:
-                connection.rollback()
+                self.connection.rollback()
 
     def drop_database(self):
         pass
@@ -4765,6 +4766,7 @@ class EmptyResultSetTest(object):
 
     def setUp(self):
         self.create_database()
+        self.connection = self.database.connect()
         self.drop_tables()
         self.create_tables()
         self.create_store()
@@ -4775,6 +4777,7 @@ class EmptyResultSetTest(object):
         self.drop_store()
         self.drop_tables()
         self.drop_database()
+        self.connection.close()
 
     def create_database(self):
         raise NotImplementedError
@@ -4790,12 +4793,11 @@ class EmptyResultSetTest(object):
 
     def drop_tables(self):
         for table in ["foo", "bar", "bin", "link"]:
-            connection = self.database.connect()
             try:
-                connection.execute("DROP TABLE %s" % table)
-                connection.commit()
+                self.connection.execute("DROP TABLE %s" % table)
+                self.connection.commit()
             except:
-                connection.rollback()
+                self.connection.rollback()
 
     def drop_store(self):
         self.store.rollback()
