@@ -4777,6 +4777,7 @@ class EmptyResultSetTest(object):
         self.drop_store()
         self.drop_tables()
         self.drop_database()
+        self.connection.close()
 
     def create_database(self):
         raise NotImplementedError
