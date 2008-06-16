@@ -12,7 +12,7 @@ if os.path.isfile("MANIFEST"):
     os.unlink("MANIFEST")
 
 
-BUILD_CEXTENSIONS = False
+BUILD_CEXTENSIONS = True
 
 
 VERSION = re.search('version = "([^"]+)"',
