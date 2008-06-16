@@ -69,6 +69,7 @@ def compile_insert_sqlite(compile, insert, state):
         insert.map.update(dict.fromkeys(insert.primary_columns, None))
     return compile_insert(compile, insert, state)
 
+
 class SQLiteResult(Result):
 
     def get_insert_identity(self, primary_key, primary_variables):

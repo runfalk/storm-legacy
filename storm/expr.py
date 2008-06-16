@@ -1208,6 +1208,7 @@ def compile_sql_token(compile, expr, state):
 def compile_python_sql_token(compile, expr, state):
     return expr
 
+
 class SQL(ComparableExpr):
 
     def __init__(self, expr, params=Undef, tables=Undef):
