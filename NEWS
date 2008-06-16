@@ -18,6 +18,7 @@ Improvements
 
 Bug fixes
 ---------
+ - Make is_in returns False instead of NULL on an empty result set.
  - References now won't flush the store or query the database when
    the foreign key is None.
  - When a reference is set to an object that wasn't yet inserted in
