@@ -26,7 +26,7 @@ from storm.references import Reference, ReferenceSet, Proxy
 from storm.database import Result
 from storm.properties import Int, Float, RawStr, Unicode, Property, Pickle
 from storm.properties import PropertyPublisherMeta, Decimal
-from storm.expr import Asc, Desc, Select, Func, LeftJoin, SQL
+from storm.expr import Asc, Desc, Select, Func, LeftJoin, SQL, Or, And, Eq
 from storm.variables import Variable, UnicodeVariable, IntVariable
 from storm.info import get_obj_info, ClassAlias
 from storm.exceptions import *
@@ -4518,6 +4518,15 @@ class StoreTest(object):
         result3 = result1.difference(result2)
 
         self.assertEquals(result3.count(), 2)
+
+    def test_is_in_empty_result_set(self):
+        result1 = self.store.find(Foo, Foo.id < 10)
+        result2 = self.store.find(Foo, Or(Foo.id > 20, Foo.id.is_in(result1)))
+        self.assertEquals(result2.count(), 1)
+
+    def test_is_in_empty_list(self):
+        result2 = self.store.find(Foo, Eq(False, And(True, Foo.id.is_in([]))))
+        self.assertEquals(result2.count(), 3)
 
     def test_result_intersection(self):
         if self.__class__.__name__.startswith("MySQL"):

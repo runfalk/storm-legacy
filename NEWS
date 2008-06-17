@@ -20,6 +20,7 @@ Improvements
 
 Bug fixes
 ---------
+ - Make is_in returns False instead of NULL on an empty result set.
  - ZStorm now keeps strong references to named stores. Previously it only kept
    weak ones, so stores were recreated more often than necessary.
  - References now won't flush the store or query the database when
