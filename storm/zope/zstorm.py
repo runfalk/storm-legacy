@@ -88,7 +88,7 @@ class ZStorm(object):
             return self._local.named
         except AttributeError:
             return self._local.__dict__.setdefault(
-                "named", weakref.WeakValueDictionary())
+                "named", {})
 
     @property
     def _name_index(self):

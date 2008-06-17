@@ -20,6 +20,8 @@ Improvements
 
 Bug fixes
 ---------
+ - ZStorm now keeps strong references to named stores. Previously it only kept
+   weak ones, so stores were recreated more often than necessary.
  - References now won't flush the store or query the database when
    the foreign key is None.
  - When a reference is set to an object that wasn't yet inserted in
