@@ -3,6 +3,8 @@
 
 Improvements
 ------------
+ - Change tests/store to keep the connection during the tests to make it
+   faster.
  - Implemented support for plugging generic "tracers".  Statement
    debugging is now implemented using a tracer, and easily enabled
    with storm.tracer.debug(True) (storm.database.DEBUG = True is gone).
@@ -19,6 +21,8 @@ Improvements
 Bug fixes
 ---------
  - Make is_in returns False instead of NULL on an empty result set.
+ - ZStorm now keeps strong references to named stores. Previously it only kept
+   weak ones, so stores were recreated more often than necessary.
  - References now won't flush the store or query the database when
    the foreign key is None.
  - When a reference is set to an object that wasn't yet inserted in
