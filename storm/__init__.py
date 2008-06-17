@@ -19,6 +19,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import os
+
 
 version = "0.12"
 version_info = tuple([int(x) for x in version.split(".")])
@@ -34,3 +36,13 @@ class UndefType(object):
 
 
 Undef = UndefType()
+
+
+_have_cextensions = False
+if not os.environ.get("STORM_DISABLE_CEXTENSIONS"):
+    try:
+        from storm import cextensions
+        _have_cextensions = True
+    except ImportError, e:
+        if "cextensions" not in str(e):
+            raise
