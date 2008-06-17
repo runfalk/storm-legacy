@@ -17,7 +17,7 @@ all: build
 build:
 	$(PYTHON) setup.py build_ext -i
 
-test: build
+check: build
 	# Run the tests once with cextensions and once without them.
 	$(TEST_COMMAND) && STORM_CEXTENSIONS=1 $(TEST_COMMAND)
 
