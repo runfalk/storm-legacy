@@ -1174,15 +1174,6 @@ class StoreTest(object):
         list_result.sort()
         self.assertEquals(list_result, [(2, 3), (2, 4)])
 
-    def test_find_group_by_wrong_columns(self):
-        self.assertRaises(ExprError,
-            self.store.find(FooValue.value1).group_by, FooValue.value2)
-
-    def test_find_group_by_wrong_tables(self):
-        self.assertRaises(ExprError,
-            self.store.find((Sum(FooValue.value1), Foo),
-                Foo.id == FooValue.foo_id).group_by, FooValue.value2)
-
     def test_find_successive_group_by(self):
         result = self.store.find(Count()).group_by(FooValue.value2)
         list_result = list(result)

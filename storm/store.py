@@ -1050,6 +1050,9 @@ class ResultSet(object):
         This is done efficiently with a DELETE statement, so objects
         are not actually loaded into Python.
         """
+        if self._group_by is not Undef:
+            raise FeatureError("Removing isn't supported after a "
+                               " GROUP BY clause ")
         if self._offset is not Undef or self._limit is not Undef:
             raise FeatureError("Can't remove a sliced result set")
         if self._find_spec.default_cls_info is None:
@@ -1075,15 +1078,6 @@ class ResultSet(object):
 
         find_spec = FindSpec(expr)
         columns, dummy = find_spec.get_columns_and_tables()
-        selected_columns, dummy = self._find_spec.get_columns_and_tables()
-        for column in selected_columns:
-            if isinstance(column, Column):
-                for group_column in columns:
-                    if column is group_column:
-                        break
-                else:
-                    raise ExprError(
-                        "Selected column not in GROUP BY: %s" % (column.name,))
 
         self._group_by = columns
         return self
@@ -1180,6 +1174,9 @@ class ResultSet(object):
         For instance, C{result.set(Class.attr1 == 1, attr2=2)} will set
         C{attr1} to 1 and C{attr2} to 2, on all matching objects.
         """
+        if self._group_by is not Undef:
+            raise FeatureError("Setting isn't supported after a "
+                               " GROUP BY clause ")
 
         if self._find_spec.default_cls_info is None:
             raise FeatureError("Setting isn't supported with tuple or "
