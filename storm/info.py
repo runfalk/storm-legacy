@@ -24,7 +24,7 @@ from storm.exceptions import ClassInfoError
 from storm.expr import Expr, FromExpr, Column, Desc, TABLE
 from storm.expr import SQLToken, CompileError, compile
 from storm.event import EventSystem
-from storm import Undef, psycer, _have_cextensions
+from storm import Undef, psycer, cextensions
 
 
 __all__ = ["get_obj_info", "set_obj_info", "get_cls_info",
@@ -194,8 +194,10 @@ class ObjectInfo(dict):
         for variable in self.variables.itervalues():
             variable.checkpoint()
 
-if _have_cextensions:
-    from storm.cextensions import ObjectInfo, get_obj_info
+
+if cextensions:
+    ObjectInfo = cextensions.ObjectInfo
+    get_obj_info = cextensions.get_obj_info
 
 
 class ClassAlias(FromExpr):

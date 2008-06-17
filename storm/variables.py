@@ -24,7 +24,7 @@ import cPickle as pickle
 import re
 
 from storm.exceptions import NoneError
-from storm import Undef, psycer, _have_cextensions
+from storm import Undef, psycer, cextensions
 
 
 __all__ = [
@@ -322,8 +322,8 @@ class Variable(object):
         return value
 
 
-if _have_cextensions:
-    from storm.cextensions import Variable
+if cextensions:
+    Variable = cextensions.Variable
 
 
 class BoolVariable(Variable):
