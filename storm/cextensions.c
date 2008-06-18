@@ -1557,7 +1557,7 @@ error:
 
 PyObject *
 Compile_one_or_many(CompileObject *self, PyObject *expr, PyObject *state,
-                    PyObject *join, char raw, char token)
+                    PyObject *join, int raw, int token)
 {
     PyObject *outer_precedence = NULL;
     PyObject *compiled = NULL;

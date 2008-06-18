@@ -29,7 +29,7 @@ from storm.variables import (
     Variable, RawStrVariable, UnicodeVariable, LazyValue,
     DateTimeVariable, DateVariable, TimeVariable, TimeDeltaVariable,
     BoolVariable, IntVariable, FloatVariable, DecimalVariable)
-from storm import Undef, psycer, has_cextensions
+from storm import Undef, has_cextensions
 
 
 # --------------------------------------------------------------------
@@ -1367,6 +1367,3 @@ compile.add_reserved_words(
     value values varchar varying view when whenever where with work write
     year zone
     """.split())
-
-
-psycer.bind(Compile.__call__)

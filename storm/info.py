@@ -24,7 +24,7 @@ from storm.exceptions import ClassInfoError
 from storm.expr import Expr, FromExpr, Column, Desc, TABLE
 from storm.expr import SQLToken, CompileError, compile
 from storm.event import EventSystem
-from storm import Undef, psycer, has_cextensions
+from storm import Undef, has_cextensions
 
 
 __all__ = ["get_obj_info", "set_obj_info", "get_cls_info",
@@ -247,6 +247,3 @@ def compile_type(compile, expr, state):
     if state.context is TABLE and issubclass(expr, ClassAlias):
         return "%s AS %s" % (compile(cls_info.cls, state), table)
     return table
-
-
-psycer.bind(ObjectInfo, 0)

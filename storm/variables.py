@@ -24,7 +24,7 @@ import cPickle as pickle
 import re
 
 from storm.exceptions import NoneError
-from storm import Undef, psycer, has_cextensions
+from storm import Undef, has_cextensions
 
 
 __all__ = [
@@ -663,6 +663,3 @@ def _parse_interval(interval):
     if value is not None:
         result += timedelta(seconds=value)
     return result
-
-
-psycer.bind(Variable)
