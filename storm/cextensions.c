@@ -45,6 +45,13 @@ typedef int Py_ssize_t;
             object = NULL; \
         } while (0)
 
+#define REPLACE(variable, new_value) \
+        do { \
+            PyObject *tmp = variable; \
+            variable = new_value; \
+            Py_DECREF(tmp); \
+        } while(0)
+
 
 static PyObject *Undef = NULL;
 static PyObject *LazyValue = NULL;
@@ -556,9 +563,8 @@ Variable_init(VariableObject *self, PyObject *args, PyObject *kwargs)
     if (allow_none != Py_True &&
         (allow_none == Py_False || !PyObject_IsTrue(allow_none))) {
         /* self._allow_none = False */
-        Py_DECREF(self->_allow_none);
         Py_INCREF(Py_False);
-        self->_allow_none = Py_False;
+        REPLACE(self->_allow_none, Py_False);
     }
 
     /* if value is not Undef: */
@@ -778,9 +784,8 @@ Variable_set(VariableObject *self, PyObject *args, PyObject *kwargs)
     /* if isinstance(value, LazyValue): */
     if (PyObject_IsInstance(value, LazyValue)) {
         /* self._lazy_value = value */
-        Py_DECREF(self->_lazy_value);
         Py_INCREF(value);
-        self->_lazy_value = value;
+        REPLACE(self->_lazy_value, value);
 
         /* new_value = Undef */
         Py_INCREF(Undef);
@@ -1164,9 +1169,8 @@ Compile_init(CompileObject *self, PyObject *args, PyObject *kwargs)
         PyObject *tmp;
 
         /* self._parents.extend(parent._parents) */
-        Py_ssize_t size = PyList_GET_SIZE(self->_parents);
         CompileObject *parent_object = (CompileObject *)parent;
-        CATCH(-1, PyList_SetSlice(self->_parents, size, size,
+        CATCH(-1, PyList_SetSlice(self->_parents, 0, 0,
                                   parent_object->_parents));
 
         /* self._parents.append(parent) */
