@@ -39,12 +39,6 @@ typedef int Py_ssize_t;
             } \
         } while (0)
 
-#define DECREF(object) \
-        do { \
-            Py_DECREF(object); \
-            object = NULL; \
-        } while (0)
-
 #define REPLACE(variable, new_value) \
         do { \
             PyObject *tmp = variable; \
@@ -1156,10 +1150,10 @@ Compile_init(CompileObject *self, PyObject *args, PyObject *kwargs)
     CATCH(NULL, module = PyImport_ImportModule("weakref"));
     CATCH(NULL, WeakKeyDictionary = \
                     PyObject_GetAttrString(module, "WeakKeyDictionary"));
-    DECREF(module);
+    Py_CLEAR(module);
     CATCH(NULL, self->_children = \
                     PyObject_CallFunctionObjArgs(WeakKeyDictionary, NULL));
-    DECREF(WeakKeyDictionary);
+    Py_CLEAR(WeakKeyDictionary);
 
     /* self._parents = [] */
     CATCH(NULL, self->_parents = PyList_New(0));
@@ -1274,7 +1268,7 @@ Compile__update_cache(CompileObject *self, PyObject *args)
     }
     if (PyErr_Occurred())
         goto error;
-    DECREF(iter);
+    Py_CLEAR(iter);
 
     Py_RETURN_NONE;
 
@@ -1336,12 +1330,12 @@ Compile_add_reserved_words(CompileObject *self, PyObject *words)
         CATCH(NULL, lower_word = PyObject_CallMethod(word, "lower", NULL));
         CATCH(-1, PyDict_SetItem(self->_local_reserved_words,
                                  lower_word, Py_True));
-        DECREF(lower_word);
+        Py_CLEAR(lower_word);
         Py_DECREF(word);
     }
     if (PyErr_Occurred())
         goto error;
-    DECREF(iter);
+    Py_CLEAR(iter);
 
     /* self._update_cache() */
     CATCH(NULL, tmp = Compile__update_cache(self, NULL));
@@ -1371,12 +1365,12 @@ Compile_remove_reserved_words(CompileObject *self, PyObject *words)
         CATCH(NULL, lower_word = PyObject_CallMethod(word, "lower", NULL));
         CATCH(-1, PyDict_SetItem(self->_local_reserved_words,
                                  lower_word, Py_None));
-        DECREF(lower_word);
+        Py_CLEAR(lower_word);
         Py_DECREF(word);
     }
     if (PyErr_Occurred())
         goto error;
-    DECREF(iter);
+    Py_CLEAR(iter);
 
     /* self._update_cache() */
     CATCH(NULL, tmp = Compile__update_cache(self, NULL));
@@ -1664,13 +1658,13 @@ Compile_one_or_many(CompileObject *self, PyObject *expr, PyObject *state,
             
             /* compiled.append(statement) */
             CATCH(-1, PyList_Append(compiled, statement));
-            DECREF(statement);
+            Py_CLEAR(statement);
         }
-        DECREF(sequence);
+        Py_CLEAR(sequence);
 
         /* statement = join.join(compiled) */
         CATCH(NULL, statement = PyUnicode_Join(join, compiled));
-        DECREF(compiled);
+        Py_CLEAR(compiled);
     } else {
         /* statement = self._compile_single(expr, state, outer_precedence) */
         CATCH(NULL, statement = Compile_single(self, expr, state,
@@ -1679,7 +1673,7 @@ Compile_one_or_many(CompileObject *self, PyObject *expr, PyObject *state,
 
     /* state.precedence = outer_precedence */
     CATCH(-1, PyObject_SetAttrString(state, "precedence", outer_precedence));
-    DECREF(outer_precedence);
+    Py_CLEAR(outer_precedence);
 
     Py_DECREF(expr);
 
