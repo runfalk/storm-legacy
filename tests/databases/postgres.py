@@ -468,7 +468,7 @@ class PostgresTimeoutTracerTest(TimeoutTracerTestBase):
         self.assertEquals(result.get_one(), ("10500ms",))
 
     def test_connection_raw_execute_error(self):
-        statement = "SELECT pg_sleep(0.005)"
+        statement = "SELECT pg_sleep(0.5)"
         self.remaining_time = 0.001
         try:
             self.connection.execute(statement)
