@@ -53,6 +53,7 @@ static PyObject *SQLToken = NULL;
 static PyObject *State = NULL;
 static PyObject *CompileError = NULL;
 static PyObject *parenthesis_format = NULL;
+static PyObject *default_compile_join = NULL;
 
 
 typedef struct {
@@ -181,7 +182,10 @@ initialize_globals(void)
 
     Py_DECREF(module);
 
+    /* A few frequently used objects which are part of the fast path. */
+
     parenthesis_format = PyUnicode_DecodeASCII("(%s)", 4, "strict");
+    default_compile_join = PyUnicode_DecodeASCII(", ", 2, "strict");
 
     return 1;
 }
@@ -1691,7 +1695,7 @@ Compile__call__(CompileObject *self, PyObject *args, PyObject *kwargs)
 
     PyObject *expr = NULL;
     PyObject *state = Py_None;
-    PyObject *join = NULL;
+    PyObject *join = default_compile_join;
     char raw = 0;
     char token = 0;
 
@@ -1717,10 +1721,6 @@ Compile__call__(CompileObject *self, PyObject *args, PyObject *kwargs)
         CATCH(NULL, state = PyObject_CallFunctionObjArgs(State, NULL));
     } else {
         Py_INCREF(state);
-    }
-
-    if (join == NULL) {
-        CATCH(NULL, join = PyString_FromString(", "));
     }
 
     result = Compile_one_or_many(self, expr, state, join, raw, token);
