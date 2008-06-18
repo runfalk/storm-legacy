@@ -124,7 +124,7 @@ class ZStorm(object):
         else:
             database = self._get_database(uri)
 
-        if name is not None and  self._named.get(name) is not None:
+        if name is not None and self._named.get(name) is not None:
             raise ZStormError("Store named '%s' already exists" % name)
 
         store = Store(database)
