@@ -35,7 +35,7 @@ from storm import Undef, has_cextensions
 # --------------------------------------------------------------------
 # Basic compiler infrastructure
 
-def _when(self, *types):
+def _when(self, types):
     """Check Compile.when.  Defined here to ease the work of cextensions."""
     def decorator(method):
         for type in types:
@@ -84,7 +84,7 @@ class Compile(object):
             ...
             return "THE COMPILED SQL STATEMENT"
         """
-        return _when(self, *types)
+        return _when(self, types)
 
     def add_reserved_words(self, words):
         """Include words to be considered reserved and thus escaped.

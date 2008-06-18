@@ -1281,38 +1281,17 @@ error:
 static PyObject *
 Compile_when(CompileObject *self, PyObject *types)
 {
-    PyObject *module = NULL;
-    PyObject *_when = NULL;
-    PyObject *args = NULL;
-    PyObject *decorator;
-    Py_ssize_t i;
-
-    CATCH(NULL, module = PyImport_ImportModule("storm.expr"));
-    CATCH(NULL, _when = PyObject_GetAttrString(module, "_when"));
-
-    CATCH(NULL, args = PyTuple_New(PyTuple_GET_SIZE(types) + 1));
-
-    Py_INCREF(self);
-    PyTuple_SET_ITEM(args, 0, (PyObject *)self);
-
-    for (i = 0; i != PyTuple_GET_SIZE(types); i++) {
-        PyObject *item = PyTuple_GET_ITEM(types, i);
-        Py_INCREF(item);
-        PyTuple_SET_ITEM(args, i + 1, item);
+    PyObject *result = NULL;
+    PyObject *module = PyImport_ImportModule("storm.expr");
+    if (module) {
+        PyObject *_when = PyObject_GetAttrString(module, "_when");
+        if (_when) {
+            result = PyObject_CallFunctionObjArgs(_when, self, types, NULL);
+            Py_DECREF(_when);
+        }
+        Py_DECREF(module);
     }
-
-    CATCH(NULL, decorator = PyObject_Call(_when, args, NULL));
-
-    Py_DECREF(module);
-    Py_DECREF(_when);
-    Py_DECREF(args);
-    return decorator;
-
-error:
-    Py_XDECREF(module);
-    Py_XDECREF(_when);
-    Py_XDECREF(args);
-    return NULL;
+    return result;    
 }
 
 static PyObject *
