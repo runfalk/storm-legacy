@@ -18,6 +18,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+from weakref import ref
 import gc
 
 from storm.exceptions import ClassInfoError
@@ -26,7 +27,7 @@ from storm.variables import Variable
 from storm.expr import Undef, Select, compile
 from storm.info import *
 
-from tests.helper import TestHelper
+from tests.helper import TestHelper, run_this
 
 
 class Wrapper(object):
@@ -580,16 +581,45 @@ class ClassAliasTest(TestHelper):
         Class aliases are cached such that multiple invocations of
         C{ClassAlias} return the same object.
         """
-        alias1 = ClassAlias(self.Class, "select")
-        alias2 = ClassAlias(self.Class, "select")
+        alias1 = ClassAlias(self.Class, "something_unlikely")
+        alias2 = ClassAlias(self.Class, "something_unlikely")
         self.assertIdentical(alias1, alias2)
-        alias3 = ClassAlias(self.Class, "select3")
+        alias3 = ClassAlias(self.Class, "something_unlikely2")
         self.assertNotIdentical(alias1, alias3)
+        alias4 = ClassAlias(self.Class, "something_unlikely2")
+        self.assertIdentical(alias3, alias4)
 
     def test_unnamed_aliases_not_cached(self):
         alias1 = ClassAlias(self.Class)
         alias2 = ClassAlias(self.Class)
         self.assertNotIdentical(alias1, alias2)
+
+    def test_alias_cache_is_per_class(self):
+        """
+        The cache of class aliases is not as bad as it once was.
+        """
+        class LocalClass(self.Class):
+            pass
+        alias = ClassAlias(self.Class, "something_unlikely")
+        alias2 = ClassAlias(LocalClass, "something_unlikely")
+        self.assertNotIdentical(alias, alias2)
+
+    def test_aliases_only_last_as_long_as_class(self):
+        """
+        The cached ClassAliases only last for as long as the class is alive.
+        """
+        class LocalClass(self.Class):
+            pass
+        alias = ClassAlias(LocalClass, "something_unlikely3")
+        alias_ref = ref(alias)
+        class_ref = ref(LocalClass)
+        del alias
+        del LocalClass
+
+        gc.collect(); gc.collect(); gc.collect()
+
+        self.assertIdentical(class_ref(), None)
+        self.assertIdentical(alias_ref(), None)
 
 
 class TypeCompilerTest(TestHelper):
@@ -607,3 +637,4 @@ class TypeCompilerTest(TestHelper):
         alias = ClassAlias(Class2, "alias")
         statement = compile(Select(alias.id))
         self.assertEquals(statement, "SELECT alias.id FROM class1 AS alias")
+
