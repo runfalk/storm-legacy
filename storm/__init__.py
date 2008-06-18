@@ -40,17 +40,15 @@ Undef = UndefType()
 
 # XXX The default is 1 for now.  In the future we'll invert this logic so
 #     that it's enabled by default.
+has_cextensions = False
 if os.environ.get("STORM_CEXTENSIONS") == "1":
     try:
         from storm import cextensions
+        has_cextensions = True
     except ImportError, e:
         # XXX Once the logic is inverted and cextensions are enabled by
-        #     default, enable this code so that people may opt to use
-        #     and distribute the pure Python version.
+        #     default, use the following version so that people may opt
+        #     to use and distribute the pure Python version.
         #if "cextensions" not in str(e):
         #    raise
-        #else:
-        #    cextensions = None
         raise
-else:
-    cextensions = None
