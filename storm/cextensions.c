@@ -57,6 +57,12 @@ static PyObject *parenthesis_format = NULL;
 
 typedef struct {
     PyObject_HEAD
+    PyObject *_owner_ref;
+    PyObject *_hooks;
+} EventSystemObject;
+
+typedef struct {
+    PyObject_HEAD
     PyObject *_value;
     PyObject *_lazy_value;
     PyObject *_checkpoint_state;
@@ -104,86 +110,387 @@ initialize_globals(void)
 
     initialized = 1;
 
-    {
-        module = PyImport_ImportModule("storm");
-        if (!module)
-            return 0;
+    /* Import objects from storm module */
+    module = PyImport_ImportModule("storm");
+    if (!module)
+        return 0;
 
-        Undef = PyObject_GetAttrString(module, "Undef");
-        if (!Undef)
-            return 0;
+    Undef = PyObject_GetAttrString(module, "Undef");
+    if (!Undef)
+        return 0;
 
-        Py_DECREF(module);
-    }
+    Py_DECREF(module);
 
-    {
-        module = PyImport_ImportModule("storm.variables");
-        if (!module)
-            return 0;
+    /* Import objects from storm.variables module */
+    module = PyImport_ImportModule("storm.variables");
+    if (!module)
+        return 0;
 
-        raise_none_error = PyObject_GetAttrString(module, "raise_none_error");
-        if (!raise_none_error)
-            return 0;
+    raise_none_error = PyObject_GetAttrString(module, "raise_none_error");
+    if (!raise_none_error)
+        return 0;
 
-        LazyValue = PyObject_GetAttrString(module, "LazyValue");
-        if (!LazyValue)
-            return 0;
+    LazyValue = PyObject_GetAttrString(module, "LazyValue");
+    if (!LazyValue)
+        return 0;
 
-        Py_DECREF(module);
-    }
+    Py_DECREF(module);
 
-    {
-        module = PyImport_ImportModule("storm.info");
-        if (!module)
-            return 0;
-        
-        get_cls_info = PyObject_GetAttrString(module, "get_cls_info");
-        if (!get_cls_info)
-            return 0;
+    /* Import objects from storm.info module */
+    module = PyImport_ImportModule("storm.info");
+    if (!module)
+        return 0;
+    
+    get_cls_info = PyObject_GetAttrString(module, "get_cls_info");
+    if (!get_cls_info)
+        return 0;
 
-        Py_DECREF(module);
-    }
+    Py_DECREF(module);
 
-    {
-        module = PyImport_ImportModule("storm.event");
-        if (!module)
-            return 0;
+    /* Import objects from storm.event module */
+    module = PyImport_ImportModule("storm.event");
+    if (!module)
+        return 0;
 
-        EventSystem = PyObject_GetAttrString(module, "EventSystem");
-        if (!EventSystem)
-            return 0;
+    EventSystem = PyObject_GetAttrString(module, "EventSystem");
+    if (!EventSystem)
+        return 0;
 
-        Py_DECREF(module);
-    }
+    Py_DECREF(module);
 
-    {
-        module = PyImport_ImportModule("storm.expr");
-        if (!module)
-            return 0;
+    /* Import objects from storm.expr module */
+    module = PyImport_ImportModule("storm.expr");
+    if (!module)
+        return 0;
 
-        SQLRaw = PyObject_GetAttrString(module, "SQLRaw");
-        if (!SQLRaw)
-            return 0;
+    SQLRaw = PyObject_GetAttrString(module, "SQLRaw");
+    if (!SQLRaw)
+        return 0;
 
-        SQLToken = PyObject_GetAttrString(module, "SQLToken");
-        if (!SQLToken)
-            return 0;
+    SQLToken = PyObject_GetAttrString(module, "SQLToken");
+    if (!SQLToken)
+        return 0;
 
-        State = PyObject_GetAttrString(module, "State");
-        if (!State)
-            return 0;
+    State = PyObject_GetAttrString(module, "State");
+    if (!State)
+        return 0;
 
-        CompileError = PyObject_GetAttrString(module, "CompileError");
-        if (!CompileError)
-            return 0;
+    CompileError = PyObject_GetAttrString(module, "CompileError");
+    if (!CompileError)
+        return 0;
 
-        Py_DECREF(module);
-    }
+    Py_DECREF(module);
 
     parenthesis_format = PyUnicode_DecodeASCII("(%s)", 4, "strict");
 
     return 1;
 }
+
+
+static int
+EventSystem_init(EventSystemObject *self, PyObject *args, PyObject *kwargs)
+{
+    static char *kwlist[] = {"owner", NULL};
+    PyObject *owner;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kwlist, &owner))
+        return -1;
+
+    int result = -1;
+
+    /* self._owner_ref = weakref.ref(owner) */
+    self->_owner_ref = PyWeakref_NewRef(owner, NULL);
+    if (self->_owner_ref) {
+        /* self._hooks = {} */
+        self->_hooks = PyDict_New();
+        if (self->_hooks) {
+            result = 0;
+        }
+    }
+
+    return result;
+}
+
+static int
+EventSystem_traverse(EventSystemObject *self, visitproc visit, void *arg)
+{
+    Py_VISIT(self->_owner_ref);
+    Py_VISIT(self->_hooks);
+    return 0;
+}
+
+static int
+EventSystem_clear(EventSystemObject *self)
+{
+    Py_CLEAR(self->_owner_ref);
+    Py_CLEAR(self->_hooks);
+    return 0;
+}
+
+static void
+EventSystem_dealloc(EventSystemObject *self)
+{
+    EventSystem_clear(self);
+    self->ob_type->tp_free((PyObject *)self);
+}
+
+static PyObject *
+EventSystem_hook(EventSystemObject *self, PyObject *args)
+{
+    PyObject *result = NULL;
+
+    if (PyTuple_GET_SIZE(args) < 2) {
+        PyErr_SetString(PyExc_TypeError, "Invalid number of arguments");
+        return NULL;
+    }
+
+    PyObject *name = PyTuple_GET_ITEM(args, 0);
+    PyObject *callback = PyTuple_GET_ITEM(args, 1);
+    PyObject *data = PyTuple_GetSlice(args, 2, PyTuple_GET_SIZE(args));
+    if (data) {
+        /* 
+           callbacks = self._hooks.get(name)
+           if callbacks is None:
+               self._hooks.setdefault(name, set()).add((callback, data))
+           else:
+               callbacks.add((callback, data))
+        */
+        PyObject *callbacks = PyDict_GetItem(self->_hooks, name);
+        if (!PyErr_Occurred()) {
+            if (callbacks == NULL) {
+                callbacks = PySet_New(NULL);
+                if (callbacks &&
+                    PyDict_SetItem(self->_hooks, name, callbacks) == -1) {
+                    Py_DECREF(callbacks);
+                    callbacks = NULL;
+                }
+            } else {
+                Py_INCREF(callbacks);
+            }
+            if (callbacks) {
+                PyObject *tuple = PyTuple_New(2);
+                if (tuple) {
+                    Py_INCREF(callback);
+                    PyTuple_SET_ITEM(tuple, 0, callback);
+                    Py_INCREF(data);
+                    PyTuple_SET_ITEM(tuple, 1, data);
+                    if (PySet_Add(callbacks, tuple) != -1) {
+                        Py_INCREF(Py_None);
+                        result = Py_None;
+                    }
+                    Py_DECREF(tuple);
+                }
+                Py_DECREF(callbacks);
+            }
+        }
+        Py_DECREF(data);
+    }
+
+    return result;
+}
+
+static PyObject *
+EventSystem_unhook(EventSystemObject *self, PyObject *args)
+{
+    PyObject *result = NULL;
+
+    if (PyTuple_GET_SIZE(args) < 2) {
+        PyErr_SetString(PyExc_TypeError, "Invalid number of arguments");
+        return NULL;
+    }
+
+    PyObject *name = PyTuple_GET_ITEM(args, 0);
+    PyObject *callback = PyTuple_GET_ITEM(args, 1);
+    PyObject *data = PyTuple_GetSlice(args, 2, PyTuple_GET_SIZE(args));
+    if (data) {
+        /* 
+           callbacks = self._hooks.get(name)
+           if callbacks is not None:
+               callbacks.discard((callback, data))
+        */
+        PyObject *callbacks = PyDict_GetItem(self->_hooks, name);
+        if (callbacks) {
+            PyObject *tuple = PyTuple_New(2);
+            if (tuple) {
+                Py_INCREF(callback);
+                PyTuple_SET_ITEM(tuple, 0, callback);
+                Py_INCREF(data);
+                PyTuple_SET_ITEM(tuple, 1, data);
+                if (PySet_Discard(callbacks, tuple) != -1) {
+                    Py_INCREF(Py_None);
+                    result = Py_None;
+                }
+                Py_DECREF(tuple);
+            }
+        } else if (!PyErr_Occurred()) {
+            Py_INCREF(Py_None);
+            result = Py_None;
+        }
+        Py_DECREF(data);
+    }
+
+    return result;
+}
+
+static PyObject *
+EventSystem__do_emit_call(PyObject *callback, PyObject *owner,
+                          PyObject *args, PyObject *data)
+{
+    /* return callback(owner, *(args+data)) */
+    PyObject *result = NULL;
+    PyObject *tuple = PyTuple_New(PyTuple_GET_SIZE(args) +
+                                  PyTuple_GET_SIZE(data) + 1);
+    if (tuple) {
+        Py_INCREF(owner);
+        PyTuple_SET_ITEM(tuple, 0, owner);
+        Py_ssize_t i, tuple_i;
+        tuple_i = 1;
+        for (i = 0; i != PyTuple_GET_SIZE(args); i++) {
+            PyObject *item = PyTuple_GET_ITEM(args, i);
+            Py_INCREF(item);
+            PyTuple_SET_ITEM(tuple, tuple_i++, item);
+        }
+        for (i = 0; i != PyTuple_GET_SIZE(data); i++) {
+            PyObject *item = PyTuple_GET_ITEM(data, i);
+            Py_INCREF(item);
+            PyTuple_SET_ITEM(tuple, tuple_i++, item);
+        }
+        result = PyObject_Call(callback, tuple, NULL);
+        Py_DECREF(tuple);
+    }
+    return result;
+}
+
+static PyObject *
+EventSystem_emit(EventSystemObject *self, PyObject *all_args)
+{
+    PyObject *result = NULL;
+
+    if (PyTuple_GET_SIZE(all_args) == 0) {
+        PyErr_SetString(PyExc_TypeError, "Invalid number of arguments");
+        return NULL;
+    }
+
+    /* XXX In the following code we trust on the format inserted by
+     *     the hook() method.  If it's hacked somehow, it may blow up. */
+
+    PyObject *name = PyTuple_GET_ITEM(all_args, 0);
+    PyObject *args = PyTuple_GetSlice(all_args, 1, PyTuple_GET_SIZE(all_args));
+    if (args) {
+        /* owner = self._owner_ref() */
+        PyObject *owner = PyWeakref_GET_OBJECT(self->_owner_ref);
+        /* if owner is not None: */
+        if (owner != Py_None) {
+            Py_INCREF(owner);
+            /* callbacks = self._hooks.get(name) */
+            PyObject *callbacks = PyDict_GetItem(self->_hooks, name);
+            /* if callbacks: */
+            if (callbacks && PySet_GET_SIZE(callbacks) != 0) {
+                /* for callback, data in tuple(callbacks): */
+                PyObject *sequence = \
+                    PySequence_Fast(callbacks, "callbacks object isn't a set");
+                if (sequence) {
+                    int failed = 0;
+                    Py_ssize_t i;
+                    for (i = 0; i != PySequence_Fast_GET_SIZE(sequence); i++) {
+                        PyObject *item = PySequence_Fast_GET_ITEM(sequence, i);
+                        PyObject *callback = PyTuple_GET_ITEM(item, 0);
+                        PyObject *data = PyTuple_GET_ITEM(item, 1);
+                        PyObject *res;
+                        /* 
+                           if callback(owner, *(args+data)) is False:
+                               callbacks.discard((callback, data))
+                        */
+                        res = EventSystem__do_emit_call(callback, owner,
+                                                        args, data);
+                        Py_XDECREF(res);
+                        if (res == NULL ||
+                            (res == Py_False &&
+                             PySet_Discard(callbacks, item) == -1)) {
+                            failed = 1;
+                            break;
+                        }
+                    }
+                    if (!failed) {
+                        Py_INCREF(Py_None);
+                        result = Py_None;
+                    }
+                    Py_DECREF(sequence);
+                }
+            } else if (!PyErr_Occurred()) {
+                Py_INCREF(Py_None);
+                result = Py_None;
+            }
+            Py_DECREF(owner);
+        } else {
+            Py_INCREF(Py_None);
+            result = Py_None;
+        }
+        Py_DECREF(args);
+    }
+
+    return result;
+}
+
+
+static PyMethodDef EventSystem_methods[] = {
+    {"hook", (PyCFunction)EventSystem_hook, METH_VARARGS, NULL},
+    {"unhook", (PyCFunction)EventSystem_unhook, METH_VARARGS, NULL},
+    {"emit", (PyCFunction)EventSystem_emit, METH_VARARGS, NULL},
+    {NULL, NULL}
+};
+
+#define OFFSETOF(x) offsetof(EventSystemObject, x)
+static PyMemberDef EventSystem_members[] = {
+    {"_object_ref", T_OBJECT, OFFSETOF(_owner_ref), READONLY, 0},
+    {"_hooks", T_OBJECT, OFFSETOF(_hooks), READONLY, 0},
+    {NULL}
+};
+#undef OFFSETOF
+
+statichere PyTypeObject EventSystem_Type = {
+    PyObject_HEAD_INIT(NULL)
+    0,            /*ob_size*/
+    "storm.variables.EventSystem",    /*tp_name*/
+    sizeof(EventSystemObject), /*tp_basicsize*/
+    0,            /*tp_itemsize*/
+    (destructor)EventSystem_dealloc, /*tp_dealloc*/
+    0,            /*tp_print*/
+    0,            /*tp_getattr*/
+    0,            /*tp_setattr*/
+    0,            /*tp_compare*/
+    0,          /*tp_repr*/
+    0,            /*tp_as_number*/
+    0,            /*tp_as_sequence*/
+    0,            /*tp_as_mapping*/
+    0,                      /*tp_hash*/
+    0,                      /*tp_call*/
+    0,                      /*tp_str*/
+    PyObject_GenericGetAttr,/*tp_getattro*/
+    PyObject_GenericSetAttr,/*tp_setattro*/
+    0,                      /*tp_as_buffer*/
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
+    0,                      /*tp_doc*/
+    (traverseproc)EventSystem_traverse,  /*tp_traverse*/
+    (inquiry)EventSystem_clear,          /*tp_clear*/
+    0,                      /*tp_richcompare*/
+    0,                      /*tp_weaklistoffset*/
+    0,                      /*tp_iter*/
+    0,                      /*tp_iternext*/
+    EventSystem_methods,        /*tp_methods*/
+    EventSystem_members,        /*tp_members*/
+    0,                      /*tp_getset*/
+    0,                      /*tp_base*/
+    0,                      /*tp_dict*/
+    0,                      /*tp_descr_get*/
+    0,                      /*tp_descr_set*/
+    0,                      /*tp_dictoffset*/
+    (initproc)EventSystem_init, /*tp_init*/
+    PyType_GenericAlloc,    /*tp_alloc*/
+    PyType_GenericNew,      /*tp_new*/
+    PyObject_GC_Del,        /*tp_free*/
+    0,                      /*tp_is_gc*/
+};
 
 
 static PyObject *
@@ -801,13 +1108,6 @@ statichere PyTypeObject Variable_Type = {
     0,                      /*tp_is_gc*/
 };
 
-
-static PyObject *
-Compile_new(PyTypeObject *type, PyObject *args, PyObject *kwargs)
-{
-    CompileObject *self = (CompileObject *)type->tp_alloc(type, 0);
-    return (PyObject *)self;
-}
 
 static PyObject *
 Compile__update_cache(CompileObject *self, PyObject *args);
@@ -1503,7 +1803,7 @@ statichere PyTypeObject Compile_Type = {
     0,                      /*tp_dictoffset*/
     (initproc)Compile_init, /*tp_init*/
     PyType_GenericAlloc,    /*tp_alloc*/
-    Compile_new,      /*tp_new*/
+    PyType_GenericNew,      /*tp_new*/
     PyObject_GC_Del,        /*tp_free*/
     0,                      /*tp_is_gc*/
 };
@@ -1826,6 +2126,7 @@ initcextensions(void)
 {
     PyObject *module;
 
+    PyType_Ready(&EventSystem_Type);
     PyType_Ready(&Variable_Type);
     PyType_Ready(&Compile_Type);
 
@@ -1844,6 +2145,7 @@ initcextensions(void)
     REGISTER_TYPE(Variable);
     REGISTER_TYPE(ObjectInfo);
     REGISTER_TYPE(Compile);
+    REGISTER_TYPE(EventSystem);
 }
 
 /* vim:ts=4:sw=4:et
