@@ -456,9 +456,9 @@ class Comparable(object):
 
     def is_in(self, others):
         if not isinstance(others, Expr):
-            if not others:
-                return None
             others = list(others)
+            if not others:
+                return False
             variable_factory = getattr(self, "variable_factory", Variable)
             for i, other in enumerate(others):
                 if not isinstance(other, (Expr, Variable)):

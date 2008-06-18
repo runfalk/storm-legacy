@@ -41,7 +41,7 @@ class SQLiteStoreTest(TestHelper, StoreTest):
         self.database = SQLite(URI("sqlite:" + self.make_path()))
 
     def create_tables(self):
-        connection = self.database.connect()
+        connection = self.connection
         connection.execute("CREATE TABLE foo "
                            "(id INTEGER PRIMARY KEY,"
                            " title VARCHAR DEFAULT 'Default Title')")
@@ -81,11 +81,10 @@ class SQLiteEmptyResultSetTest(TestHelper, EmptyResultSetTest):
         self.database = SQLite(URI("sqlite:" + self.make_path()))
 
     def create_tables(self):
-        connection = self.database.connect()
-        connection.execute("CREATE TABLE foo "
-                           "(id INTEGER PRIMARY KEY,"
-                           " title VARCHAR DEFAULT 'Default Title')")
-        connection.commit()
+        self.connection.execute("CREATE TABLE foo "
+                                "(id INTEGER PRIMARY KEY,"
+                                " title VARCHAR DEFAULT 'Default Title')")
+        self.connection.commit()
 
     def drop_tables(self):
         pass

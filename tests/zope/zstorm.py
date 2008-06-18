@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-import thread
+import thread, weakref, gc
 
 from tests.helper import TestHelper
 
@@ -212,3 +212,17 @@ class ZStormTest(TestHelper):
         self.zstorm._reset()
         self.assertEquals(
             len(transaction.manager._synchs.values()[0].data.values()), 0)
+
+    def test_store_strong_reference(self):
+        """
+        The zstorm utility should be a strong reference to named stores so that
+        it doesn't recreate stores uselessly.
+        """
+        store = self.zstorm.get("name", "sqlite:")
+        store_ref = weakref.ref(store)
+        transaction.abort()
+        del store
+        gc.collect()
+        self.assertNotIdentical(store_ref(), None)
+        store = self.zstorm.get("name")
+        self.assertIdentical(store_ref(), store)

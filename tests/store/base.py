@@ -26,7 +26,7 @@ from storm.references import Reference, ReferenceSet, Proxy
 from storm.database import Result
 from storm.properties import Int, Float, RawStr, Unicode, Property, Pickle
 from storm.properties import PropertyPublisherMeta, Decimal
-from storm.expr import Asc, Desc, Select, Func, LeftJoin, SQL
+from storm.expr import Asc, Desc, Select, Func, LeftJoin, SQL, Or, And, Eq
 from storm.variables import Variable, UnicodeVariable, IntVariable
 from storm.info import get_obj_info, ClassAlias
 from storm.exceptions import *
@@ -123,6 +123,7 @@ class StoreTest(object):
         self.store = None
         self.stores = []
         self.create_database()
+        self.connection = self.database.connect()
         self.drop_tables()
         self.create_tables()
         self.create_sample_data()
@@ -133,6 +134,7 @@ class StoreTest(object):
         self.drop_sample_data()
         self.drop_tables()
         self.drop_database()
+        self.connection.close()
 
     def create_database(self):
         raise NotImplementedError
@@ -141,7 +143,7 @@ class StoreTest(object):
         raise NotImplementedError
 
     def create_sample_data(self):
-        connection = self.database.connect()
+        connection = self.connection
         connection.execute("INSERT INTO foo (id, title)"
                            " VALUES (10, 'Title 30')")
         connection.execute("INSERT INTO foo (id, title)"
@@ -193,13 +195,12 @@ class StoreTest(object):
         pass
 
     def drop_tables(self):
-        connection = self.database.connect()
         for table in ["foo", "bar", "bin", "link", "money", "selfref"]:
             try:
-                connection.execute("DROP TABLE %s" % table)
-                connection.commit()
+                self.connection.execute("DROP TABLE %s" % table)
+                self.connection.commit()
             except:
-                connection.rollback()
+                self.connection.rollback()
 
     def drop_database(self):
         pass
@@ -4518,6 +4519,15 @@ class StoreTest(object):
 
         self.assertEquals(result3.count(), 2)
 
+    def test_is_in_empty_result_set(self):
+        result1 = self.store.find(Foo, Foo.id < 10)
+        result2 = self.store.find(Foo, Or(Foo.id > 20, Foo.id.is_in(result1)))
+        self.assertEquals(result2.count(), 1)
+
+    def test_is_in_empty_list(self):
+        result2 = self.store.find(Foo, Eq(False, And(True, Foo.id.is_in([]))))
+        self.assertEquals(result2.count(), 3)
+
     def test_result_intersection(self):
         if self.__class__.__name__.startswith("MySQL"):
             return
@@ -4765,6 +4775,7 @@ class EmptyResultSetTest(object):
 
     def setUp(self):
         self.create_database()
+        self.connection = self.database.connect()
         self.drop_tables()
         self.create_tables()
         self.create_store()
@@ -4775,6 +4786,7 @@ class EmptyResultSetTest(object):
         self.drop_store()
         self.drop_tables()
         self.drop_database()
+        self.connection.close()
 
     def create_database(self):
         raise NotImplementedError
@@ -4790,12 +4802,11 @@ class EmptyResultSetTest(object):
 
     def drop_tables(self):
         for table in ["foo", "bar", "bin", "link"]:
-            connection = self.database.connect()
             try:
-                connection.execute("DROP TABLE %s" % table)
-                connection.commit()
+                self.connection.execute("DROP TABLE %s" % table)
+                self.connection.commit()
             except:
-                connection.rollback()
+                self.connection.rollback()
 
     def drop_store(self):
         self.store.rollback()

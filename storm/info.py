@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from weakref import ref
+from weakref import ref, WeakKeyDictionary
 
 from storm.exceptions import ClassInfoError
 from storm.expr import Expr, FromExpr, Column, Desc, TABLE
@@ -199,20 +199,44 @@ if has_cextensions:
     from storm.cextensions import ObjectInfo, get_obj_info
 
 
+
 class ClassAlias(FromExpr):
+    """Create a named alias for a Storm class for use in queries.
+
+    This is useful basically when the SQL 'AS' feature is desired in code using
+    Storm queries.
+
+    ClassAliases which are explicitly named (i.e., when 'name' is passed) are
+    cached for as long as the class exists, such that the alias returned from
+    C{ClassAlias(Foo, 'foo_alias')} will be the same object no matter how many
+    times it's called.
+
+    @param cls: The class to create the alias of.
+    @param name: If provided, specify the name of the alias to create.
+    """
 
     alias_count = 0
 
     def __new__(self_cls, cls, name=Undef):
+        use_cache = True
         if name is Undef:
+            use_cache = False
             ClassAlias.alias_count += 1
             name = "_%x" % ClassAlias.alias_count
+        else:
+            cache = cls.__dict__.get("_storm_alias_cache")
+            if not cache:
+                cls._storm_alias_cache = cache = {}
+            if name in cache:
+                return cache[name]
         cls_info = get_cls_info(cls)
         alias_cls = type(cls.__name__+"Alias", (self_cls,),
                          {"__storm_table__": name})
         alias_cls.__bases__ = (cls, self_cls)
         alias_cls_info = get_cls_info(alias_cls)
         alias_cls_info.cls = cls
+        if use_cache:
+            cls._storm_alias_cache[name] = alias_cls
         return alias_cls
 
 
