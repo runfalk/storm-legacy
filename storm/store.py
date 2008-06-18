@@ -1066,7 +1066,7 @@ class ResultSet(object):
             noresult=True)
 
     def group_by(self, *expr):
-        """Group by this ResultSet by the given expressions.
+        """Group this ResultSet by the given expressions.
 
         @param expr: The expressions used in the GROUP BY statement.
 

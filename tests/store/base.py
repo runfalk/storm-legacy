@@ -1116,9 +1116,9 @@ class StoreTest(object):
 
     def test_find_group_by(self):
         result = self.store.find((Count(FooValue.id), Sum(FooValue.value1))
-            ).group_by(FooValue.value2)
+            ).group_by(FooValue.value2
+            ).order_by(Count(FooValue.id), Sum(FooValue.value1))
         result = list(result)
-        result.sort()
         self.assertEquals(result, [(2L, 2L), (2L, 2L), (2L, 3L), (3L, 6L)])
 
     def test_find_group_by_table(self):
@@ -1131,24 +1131,27 @@ class StoreTest(object):
 
     def test_find_group_by_multiple_tables(self):
         result = self.store.find(
-            Sum(FooValue.value2), Foo.id == FooValue.foo_id).group_by(Foo.id)
+            Sum(FooValue.value2), Foo.id == FooValue.foo_id
+            ).group_by(Foo.id
+            ).order_by(Sum(FooValue.value2))
         result = list(result)
-        result.sort()
         self.assertEquals(result, [5, 16])
 
         result = self.store.find(
-            (Sum(FooValue.value2), Foo), Foo.id == FooValue.foo_id).group_by(Foo)
+            (Sum(FooValue.value2), Foo), Foo.id == FooValue.foo_id
+            ).group_by(Foo
+            ).order_by(Sum(FooValue.value2))
         result = list(result)
         foo1 = self.store.get(Foo, 10)
         foo2 = self.store.get(Foo, 20)
-        result.sort()
         self.assertEquals(result, [(5, foo1), (16, foo2)])
 
         result = self.store.find(
             (Foo.id, Sum(FooValue.value2), Avg(FooValue.value1)),
-            Foo.id == FooValue.foo_id).group_by(Foo.id)
+            Foo.id == FooValue.foo_id
+            ).group_by(Foo.id
+            ).order_by(Foo.id)
         result = list(result)
-        result.sort()
         self.assertEquals(result, [(10, 5, 2),
                                    (20, 16, 1)])
 
@@ -1169,33 +1172,33 @@ class StoreTest(object):
     def test_find_group_by_multiple_having(self):
         result = self.store.find((Count(), FooValue.value2)
             ).group_by(FooValue.value2
-            ).having(Count() == 2, FooValue.value2 >= 3)
+            ).having(Count() == 2, FooValue.value2 >= 3
+            ).order_by(Count(), FooValue.value2)
         list_result = list(result)
-        list_result.sort()
         self.assertEquals(list_result, [(2, 3), (2, 4)])
 
     def test_find_successive_group_by(self):
-        result = self.store.find(Count()).group_by(FooValue.value2)
+        result = self.store.find(Count()
+            ).group_by(FooValue.value2
+            ).order_by(Count())
         list_result = list(result)
-        list_result.sort()
         self.assertEquals(list_result, [2, 2, 2, 3])
         result.group_by(FooValue.value1)
         list_result = list(result)
-        list_result.sort()
         self.assertEquals(list_result, [4, 5])
 
     def test_find_multiple_group_by(self):
-        result = self.store.find(Count()).group_by(FooValue.value2,
-                                                   FooValue.value1)
+        result = self.store.find(Count()
+            ).group_by(FooValue.value2, FooValue.value1
+            ).order_by(Count())
         list_result = list(result)
-        list_result.sort()
         self.assertEquals(list_result, [1, 1, 2, 2, 3])
 
     def test_find_multiple_group_by_with_having(self):
-        result = self.store.find((Count(), FooValue.value2)).group_by(
-            FooValue.value2, FooValue.value1).having(Count() == 2)
+        result = self.store.find((Count(), FooValue.value2)
+            ).group_by(FooValue.value2, FooValue.value1).having(Count() == 2
+            ).order_by(Count(), FooValue.value2)
         list_result = list(result)
-        list_result.sort()
         self.assertEquals(list_result, [(2, 3), (2, 4)])
 
     def test_find_group_by_avg(self):
@@ -1206,9 +1209,9 @@ class StoreTest(object):
     def test_find_group_by_values(self):
         result = self.store.find(
             (Sum(FooValue.value2), Foo), Foo.id == FooValue.foo_id
-            ).group_by(Foo)
+            ).group_by(Foo
+            ).order_by(Foo.title)
         result = list(result.values(Foo.title))
-        result.sort()
         self.assertEquals(result, [u'Title 20', u'Title 30'])
 
     def test_find_group_by_union(self):
