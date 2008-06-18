@@ -33,18 +33,6 @@ class EventSystem(object):
         self._hooks = {}
         self._saved_hooks = {}
 
-    def save(self):
-        hooks = {}
-        for name, callbacks in self._hooks.items():
-            hooks[name] = callbacks.copy()
-        self._saved_hooks = hooks
-
-    def restore(self):
-        hooks = self._hooks
-        hooks.clear()
-        for name, callbacks in self._saved_hooks.items():
-            hooks[name] = callbacks.copy()
-
     def hook(self, name, callback, *data):
         callbacks = self._hooks.get(name)
         if callbacks is None:

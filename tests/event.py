@@ -83,34 +83,6 @@ class EventTest(TestHelper):
 
         self.assertEquals(called, [marker, marker])
 
-    def test_save_restore(self):
-        called1 = []
-        called2 = []
-        def callback1(owner, arg):
-            called1.append(arg)
-        def callback2(owner, arg):
-            called2.append(arg)
-
-        self.event.hook("event", callback1)
-        self.event.save()
-        self.event.hook("event", callback2)
-        self.event.unhook("event", callback1)
-        self.event.emit("event", 1)
-        self.event.emit("event", 2)
-        self.event.restore()
-        self.event.emit("event", 3)
-        self.event.emit("event", 4)
-        self.event.hook("event", callback2)
-        self.event.unhook("event", callback1)
-        self.event.emit("event", 5)
-        self.event.emit("event", 6)
-        self.event.restore()
-        self.event.emit("event", 7)
-        self.event.emit("event", 8)
-
-        self.assertEquals(called1, [3, 4, 7, 8])
-        self.assertEquals(called2, [1, 2, 5, 6])
-
     def test_weak_reference(self):
         marker = Marker()
 
