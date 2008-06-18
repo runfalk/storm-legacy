@@ -24,9 +24,12 @@
 #include <structmember.h>
 
 
-#ifndef Py_ssize_t
-#define Py_ssize_t ssize_t
+#if PY_VERSION_HEX < 0x02050000 && !defined(PY_SSIZE_T_MIN)
+typedef int Py_ssize_t;
+#define PY_SSIZE_T_MAX INT_MAX
+#define PY_SSIZE_T_MIN INT_MIN
 #endif
+
 
 #define CATCH(error_value, expression) \
         do { \
