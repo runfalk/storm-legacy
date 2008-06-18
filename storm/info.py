@@ -218,16 +218,16 @@ class ClassAlias(FromExpr):
     alias_count = 0
 
     def __new__(self_cls, cls, name=Undef):
-        use_cache = True
         if name is Undef:
             use_cache = False
             ClassAlias.alias_count += 1
             name = "_%x" % ClassAlias.alias_count
         else:
+            use_cache = True
             cache = cls.__dict__.get("_storm_alias_cache")
-            if not cache:
-                cls._storm_alias_cache = cache = {}
-            if name in cache:
+            if cache is None:
+                cls._storm_alias_cache = {}
+            elif name in cache:
                 return cache[name]
         cls_info = get_cls_info(cls)
         alias_cls = type(cls.__name__+"Alias", (self_cls,),
