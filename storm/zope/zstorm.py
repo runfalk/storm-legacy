@@ -123,16 +123,18 @@ class ZStorm(object):
                 raise ZStormError("Store named '%s' not found" % name)
         else:
             database = self._get_database(uri)
+
+        if name is not None and self._named.get(name) is not None:
+            raise ZStormError("Store named '%s' already exists" % name)
+
         store = Store(database)
         store.__synchronizer = StoreSynchronizer(store)
 
         self._stores[id(store)] = store
-
         if name is not None:
-            old_store = self._named.setdefault(name, store)
-            if old_store is not store:
-                raise ZStormError("Store named '%s' already exists" % name)
+            self._named[name] = store
         self._name_index[store] = name
+
         return store
 
     def get(self, name, default_uri=None):
