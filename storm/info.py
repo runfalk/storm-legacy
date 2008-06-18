@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from weakref import ref
+from weakref import ref, WeakKeyDictionary
 
 from storm.exceptions import ClassInfoError
 from storm.expr import Expr, FromExpr, Column, Desc, TABLE
@@ -201,20 +201,30 @@ except ImportError, e:
         raise
 
 
+
 class ClassAlias(FromExpr):
+    _cache = WeakKeyDictionary()
 
     alias_count = 0
 
     def __new__(self_cls, cls, name=Undef):
+        use_cache = True
         if name is Undef:
+            use_cache = False
             ClassAlias.alias_count += 1
             name = "_%x" % ClassAlias.alias_count
+        else:
+            cache = self_cls._cache.get(cls)
+            if cache and name in cache:
+                return self_cls._cache[cls][name]
         cls_info = get_cls_info(cls)
         alias_cls = type(cls.__name__+"Alias", (self_cls,),
                          {"__storm_table__": name})
         alias_cls.__bases__ = (cls, self_cls)
         alias_cls_info = get_cls_info(alias_cls)
         alias_cls_info.cls = cls
+        if use_cache:
+            self_cls._cache.setdefault(cls, {})[name] = alias_cls
         return alias_cls
 
 

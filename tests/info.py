@@ -574,7 +574,22 @@ class ClassAliasTest(TestHelper):
             prop1 = Property("column1", primary=True)
         Alias = ClassAlias(Class, "USE_THIS")
         self.assertEquals(Alias.__storm_table__, "USE_THIS")
-        
+
+    def test_cached_aliases(self):
+        """
+        Class aliases are cached such that multiple invocations of
+        C{ClassAlias} return the same object.
+        """
+        alias1 = ClassAlias(self.Class, "select")
+        alias2 = ClassAlias(self.Class, "select")
+        self.assertIdentical(alias1, alias2)
+        alias3 = ClassAlias(self.Class, "select3")
+        self.assertNotIdentical(alias1, alias3)
+
+    def test_unnamed_aliases_not_cached(self):
+        alias1 = ClassAlias(self.Class)
+        alias2 = ClassAlias(self.Class)
+        self.assertNotIdentical(alias1, alias2)
 
 
 class TypeCompilerTest(TestHelper):
