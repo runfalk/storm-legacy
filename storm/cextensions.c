@@ -1721,19 +1721,17 @@ error:
 static PyObject *
 Compile__call__(CompileObject *self, PyObject *args, PyObject *kwargs)
 {
-    static char *kwlist[] = {"expr", "state", "join", "raw", "token", NULL};
+    if (!initialize_globals())
+        return NULL;
 
+    static char *kwlist[] = {"expr", "state", "join", "raw", "token", NULL};
     PyObject *expr = NULL;
     PyObject *state = Py_None;
     PyObject *join = default_compile_join;
     char raw = 0;
     char token = 0;
 
-    PyObject *result;
-
-    if (!initialize_globals()) {
-        return NULL;
-    }
+    PyObject *result = NULL;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|OSbb", kwlist,
                                      &expr, &state, &join, &raw, &token)) {
@@ -1741,19 +1739,15 @@ Compile__call__(CompileObject *self, PyObject *args, PyObject *kwargs)
     }
 
     if (state == Py_None) {
-        CATCH(NULL, state = PyObject_CallFunctionObjArgs(State, NULL));
+        state = PyObject_CallFunctionObjArgs(State, NULL);
     } else {
         Py_INCREF(state);
     }
-
-    result = Compile_one_or_many(self, expr, state, join, raw, token);
-
-    Py_DECREF(state);
+    if (state) {
+        result = Compile_one_or_many(self, expr, state, join, raw, token);
+        Py_DECREF(state);
+    }
     return result;
-
-error:
-    Py_XDECREF(state);
-    return NULL;
 }
 
 
