@@ -47,6 +47,56 @@ typedef int Py_ssize_t;
         } while(0)
 
 
+/* Python 2.4 does not include the PySet_* API, so provide a minimal
+   implementation for the calls we care about. */
+#if PY_VERSION_HEX < 0x02050000 && !defined(PySet_GET_SIZE)
+#  define PySet_GET_SIZE(so) \
+     ((PyDictObject *)((PySetObject *)so)->data)->ma_used
+static PyObject *
+PySet_New(PyObject *p)
+{
+    return PyObject_CallObject((PyObject *)&PySet_Type, NULL);
+}
+
+static int
+PySet_Add(PyObject *set, PyObject *key)
+{
+    PyObject *dict;
+
+    if (!PyType_IsSubtype(set->ob_type, &PySet_Type)) {
+        PyErr_BadInternalCall();
+        return -1;
+    }
+    dict = ((PySetObject *)set)->data;
+    return PyDict_SetItem(dict, key, Py_True);
+}
+
+static int
+PySet_Discard(PyObject *set, PyObject *key)
+{
+    PyObject *dict;
+    int result;
+
+    if (!PyType_IsSubtype(set->ob_type, &PySet_Type)) {
+        PyErr_BadInternalCall();
+        return -1;
+    }
+    dict = ((PySetObject *)set)->data;
+    result = PyDict_DelItem(dict, key);
+    if (result == 0) {
+        /* key found and removed */
+        result = 1;
+    } else {
+        if (PyErr_ExceptionMatches(PyExc_KeyError)) {
+            /* key not found */
+            PyErr_Clear();
+            result = 0;
+        }
+    }
+    return result;
+}
+#endif
+
 static PyObject *Undef = NULL;
 static PyObject *LazyValue = NULL;
 static PyObject *raise_none_error = NULL;
@@ -1690,13 +1740,6 @@ Compile__call__(CompileObject *self, PyObject *args, PyObject *kwargs)
         return NULL;
     }
 
-    if (join != NULL) {
-        /* We have to increase it beforehand, but handle it afterwards,
-         * so that if errors happen when processing state below, reference
-         * handling will work correctly. */
-        Py_INCREF(join);
-    }
-
     if (state == Py_None) {
         CATCH(NULL, state = PyObject_CallFunctionObjArgs(State, NULL));
     } else {
@@ -1706,12 +1749,10 @@ Compile__call__(CompileObject *self, PyObject *args, PyObject *kwargs)
     result = Compile_one_or_many(self, expr, state, join, raw, token);
 
     Py_DECREF(state);
-    Py_DECREF(join);
     return result;
 
 error:
     Py_XDECREF(state);
-    Py_XDECREF(join);
     return NULL;
 }
 
