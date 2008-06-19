@@ -65,6 +65,8 @@ class PostgresStoreTest(TestHelper, StoreTest):
         connection.execute("CREATE TABLE foo "
                            "(id SERIAL PRIMARY KEY,"
                            " title VARCHAR DEFAULT 'Default Title')")
+        # Prevent dynamically created Foos from having conflicting ids.
+        connection.execute("SELECT setval('foo_id_seq', 1000)")
         connection.execute("CREATE TABLE bar "
                            "(id SERIAL PRIMARY KEY,"
                            " foo_id INTEGER, title VARCHAR)")
