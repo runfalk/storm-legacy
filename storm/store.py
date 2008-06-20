@@ -448,6 +448,9 @@ class Store(object):
 
         self._order.clear()
 
+        # That's not stricly necessary, but prevents getting into bigints.
+        self._sequence = 0
+
     def _flush_one(self, obj_info):
         cls_info = obj_info.cls_info
 
