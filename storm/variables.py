@@ -400,7 +400,7 @@ class UnicodeVariable(Variable):
 
 
 class DateTimeVariable(Variable):
-    __slots__ = ('_tzinfo',)
+    __slots__ = ("_tzinfo",)
 
     def __init__(self, *args, **kwargs):
         self._tzinfo = kwargs.pop("tzinfo", None)
@@ -498,7 +498,7 @@ class TimeDeltaVariable(Variable):
 
 
 class EnumVariable(Variable):
-    __slots__ = ('_get_map', '_set_map')
+    __slots__ = ("_get_map", "_set_map")
 
     def __init__(self, get_map, set_map, *args, **kwargs):
         self._get_map = get_map
@@ -564,7 +564,7 @@ class PickleVariable(Variable):
 
 
 class ListVariable(Variable):
-    __slots__ = ('_item_factory',)
+    __slots__ = ("_item_factory",)
 
     def __init__(self, item_factory, *args, **kwargs):
         self._item_factory = item_factory

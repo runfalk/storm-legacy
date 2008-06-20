@@ -482,14 +482,14 @@ class ComparableExpr(Expr, Comparable):
     __slots__ = ()
 
 class BinaryExpr(ComparableExpr):
-    __slots__ = ('expr1', 'expr2')
+    __slots__ = ("expr1", "expr2")
 
     def __init__(self, expr1, expr2):
         self.expr1 = expr1
         self.expr2 = expr2
 
 class CompoundExpr(ComparableExpr):
-    __slots__ = ('exprs',)
+    __slots__ = ("exprs",)
 
     def __init__(self, *exprs):
         self.exprs = exprs
@@ -587,8 +587,8 @@ def build_tables(compile, tables, default_tables, state):
 
 
 class Select(Expr):
-    __slots__ = ('columns', 'where', 'tables', 'default_tables', 'order_by',
-                 'group_by', 'limit', 'offset', 'distinct')
+    __slots__ = ("columns", "where", "tables", "default_tables", "order_by",
+                 "group_by", "limit", "offset", "distinct")
 
     def __init__(self, columns, where=Undef,
                  tables=Undef, default_tables=Undef,
@@ -656,8 +656,8 @@ class Insert(Expr):
         key of the table where the row will be inserted.  This is a hint used
         by backends to process the insertion of rows.
     """
-    __slots__ = ('map', 'table', 'default_table', 'primary_columns',
-                 'primary_variables')
+    __slots__ = ("map", "table", "default_table", "primary_columns",
+                 "primary_variables")
 
     def __init__(self, map, table=Undef, default_table=Undef,
                  primary_columns=Undef, primary_variables=Undef):
@@ -681,7 +681,7 @@ def compile_insert(compile, insert, state):
 
 
 class Update(Expr):
-    __slots__ = ('map', 'where', 'table', 'default_table')
+    __slots__ = ("map", "where", "table", "default_table")
 
     def __init__(self, map, where=Undef, table=Undef, default_table=Undef):
         self.map = map
@@ -709,7 +709,7 @@ def compile_update(compile, update, state):
 
 
 class Delete(Expr):
-    __slots__ = ('where', 'table', 'default_table')
+    __slots__ = ("where", "table", "default_table")
 
     def __init__(self, where=Undef, table=Undef, default_table=Undef):
         self.where = where
@@ -745,7 +745,7 @@ class Column(ComparableExpr):
     @ivar variable_factory: Factory producing C{Variable} instances typed
         according to this column.
     """
-    __slots__ = ('name', 'table', 'primary', 'variable_factory')
+    __slots__ = ("name", "table", "primary", "variable_factory")
 
     def __init__(self, name=Undef, table=Undef, primary=False,
                  variable_factory=None):
@@ -781,7 +781,7 @@ def compile_python_column(compile, column, state):
 class Alias(ComparableExpr):
     """A representation of "AS" alias clauses. e.g., SELECT foo AS bar.
     """
-    __slots__ = ('expr', 'name')
+    __slots__ = ("expr", "name")
 
     auto_counter = 0
 
@@ -813,7 +813,7 @@ class FromExpr(Expr):
 
 
 class Table(FromExpr):
-    __slots__ = ('name',)
+    __slots__ = ("name",)
 
     def __init__(self, name):
         self.name = name
@@ -824,7 +824,7 @@ def compile_table(compile, table, state):
 
 
 class JoinExpr(FromExpr):
-    __slots__ = ('left', 'right', 'on')
+    __slots__ = ("left", "right", "on")
 
     oper = "(unknown)"
 
@@ -987,7 +987,7 @@ class LShift(BinaryOper):
 
 
 class Like(BinaryOper):
-    __slots__ = ('escape', 'case_sensitive')
+    __slots__ = ("escape", "case_sensitive")
     oper = " LIKE "
 
     def __init__(self, expr1, expr2, escape=Undef, case_sensitive=None):
@@ -1063,7 +1063,7 @@ def compile_compound_oper(compile, expr, state):
 # Set expressions.
 
 class SetExpr(Expr):
-    __slots__ = ('exprs', 'all', 'order_by', 'limit', 'offset')
+    __slots__ = ("exprs", "all", "order_by", "limit", "offset")
     oper = " (unknown) "
 
     def __init__(self, *exprs, **kwargs):
@@ -1149,7 +1149,7 @@ class FuncExpr(ComparableExpr):
 
 
 class Count(FuncExpr):
-    __slots__ = ('column', 'distinct')
+    __slots__ = ("column", "distinct")
     name = "COUNT"
 
     def __init__(self, column=Undef, distinct=False):
@@ -1168,14 +1168,14 @@ def compile_count(compile, count, state):
 
 
 class Func(FuncExpr):
-    __slots__ = ('name', 'args')
+    __slots__ = ("name", "args")
 
     def __init__(self, name, *args):
         self.name = name
         self.args = args
 
 class NamedFunc(FuncExpr):
-    __slots__ = ('args',)
+    __slots__ = ("args",)
 
     def __init__(self, *args):
         self.args = args
@@ -1215,7 +1215,7 @@ class Upper(NamedFunc):
 # Prefix and suffix expressions
 
 class PrefixExpr(Expr):
-    __slots__ = ('expr',)
+    __slots__ = ("expr",)
     prefix = "(unknown)"
 
     def __init__(self, expr):
@@ -1227,7 +1227,7 @@ def compile_prefix_expr(compile, expr, state):
 
 
 class SuffixExpr(Expr):
-    __slots__ = ('expr',)
+    __slots__ = ("expr",)
     suffix = "(unknown)"
 
     def __init__(self, expr):
@@ -1287,7 +1287,7 @@ def compile_python_sql_token(compile, expr, state):
 
 
 class SQL(ComparableExpr):
-    __slots__ = ('expr', 'params', 'tables')
+    __slots__ = ("expr", "params", "tables")
 
     def __init__(self, expr, params=Undef, tables=Undef):
         self.expr = expr
@@ -1323,7 +1323,7 @@ class Sequence(Expr):
           (...)
           id = Int(default=Sequence("my_sequence_name"))
     """
-    __slots__ = ('name',)
+    __slots__ = ("name",)
 
     def __init__(self, name):
         self.name = name
@@ -1358,7 +1358,7 @@ class AutoTables(Expr):
     If the constructor is passed replace=True, it will also discard any
     auto_table entries injected by compiling the given expression.
     """
-    __slots__ = ('expr', 'tables', 'replace')
+    __slots__ = ("expr", "tables", "replace")
 
     def __init__(self, expr, tables, replace=False):
         assert type(tables) in (list, tuple)
