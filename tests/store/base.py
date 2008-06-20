@@ -4770,6 +4770,48 @@ class StoreTest(object):
                     " (ensure your database was created with CREATE DATABASE"
                     " ... CHARACTER SET utf8)")
 
+    def test_creation_order_is_preserved_when_possible(self):
+        foos = [self.store.add(Foo()) for i in range(10)]
+        self.store.flush()
+        for i in range(len(foos)-1):
+            self.assertTrue(foos[i].id < foos[i+1].id)
+
+    def test_update_order_is_preserved_when_possible(self):
+        class MyFoo(Foo):
+            sequence = 0
+            def __storm_flushed__(self):
+                self.flush_order = MyFoo.sequence
+                MyFoo.sequence += 1
+
+        foos = [self.store.add(MyFoo()) for i in range(10)]
+        self.store.flush()
+
+        MyFoo.sequence = 0
+        for foo in foos:
+            foo.title = u"Changed Title"
+        self.store.flush()
+
+        for i, foo in enumerate(foos):
+            self.assertEquals(foo.flush_order, i)
+
+    def test_removal_order_is_preserved_when_possible(self):
+        class MyFoo(Foo):
+            sequence = 0
+            def __storm_flushed__(self):
+                self.flush_order = MyFoo.sequence
+                MyFoo.sequence += 1
+
+        foos = [self.store.add(MyFoo()) for i in range(10)]
+        self.store.flush()
+
+        MyFoo.sequence = 0
+        for foo in foos:
+            self.store.remove(foo)
+        self.store.flush()
+
+        for i, foo in enumerate(foos):
+            self.assertEquals(foo.flush_order, i)
+
 
 class EmptyResultSetTest(object):
 

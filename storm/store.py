@@ -24,8 +24,8 @@
 This module contains the highest-level ORM interface in Storm.
 """
 
-
 from weakref import WeakValueDictionary
+from operator import itemgetter
 
 from storm.info import get_cls_info, get_obj_info, set_obj_info
 from storm.variables import Variable, LazyValue
@@ -71,6 +71,7 @@ class Store(object):
         self._order = {} # (info, info) = count
         self._cache = Cache(100)
         self._implicit_flush_block_count = 0
+        self._sequence = 0 # Advisory ordering.
 
     @staticmethod
     def of(obj):
@@ -429,19 +430,33 @@ class Store(object):
                 else:
                     before_set.add(before_info)
 
+        key_func = itemgetter("sequence")
+
+        # The external loop is important because items can get into the dirty
+        # state while we're flushing objects, ...
         while self._dirty:
-            for obj_info in self._dirty:
-                for before_info in predecessors.get(obj_info, ()):
-                    if before_info in self._dirty:
-                        break # A predecessor is still dirty.
+            # ... but we don't have to resort everytime an object is flushed,
+            # so we have an internal loop too.  If no objects become dirty
+            # during flush, this will clean self._dirty and the external loop
+            # will exit too.
+            sorted_dirty = sorted(self._dirty, key=key_func)
+            while sorted_dirty:
+                for i, obj_info in enumerate(sorted_dirty):
+                    for before_info in predecessors.get(obj_info, ()):
+                        if before_info in self._dirty:
+                            break # A predecessor is still dirty.
+                    else:
+                        break # Found an item without dirty predecessors.
                 else:
-                    break # Found an item without dirty predecessors.
-            else:
-                raise OrderLoopError("Can't flush due to ordering loop")
-            self._dirty.pop(obj_info, None)
-            self._flush_one(obj_info)
+                    raise OrderLoopError("Can't flush due to ordering loop")
+                del sorted_dirty[i]
+                self._dirty.pop(obj_info, None)
+                self._flush_one(obj_info)
 
         self._order.clear()
+
+        # That's not stricly necessary, but prevents getting into bigints.
+        self._sequence = 0
 
     def _flush_one(self, obj_info):
         cls_info = obj_info.cls_info
@@ -719,7 +734,9 @@ class Store(object):
         return obj_info in self._dirty
 
     def _set_dirty(self, obj_info):
-        self._dirty[obj_info] = obj_info.get_obj()
+        if obj_info not in self._dirty:
+            self._dirty[obj_info] = obj_info.get_obj()
+            obj_info["sequence"] = self._sequence = self._sequence + 1
 
     def _set_clean(self, obj_info):
         self._dirty.pop(obj_info, None)
