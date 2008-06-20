@@ -49,6 +49,7 @@ __all__ = [
 
 class LazyValue(object):
     """Marker to be used as a base class on lazily evaluated values."""
+    __slots__ = ()
 
 
 def raise_none_error(column):
