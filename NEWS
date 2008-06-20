@@ -17,6 +17,10 @@ Improvements
  - Expressions can be passed to Store.find() as well as classes.  This
    makes it possible to request individual columns from a table,
    computed expressions or aggregates.
+ - Objects will be flushed in the order they become dirty by default.
+   This means that generally the order in which Python operations are
+   performed will be used to define the order in which flushes are done,
+   which is generally the most expected.
 
 Bug fixes
 ---------
