@@ -71,7 +71,7 @@ class Store(object):
         self._order = {} # (info, info) = count
         self._cache = Cache(100)
         self._implicit_flush_block_count = 0
-        self._sequence = 0
+        self._sequence = 0 # Advisory ordering.
 
     @staticmethod
     def of(obj):
@@ -431,7 +431,14 @@ class Store(object):
                     before_set.add(before_info)
 
         key_func = itemgetter("sequence")
+
+        # The external loop is important because items can get into the dirty
+        # state while we're flushing objects, ...
         while self._dirty:
+            # ... but we don't have to resort everytime an object is flushed,
+            # so we have an internal loop too.  If no objects become dirty
+            # during flush, this will clean self._dirty and the external loop
+            # will exit too.
             sorted_dirty = sorted(self._dirty, key=key_func)
             while sorted_dirty:
                 for i, obj_info in enumerate(sorted_dirty):
