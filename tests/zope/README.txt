@@ -180,15 +180,15 @@ To interoperate with the Zope security wrapper system, storm.zope
 tells Zope to exposes certain Storm-internal attributes which appear
 on Storm-managed objects.
 
-  >>> from storm.info import get_obj_info
+  >>> from storm.info import get_obj_info, ObjectInfo
   >>> from zope.security.checker import ProxyFactory
   >>> from pprint import pprint
 
   >>> person = store.find(Person).one()
-  >>> get_obj_info(person)
-  {'store': <...Store object at ...>, 'primary_vars': ...}
-  >>> get_obj_info(ProxyFactory(person))
-  {'store': <...Store object at ...>, 'primary_vars': ...}
+  >>> type(get_obj_info(person)) is ObjectInfo
+  True
+  >>> type(get_obj_info(ProxyFactory(person))) is ObjectInfo
+  True
 
 
 # vim:ts=4:sw=4:et
