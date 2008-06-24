@@ -1088,16 +1088,20 @@ class SQLObjectTest(TestHelper):
         self.assertFalse(john in self.Person.select(
                 "Person.name = 'John Joe'"))
 
-    def test_result_set_contains_with_union(self):
+    def test_result_set_contains_set_expressions(self):
         # XXX 2008-06-24 jamesh:
         # SQLite appears to not support the SQL we generate for this
         # case, and I am not sure how else to write the expression.
         return
 
         john = self.Person.selectOneBy(name="John Doe")
-        result_set = self.Person.selectBy(name="John Joe").union(
-            self.Person.selectBy(name="John Doe"))
-        self.assertTrue(john in result_set)
+
+        result1 = self.Person.selectBy(name="John Joe")
+        result2 = self.Person.selectBy(name="John Doe")
+
+        self.assertTrue(john in result1.union(result2))
+        self.assertFalse(john in result1.intersect(result2))
+        self.assertTrue(john in result2.except_(result1))
 
     def test_result_set_contains_does_not_use_iter(self):
         """Calling 'item in result_set' does not iterate over the set. """

@@ -505,8 +505,8 @@ class SQLObjectResultSet(object):
             self._finished_result_set = self._finish_result_set()
         return self._finished_result_set
 
-    def _without_prejoins(self):
-        if self._prejoins or self._prejoinClauseTables:
+    def _without_prejoins(self, always_copy=False):
+        if always_copy or self._prejoins or self._prejoinClauseTables:
             return self._copy(prejoins=None, prejoinClauseTables=None)
         else:
             return self
@@ -588,30 +588,24 @@ class SQLObjectResultSet(object):
     def distinct(self):
         return self._copy(distinct=True, orderBy=None)
 
-    def union(self, otherSelect, unionAll=False, orderBy=None):
-        result1 = self._without_prejoins()._result_set.order_by()
-        result2 = otherSelect._without_prejoins()._result_set.order_by()
+    def union(self, otherSelect, unionAll=False, orderBy=()):
+        result1 = self._without_prejoins(True)._result_set.order_by()
+        result2 = otherSelect._without_prejoins(True)._result_set.order_by()
         result_set = result1.union(result2, all=unionAll)
-        if orderBy is None:
-            orderBy = []
         return self._copy(
             prepared_result_set=result_set, distinct=False, orderBy=orderBy)
 
-    def except_(self, otherSelect, exceptAll=False, orderBy=None):
-        result1 = self._without_prejoins()._result_set.order_by()
-        result2 = otherSelect._without_prejoins()._result_set.order_by()
+    def except_(self, otherSelect, exceptAll=False, orderBy=()):
+        result1 = self._without_prejoins(True)._result_set.order_by()
+        result2 = otherSelect._without_prejoins(True)._result_set.order_by()
         result_set = result1.difference(result2, all=exceptAll)
-        if orderBy is None:
-            orderBy = []
         return self._copy(
             prepared_result_set=result_set, distinct=False, orderBy=orderBy)
 
-    def intersect(self, otherSelect, intersectAll=False, orderBy=None):
-        result1 = self._without_prejoins()._result_set.order_by()
-        result2 = otherSelect._without_prejoins()._result_set.order_by()
+    def intersect(self, otherSelect, intersectAll=False, orderBy=()):
+        result1 = self._without_prejoins(True)._result_set.order_by()
+        result2 = otherSelect._without_prejoins(True)._result_set.order_by()
         result_set = result1.intersection(result2, all=intersectAll)
-        if orderBy is None:
-            orderBy = []
         return self._copy(
             prepared_result_set=result_set, distinct=False, orderBy=orderBy)
 
