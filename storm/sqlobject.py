@@ -37,7 +37,7 @@ from storm.store import AutoReload, Store
 from storm.base import Storm
 from storm.expr import (
     SQL, SQLRaw, Desc, And, Or, Not, In, Like, AutoTables, LeftJoin,
-    Column, compare_columns)
+    Column, compare_columns, Alias)
 from storm.tz import tzutc
 from storm import Undef
 
@@ -547,11 +547,35 @@ class SQLObjectResultSet(object):
                 return detuplelize(L[index])
             return detuplelize(self._result_set[index])
 
+    def __contains__(self, item):
+        if not isinstance(item, self._cls):
+            raise TypeError("SQLObjectResultSet.__contains__ expected "
+                            "%r but got %r" % (self._cls, type(item)))
+
+        if self._prepared_result_set is None:
+            # If there is no prepared result set, prepare a cloned
+            # result set that limits results to the item in question.
+            new_clause = self._cls.id == item.id
+            if self._clause:
+                new_clause = And(self._clause, new_clause)
+            clone = self._copy(clause=new_clause, distinct=False)
+            return bool(clone)
+        else:
+            # If we have a prepared result set, we'll need to use a
+            # subselect.
+            store = self._cls._get_store()
+            subselect = Alias(self._result_set._get_select(),
+                              self._cls.__storm_table__)
+            result_set = store.using(subselect).find(
+                self._cls.id, self._cls.id == item.id)
+            return result_set.order_by().any() is not None
+
     def __nonzero__(self):
-        return self._result_set.any() is not None
+        result_set = self._without_prejoins()._result_set.order_by()
+        return result_set.any() is not None
 
     def count(self):
-        result_set = self._without_prejoins()._result_set
+        result_set = self._without_prejoins()._result_set.order_by()
         # XXX 2008-04-14 jamesh: this should probably be handled at
         # the store level.
         if self._distinct:
@@ -569,23 +593,29 @@ class SQLObjectResultSet(object):
         return self._copy(distinct=True, orderBy=None)
 
     def union(self, otherSelect, unionAll=False, orderBy=None):
-        result_set = self._without_prejoins()._result_set.union(
-            otherSelect._without_prejoins()._result_set, all=unionAll)
-        result_set.order_by() # Remove default order.
+        result1 = self._without_prejoins()._result_set.order_by()
+        result2 = otherSelect._without_prejoins()._result_set.order_by()
+        result_set = result1.union(result2, all=unionAll)
+        if orderBy is None:
+            orderBy = []
         return self._copy(
             prepared_result_set=result_set, distinct=False, orderBy=orderBy)
 
     def except_(self, otherSelect, exceptAll=False, orderBy=None):
-        result_set = self._without_prejoins()._result_set.difference(
-            otherSelect._without_prejoins()._result_set, all=exceptAll)
-        result_set.order_by() # Remove default order.
+        result1 = self._without_prejoins()._result_set.order_by()
+        result2 = otherSelect._without_prejoins()._result_set.order_by()
+        result_set = result1.difference(result2, all=exceptAll)
+        if orderBy is None:
+            orderBy = []
         return self._copy(
             prepared_result_set=result_set, distinct=False, orderBy=orderBy)
 
     def intersect(self, otherSelect, intersectAll=False, orderBy=None):
-        result_set = self._without_prejoins()._result_set.intersection(
-            otherSelect._without_prejoins()._result_set, all=intersectAll)
-        result_set.order_by() # Remove default order.
+        result1 = self._without_prejoins()._result_set.order_by()
+        result2 = otherSelect._without_prejoins()._result_set.order_by()
+        result_set = result1.intersection(result2, all=intersectAll)
+        if orderBy is None:
+            orderBy = []
         return self._copy(
             prepared_result_set=result_set, distinct=False, orderBy=orderBy)
 
