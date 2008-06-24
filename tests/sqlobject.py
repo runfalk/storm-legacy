@@ -1099,16 +1099,6 @@ class SQLObjectTest(TestHelper):
             self.Person.selectBy(name="John Doe"))
         self.assertTrue(john in result_set)
 
-    def test_result_set_contains_wrong_type(self):
-        class Address(self.SQLObject):
-            city = StringCol()
-
-        address = Address.get(1)
-
-        result_set = self.Person.select()
-        self.assertRaises(TypeError, result_set.__contains__, 42)
-        self.assertRaises(TypeError, result_set.__contains__, address)
-
     def test_result_set_contains_does_not_use_iter(self):
         """Calling 'item in result_set' does not iterate over the set. """
         def no_iter(self):

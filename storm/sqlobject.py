@@ -548,10 +548,6 @@ class SQLObjectResultSet(object):
             return detuplelize(self._result_set[index])
 
     def __contains__(self, item):
-        if not isinstance(item, self._cls):
-            raise TypeError("SQLObjectResultSet.__contains__ expected "
-                            "%r but got %r" % (self._cls, type(item)))
-
         if self._prepared_result_set is None:
             # If there is no prepared result set, prepare a cloned
             # result set that limits results to the item in question.
@@ -571,11 +567,11 @@ class SQLObjectResultSet(object):
             return result_set.order_by().any() is not None
 
     def __nonzero__(self):
-        result_set = self._without_prejoins()._result_set.order_by()
+        result_set = self._without_prejoins()._result_set
         return result_set.any() is not None
 
     def count(self):
-        result_set = self._without_prejoins()._result_set.order_by()
+        result_set = self._without_prejoins()._result_set
         # XXX 2008-04-14 jamesh: this should probably be handled at
         # the store level.
         if self._distinct:
