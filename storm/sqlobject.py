@@ -32,7 +32,7 @@ from storm.references import Reference, ReferenceSet
 from storm.properties import SimpleProperty, PropertyPublisherMeta
 from storm.variables import Variable
 from storm.exceptions import StormError, NotOneError
-from storm.info import get_cls_info, ClassAlias
+from storm.info import get_cls_info, get_obj_info, ClassAlias
 from storm.store import AutoReload, Store
 from storm.base import Storm
 from storm.expr import (
@@ -548,6 +548,9 @@ class SQLObjectResultSet(object):
             return detuplelize(self._result_set[index])
 
     def __contains__(self, item):
+        if not isinstance(item, self._cls):
+            raise TypeError("SQLObjectResultSet.__contains__ expected "
+                            "%r but got %r" % (self._cls, type(item)))
         if self._prepared_result_set is None:
             # If there is no prepared result set, prepare a cloned
             # result set that limits results to the item in question.

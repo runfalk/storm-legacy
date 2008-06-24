@@ -1115,6 +1115,16 @@ class SQLObjectTest(TestHelper):
         finally:
             SQLObjectResultSet.__iter__ = real_iter
 
+    def test_result_set_contains_wrong_type(self):
+        class Address(self.SQLObject):
+            city = StringCol()
+
+        address = Address.get(1)
+
+        result_set = self.Person.select()
+        self.assertRaises(TypeError, result_set.__contains__, 42)
+        self.assertRaises(TypeError, result_set.__contains__, address)
+
     def test_table_dot_q(self):
         # Table.q.fieldname is a syntax used in SQLObject for
         # sqlbuilder expressions.  Storm can use the main properties
