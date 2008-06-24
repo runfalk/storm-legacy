@@ -1081,6 +1081,24 @@ class SQLObjectTest(TestHelper):
         result = self.Person.select()
         self.assertEquals(result.sum(self.Person.q.age), 40)
 
+    def test_result_set_contains(self):
+        # Ensure that __iter__ is not used as a fallback for a missing
+        # __contains__() method.
+        def no_iter(self):
+            raise RuntimeError
+        real_iter = SQLObjectResultSet.__iter__
+        SQLObjectResultSet.__iter__ = no_iter
+        try:
+            john = self.Person.selectOneBy(name="John Doe")
+            self.assertTrue(john in self.Person.select())
+            self.assertFalse(john in self.Person.selectBy(name="John Joe"))
+
+            result_set = self.Person.selectBy(name="John Joe").union(
+                self.Person.selectBy(name="John Doe"))
+            self.assertTrue(john in result_set)
+        finally:
+            SQLObjectResultSet.__iter__ = real_iter
+
     def test_table_dot_q(self):
         # Table.q.fieldname is a syntax used in SQLObject for
         # sqlbuilder expressions.  Storm can use the main properties
