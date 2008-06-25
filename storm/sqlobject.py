@@ -548,26 +548,8 @@ class SQLObjectResultSet(object):
             return detuplelize(self._result_set[index])
 
     def __contains__(self, item):
-        if not isinstance(item, self._cls):
-            raise TypeError("SQLObjectResultSet.__contains__ expected "
-                            "%r but got %r" % (self._cls, type(item)))
-        if self._prepared_result_set is None:
-            # If there is no prepared result set, prepare a cloned
-            # result set that limits results to the item in question.
-            new_clause = self._cls.id == item.id
-            if self._clause:
-                new_clause = And(self._clause, new_clause)
-            clone = self._copy(clause=new_clause, distinct=False)
-            return bool(clone)
-        else:
-            # If we have a prepared result set, we'll need to use a
-            # subselect.
-            store = self._cls._get_store()
-            subselect = Alias(self._result_set._get_select(),
-                              self._cls.__storm_table__)
-            result_set = store.using(subselect).find(
-                self._cls.id, self._cls.id == item.id)
-            return result_set.order_by().any() is not None
+        result_set = self._without_prejoins()._result_set
+        return item in result_set
 
     def __nonzero__(self):
         result_set = self._without_prejoins()._result_set

@@ -19,6 +19,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 import datetime
+import operator
 
 from storm.database import create_database
 from storm.exceptions import NoneError
@@ -1088,21 +1089,6 @@ class SQLObjectTest(TestHelper):
         self.assertFalse(john in self.Person.select(
                 "Person.name = 'John Joe'"))
 
-    def test_result_set_contains_set_expressions(self):
-        # XXX 2008-06-24 jamesh:
-        # SQLite appears to not support the SQL we generate for this
-        # case, and I am not sure how else to write the expression.
-        return
-
-        john = self.Person.selectOneBy(name="John Doe")
-
-        result1 = self.Person.selectBy(name="John Joe")
-        result2 = self.Person.selectBy(name="John Doe")
-
-        self.assertTrue(john in result1.union(result2))
-        self.assertFalse(john in result1.intersect(result2))
-        self.assertTrue(john in result2.except_(result1))
-
     def test_result_set_contains_does_not_use_iter(self):
         """Calling 'item in result_set' does not iterate over the set. """
         def no_iter(self):
@@ -1120,10 +1106,19 @@ class SQLObjectTest(TestHelper):
             city = StringCol()
 
         address = Address.get(1)
-
         result_set = self.Person.select()
-        self.assertRaises(TypeError, result_set.__contains__, 42)
-        self.assertRaises(TypeError, result_set.__contains__, address)
+        self.assertRaises(TypeError, operator.contains, result_set, address)
+
+    def test_result_set_contains_with_prejoins(self):
+        class Person(self.Person):
+            address = ForeignKey(foreignKey="Address", dbName="address_id")
+
+        class Address(self.SQLObject):
+            city = StringCol()
+
+        john = Person.selectOneBy(name="John Doe")
+        result_set = Person.select("name = 'John Doe'", prejoins=["address"])
+        self.assertTrue(john in result_set)
 
     def test_table_dot_q(self):
         # Table.q.fieldname is a syntax used in SQLObject for
