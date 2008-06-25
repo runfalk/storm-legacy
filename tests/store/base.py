@@ -21,6 +21,7 @@
 #
 import decimal
 import gc
+import operator
 
 from storm.references import Reference, ReferenceSet, Proxy
 from storm.database import Result
@@ -31,6 +32,7 @@ from storm.variables import Variable, UnicodeVariable, IntVariable
 from storm.info import get_obj_info, ClassAlias
 from storm.exceptions import *
 from storm.store import *
+from storm.store import ResultSet
 
 from tests.info import Wrapper
 from tests.helper import run_this
@@ -617,6 +619,49 @@ class StoreTest(object):
         result = self.store.find(Foo)[:2]
         self.assertRaises(FeatureError, result.remove)
 
+    def test_find_contains(self):
+        foo = self.store.get(Foo, 10)
+        result = self.store.find(Foo)
+        self.assertEquals(foo in result, True)
+        result = self.store.find(Foo, Foo.id == 20)
+        self.assertEquals(foo in result, False)
+        result = self.store.find(Foo, "foo.id = 20")
+        self.assertEquals(foo in result, False)
+
+    def test_find_contains_wrong_type(self):
+        bar = self.store.get(Bar, 200)
+        self.assertRaises(TypeError,
+                          operator.contains, self.store.find(Foo), bar)
+
+    def test_find_contains_does_not_use_iter(self):
+        def no_iter(self):
+            raise RuntimeError()
+        orig_iter = ResultSet.__iter__
+        ResultSet.__iter__ = no_iter
+        try:
+            foo = self.store.get(Foo, 10)
+            result = self.store.find(Foo)
+            self.assertEquals(foo in result, True)
+        finally:
+            ResultSet.__iter__ = orig_iter
+
+    def test_find_contains_with_composed_key(self):
+        link = self.store.get(Link, (10, 100))
+        result = self.store.find(Link, Link.foo_id == 10)
+        self.assertEquals(link in result, True)
+        result = self.store.find(Link, Link.bar_id == 200)
+        self.assertEquals(link in result, False)
+
+    def test_find_contains_with_set_expression(self):
+        foo = self.store.get(Foo, 10)
+        result1 = self.store.find(Foo, Foo.id == 10)
+        result2 = self.store.find(Foo, Foo.id != 10)
+        self.assertEquals(foo in result1.union(result2), True)
+        self.assertEquals(foo in result1.difference(result2), True)
+        self.assertEquals(foo in result1.difference(result1), False)
+        self.assertEquals(foo in result1.intersection(result2), False)
+        self.assertEquals(foo in result1.intersection(result1), True)
+
     def test_find_any(self, *args):
         foo = self.store.find(Foo).order_by(Foo.title).any()
         self.assertEquals(foo.id, 30)
@@ -888,6 +933,12 @@ class StoreTest(object):
                           ((300, u"Title 100"), (300, 10)),
                           ((300, u"Title 100"), (300, 30)),
                          ])
+
+    def test_find_tuple_contains(self):
+        foo = self.store.get(Foo, 10)
+        bar = self.store.get(Bar, 100)
+        result = self.store.find((Foo, Bar), Bar.foo_id == Foo.id)
+        self.assertRaises(FeatureError, operator.contains, result, (foo, bar))
 
     def test_find_tuple_any(self):
         bar = self.store.get(Bar, 200)
@@ -4872,6 +4923,9 @@ class EmptyResultSetTest(object):
     def test_slice(self):
         self.assertEquals(list(self.result[:]), [])
         self.assertEquals(list(self.empty[:]), [])
+
+    def test_contains(self):
+        self.assertEquals(Foo() in self.empty, False)
 
     def test_any(self):
         self.assertEquals(self.result.any(), None)

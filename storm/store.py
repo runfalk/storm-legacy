@@ -970,6 +970,35 @@ class ResultSet(object):
 
         return self.copy().config(offset=offset, limit=limit)
 
+    def __contains__(self, item):
+        """Check if an item is contained within the result set."""
+        if self._find_spec.default_cls_info is None:
+            raise FeatureError("__contains__() not yet supported for tuple or "
+                               "expression finds")
+
+        obj_info = get_obj_info(item)
+        cls_info = obj_info.cls_info
+        if cls_info != self._find_spec.default_cls_info:
+            raise TypeError("%r is of the wrong type" % item)
+
+        where = compare_columns(cls_info.primary_key,
+                                obj_info.primary_vars)
+
+        if self._select is Undef:
+            # No predefined select: adjust the where clause.
+            dummy, default_tables = self._find_spec.get_columns_and_tables()
+            if self._where is not Undef:
+                where = And(self._where, where)
+            select = Select(cls_info.primary_key, where, self._tables,
+                            default_tables)
+        else:
+            # Use the predefined select as a subquery.
+            select = Select(cls_info.primary_key, where,
+                            Alias(self._get_select(), cls_info.table))
+
+        result = self._store._connection.execute(select)
+        return result.get_one() is not None
+
     def any(self):
         """Return a single item from the result set.
 
@@ -1310,6 +1339,9 @@ class EmptyResultSet(object):
 
     def __getitem__(self, index):
         return self.copy()
+
+    def __contains__(self, item):
+        return False
 
     def any(self):
         return None
