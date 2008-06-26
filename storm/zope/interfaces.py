@@ -61,7 +61,7 @@ class IResultSet(Interface):
         """
 
     def __contains__(item):
-       """Check if C{item} is contained in the result set."""
+        """Check if C{item} is contained in the result set."""
 
     def any():
         """
