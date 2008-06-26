@@ -20,6 +20,8 @@
 #
 import weakref
 
+from storm import has_cextensions
+
 
 __all__ = ["EventSystem"]
 
@@ -29,19 +31,6 @@ class EventSystem(object):
     def __init__(self, owner):
         self._owner_ref = weakref.ref(owner)
         self._hooks = {}
-        self._saved_hooks = {}
-
-    def save(self):
-        hooks = {}
-        for name, callbacks in self._hooks.items():
-            hooks[name] = callbacks.copy()
-        self._saved_hooks = hooks
-
-    def restore(self):
-        hooks = self._hooks
-        hooks.clear()
-        for name, callbacks in self._saved_hooks.items():
-            hooks[name] = callbacks.copy()
 
     def hook(self, name, callback, *data):
         callbacks = self._hooks.get(name)
@@ -59,7 +48,11 @@ class EventSystem(object):
         owner = self._owner_ref()
         if owner is not None:
             callbacks = self._hooks.get(name)
-            if callbacks is not None:
-                for callback, data in callbacks.copy():
+            if callbacks:
+                for callback, data in tuple(callbacks):
                     if callback(owner, *(args+data)) is False:
                         callbacks.discard((callback, data))
+
+
+if has_cextensions:
+    from storm.cextensions import EventSystem

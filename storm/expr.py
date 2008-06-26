@@ -29,11 +29,21 @@ from storm.variables import (
     Variable, RawStrVariable, UnicodeVariable, LazyValue,
     DateTimeVariable, DateVariable, TimeVariable, TimeDeltaVariable,
     BoolVariable, IntVariable, FloatVariable, DecimalVariable)
-from storm import Undef
+from storm import Undef, has_cextensions
 
 
 # --------------------------------------------------------------------
 # Basic compiler infrastructure
+
+def _when(self, types):
+    """Check Compile.when.  Defined here to ease the work of cextensions."""
+    def decorator(method):
+        for type in types:
+            self._local_dispatch_table[type] = method
+        self._update_cache()
+        return method
+    return decorator
+
 
 class Compile(object):
     """Compiler based on the concept of generic functions."""
@@ -45,7 +55,6 @@ class Compile(object):
         self._dispatch_table = {}
         self._precedence = {}
         self._reserved_words = {}
-        self._hash = None
         self._children = WeakKeyDictionary()
         self._parents = []
         if parent:
@@ -64,6 +73,18 @@ class Compile(object):
         self._reserved_words.update(self._local_reserved_words)
         for child in self._children:
             child._update_cache()
+
+    def when(self, *types):
+        """Decorator to include a type handler in this compiler.
+
+        Use this as:
+
+        @compile.when(TypeA, TypeB)
+        def compile_type_a_or_b(compile, expr, state):
+            ...
+            return "THE COMPILED SQL STATEMENT"
+        """
+        return _when(self, types)
 
     def add_reserved_words(self, words):
         """Include words to be considered reserved and thus escaped.
@@ -90,14 +111,6 @@ class Compile(object):
         database-specific compilation strategies.
         """
         return self.__class__(self)
-
-    def when(self, *types):
-        def decorator(method):
-            for type in types:
-                self._local_dispatch_table[type] = method
-            self._update_cache()
-            return method
-        return decorator
 
     def get_precedence(self, type):
         return self._precedence.get(type, MAX_PRECEDENCE)
@@ -132,7 +145,7 @@ class Compile(object):
             return "(%s)" % statement
         return statement
 
-    def __call__(self, expr, state=None, join=", ", raw=False, token=False):
+    def __call__(self, expr, state=None, join=u", ", raw=False, token=False):
         """Compile the given expression into a SQL statement.
 
         @param expr: The expression to compile.
@@ -170,7 +183,7 @@ class Compile(object):
                     statement = subexpr
                 elif subexpr_type is tuple or subexpr_type is list:
                     state.precedence = outer_precedence
-                    statement = self(subexpr, state, join, raw)
+                    statement = self(subexpr, state, join, raw, token)
                 else:
                     if token and (subexpr_type is unicode or
                                   subexpr_type is str):
@@ -184,6 +197,10 @@ class Compile(object):
         state.precedence = outer_precedence
 
         return statement
+
+
+if has_cextensions:
+    from storm.cextensions import Compile
 
 
 class CompilePython(Compile):
