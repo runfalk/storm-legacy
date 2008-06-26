@@ -21,6 +21,13 @@ Improvements
    This means that generally the order in which Python operations are
    performed will be used to define the order in which flushes are done,
    which is generally the most expected.
+ - The cextensions module was fixed, optimized, and improved.  It's now
+   built by default, but to actually enable it the environment variable
+   STORM_CEXTENSIONS=1 must be defined at runtime.  The module will
+   likely be enabled by default on a future release.
+ - ClassAlias will now cache all explicitly named aliases, to prevent
+   the cost of rebuilding it.
+
 
 Bug fixes
 ---------
@@ -39,6 +46,8 @@ Bug fixes
    previously raise OrderLoopError.
  - If the remote object in a back reference is removed, the reference
    will now be broken.
+ - Fixed a race condition when two threads try to initialize the
+   ClassInfo for a given class at the same time.
 
 
 0.12 (2008-01-28)
