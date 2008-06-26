@@ -3065,6 +3065,19 @@ class StoreTest(object):
                           (400, 20, "Title 20"),
                          ])
 
+    def test_reference_set_contains(self):
+        def no_iter(self):
+            raise RuntimeError()
+        from storm.references import BoundReferenceSetBase
+        orig_iter = BoundReferenceSetBase.__iter__
+        BoundReferenceSetBase.__iter__ = no_iter
+        try:
+            foo = self.store.get(FooRefSet, 20)
+            bar = self.store.get(Bar, 200)
+            self.assertEquals(bar in foo.bars, True)
+        finally:
+            BoundReferenceSetBase.__iter__ = orig_iter
+
     def test_reference_set_find(self):
         self.add_reference_set_bar_400()
 
