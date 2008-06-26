@@ -272,6 +272,9 @@ class BoundReferenceSetBase(object):
     def __iter__(self):
         return self.find().__iter__()
 
+    def __contains__(self, item):
+        return item in self.find()
+
     def first(self, *args, **kwargs):
         return self.find(*args, **kwargs).first()
 
