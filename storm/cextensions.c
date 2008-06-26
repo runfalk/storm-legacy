@@ -1039,11 +1039,13 @@ static PyObject *
 Variable_set_state(VariableObject *self, PyObject *args)
 {
     /* self._lazy_value, self._value = state */
-    if (!PyArg_ParseTuple(args, "(OO):set_state",
-                          &self->_lazy_value, &self->_value))
+    PyObject *lazy_value, *value;
+    if (!PyArg_ParseTuple(args, "(OO):set_state", &lazy_value, &value))
         return NULL;
-    Py_INCREF(self->_lazy_value);
-    Py_INCREF(self->_value);
+    Py_INCREF(lazy_value);
+    REPLACE(self->_lazy_value, lazy_value);
+    Py_INCREF(value);
+    REPLACE(self->_value, value);
     Py_RETURN_NONE;
 }
 
@@ -1721,17 +1723,19 @@ error:
 static PyObject *
 Compile__call__(CompileObject *self, PyObject *args, PyObject *kwargs)
 {
-    if (!initialize_globals())
-        return NULL;
-
     static char *kwlist[] = {"expr", "state", "join", "raw", "token", NULL};
     PyObject *expr = NULL;
     PyObject *state = Py_None;
-    PyObject *join = default_compile_join;
+    PyObject *join;
     char raw = 0;
     char token = 0;
 
     PyObject *result = NULL;
+
+    if (!initialize_globals())
+        return NULL;
+
+    join = default_compile_join;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|OSbb", kwlist,
                                      &expr, &state, &join, &raw, &token)) {
