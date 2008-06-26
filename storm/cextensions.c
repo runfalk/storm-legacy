@@ -250,11 +250,10 @@ EventSystem_init(EventSystemObject *self, PyObject *args, PyObject *kwargs)
 {
     static char *kwlist[] = {"owner", NULL};
     PyObject *owner;
+    int result = -1;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kwlist, &owner))
         return -1;
-
-    int result = -1;
 
     /* self._owner_ref = weakref.ref(owner) */
     self->_owner_ref = PyWeakref_NewRef(owner, NULL);
@@ -296,17 +295,18 @@ static PyObject *
 EventSystem_hook(EventSystemObject *self, PyObject *args)
 {
     PyObject *result = NULL;
+    PyObject *name, *callback, *data;
 
     if (PyTuple_GET_SIZE(args) < 2) {
         PyErr_SetString(PyExc_TypeError, "Invalid number of arguments");
         return NULL;
     }
 
-    PyObject *name = PyTuple_GET_ITEM(args, 0);
-    PyObject *callback = PyTuple_GET_ITEM(args, 1);
-    PyObject *data = PyTuple_GetSlice(args, 2, PyTuple_GET_SIZE(args));
+    name = PyTuple_GET_ITEM(args, 0);
+    callback = PyTuple_GET_ITEM(args, 1);
+    data = PyTuple_GetSlice(args, 2, PyTuple_GET_SIZE(args));
     if (data) {
-        /* 
+        /*
            callbacks = self._hooks.get(name)
            if callbacks is None:
                self._hooks.setdefault(name, set()).add((callback, data))
@@ -351,15 +351,16 @@ static PyObject *
 EventSystem_unhook(EventSystemObject *self, PyObject *args)
 {
     PyObject *result = NULL;
+    PyObject *name, *callback, *data;
 
     if (PyTuple_GET_SIZE(args) < 2) {
         PyErr_SetString(PyExc_TypeError, "Invalid number of arguments");
         return NULL;
     }
 
-    PyObject *name = PyTuple_GET_ITEM(args, 0);
-    PyObject *callback = PyTuple_GET_ITEM(args, 1);
-    PyObject *data = PyTuple_GetSlice(args, 2, PyTuple_GET_SIZE(args));
+    name = PyTuple_GET_ITEM(args, 0);
+    callback = PyTuple_GET_ITEM(args, 1);
+    data = PyTuple_GetSlice(args, 2, PyTuple_GET_SIZE(args));
     if (data) {
         /* 
            callbacks = self._hooks.get(name)
@@ -399,9 +400,10 @@ EventSystem__do_emit_call(PyObject *callback, PyObject *owner,
     PyObject *tuple = PyTuple_New(PyTuple_GET_SIZE(args) +
                                   PyTuple_GET_SIZE(data) + 1);
     if (tuple) {
+        Py_ssize_t i, tuple_i;
+
         Py_INCREF(owner);
         PyTuple_SET_ITEM(tuple, 0, owner);
-        Py_ssize_t i, tuple_i;
         tuple_i = 1;
         for (i = 0; i != PyTuple_GET_SIZE(args); i++) {
             PyObject *item = PyTuple_GET_ITEM(args, i);
@@ -423,6 +425,7 @@ static PyObject *
 EventSystem_emit(EventSystemObject *self, PyObject *all_args)
 {
     PyObject *result = NULL;
+    PyObject *name, *args;
 
     if (PyTuple_GET_SIZE(all_args) == 0) {
         PyErr_SetString(PyExc_TypeError, "Invalid number of arguments");
@@ -432,16 +435,16 @@ EventSystem_emit(EventSystemObject *self, PyObject *all_args)
     /* XXX In the following code we trust on the format inserted by
      *     the hook() method.  If it's hacked somehow, it may blow up. */
 
-    PyObject *name = PyTuple_GET_ITEM(all_args, 0);
-    PyObject *args = PyTuple_GetSlice(all_args, 1, PyTuple_GET_SIZE(all_args));
+    name = PyTuple_GET_ITEM(all_args, 0);
+    args = PyTuple_GetSlice(all_args, 1, PyTuple_GET_SIZE(all_args));
     if (args) {
         /* owner = self._owner_ref() */
         PyObject *owner = PyWeakref_GET_OBJECT(self->_owner_ref);
         /* if owner is not None: */
         if (owner != Py_None) {
-            Py_INCREF(owner);
             /* callbacks = self._hooks.get(name) */
             PyObject *callbacks = PyDict_GetItem(self->_hooks, name);
+            Py_INCREF(owner);
             /* if callbacks: */
             if (callbacks && PySet_GET_SIZE(callbacks) != 0) {
                 /* for callback, data in tuple(callbacks): */
@@ -1039,11 +1042,13 @@ static PyObject *
 Variable_set_state(VariableObject *self, PyObject *args)
 {
     /* self._lazy_value, self._value = state */
-    if (!PyArg_ParseTuple(args, "(OO):set_state",
-                          &self->_lazy_value, &self->_value))
+    PyObject *lazy_value, *value;
+    if (!PyArg_ParseTuple(args, "(OO):set_state", &lazy_value, &value))
         return NULL;
-    Py_INCREF(self->_lazy_value);
-    Py_INCREF(self->_value);
+    Py_INCREF(lazy_value);
+    REPLACE(self->_lazy_value, lazy_value);
+    Py_INCREF(value);
+    REPLACE(self->_value, value);
     Py_RETURN_NONE;
 }
 
@@ -1509,13 +1514,15 @@ Compile_single(CompileObject *self,
     */
     PyObject *handler = PyDict_GetItem(self->_dispatch_table, cls);
     if (!handler) {
+        PyObject *mro;
+        Py_ssize_t size, i;
+
         if (PyErr_Occurred())
             goto error;
 
         /* for mro_cls in cls.__mro__: */
-        PyObject *mro = expr->ob_type->tp_mro;
-        Py_ssize_t size = PyTuple_GET_SIZE(mro);
-        int i;
+        mro = expr->ob_type->tp_mro;
+        size = PyTuple_GET_SIZE(mro);
         for (i = 0; i != size; i++) {
             PyObject *mro_cls = PyTuple_GET_ITEM(mro, i);
             /*
@@ -1560,11 +1567,12 @@ Compile_single(CompileObject *self,
 
     /* if inner_precedence < outer_precedence: */
     if (PyObject_Compare(inner_precedence, outer_precedence) == -1) {
+        PyObject *args, *tmp;
+
         if (PyErr_Occurred())
             goto error;
 
         /* return "(%s)" % statement */
-        PyObject *args, *tmp;
         CATCH(NULL, args = PyTuple_Pack(1, statement));
         tmp = PyUnicode_Format(parenthesis_format, args);
         Py_DECREF(args);
@@ -1721,17 +1729,19 @@ error:
 static PyObject *
 Compile__call__(CompileObject *self, PyObject *args, PyObject *kwargs)
 {
-    if (!initialize_globals())
-        return NULL;
-
     static char *kwlist[] = {"expr", "state", "join", "raw", "token", NULL};
     PyObject *expr = NULL;
     PyObject *state = Py_None;
-    PyObject *join = default_compile_join;
+    PyObject *join;
     char raw = 0;
     char token = 0;
 
     PyObject *result = NULL;
+
+    if (!initialize_globals())
+        return NULL;
+
+    join = default_compile_join;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|OSbb", kwlist,
                                      &expr, &state, &join, &raw, &token)) {
@@ -2022,7 +2032,7 @@ ObjectInfo_dealloc(ObjectInfoObject *self)
     Py_CLEAR(self->event);
     Py_CLEAR(self->variables);
     Py_CLEAR(self->primary_vars);
-    return PyDict_Type.tp_dealloc((PyObject *)self);
+    PyDict_Type.tp_dealloc((PyObject *)self);
 }
 
 static PyMethodDef ObjectInfo_methods[] = {
