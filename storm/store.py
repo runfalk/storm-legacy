@@ -1479,16 +1479,8 @@ class FindSpec(object):
             self._cls_spec_info, find_spec._cls_spec_info):
             if is_expr1 != is_expr2:
                 return False
-            if is_expr1:
-                # For expressions, the best we can do is see if they
-                # have the same variable types.
-                var1 = getattr(info1, "variable_factory", Variable)()
-                var2 = getattr(info2, "variable_factory", Variable)()
-                if type(var1) != type(var2):
-                    return False
-            else:
-                if info1 != info2:
-                    return False
+            if info1 is not info2:
+                return False
         return True
 
     def load_objects(self, store, result, values):

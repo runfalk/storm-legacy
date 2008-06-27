@@ -1126,12 +1126,11 @@ class StoreTest(object):
         self.assertRaises(FeatureError, result.cached)
 
     def test_find_with_expr_union(self):
-        result1 = self.store.find(Foo.title)
-        result2 = self.store.find(Bar.title)
+        result1 = self.store.find(Foo.title, Foo.id == 10)
+        result2 = self.store.find(Foo.title, Foo.id != 10)
         result = result1.union(result2)
-        self.assertEquals(sorted(result), [u"Title 10", u"Title 100",
-                                           u"Title 20", u"Title 200",
-                                           u"Title 30", u"Title 300"])
+        self.assertEquals(sorted(result),
+                          [u"Title 10", u"Title 20", u"Title 30",])
 
     def test_find_with_expr_union_mismatch(self):
         result1 = self.store.find(Foo.title)
