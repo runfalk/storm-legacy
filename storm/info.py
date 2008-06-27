@@ -200,7 +200,7 @@ if has_cextensions:
 
 
 
-class ClassAlias(FromExpr):
+class ClassAlias(object):
     """Create a named alias for a Storm class for use in queries.
 
     This is useful basically when the SQL 'AS' feature is desired in code using

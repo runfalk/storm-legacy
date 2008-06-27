@@ -669,6 +669,7 @@ class PropertyAdapter(object):
 
 class AutoUnicodeVariable(Variable):
     """Unlike UnicodeVariable, this will try to convert str to unicode."""
+    __slots__ = ()
 
     def parse_set(self, value, from_db):
         if not isinstance(value, basestring):
