@@ -39,7 +39,8 @@ class SQLiteMemoryTest(DatabaseTest, TestHelper):
         return ""
 
     def create_database(self):
-        self.database = SQLite(URI("sqlite:%s?timeout=0" % self.get_path()))
+        self.database = SQLite(URI("sqlite:%s?synchronous=OFF&timeout=0" %
+                                   self.get_path()))
 
     def create_tables(self):
         self.connection.execute("CREATE TABLE number "
