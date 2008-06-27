@@ -664,10 +664,13 @@ class StoreTest(object):
         result1 = self.store.find(Foo, Foo.id == 10)
         result2 = self.store.find(Foo, Foo.id != 10)
         self.assertEquals(foo in result1.union(result2), True)
-        self.assertEquals(foo in result1.difference(result2), True)
-        self.assertEquals(foo in result1.difference(result1), False)
+
+        if self.__class__.__name__.startswith("MySQL"):
+            return
         self.assertEquals(foo in result1.intersection(result2), False)
         self.assertEquals(foo in result1.intersection(result1), True)
+        self.assertEquals(foo in result1.difference(result2), True)
+        self.assertEquals(foo in result1.difference(result1), False)
 
     def test_find_any(self, *args):
         foo = self.store.find(Foo).order_by(Foo.title).any()
@@ -952,10 +955,15 @@ class StoreTest(object):
     def test_find_tuple_contains_with_set_expression(self):
         foo = self.store.get(Foo, 10)
         bar = self.store.get(Bar, 100)
+        bar200 = self.store.get(Bar, 200)
         result1 = self.store.find((Foo, Bar), Bar.foo_id == Foo.id)
         result2 = self.store.find((Foo, Bar), Bar.foo_id == Foo.id)
-        self.assertRaises(FeatureError, operator.contains,
-                          result1.union(result2), (foo, bar))
+        self.assertEquals((foo, bar) in result1.union(result2), True)
+
+        if self.__class__.__name__.startswith("MySQL"):
+            return
+        self.assertEquals((foo, bar) in result1.intersection(result2), True)
+        self.assertEquals((foo, bar) in result1.difference(result2), False)
 
     def test_find_tuple_any(self):
         bar = self.store.get(Bar, 200)
@@ -1068,8 +1076,12 @@ class StoreTest(object):
     def test_find_with_expr_contains_with_set_expression(self):
         result1 = self.store.find(Foo.title)
         result2 = self.store.find(Foo.title)
-        self.assertRaises(FeatureError, operator.contains,
-                          result1.union(result2), u"Title 10")
+        self.assertEquals(u"Title 10" in result1.union(result2), True)
+
+        if self.__class__.__name__.startswith("MySQL"):
+            return
+        self.assertEquals(u"Title 10" in result1.intersection(result2), True)
+        self.assertEquals(u"Title 10" in result1.difference(result2), False)
 
     def test_find_with_expr_remove_unsupported(self):
         result = self.store.find(Foo.title)

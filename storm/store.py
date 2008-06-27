@@ -32,7 +32,7 @@ from storm.variables import Variable, LazyValue
 from storm.expr import (
     Expr, Select, Insert, Update, Delete, Column, Count, Max, Min,
     Avg, Sum, Eq, And, Asc, Desc, compile_python, compare_columns, SQLRaw,
-    Union, Except, Intersect, Alias)
+    Union, Except, Intersect, Alias, SetExpr)
 from storm.exceptions import (
     WrongStoreError, NotFlushedError, OrderLoopError, UnorderedError,
     NotOneError, FeatureError, CompileError, LostObjectError, ClassInfoError)
@@ -972,24 +972,23 @@ class ResultSet(object):
 
     def __contains__(self, item):
         """Check if an item is contained within the result set."""
-        where = self._find_spec.get_where_for_item(item)
+        columns, values = self._find_spec.get_columns_and_values_for_item(item)
 
         if self._select is Undef:
             # No predefined select: adjust the where clause.
             dummy, default_tables = self._find_spec.get_columns_and_tables()
+            where = [Eq(*pair) for pair in zip(columns, values)]
             if self._where is not Undef:
-                where = And(self._where, where)
-            select = Select(1, where, self._tables,
+                where.append(self._where)
+            select = Select(1, And(*where), self._tables,
                             default_tables)
         else:
-            # Use the predefined select as a subquery.
-            cls_info = self._find_spec.default_cls_info
-            if cls_info is None:
-                raise FeatureError(
-                    "__contains__() not yet supported for tuple or "
-                    "expression finds on set expressions")
-            select = Select(1, where,
-                            Alias(self._get_select(), cls_info.table))
+            # Rewrite the predefined query and use it as a subquery.
+            aliased_columns = [Alias(column, '_key%d' % index)
+                               for (index, column) in enumerate(columns)]
+            subquery = replace_columns(self._select, aliased_columns)
+            where = [Eq(*pair) for pair in zip(aliased_columns, values)]
+            select = Select(1, And(*where), Alias(subquery, "TMP"))
 
         result = self._store._connection.execute(select)
         return result.get_one() is not None
@@ -1512,7 +1511,7 @@ class FindSpec(object):
         else:
             return objects[0]
 
-    def get_where_for_item(self, item):
+    def get_columns_and_values_for_item(self, item):
         """Generate a comparison expression with the given item."""
         if isinstance(item, tuple):
             if not self.is_tuple:
@@ -1522,24 +1521,23 @@ class FindSpec(object):
                 raise TypeError("Find spec expects tuples.")
             item = (item,)
 
-        where = []
+        columns = []
+        values = []
         for (is_expr, info), value in zip(self._cls_spec_info, item):
             if is_expr:
                 if not isinstance(value, (Expr, Variable)) and (
                     value is not None):
                     value = getattr(info, "variable_factory", Variable)(
                         value=value)
-                where.append(Eq(info, value))
+                columns.append(info)
+                values.append(value)
             else:
                 obj_info = get_obj_info(value)
                 if obj_info.cls_info != info:
                     raise TypeError("%r does not match %r" % (value, info))
-                where.extend(Eq(*pair) for pair in zip(info.primary_key,
-                                                       obj_info.primary_vars))
-        if len(where) == 1:
-            return where[0]
-        else:
-            return And(*where)
+                columns.extend(info.primary_key)
+                values.extend(obj_info.primary_vars)
+        return columns, values
 
 
 def get_where_for_args(args, kwargs, cls=None):
@@ -1554,6 +1552,32 @@ def get_where_for_args(args, kwargs, cls=None):
         return And(*equals)
     return Undef
 
+
+def replace_columns(expr, columns):
+    if isinstance(expr, Select):
+        return Select(
+            columns=columns, where=expr.where, tables=expr.tables,
+            default_tables=expr.default_tables, order_by=expr.order_by,
+            group_by=expr.group_by, limit=expr.limit, offset=expr.offset,
+            distinct=expr.distinct)
+    elif isinstance(expr, SetExpr):
+        # The ORDER BY clause might refer to columns we have replaced.
+        # Luckily we can ignore it if there is no limit/offset.
+        if expr.order_by is not Undef and (
+            expr.limit is not Undef or expr.offset is not Undef):
+            raise FeatureError(
+                "__contains__() does not yet support set "
+                "expressions that combine ORDER BY with "
+                "LIMIT/OFFSET")
+        subexprs = [replace_columns(subexpr, columns)
+                    for subexpr in expr.exprs]
+        return expr.__class__(
+            all=expr.all, limit=expr.limit, offset=expr.offset,
+            *subexprs)
+    else:
+        raise FeatureError(
+            "__contains__() does not yet support %r expressions"
+            % (expr.__class__,))
 
 class AutoReload(LazyValue):
     """A marker for reloading a single value.

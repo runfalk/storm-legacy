@@ -64,12 +64,6 @@ class SQLiteStoreTest(TestHelper, StoreTest):
     def drop_tables(self):
         pass
 
-    def test_find_contains_with_set_expression(self):
-        # XXX 2008-06-24 jamesh:
-        # SQLite appears to not support the SQL we generate for this
-        # case, and I am not sure how else to rewrite the expression.
-        pass
-
 
 class SQLiteEmptyResultSetTest(TestHelper, EmptyResultSetTest):
 
