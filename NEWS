@@ -27,6 +27,10 @@ Improvements
    likely be enabled by default on a future release.
  - ClassAlias will now cache all explicitly named aliases, to prevent
    the cost of rebuilding it.
+ - Result sets and reference sets now have a __contains__() method.
+   While code like "item in set" was previously possible, it involved
+   iterating over the result set, which is expensive for large
+   databases.
 
 
 Bug fixes
