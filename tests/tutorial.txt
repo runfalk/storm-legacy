@@ -895,7 +895,7 @@ custom stream may also be used.
 ...                     Employee.company_id == AnotherEmployee.company_id,
 ...                     Employee.id > AnotherEmployee.id)
 >>> list(result)
-[...] EXECUTE: 'SELECT employee.company_id, employee.id, employee.name, "...".company_id, "...".id, "...".name FROM employee, employee AS "..." WHERE employee.company_id = "...".company_id AND employee.id > "...".id', ()
+[...] EXECUTE: u'SELECT employee.company_id, employee.id, employee.name, "...".company_id, "...".id, "...".name FROM employee, employee AS "..." WHERE employee.company_id = "...".company_id AND employee.id > "...".id', ()
 [...] DONE
 [(<Employee object at ...>, <Employee object at ...>)]
 
@@ -914,4 +914,4 @@ are not answered somewhere else, feel free to ask them in the mailing
 list.
 
 
-## vim:ts=4:sw=4:et:ft=moin
+## vim:ts=4:sw=4:et:ft=moin1_5

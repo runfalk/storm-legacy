@@ -21,6 +21,7 @@
 #
 import decimal
 import gc
+import operator
 
 from storm.references import Reference, ReferenceSet, Proxy
 from storm.database import Result
@@ -31,6 +32,7 @@ from storm.variables import Variable, UnicodeVariable, IntVariable
 from storm.info import get_obj_info, ClassAlias
 from storm.exceptions import *
 from storm.store import *
+from storm.store import ResultSet
 
 from tests.info import Wrapper
 from tests.helper import run_this
@@ -131,6 +133,7 @@ class StoreTest(object):
         self.store = None
         self.stores = []
         self.create_database()
+        self.connection = self.database.connect()
         self.drop_tables()
         self.create_tables()
         self.create_sample_data()
@@ -141,6 +144,7 @@ class StoreTest(object):
         self.drop_sample_data()
         self.drop_tables()
         self.drop_database()
+        self.connection.close()
 
     def create_database(self):
         raise NotImplementedError
@@ -149,7 +153,7 @@ class StoreTest(object):
         raise NotImplementedError
 
     def create_sample_data(self):
-        connection = self.database.connect()
+        connection = self.connection
         connection.execute("INSERT INTO foo (id, title)"
                            " VALUES (10, 'Title 30')")
         connection.execute("INSERT INTO foo (id, title)"
@@ -219,14 +223,13 @@ class StoreTest(object):
         pass
 
     def drop_tables(self):
-        connection = self.database.connect()
         for table in ["foo", "bar", "bin", "link", "money", "selfref",
                       "foovalue"]:
             try:
-                connection.execute("DROP TABLE %s" % table)
-                connection.commit()
+                self.connection.execute("DROP TABLE %s" % table)
+                self.connection.commit()
             except:
-                connection.rollback()
+                self.connection.rollback()
 
     def drop_database(self):
         pass
@@ -643,6 +646,59 @@ class StoreTest(object):
         result = self.store.find(Foo)[:2]
         self.assertRaises(FeatureError, result.remove)
 
+    def test_find_contains(self):
+        foo = self.store.get(Foo, 10)
+        result = self.store.find(Foo)
+        self.assertEquals(foo in result, True)
+        result = self.store.find(Foo, Foo.id == 20)
+        self.assertEquals(foo in result, False)
+        result = self.store.find(Foo, "foo.id = 20")
+        self.assertEquals(foo in result, False)
+
+    def test_find_contains_wrong_type(self):
+        foo = self.store.get(Foo, 10)
+        bar = self.store.get(Bar, 200)
+        self.assertRaises(TypeError, operator.contains,
+                          self.store.find(Foo), bar)
+        self.assertRaises(TypeError, operator.contains,
+                          self.store.find((Foo,)), foo)
+        self.assertRaises(TypeError, operator.contains,
+                          self.store.find(Foo), (foo,))
+        self.assertRaises(TypeError, operator.contains,
+                          self.store.find((Foo, Bar)), (bar, foo))
+
+    def test_find_contains_does_not_use_iter(self):
+        def no_iter(self):
+            raise RuntimeError()
+        orig_iter = ResultSet.__iter__
+        ResultSet.__iter__ = no_iter
+        try:
+            foo = self.store.get(Foo, 10)
+            result = self.store.find(Foo)
+            self.assertEquals(foo in result, True)
+        finally:
+            ResultSet.__iter__ = orig_iter
+
+    def test_find_contains_with_composed_key(self):
+        link = self.store.get(Link, (10, 100))
+        result = self.store.find(Link, Link.foo_id == 10)
+        self.assertEquals(link in result, True)
+        result = self.store.find(Link, Link.bar_id == 200)
+        self.assertEquals(link in result, False)
+
+    def test_find_contains_with_set_expression(self):
+        foo = self.store.get(Foo, 10)
+        result1 = self.store.find(Foo, Foo.id == 10)
+        result2 = self.store.find(Foo, Foo.id != 10)
+        self.assertEquals(foo in result1.union(result2), True)
+
+        if self.__class__.__name__.startswith("MySQL"):
+            return
+        self.assertEquals(foo in result1.intersection(result2), False)
+        self.assertEquals(foo in result1.intersection(result1), True)
+        self.assertEquals(foo in result1.difference(result2), True)
+        self.assertEquals(foo in result1.difference(result1), False)
+
     def test_find_any(self, *args):
         foo = self.store.find(Foo).order_by(Foo.title).any()
         self.assertEquals(foo.id, 30)
@@ -915,6 +971,27 @@ class StoreTest(object):
                           ((300, u"Title 100"), (300, 30)),
                          ])
 
+    def test_find_tuple_contains(self):
+        foo = self.store.get(Foo, 10)
+        bar = self.store.get(Bar, 100)
+        bar200 = self.store.get(Bar, 200)
+        result = self.store.find((Foo, Bar), Bar.foo_id == Foo.id)
+        self.assertEquals((foo, bar) in result, True)
+        self.assertEquals((foo, bar200) in result, False)
+
+    def test_find_tuple_contains_with_set_expression(self):
+        foo = self.store.get(Foo, 10)
+        bar = self.store.get(Bar, 100)
+        bar200 = self.store.get(Bar, 200)
+        result1 = self.store.find((Foo, Bar), Bar.foo_id == Foo.id)
+        result2 = self.store.find((Foo, Bar), Bar.foo_id == Foo.id)
+        self.assertEquals((foo, bar) in result1.union(result2), True)
+
+        if self.__class__.__name__.startswith("MySQL"):
+            return
+        self.assertEquals((foo, bar) in result1.intersection(result2), True)
+        self.assertEquals((foo, bar) in result1.difference(result2), False)
+
     def test_find_tuple_any(self):
         bar = self.store.get(Bar, 200)
         bar.foo_id = None
@@ -1011,6 +1088,28 @@ class StoreTest(object):
         self.assertEquals(sorted(result),
                           [u"Title 10", u"Title 20", u"Title 30"])
 
+    def test_find_with_expr_contains(self):
+        result = self.store.find(Foo.title)
+        self.assertEquals(u"Title 10" in result, True)
+        self.assertEquals(u"Title 42" in result, False)
+
+    def test_find_tuple_with_expr_contains(self):
+        foo = self.store.get(Foo, 10)
+        result = self.store.find((Foo, Bar.title),
+                                 Bar.foo_id == Foo.id)
+        self.assertEquals((foo, u"Title 300") in result, True)
+        self.assertEquals((foo, u"Title 100") in result, False)
+
+    def test_find_with_expr_contains_with_set_expression(self):
+        result1 = self.store.find(Foo.title)
+        result2 = self.store.find(Foo.title)
+        self.assertEquals(u"Title 10" in result1.union(result2), True)
+
+        if self.__class__.__name__.startswith("MySQL"):
+            return
+        self.assertEquals(u"Title 10" in result1.intersection(result2), True)
+        self.assertEquals(u"Title 10" in result1.difference(result2), False)
+
     def test_find_with_expr_remove_unsupported(self):
         result = self.store.find(Foo.title)
         self.assertRaises(FeatureError, result.remove)
@@ -1054,12 +1153,11 @@ class StoreTest(object):
         self.assertRaises(FeatureError, result.cached)
 
     def test_find_with_expr_union(self):
-        result1 = self.store.find(Foo.title)
-        result2 = self.store.find(Bar.title)
+        result1 = self.store.find(Foo.title, Foo.id == 10)
+        result2 = self.store.find(Foo.title, Foo.id != 10)
         result = result1.union(result2)
-        self.assertEquals(sorted(result), [u"Title 10", u"Title 100",
-                                           u"Title 20", u"Title 200",
-                                           u"Title 30", u"Title 300"])
+        self.assertEquals(sorted(result),
+                          [u"Title 10", u"Title 20", u"Title 30",])
 
     def test_find_with_expr_union_mismatch(self):
         result1 = self.store.find(Foo.title)
@@ -3158,6 +3256,19 @@ class StoreTest(object):
                           (400, 20, "Title 20"),
                          ])
 
+    def test_reference_set_contains(self):
+        def no_iter(self):
+            raise RuntimeError()
+        from storm.references import BoundReferenceSetBase
+        orig_iter = BoundReferenceSetBase.__iter__
+        BoundReferenceSetBase.__iter__ = no_iter
+        try:
+            foo = self.store.get(FooRefSet, 20)
+            bar = self.store.get(Bar, 200)
+            self.assertEquals(bar in foo.bars, True)
+        finally:
+            BoundReferenceSetBase.__iter__ = orig_iter
+
     def test_reference_set_find(self):
         self.add_reference_set_bar_400()
 
@@ -4663,6 +4774,15 @@ class StoreTest(object):
 
         self.assertEquals(result3.count(), 2)
 
+    def test_is_in_empty_result_set(self):
+        result1 = self.store.find(Foo, Foo.id < 10)
+        result2 = self.store.find(Foo, Or(Foo.id > 20, Foo.id.is_in(result1)))
+        self.assertEquals(result2.count(), 1)
+
+    def test_is_in_empty_list(self):
+        result2 = self.store.find(Foo, Eq(False, And(True, Foo.id.is_in([]))))
+        self.assertEquals(result2.count(), 3)
+
     def test_result_intersection(self):
         if self.__class__.__name__.startswith("MySQL"):
             return
@@ -4905,11 +5025,54 @@ class StoreTest(object):
                     " (ensure your database was created with CREATE DATABASE"
                     " ... CHARACTER SET utf8)")
 
+    def test_creation_order_is_preserved_when_possible(self):
+        foos = [self.store.add(Foo()) for i in range(10)]
+        self.store.flush()
+        for i in range(len(foos)-1):
+            self.assertTrue(foos[i].id < foos[i+1].id)
+
+    def test_update_order_is_preserved_when_possible(self):
+        class MyFoo(Foo):
+            sequence = 0
+            def __storm_flushed__(self):
+                self.flush_order = MyFoo.sequence
+                MyFoo.sequence += 1
+
+        foos = [self.store.add(MyFoo()) for i in range(10)]
+        self.store.flush()
+
+        MyFoo.sequence = 0
+        for foo in foos:
+            foo.title = u"Changed Title"
+        self.store.flush()
+
+        for i, foo in enumerate(foos):
+            self.assertEquals(foo.flush_order, i)
+
+    def test_removal_order_is_preserved_when_possible(self):
+        class MyFoo(Foo):
+            sequence = 0
+            def __storm_flushed__(self):
+                self.flush_order = MyFoo.sequence
+                MyFoo.sequence += 1
+
+        foos = [self.store.add(MyFoo()) for i in range(10)]
+        self.store.flush()
+
+        MyFoo.sequence = 0
+        for foo in foos:
+            self.store.remove(foo)
+        self.store.flush()
+
+        for i, foo in enumerate(foos):
+            self.assertEquals(foo.flush_order, i)
+
 
 class EmptyResultSetTest(object):
 
     def setUp(self):
         self.create_database()
+        self.connection = self.database.connect()
         self.drop_tables()
         self.create_tables()
         self.create_store()
@@ -4920,6 +5083,7 @@ class EmptyResultSetTest(object):
         self.drop_store()
         self.drop_tables()
         self.drop_database()
+        self.connection.close()
 
     def create_database(self):
         raise NotImplementedError
@@ -4935,12 +5099,11 @@ class EmptyResultSetTest(object):
 
     def drop_tables(self):
         for table in ["foo", "bar", "bin", "link"]:
-            connection = self.database.connect()
             try:
-                connection.execute("DROP TABLE %s" % table)
-                connection.commit()
+                self.connection.execute("DROP TABLE %s" % table)
+                self.connection.commit()
             except:
-                connection.rollback()
+                self.connection.rollback()
 
     def drop_store(self):
         self.store.rollback()
@@ -4964,6 +5127,9 @@ class EmptyResultSetTest(object):
     def test_slice(self):
         self.assertEquals(list(self.result[:]), [])
         self.assertEquals(list(self.empty[:]), [])
+
+    def test_contains(self):
+        self.assertEquals(Foo() in self.empty, False)
 
     def test_any(self):
         self.assertEquals(self.result.any(), None)

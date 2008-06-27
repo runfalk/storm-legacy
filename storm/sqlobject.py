@@ -31,25 +31,28 @@ from storm.properties import (
 from storm.references import Reference, ReferenceSet
 from storm.properties import SimpleProperty, PropertyPublisherMeta
 from storm.variables import Variable
-from storm.exceptions import StormError
-from storm.info import get_cls_info, ClassAlias
+from storm.exceptions import StormError, NotOneError
+from storm.info import get_cls_info, get_obj_info, ClassAlias
 from storm.store import AutoReload, Store
 from storm.base import Storm
 from storm.expr import (
     SQL, SQLRaw, Desc, And, Or, Not, In, Like, AutoTables, LeftJoin,
-    Column, compare_columns)
+    Column, compare_columns, Alias)
 from storm.tz import tzutc
 from storm import Undef
 
 
-__all__ = ["SQLObjectBase", "StringCol", "IntCol", "BoolCol", "FloatCol",
-           "DateCol", "UtcDateTimeCol", "IntervalCol", "ForeignKey",
-           "SQLMultipleJoin", "SQLRelatedJoin", "SingleJoin", "DESC",
-           "AND", "OR", "NOT", "IN", "LIKE", "SQLConstant",
-           "SQLObjectNotFound", "CONTAINSSTRING"]
+__all__ = [
+    "SQLObjectBase", "StringCol", "IntCol", "BoolCol", "FloatCol",
+    "DateCol", "UtcDateTimeCol", "IntervalCol", "ForeignKey",
+    "SQLMultipleJoin", "SQLRelatedJoin", "SingleJoin", "DESC",
+    "AND", "OR", "NOT", "IN", "LIKE", "SQLConstant",
+    "CONTAINSSTRING", "SQLObjectMoreThanOneResultError", "SQLObjectNotFound",
+    "SQLObjectResultSet"]
 
 
 DESC, AND, OR, NOT, IN, LIKE, SQLConstant = Desc, And, Or, Not, In, Like, SQL
+SQLObjectMoreThanOneResultError = NotOneError
 
 _IGNORED = object()
 
@@ -502,8 +505,8 @@ class SQLObjectResultSet(object):
             self._finished_result_set = self._finish_result_set()
         return self._finished_result_set
 
-    def _without_prejoins(self):
-        if self._prejoins or self._prejoinClauseTables:
+    def _without_prejoins(self, always_copy=False):
+        if always_copy or self._prejoins or self._prejoinClauseTables:
             return self._copy(prejoins=None, prejoinClauseTables=None)
         else:
             return self
@@ -544,8 +547,13 @@ class SQLObjectResultSet(object):
                 return detuplelize(L[index])
             return detuplelize(self._result_set[index])
 
+    def __contains__(self, item):
+        result_set = self._without_prejoins()._result_set
+        return item in result_set
+
     def __nonzero__(self):
-        return self._result_set.any() is not None
+        result_set = self._without_prejoins()._result_set
+        return result_set.any() is not None
 
     def count(self):
         result_set = self._without_prejoins()._result_set
@@ -565,24 +573,24 @@ class SQLObjectResultSet(object):
     def distinct(self):
         return self._copy(distinct=True, orderBy=None)
 
-    def union(self, otherSelect, unionAll=False, orderBy=None):
-        result_set = self._without_prejoins()._result_set.union(
-            otherSelect._without_prejoins()._result_set, all=unionAll)
-        result_set.order_by() # Remove default order.
+    def union(self, otherSelect, unionAll=False, orderBy=()):
+        result1 = self._without_prejoins(True)._result_set.order_by()
+        result2 = otherSelect._without_prejoins(True)._result_set.order_by()
+        result_set = result1.union(result2, all=unionAll)
         return self._copy(
             prepared_result_set=result_set, distinct=False, orderBy=orderBy)
 
-    def except_(self, otherSelect, exceptAll=False, orderBy=None):
-        result_set = self._without_prejoins()._result_set.difference(
-            otherSelect._without_prejoins()._result_set, all=exceptAll)
-        result_set.order_by() # Remove default order.
+    def except_(self, otherSelect, exceptAll=False, orderBy=()):
+        result1 = self._without_prejoins(True)._result_set.order_by()
+        result2 = otherSelect._without_prejoins(True)._result_set.order_by()
+        result_set = result1.difference(result2, all=exceptAll)
         return self._copy(
             prepared_result_set=result_set, distinct=False, orderBy=orderBy)
 
-    def intersect(self, otherSelect, intersectAll=False, orderBy=None):
-        result_set = self._without_prejoins()._result_set.intersection(
-            otherSelect._without_prejoins()._result_set, all=intersectAll)
-        result_set.order_by() # Remove default order.
+    def intersect(self, otherSelect, intersectAll=False, orderBy=()):
+        result1 = self._without_prejoins(True)._result_set.order_by()
+        result2 = otherSelect._without_prejoins(True)._result_set.order_by()
+        result_set = result1.intersection(result2, all=intersectAll)
         return self._copy(
             prepared_result_set=result_set, distinct=False, orderBy=orderBy)
 
@@ -591,6 +599,12 @@ class SQLObjectResultSet(object):
 
     def prejoinClauseTables(self, prejoinClauseTables):
         return self._copy(prejoinClauseTables=prejoinClauseTables)
+
+    def sum(self, attribute):
+        if isinstance(attribute, basestring):
+            attribute = SQL(attribute)
+        result_set = self._without_prejoins()._result_set
+        return result_set.sum(attribute)
 
 
 def detuplelize(item):
@@ -660,6 +674,7 @@ class PropertyAdapter(object):
 
 class AutoUnicodeVariable(Variable):
     """Unlike UnicodeVariable, this will try to convert str to unicode."""
+    __slots__ = ()
 
     def parse_set(self, value, from_db):
         if not isinstance(value, basestring):

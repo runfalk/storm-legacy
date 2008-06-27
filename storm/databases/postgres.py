@@ -292,11 +292,11 @@ class PostgresConnection(Connection):
         # I have no idea why I am seeing the last exception message
         # after upgrading to Gutsy.
         msg = str(exc)
-        return (msg.startswith("server closed the connection unexpectedly") or
-                msg.startswith("could not connect to server") or
-                msg.startswith("no connection to the server") or
-                msg.startswith("connection not open") or
-                msg.startswith("losed the connection unexpectedly"))
+        return ("server closed the connection unexpectedly" in msg or
+                "could not connect to server" in msg or
+                "no connection to the server" in msg or
+                "connection not open" in msg or
+                "losed the connection unexpectedly" in msg)
 
 
 class Postgres(Database):

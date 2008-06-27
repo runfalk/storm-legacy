@@ -24,15 +24,16 @@
 This module contains the highest-level ORM interface in Storm.
 """
 
-
+from copy import copy
 from weakref import WeakValueDictionary
+from operator import itemgetter
 
 from storm.info import get_cls_info, get_obj_info, set_obj_info
 from storm.variables import Variable, LazyValue
 from storm.expr import (
     Expr, Select, Insert, Update, Delete, Column, Count, Max, Min,
     Avg, Sum, Eq, And, Asc, Desc, compile_python, compare_columns, SQLRaw,
-    Union, Except, Intersect, Alias)
+    Union, Except, Intersect, Alias, SetExpr)
 from storm.exceptions import (
     WrongStoreError, NotFlushedError, OrderLoopError, UnorderedError,
     NotOneError, FeatureError, CompileError, LostObjectError, ClassInfoError,
@@ -72,6 +73,7 @@ class Store(object):
         self._order = {} # (info, info) = count
         self._cache = Cache(100)
         self._implicit_flush_block_count = 0
+        self._sequence = 0 # Advisory ordering.
 
     @staticmethod
     def of(obj):
@@ -430,19 +432,33 @@ class Store(object):
                 else:
                     before_set.add(before_info)
 
+        key_func = itemgetter("sequence")
+
+        # The external loop is important because items can get into the dirty
+        # state while we're flushing objects, ...
         while self._dirty:
-            for obj_info in self._dirty:
-                for before_info in predecessors.get(obj_info, ()):
-                    if before_info in self._dirty:
-                        break # A predecessor is still dirty.
+            # ... but we don't have to resort everytime an object is flushed,
+            # so we have an internal loop too.  If no objects become dirty
+            # during flush, this will clean self._dirty and the external loop
+            # will exit too.
+            sorted_dirty = sorted(self._dirty, key=key_func)
+            while sorted_dirty:
+                for i, obj_info in enumerate(sorted_dirty):
+                    for before_info in predecessors.get(obj_info, ()):
+                        if before_info in self._dirty:
+                            break # A predecessor is still dirty.
+                    else:
+                        break # Found an item without dirty predecessors.
                 else:
-                    break # Found an item without dirty predecessors.
-            else:
-                raise OrderLoopError("Can't flush due to ordering loop")
-            self._dirty.pop(obj_info, None)
-            self._flush_one(obj_info)
+                    raise OrderLoopError("Can't flush due to ordering loop")
+                del sorted_dirty[i]
+                self._dirty.pop(obj_info, None)
+                self._flush_one(obj_info)
 
         self._order.clear()
+
+        # That's not stricly necessary, but prevents getting into bigints.
+        self._sequence = 0
 
     def _flush_one(self, obj_info):
         cls_info = obj_info.cls_info
@@ -720,7 +736,9 @@ class Store(object):
         return obj_info in self._dirty
 
     def _set_dirty(self, obj_info):
-        self._dirty[obj_info] = obj_info.get_obj()
+        if obj_info not in self._dirty:
+            self._dirty[obj_info] = obj_info.get_obj()
+            obj_info["sequence"] = self._sequence = self._sequence + 1
 
     def _set_clean(self, obj_info):
         self._dirty.pop(obj_info, None)
@@ -956,6 +974,29 @@ class ResultSet(object):
                 limit = new_limit
 
         return self.copy().config(offset=offset, limit=limit)
+
+    def __contains__(self, item):
+        """Check if an item is contained within the result set."""
+        columns, values = self._find_spec.get_columns_and_values_for_item(item)
+
+        if self._select is Undef:
+            # No predefined select: adjust the where clause.
+            dummy, default_tables = self._find_spec.get_columns_and_tables()
+            where = [Eq(*pair) for pair in zip(columns, values)]
+            if self._where is not Undef:
+                where.append(self._where)
+            select = Select(1, And(*where), self._tables,
+                            default_tables)
+        else:
+            # Rewrite the predefined query and use it as a subquery.
+            aliased_columns = [Alias(column, "_key%d" % index)
+                               for (index, column) in enumerate(columns)]
+            subquery = replace_columns(self._select, aliased_columns)
+            where = [Eq(*pair) for pair in zip(aliased_columns, values)]
+            select = Select(1, And(*where), Alias(subquery, "_tmp"))
+
+        result = self._store._connection.execute(select)
+        return result.get_one() is not None
 
     def any(self):
         """Return a single item from the result set.
@@ -1336,6 +1377,9 @@ class EmptyResultSet(object):
     def __getitem__(self, index):
         return self.copy()
 
+    def __contains__(self, item):
+        return False
+
     def any(self):
         return None
 
@@ -1478,16 +1522,8 @@ class FindSpec(object):
             self._cls_spec_info, find_spec._cls_spec_info):
             if is_expr1 != is_expr2:
                 return False
-            if is_expr1:
-                # For expressions, the best we can do is see if they
-                # have the same variable types.
-                var1 = getattr(info1, "variable_factory", Variable)()
-                var2 = getattr(info2, "variable_factory", Variable)()
-                if type(var1) != type(var2):
-                    return False
-            else:
-                if info1 != info2:
-                    return False
+            if info1 is not info2:
+                return False
         return True
 
     def load_objects(self, store, result, values):
@@ -1510,6 +1546,34 @@ class FindSpec(object):
         else:
             return objects[0]
 
+    def get_columns_and_values_for_item(self, item):
+        """Generate a comparison expression with the given item."""
+        if isinstance(item, tuple):
+            if not self.is_tuple:
+                raise TypeError("Find spec does not expect tuples.")
+        else:
+            if self.is_tuple:
+                raise TypeError("Find spec expects tuples.")
+            item = (item,)
+
+        columns = []
+        values = []
+        for (is_expr, info), value in zip(self._cls_spec_info, item):
+            if is_expr:
+                if not isinstance(value, (Expr, Variable)) and (
+                    value is not None):
+                    value = getattr(info, "variable_factory", Variable)(
+                        value=value)
+                columns.append(info)
+                values.append(value)
+            else:
+                obj_info = get_obj_info(value)
+                if obj_info.cls_info != info:
+                    raise TypeError("%r does not match %r" % (value, info))
+                columns.extend(info.primary_key)
+                values.extend(obj_info.primary_vars)
+        return columns, values
+
 
 def get_where_for_args(args, kwargs, cls=None):
     equals = list(args)
@@ -1522,6 +1586,34 @@ def get_where_for_args(args, kwargs, cls=None):
     if equals:
         return And(*equals)
     return Undef
+
+
+def replace_columns(expr, columns):
+    if isinstance(expr, Select):
+        select = copy(expr)
+        select.columns = columns
+        # Remove the ordering if it won't affect the result of the query.
+        if select.limit is Undef and select.offset is Undef:
+            select.order_by = Undef
+        return select
+    elif isinstance(expr, SetExpr):
+        # The ORDER BY clause might refer to columns we have replaced.
+        # Luckily we can ignore it if there is no limit/offset.
+        if expr.order_by is not Undef and (
+            expr.limit is not Undef or expr.offset is not Undef):
+            raise FeatureError(
+                "__contains__() does not yet support set "
+                "expressions that combine ORDER BY with "
+                "LIMIT/OFFSET")
+        subexprs = [replace_columns(subexpr, columns)
+                    for subexpr in expr.exprs]
+        return expr.__class__(
+            all=expr.all, limit=expr.limit, offset=expr.offset,
+            *subexprs)
+    else:
+        raise FeatureError(
+            "__contains__() does not yet support %r expressions"
+            % (expr.__class__,))
 
 
 class AutoReload(LazyValue):

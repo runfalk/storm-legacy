@@ -61,10 +61,12 @@ class PostgresStoreTest(TestHelper, StoreTest):
         self.database = create_database(os.environ["STORM_POSTGRES_URI"])
 
     def create_tables(self):
-        connection = self.database.connect()
+        connection = self.connection
         connection.execute("CREATE TABLE foo "
                            "(id SERIAL PRIMARY KEY,"
                            " title VARCHAR DEFAULT 'Default Title')")
+        # Prevent dynamically created Foos from having conflicting ids.
+        connection.execute("SELECT setval('foo_id_seq', 1000)")
         connection.execute("CREATE TABLE bar "
                            "(id SERIAL PRIMARY KEY,"
                            " foo_id INTEGER, title VARCHAR)")
@@ -89,13 +91,12 @@ class PostgresStoreTest(TestHelper, StoreTest):
 
     def drop_tables(self):
         StoreTest.drop_tables(self)
-        connection = self.database.connect()
         for table in ["lst1", "lst2"]:
             try:
-                connection.execute("DROP TABLE %s" % table)
-                connection.commit()
+                self.connection.execute("DROP TABLE %s" % table)
+                self.connection.commit()
             except:
-                connection.rollback()
+                self.connection.rollback()
 
     def test_list_variable(self):
 
@@ -180,8 +181,7 @@ class PostgresEmptyResultSetTest(TestHelper, EmptyResultSetTest):
         self.database = create_database(os.environ["STORM_POSTGRES_URI"])
 
     def create_tables(self):
-        connection = self.database.connect()
-        connection.execute("CREATE TABLE foo "
-                           "(id SERIAL PRIMARY KEY,"
-                           " title VARCHAR DEFAULT 'Default Title')")
-        connection.commit()
+        self.connection.execute("CREATE TABLE foo "
+                                "(id SERIAL PRIMARY KEY,"
+                                " title VARCHAR DEFAULT 'Default Title')")
+        self.connection.commit()

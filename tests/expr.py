@@ -930,8 +930,8 @@ class CompileTest(TestHelper):
         expr = Func1().is_in([])
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, "NULL")
-        self.assertEquals(state.parameters, [])
+        self.assertEquals(statement, "?")
+        self.assertEquals(state.parameters, [BoolVariable(False)])
 
     def test_is_in_expr(self):
         expr = Func1().is_in(Select(column1))

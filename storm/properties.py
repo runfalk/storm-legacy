@@ -76,7 +76,7 @@ class Property(object):
     def _detect_attr_name(self, used_cls):
         self_id = id(self)
         for cls in used_cls.__mro__:
-            for attr, prop in cls.__dict__.iteritems():
+            for attr, prop in cls.__dict__.items():
                 if id(prop) == self_id:
                     return attr
         raise RuntimeError("Property used in an unknown class")

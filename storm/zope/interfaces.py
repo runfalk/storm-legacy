@@ -60,6 +60,9 @@ class IResultSet(Interface):
         will be returned.
         """
 
+    def __contains__(item):
+        """Check if C{item} is contained in the result set."""
+
     def any():
         """
         Get a random object from the result set or C{None} if the
@@ -135,6 +138,14 @@ class ISQLObjectResultSet(Interface):
 
     def __contains__():
        """Support C{if FooObject in Foo.select(query)}."""
+
+    def intersect(otherSelect, intersectAll=False, orderBy=None):
+        """Return the intersection of this result and C{otherSelect}
+
+        @param otherSelect: the other L{ISQLObjectResultSet}
+        @param intersectAll: whether to use INTERSECT ALL behaviour
+        @param orderBy: the order the result set should use.
+        """
 
     def prejoin(prejoins):
        """Return a new L{SelectResults} with the list of attributes prejoined.
