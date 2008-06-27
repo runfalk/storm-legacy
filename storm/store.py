@@ -24,6 +24,7 @@
 This module contains the highest-level ORM interface in Storm.
 """
 
+from copy import copy
 from weakref import WeakValueDictionary
 from operator import itemgetter
 
@@ -1547,11 +1548,12 @@ def get_where_for_args(args, kwargs, cls=None):
 
 def replace_columns(expr, columns):
     if isinstance(expr, Select):
-        return Select(
-            columns=columns, where=expr.where, tables=expr.tables,
-            default_tables=expr.default_tables, order_by=expr.order_by,
-            group_by=expr.group_by, limit=expr.limit, offset=expr.offset,
-            distinct=expr.distinct)
+        select = copy(expr)
+        select.columns = columns
+        # Remove the ordering if it won't affect the result of the query.
+        if select.limit is Undef and select.offset is Undef:
+            select.order_by = Undef
+        return select
     elif isinstance(expr, SetExpr):
         # The ORDER BY clause might refer to columns we have replaced.
         # Luckily we can ignore it if there is no limit/offset.
