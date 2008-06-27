@@ -29,11 +29,21 @@ from storm.variables import (
     Variable, RawStrVariable, UnicodeVariable, LazyValue,
     DateTimeVariable, DateVariable, TimeVariable, TimeDeltaVariable,
     BoolVariable, IntVariable, FloatVariable, DecimalVariable)
-from storm import Undef
+from storm import Undef, has_cextensions
 
 
 # --------------------------------------------------------------------
 # Basic compiler infrastructure
+
+def _when(self, types):
+    """Check Compile.when.  Defined here to ease the work of cextensions."""
+    def decorator(method):
+        for type in types:
+            self._local_dispatch_table[type] = method
+        self._update_cache()
+        return method
+    return decorator
+
 
 class Compile(object):
     """Compiler based on the concept of generic functions."""
@@ -45,7 +55,6 @@ class Compile(object):
         self._dispatch_table = {}
         self._precedence = {}
         self._reserved_words = {}
-        self._hash = None
         self._children = WeakKeyDictionary()
         self._parents = []
         if parent:
@@ -64,6 +73,18 @@ class Compile(object):
         self._reserved_words.update(self._local_reserved_words)
         for child in self._children:
             child._update_cache()
+
+    def when(self, *types):
+        """Decorator to include a type handler in this compiler.
+
+        Use this as:
+
+        @compile.when(TypeA, TypeB)
+        def compile_type_a_or_b(compile, expr, state):
+            ...
+            return "THE COMPILED SQL STATEMENT"
+        """
+        return _when(self, types)
 
     def add_reserved_words(self, words):
         """Include words to be considered reserved and thus escaped.
@@ -90,14 +111,6 @@ class Compile(object):
         database-specific compilation strategies.
         """
         return self.__class__(self)
-
-    def when(self, *types):
-        def decorator(method):
-            for type in types:
-                self._local_dispatch_table[type] = method
-            self._update_cache()
-            return method
-        return decorator
 
     def get_precedence(self, type):
         return self._precedence.get(type, MAX_PRECEDENCE)
@@ -132,7 +145,7 @@ class Compile(object):
             return "(%s)" % statement
         return statement
 
-    def __call__(self, expr, state=None, join=", ", raw=False, token=False):
+    def __call__(self, expr, state=None, join=u", ", raw=False, token=False):
         """Compile the given expression into a SQL statement.
 
         @param expr: The expression to compile.
@@ -170,7 +183,7 @@ class Compile(object):
                     statement = subexpr
                 elif subexpr_type is tuple or subexpr_type is list:
                     state.precedence = outer_precedence
-                    statement = self(subexpr, state, join, raw)
+                    statement = self(subexpr, state, join, raw, token)
                 else:
                     if token and (subexpr_type is unicode or
                                   subexpr_type is str):
@@ -184,6 +197,10 @@ class Compile(object):
         state.precedence = outer_precedence
 
         return statement
+
+
+if has_cextensions:
+    from storm.cextensions import Compile
 
 
 class CompilePython(Compile):
@@ -353,7 +370,7 @@ def compile_python_variable(compile, variable, state):
 MAX_PRECEDENCE = 1000
 
 class Expr(LazyValue):
-    pass
+    __slots__ = ()
 
 @compile_python.when(Expr)
 def compile_python_unsupported(compile, expr, state):
@@ -361,6 +378,7 @@ def compile_python_unsupported(compile, expr, state):
 
 
 class Comparable(object):
+    __slots__ = ()
 
     def __eq__(self, other):
         if other is not None and not isinstance(other, (Expr, Variable)):
@@ -461,15 +479,17 @@ class Comparable(object):
 
 
 class ComparableExpr(Expr, Comparable):
-    pass
+    __slots__ = ()
 
 class BinaryExpr(ComparableExpr):
+    __slots__ = ("expr1", "expr2")
 
     def __init__(self, expr1, expr2):
         self.expr1 = expr1
         self.expr2 = expr2
 
 class CompoundExpr(ComparableExpr):
+    __slots__ = ("exprs",)
 
     def __init__(self, *exprs):
         self.exprs = exprs
@@ -567,6 +587,8 @@ def build_tables(compile, tables, default_tables, state):
 
 
 class Select(Expr):
+    __slots__ = ("columns", "where", "tables", "default_tables", "order_by",
+                 "group_by", "limit", "offset", "distinct")
 
     def __init__(self, columns, where=Undef,
                  tables=Undef, default_tables=Undef,
@@ -634,6 +656,8 @@ class Insert(Expr):
         key of the table where the row will be inserted.  This is a hint used
         by backends to process the insertion of rows.
     """
+    __slots__ = ("map", "table", "default_table", "primary_columns",
+                 "primary_variables")
 
     def __init__(self, map, table=Undef, default_table=Undef,
                  primary_columns=Undef, primary_variables=Undef):
@@ -657,6 +681,7 @@ def compile_insert(compile, insert, state):
 
 
 class Update(Expr):
+    __slots__ = ("map", "where", "table", "default_table")
 
     def __init__(self, map, where=Undef, table=Undef, default_table=Undef):
         self.map = map
@@ -684,6 +709,7 @@ def compile_update(compile, update, state):
 
 
 class Delete(Expr):
+    __slots__ = ("where", "table", "default_table")
 
     def __init__(self, where=Undef, table=Undef, default_table=Undef):
         self.where = where
@@ -719,6 +745,7 @@ class Column(ComparableExpr):
     @ivar variable_factory: Factory producing C{Variable} instances typed
         according to this column.
     """
+    __slots__ = ("name", "table", "primary", "variable_factory")
 
     def __init__(self, name=Undef, table=Undef, primary=False,
                  variable_factory=None):
@@ -754,6 +781,7 @@ def compile_python_column(compile, column, state):
 class Alias(ComparableExpr):
     """A representation of "AS" alias clauses. e.g., SELECT foo AS bar.
     """
+    __slots__ = ("expr", "name")
 
     auto_counter = 0
 
@@ -781,10 +809,11 @@ def compile_alias(compile, alias, state):
 # From expressions
 
 class FromExpr(Expr):
-    pass
+    __slots__ = ()
 
 
 class Table(FromExpr):
+    __slots__ = ("name",)
 
     def __init__(self, name):
         self.name = name
@@ -795,22 +824,22 @@ def compile_table(compile, table, state):
 
 
 class JoinExpr(FromExpr):
+    __slots__ = ("left", "right", "on")
 
-    left = on = Undef
     oper = "(unknown)"
 
     def __init__(self, arg1, arg2=Undef, on=Undef):
         # http://www.postgresql.org/docs/8.1/interactive/explicit-joins.html
         if arg2 is Undef:
+            self.left = Undef
             self.right = arg1
-            if on is not Undef:
-                self.on = on
+            self.on = on
         elif not isinstance(arg2, Expr) or isinstance(arg2, (FromExpr, Alias)):
             self.left = arg1
             self.right = arg2
-            if on is not Undef:
-                self.on = on
+            self.on = on
         else:
+            self.left = Undef
             self.right = arg1
             self.on = arg2
             if on is not Undef:
@@ -842,21 +871,27 @@ def compile_join(compile, join, state):
 
 
 class Join(JoinExpr):
+    __slots__ = ()
     oper = "JOIN"
 
 class LeftJoin(JoinExpr):
+    __slots__ = ()
     oper = "LEFT JOIN"
 
 class RightJoin(JoinExpr):
+    __slots__ = ()
     oper = "RIGHT JOIN"
 
 class NaturalJoin(JoinExpr):
+    __slots__ = ()
     oper = "NATURAL JOIN"
 
 class NaturalLeftJoin(JoinExpr):
+    __slots__ = ()
     oper = "NATURAL LEFT JOIN"
 
 class NaturalRightJoin(JoinExpr):
+    __slots__ = ()
     oper = "NATURAL RIGHT JOIN"
 
 
@@ -864,6 +899,7 @@ class NaturalRightJoin(JoinExpr):
 # Operators
 
 class BinaryOper(BinaryExpr):
+    __slots__ = ()
     oper = " (unknown) "
 
 @compile.when(BinaryOper)
@@ -874,6 +910,7 @@ def compile_binary_oper(compile, expr, state):
 
 
 class NonAssocBinaryOper(BinaryOper):
+    __slots__ = ()
     oper = " (unknown) "
 
 @compile.when(NonAssocBinaryOper)
@@ -886,6 +923,7 @@ def compile_non_assoc_binary_oper(compile, expr, state):
 
 
 class CompoundOper(CompoundExpr):
+    __slots__ = ()
     oper = " (unknown) "
 
 @compile.when(CompoundOper)
@@ -898,6 +936,7 @@ def compile_compound_oper(compile, expr, state):
 
 
 class Eq(BinaryOper):
+    __slots__ = ()
     oper = " = "
 
 @compile.when(Eq)
@@ -912,6 +951,7 @@ def compile_eq(compile, eq, state):
 
 
 class Ne(BinaryOper):
+    __slots__ = ()
     oper = " != "
 
 @compile.when(Ne)
@@ -922,25 +962,32 @@ def compile_ne(compile, ne, state):
 
 
 class Gt(BinaryOper):
+    __slots__ = ()
     oper = " > "
 
 class Ge(BinaryOper):
+    __slots__ = ()
     oper = " >= "
 
 class Lt(BinaryOper):
+    __slots__ = ()
     oper = " < "
 
 class Le(BinaryOper):
+    __slots__ = ()
     oper = " <= "
 
 class RShift(BinaryOper):
+    __slots__ = ()
     oper = ">>"
 
 class LShift(BinaryOper):
+    __slots__ = ()
     oper = "<<"
 
 
 class Like(BinaryOper):
+    __slots__ = ("escape", "case_sensitive")
     oper = " LIKE "
 
     def __init__(self, expr1, expr2, escape=Undef, case_sensitive=None):
@@ -962,6 +1009,7 @@ compile_python.when(Like)(compile_python_unsupported)
 
 
 class In(BinaryOper):
+    __slots__ = ()
     oper = " IN "
 
 @compile.when(In)
@@ -978,25 +1026,32 @@ def compile_in(compile, expr, state):
 
 
 class Add(CompoundOper):
+    __slots__ = ()
     oper = "+"
 
 class Sub(NonAssocBinaryOper):
+    __slots__ = ()
     oper = "-"
 
 class Mul(CompoundOper):
+    __slots__ = ()
     oper = "*"
 
 class Div(NonAssocBinaryOper):
+    __slots__ = ()
     oper = "/"
 
 class Mod(NonAssocBinaryOper):
+    __slots__ = ()
     oper = "%"
 
 
 class And(CompoundOper):
+    __slots__ = ()
     oper = " AND "
 
 class Or(CompoundOper):
+    __slots__ = ()
     oper = " OR "
 
 @compile.when(And, Or)
@@ -1008,6 +1063,7 @@ def compile_compound_oper(compile, expr, state):
 # Set expressions.
 
 class SetExpr(Expr):
+    __slots__ = ("exprs", "all", "order_by", "limit", "offset")
     oper = " (unknown) "
 
     def __init__(self, *exprs, **kwargs):
@@ -1072,12 +1128,15 @@ def compile_set_expr(compile, expr, state):
 
 
 class Union(SetExpr):
+    __slots__ = ()
     oper = " UNION "
 
 class Except(SetExpr):
+    __slots__ = ()
     oper = " EXCEPT "
 
 class Intersect(SetExpr):
+    __slots__ = ()
     oper = " INTERSECT "
 
 
@@ -1085,10 +1144,12 @@ class Intersect(SetExpr):
 # Functions
 
 class FuncExpr(ComparableExpr):
+    __slots__ = ()
     name = "(unknown)"
 
 
 class Count(FuncExpr):
+    __slots__ = ("column", "distinct")
     name = "COUNT"
 
     def __init__(self, column=Undef, distinct=False):
@@ -1107,12 +1168,14 @@ def compile_count(compile, count, state):
 
 
 class Func(FuncExpr):
+    __slots__ = ("name", "args")
 
     def __init__(self, name, *args):
         self.name = name
         self.args = args
 
 class NamedFunc(FuncExpr):
+    __slots__ = ("args",)
 
     def __init__(self, *args):
         self.args = args
@@ -1123,22 +1186,28 @@ def compile_func(compile, func, state):
 
 
 class Max(NamedFunc):
+    __slots__ = ()
     name = "MAX"
 
 class Min(NamedFunc):
+    __slots__ = ()
     name = "MIN"
 
 class Avg(NamedFunc):
+    __slots__ = ()
     name = "AVG"
 
 class Sum(NamedFunc):
+    __slots__ = ()
     name = "SUM"
 
 
 class Lower(NamedFunc):
+    __slots__ = ()
     name = "LOWER"
 
 class Upper(NamedFunc):
+    __slots__ = ()
     name = "UPPER"
 
 
@@ -1146,6 +1215,7 @@ class Upper(NamedFunc):
 # Prefix and suffix expressions
 
 class PrefixExpr(Expr):
+    __slots__ = ("expr",)
     prefix = "(unknown)"
 
     def __init__(self, expr):
@@ -1157,6 +1227,7 @@ def compile_prefix_expr(compile, expr, state):
 
 
 class SuffixExpr(Expr):
+    __slots__ = ("expr",)
     suffix = "(unknown)"
 
     def __init__(self, expr):
@@ -1168,15 +1239,19 @@ def compile_suffix_expr(compile, expr, state):
 
 
 class Not(PrefixExpr):
+    __slots__ = ()
     prefix = "NOT"
 
 class Exists(PrefixExpr):
+    __slots__ = ()
     prefix = "EXISTS"
 
 class Asc(SuffixExpr):
+    __slots__ = ()
     suffix = "ASC"
 
 class Desc(SuffixExpr):
+    __slots__ = ()
     suffix = "DESC"
 
 
@@ -1188,6 +1263,7 @@ class SQLRaw(str):
 
     This is handled internally by the compiler.
     """
+    __slots__ = ()
 
 
 class SQLToken(str):
@@ -1195,6 +1271,7 @@ class SQLToken(str):
 
     These strings will be quoted, when needed.
     """
+    __slots__ = ()
 
 is_safe_token = re.compile("^[a-zA-Z][a-zA-Z0-9_]*$").match
 
@@ -1210,6 +1287,7 @@ def compile_python_sql_token(compile, expr, state):
 
 
 class SQL(ComparableExpr):
+    __slots__ = ("expr", "params", "tables")
 
     def __init__(self, expr, params=Undef, tables=Undef):
         self.expr = expr
@@ -1245,6 +1323,7 @@ class Sequence(Expr):
           (...)
           id = Int(default=Sequence("my_sequence_name"))
     """
+    __slots__ = ("name",)
 
     def __init__(self, name):
         self.name = name
@@ -1279,6 +1358,7 @@ class AutoTables(Expr):
     If the constructor is passed replace=True, it will also discard any
     auto_table entries injected by compiling the given expression.
     """
+    __slots__ = ("expr", "tables", "replace")
 
     def __init__(self, expr, tables, replace=False):
         assert type(tables) in (list, tuple)

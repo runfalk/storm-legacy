@@ -24,7 +24,7 @@ import cPickle as pickle
 import re
 
 from storm.exceptions import NoneError
-from storm import Undef
+from storm import Undef, has_cextensions
 
 
 __all__ = [
@@ -49,6 +49,7 @@ __all__ = [
 
 class LazyValue(object):
     """Marker to be used as a base class on lazily evaluated values."""
+    __slots__ = ()
 
 
 def raise_none_error(column):
@@ -322,14 +323,12 @@ class Variable(object):
         return value
 
 
-try:
+if has_cextensions:
     from storm.cextensions import Variable
-except ImportError, e:
-    if "cextensions" not in str(e):
-        raise
 
 
 class BoolVariable(Variable):
+    __slots__ = ()
 
     def parse_set(self, value, from_db):
         if not isinstance(value, (int, long, float, Decimal)):
@@ -339,6 +338,7 @@ class BoolVariable(Variable):
 
 
 class IntVariable(Variable):
+    __slots__ = ()
 
     def parse_set(self, value, from_db):
         if not isinstance(value, (int, long, float, Decimal)):
@@ -348,6 +348,7 @@ class IntVariable(Variable):
 
 
 class FloatVariable(Variable):
+    __slots__ = ()
 
     def parse_set(self, value, from_db):
         if not isinstance(value, (int, long, float, Decimal)):
@@ -357,6 +358,7 @@ class FloatVariable(Variable):
 
 
 class DecimalVariable(Variable):
+    __slots__ = ()
 
     @staticmethod
     def parse_set(value, from_db):
@@ -376,6 +378,7 @@ class DecimalVariable(Variable):
 
 
 class RawStrVariable(Variable):
+    __slots__ = ()
 
     def parse_set(self, value, from_db):
         if isinstance(value, buffer):
@@ -387,6 +390,7 @@ class RawStrVariable(Variable):
 
 
 class UnicodeVariable(Variable):
+    __slots__ = ()
 
     def parse_set(self, value, from_db):
         if not isinstance(value, unicode):
@@ -396,6 +400,7 @@ class UnicodeVariable(Variable):
 
 
 class DateTimeVariable(Variable):
+    __slots__ = ("_tzinfo",)
 
     def __init__(self, *args, **kwargs):
         self._tzinfo = kwargs.pop("tzinfo", None)
@@ -429,6 +434,7 @@ class DateTimeVariable(Variable):
 
 
 class DateVariable(Variable):
+    __slots__ = ()
 
     def parse_set(self, value, from_db):
         if from_db:
@@ -450,6 +456,7 @@ class DateVariable(Variable):
 
 
 class TimeVariable(Variable):
+    __slots__ = ()
 
     def parse_set(self, value, from_db):
         if from_db:
@@ -472,6 +479,7 @@ class TimeVariable(Variable):
 
 
 class TimeDeltaVariable(Variable):
+    __slots__ = ()
 
     def parse_set(self, value, from_db):
         if from_db:
@@ -490,6 +498,7 @@ class TimeDeltaVariable(Variable):
 
 
 class EnumVariable(Variable):
+    __slots__ = ("_get_map", "_set_map")
 
     def __init__(self, get_map, set_map, *args, **kwargs):
         self._get_map = get_map
@@ -514,6 +523,7 @@ class EnumVariable(Variable):
 
 
 class PickleVariable(Variable):
+    __slots__ = ()
 
     def __init__(self, *args, **kwargs):
         Variable.__init__(self, *args, **kwargs)
@@ -554,6 +564,7 @@ class PickleVariable(Variable):
 
 
 class ListVariable(Variable):
+    __slots__ = ("_item_factory",)
 
     def __init__(self, item_factory, *args, **kwargs):
         self._item_factory = item_factory

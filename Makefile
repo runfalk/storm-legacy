@@ -1,16 +1,24 @@
-PYTHON = python$(PYTHON_VERSION)
-PYTHON_VERSION = 2.4
-TESTDB = storm_test
+PYTHON = python
 
-all:
-	@:
+TEST_COMMAND = $(PYTHON) test
 
-check:
-	@echo "* Creating $(TESTDB)"
-	@if psql -l | grep -q " $(TESTDB) "; then \
-	    dropdb $(TESTDB) >/dev/null; \
-	fi
-	createdb $(TESTDB)
-	STORM_POSTGRES_URI=postgres:$(TESTDB) $(PYTHON) test --verbose
+STORM_POSTGRES_URI = postgres:storm_test
+STORM_POSTGRES_HOST_URI = postgres://localhost/storm_test
+STORM_MYSQL_URI = mysql:storm_test
+STORM_MYSQL_HOST_URI = mysql://localhost/storm_test
 
-.PHONY: all check
+export STORM_POSTGRES_URI
+export STORM_POSTGRES_HOST_URI
+export STORM_MYSQL_URI
+export STORM_MYSQL_HOST_URI
+
+all: build
+
+build:
+	$(PYTHON) setup.py build_ext -i
+
+check: build
+	# Run the tests once with cextensions and once without them.
+	$(TEST_COMMAND) && STORM_CEXTENSIONS=1 $(TEST_COMMAND)
+
+.PHONY: all build test
