@@ -972,28 +972,23 @@ class ResultSet(object):
 
     def __contains__(self, item):
         """Check if an item is contained within the result set."""
-        if self._find_spec.default_cls_info is None:
-            raise FeatureError("__contains__() not yet supported for tuple or "
-                               "expression finds")
-
-        obj_info = get_obj_info(item)
-        cls_info = obj_info.cls_info
-        if cls_info != self._find_spec.default_cls_info:
-            raise TypeError("%r is of the wrong type" % item)
-
-        where = compare_columns(cls_info.primary_key,
-                                obj_info.primary_vars)
+        where = self._find_spec.get_where_for_item(item)
 
         if self._select is Undef:
             # No predefined select: adjust the where clause.
             dummy, default_tables = self._find_spec.get_columns_and_tables()
             if self._where is not Undef:
                 where = And(self._where, where)
-            select = Select(cls_info.primary_key, where, self._tables,
+            select = Select(1, where, self._tables,
                             default_tables)
         else:
             # Use the predefined select as a subquery.
-            select = Select(cls_info.primary_key, where,
+            cls_info = self._find_spec.default_cls_info
+            if cls_info is None:
+                raise FeatureError(
+                    "__contains__() not yet supported for tuple or "
+                    "expression finds on set expressions")
+            select = Select(1, where,
                             Alias(self._get_select(), cls_info.table))
 
         result = self._store._connection.execute(select)
@@ -1516,6 +1511,35 @@ class FindSpec(object):
             return tuple(objects)
         else:
             return objects[0]
+
+    def get_where_for_item(self, item):
+        """Generate a comparison expression with the given item."""
+        if isinstance(item, tuple):
+            if not self.is_tuple:
+                raise TypeError("Find spec does not expect tuples.")
+        else:
+            if self.is_tuple:
+                raise TypeError("Find spec expects tuples.")
+            item = (item,)
+
+        where = []
+        for (is_expr, info), value in zip(self._cls_spec_info, item):
+            if is_expr:
+                if not isinstance(value, (Expr, Variable)) and (
+                    value is not None):
+                    value = getattr(info, "variable_factory", Variable)(
+                        value=value)
+                where.append(Eq(info, value))
+            else:
+                obj_info = get_obj_info(value)
+                if obj_info.cls_info != info:
+                    raise TypeError("%r does not match %r" % (value, info))
+                where.extend(Eq(*pair) for pair in zip(info.primary_key,
+                                                       obj_info.primary_vars))
+        if len(where) == 1:
+            return where[0]
+        else:
+            return And(*where)
 
 
 def get_where_for_args(args, kwargs, cls=None):

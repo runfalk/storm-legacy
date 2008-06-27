@@ -629,9 +629,16 @@ class StoreTest(object):
         self.assertEquals(foo in result, False)
 
     def test_find_contains_wrong_type(self):
+        foo = self.store.get(Foo, 10)
         bar = self.store.get(Bar, 200)
-        self.assertRaises(TypeError,
-                          operator.contains, self.store.find(Foo), bar)
+        self.assertRaises(TypeError, operator.contains,
+                          self.store.find(Foo), bar)
+        self.assertRaises(TypeError, operator.contains,
+                          self.store.find((Foo,)), foo)
+        self.assertRaises(TypeError, operator.contains,
+                          self.store.find(Foo), (foo,))
+        self.assertRaises(TypeError, operator.contains,
+                          self.store.find((Foo, Bar)), (bar, foo))
 
     def test_find_contains_does_not_use_iter(self):
         def no_iter(self):
@@ -937,8 +944,18 @@ class StoreTest(object):
     def test_find_tuple_contains(self):
         foo = self.store.get(Foo, 10)
         bar = self.store.get(Bar, 100)
+        bar200 = self.store.get(Bar, 200)
         result = self.store.find((Foo, Bar), Bar.foo_id == Foo.id)
-        self.assertRaises(FeatureError, operator.contains, result, (foo, bar))
+        self.assertEquals((foo, bar) in result, True)
+        self.assertEquals((foo, bar200) in result, False)
+
+    def test_find_tuple_contains_with_set_expression(self):
+        foo = self.store.get(Foo, 10)
+        bar = self.store.get(Bar, 100)
+        result1 = self.store.find((Foo, Bar), Bar.foo_id == Foo.id)
+        result2 = self.store.find((Foo, Bar), Bar.foo_id == Foo.id)
+        self.assertRaises(FeatureError, operator.contains,
+                          result1.union(result2), (foo, bar))
 
     def test_find_tuple_any(self):
         bar = self.store.get(Bar, 200)
@@ -1035,6 +1052,24 @@ class StoreTest(object):
         result = self.store.using(Foo).find(Foo.title)
         self.assertEquals(sorted(result),
                           [u"Title 10", u"Title 20", u"Title 30"])
+
+    def test_find_with_expr_contains(self):
+        result = self.store.find(Foo.title)
+        self.assertEquals(u"Title 10" in result, True)
+        self.assertEquals(u"Title 42" in result, False)
+
+    def test_find_tuple_with_expr_contains(self):
+        foo = self.store.get(Foo, 10)
+        result = self.store.find((Foo, Bar.title),
+                                 Bar.foo_id == Foo.id)
+        self.assertEquals((foo, u"Title 300") in result, True)
+        self.assertEquals((foo, u"Title 100") in result, False)
+
+    def test_find_with_expr_contains_with_set_expression(self):
+        result1 = self.store.find(Foo.title)
+        result2 = self.store.find(Foo.title)
+        self.assertRaises(FeatureError, operator.contains,
+                          result1.union(result2), u"Title 10")
 
     def test_find_with_expr_remove_unsupported(self):
         result = self.store.find(Foo.title)
