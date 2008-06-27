@@ -985,11 +985,11 @@ class ResultSet(object):
                             default_tables)
         else:
             # Rewrite the predefined query and use it as a subquery.
-            aliased_columns = [Alias(column, '_key%d' % index)
+            aliased_columns = [Alias(column, "_key%d" % index)
                                for (index, column) in enumerate(columns)]
             subquery = replace_columns(self._select, aliased_columns)
             where = [Eq(*pair) for pair in zip(aliased_columns, values)]
-            select = Select(1, And(*where), Alias(subquery, "TMP"))
+            select = Select(1, And(*where), Alias(subquery, "_tmp"))
 
         result = self._store._connection.execute(select)
         return result.get_one() is not None
