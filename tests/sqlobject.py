@@ -19,6 +19,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 import datetime
+import operator
 
 from storm.database import create_database
 from storm.exceptions import NoneError
@@ -1080,6 +1081,44 @@ class SQLObjectTest(TestHelper):
     def test_result_set_sum_expr(self):
         result = self.Person.select()
         self.assertEquals(result.sum(self.Person.q.age), 40)
+
+    def test_result_set_contains(self):
+        john = self.Person.selectOneBy(name="John Doe")
+        self.assertTrue(john in self.Person.select())
+        self.assertFalse(john in self.Person.selectBy(name="John Joe"))
+        self.assertFalse(john in self.Person.select(
+                "Person.name = 'John Joe'"))
+
+    def test_result_set_contains_does_not_use_iter(self):
+        """Calling 'item in result_set' does not iterate over the set. """
+        def no_iter(self):
+            raise RuntimeError
+        real_iter = SQLObjectResultSet.__iter__
+        SQLObjectResultSet.__iter__ = no_iter
+        try:
+            john = self.Person.selectOneBy(name="John Doe")
+            self.assertTrue(john in self.Person.select())
+        finally:
+            SQLObjectResultSet.__iter__ = real_iter
+
+    def test_result_set_contains_wrong_type(self):
+        class Address(self.SQLObject):
+            city = StringCol()
+
+        address = Address.get(1)
+        result_set = self.Person.select()
+        self.assertRaises(TypeError, operator.contains, result_set, address)
+
+    def test_result_set_contains_with_prejoins(self):
+        class Person(self.Person):
+            address = ForeignKey(foreignKey="Address", dbName="address_id")
+
+        class Address(self.SQLObject):
+            city = StringCol()
+
+        john = Person.selectOneBy(name="John Doe")
+        result_set = Person.select("name = 'John Doe'", prejoins=["address"])
+        self.assertTrue(john in result_set)
 
     def test_table_dot_q(self):
         # Table.q.fieldname is a syntax used in SQLObject for

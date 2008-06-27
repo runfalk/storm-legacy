@@ -60,6 +60,9 @@ class IResultSet(Interface):
         will be returned.
         """
 
+    def __contains__(item):
+        """Check if C{item} is contained in the result set."""
+
     def any():
         """
         Get a random object from the result set or C{None} if the
