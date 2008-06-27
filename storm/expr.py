@@ -588,7 +588,7 @@ def build_tables(compile, tables, default_tables, state):
 
 class Select(Expr):
     __slots__ = ("columns", "where", "tables", "default_tables", "order_by",
-                 "group_by", "limit", "offset", "distinct")
+                 "group_by", "limit", "offset", "distinct", "having")
 
     def __init__(self, columns, where=Undef,
                  tables=Undef, default_tables=Undef,
