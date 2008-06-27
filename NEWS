@@ -3,6 +3,8 @@
 
 Improvements
 ------------
+ - Add group_by/having methods on ResultSet objects, to allow access to
+   the "GROUP BY" and "HAVING" statements.
  - Change tests/store to keep the connection during the tests to make it
    faster.
  - Implemented support for plugging generic "tracers".  Statement

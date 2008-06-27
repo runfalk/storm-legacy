@@ -660,6 +660,17 @@ class CompileTest(TestHelper):
                                      'ORDER BY column1')
         self.assertEquals(state.parameters, [])
 
+    def test_select_having(self):
+        expr = Select(column1, tables=table1, order_by=u"column1",
+                      group_by=[u"column2"], having=u"1 = 2")
+        state = State()
+        statement = compile(expr, state)
+        self.assertEquals(statement, 'SELECT column1 FROM "table 1" '
+                                     'GROUP BY column2 HAVING 1 = 2 '
+                                     'ORDER BY column1')
+        self.assertEquals(state.parameters, [])
+    
+
     def test_select_contexts(self):
         column, where, table, order_by, group_by = track_contexts(5)
         expr = Select(column, where, table,

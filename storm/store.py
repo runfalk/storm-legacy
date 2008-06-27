@@ -36,7 +36,8 @@ from storm.expr import (
     Union, Except, Intersect, Alias, SetExpr)
 from storm.exceptions import (
     WrongStoreError, NotFlushedError, OrderLoopError, UnorderedError,
-    NotOneError, FeatureError, CompileError, LostObjectError, ClassInfoError)
+    NotOneError, FeatureError, CompileError, LostObjectError, ClassInfoError,
+    ExprError)
 from storm import Undef
 from storm.cache import Cache
 
@@ -872,6 +873,8 @@ class ResultSet(object):
         self._offset = Undef
         self._limit = Undef
         self._distinct = False
+        self._group_by = Undef
+        self._having = Undef
 
     def copy(self):
         """Return a copy of this ResultSet object, with the same configuration.
@@ -913,7 +916,8 @@ class ResultSet(object):
         columns, default_tables = self._find_spec.get_columns_and_tables()
         return Select(columns, self._where, self._tables, default_tables,
                       self._order_by, offset=self._offset, limit=self._limit,
-                      distinct=self._distinct)
+                      distinct=self._distinct, group_by=self._group_by,
+                      having=self._having)
 
     def _load_objects(self, result, values):
         return self._find_spec.load_objects(self._store, result, values)
@@ -1087,6 +1091,9 @@ class ResultSet(object):
         This is done efficiently with a DELETE statement, so objects
         are not actually loaded into Python.
         """
+        if self._group_by is not Undef:
+            raise FeatureError("Removing isn't supported after a "
+                               " GROUP BY clause ")
         if self._offset is not Undef or self._limit is not Undef:
             raise FeatureError("Can't remove a sliced result set")
         if self._find_spec.default_cls_info is None:
@@ -1099,7 +1106,39 @@ class ResultSet(object):
             Delete(self._where, self._find_spec.default_cls_info.table),
             noresult=True)
 
+    def group_by(self, *expr):
+        """Group this ResultSet by the given expressions.
+
+        @param expr: The expressions used in the GROUP BY statement.
+
+        @return: self (not a copy).
+        """
+        if self._select is not Undef:
+            raise FeatureError("Grouping isn't supported with "
+                               "set expressions (unions, etc)")
+
+        find_spec = FindSpec(expr)
+        columns, dummy = find_spec.get_columns_and_tables()
+
+        self._group_by = columns
+        return self
+
+    def having(self, *expr):
+        """Filter result previously grouped by.
+
+        @param expr: Instances of L{Expr}.
+
+        @return: self (not a copy).
+        """
+        if self._group_by is Undef:
+            raise FeatureError("having can only be called after group_by.")
+        self._having = And(*expr)
+        return self
+
     def _aggregate(self, expr, column=None):
+        if self._group_by is not Undef:
+            raise FeatureError("Single aggregates aren't supported after a "
+                               " GROUP BY clause ")
         dummy, default_tables = self._find_spec.get_columns_and_tables()
         if self._select is Undef:
             select = Select(expr, self._where, self._tables, default_tables)
@@ -1176,6 +1215,9 @@ class ResultSet(object):
         For instance, C{result.set(Class.attr1 == 1, attr2=2)} will set
         C{attr1} to 1 and C{attr2} to 2, on all matching objects.
         """
+        if self._group_by is not Undef:
+            raise FeatureError("Setting isn't supported after a "
+                               " GROUP BY clause ")
 
         if self._find_spec.default_cls_info is None:
             raise FeatureError("Setting isn't supported with tuple or "

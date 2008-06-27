@@ -59,6 +59,9 @@ class SQLiteStoreTest(TestHelper, StoreTest):
         connection.execute("CREATE TABLE selfref "
                            "(id INTEGER PRIMARY KEY, title VARCHAR,"
                            " selfref_id INTEGER)")
+        connection.execute("CREATE TABLE foovalue "
+                           "(id INTEGER PRIMARY KEY, foo_id INTEGER,"
+                           " value1 INTEGER, value2 INTEGER)")
         connection.commit()
 
     def drop_tables(self):

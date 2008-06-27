@@ -27,7 +27,8 @@ from storm.references import Reference, ReferenceSet, Proxy
 from storm.database import Result
 from storm.properties import Int, Float, RawStr, Unicode, Property, Pickle
 from storm.properties import PropertyPublisherMeta, Decimal
-from storm.expr import Asc, Desc, Select, Func, LeftJoin, SQL, Or, And, Eq
+from storm.expr import (
+    Asc, Desc, Select, Func, LeftJoin, SQL, Count, Sum, Avg, And, Or, Eq)
 from storm.variables import Variable, UnicodeVariable, IntVariable
 from storm.info import get_obj_info, ClassAlias
 from storm.exceptions import *
@@ -91,6 +92,14 @@ class FooIndRefSetOrderID(Foo):
 class FooIndRefSetOrderTitle(Foo):
     bars = ReferenceSet(Foo.id, Link.foo_id, Link.bar_id, Bar.id,
                         order_by=Bar.title)
+
+
+class FooValue(object):
+    __storm_table__ = "foovalue"
+    id = Int(primary=True)
+    foo_id = Int()
+    value1 = Int()
+    value2 = Int()
 
 class BarProxy(object):
     __storm_table__ = "bar"
@@ -175,6 +184,24 @@ class StoreTest(object):
                            " VALUES (25, 'SelfRef 25', NULL)")
         connection.execute("INSERT INTO selfref (id, title, selfref_id)"
                            " VALUES (35, 'SelfRef 35', 15)")
+        connection.execute("INSERT INTO foovalue (id, foo_id, value1, value2)"
+                           " VALUES (1, 10, 2, 1)")
+        connection.execute("INSERT INTO foovalue (id, foo_id, value1, value2)"
+                           " VALUES (2, 10, 2, 1)")
+        connection.execute("INSERT INTO foovalue (id, foo_id, value1, value2)"
+                           " VALUES (3, 10, 2, 1)")
+        connection.execute("INSERT INTO foovalue (id, foo_id, value1, value2)"
+                           " VALUES (4, 10, 2, 2)")
+        connection.execute("INSERT INTO foovalue (id, foo_id, value1, value2)"
+                           " VALUES (5, 20, 1, 3)")
+        connection.execute("INSERT INTO foovalue (id, foo_id, value1, value2)"
+                           " VALUES (6, 20, 1, 3)")
+        connection.execute("INSERT INTO foovalue (id, foo_id, value1, value2)"
+                           " VALUES (7, 20, 1, 4)")
+        connection.execute("INSERT INTO foovalue (id, foo_id, value1, value2)"
+                           " VALUES (8, 20, 1, 4)")
+        connection.execute("INSERT INTO foovalue (id, foo_id, value1, value2)"
+                           " VALUES (9, 20, 1, 2)")
 
         connection.commit()
 
@@ -197,7 +224,8 @@ class StoreTest(object):
         pass
 
     def drop_tables(self):
-        for table in ["foo", "bar", "bin", "link", "money", "selfref"]:
+        for table in ["foo", "bar", "bin", "link", "money", "selfref",
+                      "foovalue"]:
             try:
                 self.connection.execute("DROP TABLE %s" % table)
                 self.connection.commit()
@@ -1184,6 +1212,124 @@ class StoreTest(object):
 
         foo = self.store.find(Foo, Foo.id == 10).one()
         self.assertEqual(foo.title, "Title 30")
+
+    def test_find_group_by(self):
+        result = self.store.find((Count(FooValue.id), Sum(FooValue.value1)))
+        result.group_by(FooValue.value2)
+        result.order_by(Count(FooValue.id), Sum(FooValue.value1))
+        result = list(result)
+        self.assertEquals(result, [(2L, 2L), (2L, 2L), (2L, 3L), (3L, 6L)])
+
+    def test_find_group_by_table(self):
+        result = self.store.find(
+            (Sum(FooValue.value2), Foo), Foo.id == FooValue.foo_id)
+        result.group_by(Foo)
+        foo1 = self.store.get(Foo, 10)
+        foo2 = self.store.get(Foo, 20)
+        self.assertEquals(list(result), [(5, foo1), (16, foo2)])
+
+    def test_find_group_by_multiple_tables(self):
+        result = self.store.find(
+            Sum(FooValue.value2), Foo.id == FooValue.foo_id)
+        result.group_by(Foo.id)
+        result.order_by(Sum(FooValue.value2))
+        result = list(result)
+        self.assertEquals(result, [5, 16])
+
+        result = self.store.find(
+            (Sum(FooValue.value2), Foo), Foo.id == FooValue.foo_id)
+        result.group_by(Foo)
+        result.order_by(Sum(FooValue.value2))
+        result = list(result)
+        foo1 = self.store.get(Foo, 10)
+        foo2 = self.store.get(Foo, 20)
+        self.assertEquals(result, [(5, foo1), (16, foo2)])
+
+        result = self.store.find(
+            (Foo.id, Sum(FooValue.value2), Avg(FooValue.value1)),
+            Foo.id == FooValue.foo_id)
+        result.group_by(Foo.id)
+        result.order_by(Foo.id)
+        result = list(result)
+        self.assertEquals(result, [(10, 5, 2),
+                                   (20, 16, 1)])
+
+    def test_find_group_by_having(self):
+        result = self.store.find(
+            Sum(FooValue.value2), Foo.id == FooValue.foo_id)
+        result.group_by(Foo.id)
+        result.having(Sum(FooValue.value2) == 5)
+        self.assertEquals(list(result), [5])
+        result = self.store.find(
+            Sum(FooValue.value2), Foo.id == FooValue.foo_id)
+        result.group_by(Foo.id)
+        result.having(Count() == 5)
+        self.assertEquals(list(result), [16])
+
+    def test_find_having_without_group_by(self):
+        result = self.store.find(FooValue)
+        self.assertRaises(FeatureError, result.having, FooValue.value1 == 1)
+
+    def test_find_group_by_multiple_having(self):
+        result = self.store.find((Count(), FooValue.value2))
+        result.group_by(FooValue.value2)
+        result.having(Count() == 2, FooValue.value2 >= 3)
+        result.order_by(Count(), FooValue.value2)
+        list_result = list(result)
+        self.assertEquals(list_result, [(2, 3), (2, 4)])
+
+    def test_find_successive_group_by(self):
+        result = self.store.find(Count())
+        result.group_by(FooValue.value2)
+        result.order_by(Count())
+        list_result = list(result)
+        self.assertEquals(list_result, [2, 2, 2, 3])
+        result.group_by(FooValue.value1)
+        list_result = list(result)
+        self.assertEquals(list_result, [4, 5])
+
+    def test_find_multiple_group_by(self):
+        result = self.store.find(Count())
+        result.group_by(FooValue.value2, FooValue.value1)
+        result.order_by(Count())
+        list_result = list(result)
+        self.assertEquals(list_result, [1, 1, 2, 2, 3])
+
+    def test_find_multiple_group_by_with_having(self):
+        result = self.store.find((Count(), FooValue.value2))
+        result.group_by(FooValue.value2, FooValue.value1).having(Count() == 2)
+        result.order_by(Count(), FooValue.value2)
+        list_result = list(result)
+        self.assertEquals(list_result, [(2, 3), (2, 4)])
+
+    def test_find_group_by_avg(self):
+        result = self.store.find((Count(FooValue.id), Sum(FooValue.value1)))
+        result.group_by(FooValue.value2)
+        self.assertRaises(FeatureError, result.avg, FooValue.value2)
+
+    def test_find_group_by_values(self):
+        result = self.store.find(
+            (Sum(FooValue.value2), Foo), Foo.id == FooValue.foo_id)
+        result.group_by(Foo)
+        result.order_by(Foo.title)
+        result = list(result.values(Foo.title))
+        self.assertEquals(result, [u'Title 20', u'Title 30'])
+
+    def test_find_group_by_union(self):
+        result1 = self.store.find(Foo, id=30)
+        result2 = self.store.find(Foo, id=10)
+        result3 = result1.union(result2)
+        self.assertRaises(FeatureError, result3.group_by, Foo.title)
+
+    def test_find_group_by_remove(self):
+        result = self.store.find((Count(FooValue.id), Sum(FooValue.value1)))
+        result.group_by(FooValue.value2)
+        self.assertRaises(FeatureError, result.remove)
+    
+    def test_find_group_by_set(self):
+        result = self.store.find((Count(FooValue.id), Sum(FooValue.value1)))
+        result.group_by(FooValue.value2)
+        self.assertRaises(FeatureError, result.set, FooValue.value1 == 1)
 
     def test_add_commit(self):
         foo = Foo()

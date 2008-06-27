@@ -528,7 +528,7 @@ def build_tables(compile, tables, default_tables, state):
     # If it's a single element, it's trivial.
     if type(tables) not in (list, tuple) or len(tables) == 1:
         return compile(tables, state, token=True)
- 
+
     # If we have no joins, it's trivial as well.
     for elem in tables:
         if isinstance(elem, JoinExpr):
@@ -588,12 +588,12 @@ def build_tables(compile, tables, default_tables, state):
 
 class Select(Expr):
     __slots__ = ("columns", "where", "tables", "default_tables", "order_by",
-                 "group_by", "limit", "offset", "distinct")
+                 "group_by", "limit", "offset", "distinct", "having")
 
     def __init__(self, columns, where=Undef,
                  tables=Undef, default_tables=Undef,
                  order_by=Undef, group_by=Undef,
-                 limit=Undef, offset=Undef, distinct=False):
+                 limit=Undef, offset=Undef, distinct=False, having=Undef):
         self.columns = columns
         self.where = where
         self.tables = tables
@@ -603,6 +603,7 @@ class Select(Expr):
         self.limit = limit
         self.offset = offset
         self.distinct = distinct
+        self.having = having
 
 @compile.when(Select)
 def compile_select(compile, select, state):
@@ -621,6 +622,9 @@ def compile_select(compile, select, state):
     if select.group_by is not Undef:
         tokens.append(" GROUP BY ")
         tokens.append(compile(select.group_by, state, raw=True))
+    if select.having is not Undef:
+        tokens.append(" HAVING ")
+        tokens.append(compile(select.having, state, raw=True))
     if select.order_by is not Undef:
         tokens.append(" ORDER BY ")
         tokens.append(compile(select.order_by, state, raw=True))

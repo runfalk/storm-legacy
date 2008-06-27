@@ -71,6 +71,10 @@ class MySQLStoreTest(TestHelper, StoreTest):
                            " INDEX (selfref_id),"
                            " FOREIGN KEY (selfref_id) REFERENCES selfref(id)) "
                            "ENGINE=InnoDB")
+        connection.execute("CREATE TABLE foovalue "
+                           "(id INT PRIMARY KEY AUTO_INCREMENT,"
+                           " foo_id INTEGER,"
+                           " value1 INTEGER, value2 INTEGER)")
         connection.commit()
 
 

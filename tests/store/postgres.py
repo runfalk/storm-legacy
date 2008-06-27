@@ -84,6 +84,9 @@ class PostgresStoreTest(TestHelper, StoreTest):
                            "(id SERIAL PRIMARY KEY, ints INTEGER[])")
         connection.execute("CREATE TABLE lst2 "
                            "(id SERIAL PRIMARY KEY, ints INTEGER[][])")
+        connection.execute("CREATE TABLE foovalue "
+                           "(id SERIAL PRIMARY KEY, foo_id INTEGER,"
+                           " value1 INTEGER, value2 INTEGER)")
         connection.commit()
 
     def drop_tables(self):
