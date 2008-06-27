@@ -176,11 +176,15 @@ class SQLite(Database):
             raise DatabaseModuleError("'pysqlite2' module not found")
         self._filename = uri.database or ":memory:"
         self._timeout = float(uri.options.get("timeout", 5))
+        self._synchronous = uri.options.get("synchronous")
 
     def raw_connect(self):
         # See the story at the end to understand why we set isolation_level.
         raw_connection = sqlite.connect(self._filename, timeout=self._timeout,
                                         isolation_level=None)
+        if self._synchronous is not None:
+            raw_connection.execute("PRAGMA synchronous = %s" %
+                                   (self._synchronous,))
         return raw_connection
 
 
