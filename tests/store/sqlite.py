@@ -38,7 +38,8 @@ class SQLiteStoreTest(TestHelper, StoreTest):
         StoreTest.tearDown(self)
 
     def create_database(self):
-        self.database = SQLite(URI("sqlite:" + self.make_path()))
+        self.database = SQLite(URI("sqlite:%s?synchronous=OFF" %
+                                   self.make_path()))
 
     def create_tables(self):
         connection = self.connection
@@ -81,7 +82,8 @@ class SQLiteEmptyResultSetTest(TestHelper, EmptyResultSetTest):
         EmptyResultSetTest.tearDown(self)
 
     def create_database(self):
-        self.database = SQLite(URI("sqlite:" + self.make_path()))
+        self.database = SQLite(URI("sqlite:%s?synchronous=OFF" %
+                                   self.make_path()))
 
     def create_tables(self):
         self.connection.execute("CREATE TABLE foo "

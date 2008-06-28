@@ -39,7 +39,8 @@ class SQLiteMemoryTest(DatabaseTest, TestHelper):
         return ""
 
     def create_database(self):
-        self.database = SQLite(URI("sqlite:%s?timeout=0" % self.get_path()))
+        self.database = SQLite(URI("sqlite:%s?synchronous=OFF&timeout=0" %
+                                   self.get_path()))
 
     def create_tables(self):
         self.connection.execute("CREATE TABLE number "
@@ -63,6 +64,16 @@ class SQLiteMemoryTest(DatabaseTest, TestHelper):
     def test_concurrent_behavior(self):
         pass # We can't connect to the in-memory database twice, so we can't
              # exercise the concurrency behavior (nor it makes sense).
+
+    def test_synchronous(self):
+        synchronous_values = {"OFF": 0, "NORMAL": 1, "FULL": 2}
+        for value in synchronous_values:
+            database = SQLite(URI("sqlite:%s?synchronous=%s" %
+                                  (self.get_path(), value)))
+            connection = database.connect()
+            result = connection.execute("PRAGMA synchronous")
+            self.assertEquals(result.get_one()[0],
+                              synchronous_values[value])
 
 
 class SQLiteFileTest(SQLiteMemoryTest):
