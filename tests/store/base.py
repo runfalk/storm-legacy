@@ -1228,6 +1228,13 @@ class StoreTest(object):
         foo2 = self.store.get(Foo, 20)
         self.assertEquals(list(result), [(5, foo1), (16, foo2)])
 
+    def test_find_group_by_table_contains(self):
+        result = self.store.find(
+            (Sum(FooValue.value2), Foo), Foo.id == FooValue.foo_id)
+        result.group_by(Foo)
+        foo1 = self.store.get(Foo, 10)
+        self.assertEquals((5, foo1) in result, True)
+
     def test_find_group_by_multiple_tables(self):
         result = self.store.find(
             Sum(FooValue.value2), Foo.id == FooValue.foo_id)

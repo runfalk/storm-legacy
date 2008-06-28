@@ -979,7 +979,7 @@ class ResultSet(object):
         """Check if an item is contained within the result set."""
         columns, values = self._find_spec.get_columns_and_values_for_item(item)
 
-        if self._select is Undef:
+        if self._select is Undef and self._group_by is Undef:
             # No predefined select: adjust the where clause.
             dummy, default_tables = self._find_spec.get_columns_and_tables()
             where = [Eq(*pair) for pair in zip(columns, values)]
@@ -991,7 +991,7 @@ class ResultSet(object):
             # Rewrite the predefined query and use it as a subquery.
             aliased_columns = [Alias(column, "_key%d" % index)
                                for (index, column) in enumerate(columns)]
-            subquery = replace_columns(self._select, aliased_columns)
+            subquery = replace_columns(self._get_select(), aliased_columns)
             where = [Eq(*pair) for pair in zip(aliased_columns, values)]
             select = Select(1, And(*where), Alias(subquery, "_tmp"))
 
