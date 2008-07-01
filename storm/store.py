@@ -351,7 +351,8 @@ class Store(object):
         queries.
         """
         for obj_info in self._iter_alive():
-            del obj_info["store"]
+            if "store" in obj_info:
+                del obj_info["store"]
         self._alive.clear()
         self._dirty.clear()
         self._cache.clear()
