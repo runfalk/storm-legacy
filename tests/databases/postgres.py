@@ -25,6 +25,7 @@ from storm.databases.postgres import (
     Postgres, compile, currval, Returning, PostgresTimeoutTracer)
 from storm.uri import URI
 from storm.database import create_database
+from storm.exceptions import ProgrammingError
 from storm.variables import DateTimeVariable, RawStrVariable
 from storm.variables import ListVariable, IntVariable, Variable
 from storm.properties import Int
@@ -92,12 +93,14 @@ class PostgresTest(DatabaseTest, TestHelper):
 
     def test_wb_version(self):
         version = self.database._version
-        self.assertEquals(type(version), tuple)
-        for item in version:
-            self.assertEquals(type(item), int)
-        result = self.connection.execute("SHOW server_version")
-        server_version = result.get_one()[0]
-        self.assertEquals(".".join(map(str, version)), server_version)
+        self.assertEquals(type(version), int)
+        try:
+            result = self.connection.execute("SHOW server_version_num")
+        except ProgrammingError:
+            self.assertEquals(version, 0)
+        else:
+            server_version = int(result.get_one()[0])
+            self.assertEquals(version, server_version)
 
     def test_utf8_client_encoding(self):
         connection = self.database.connect()
@@ -402,7 +405,7 @@ class PostgresTest(DatabaseTest, TestHelper):
         variable2 = IntVariable()
         insert = Insert({}, primary_columns=(column1, column2),
                             primary_variables=(variable1, variable2))
-        self.database._version = (8, 1, 9)
+        self.database._version = 80109
 
         self.connection.execute(insert)
         

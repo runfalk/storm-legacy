@@ -239,7 +239,7 @@ class PostgresConnection(Connection):
         in-memory objects with their specific rows.
         """
         if (isinstance(statement, Insert) and
-            self._database._version >= (8, 2) and
+            self._database._version >= 80200 and
             statement.primary_variables is not Undef and
             statement.primary_columns is not Undef):
 
@@ -303,6 +303,10 @@ class Postgres(Database):
 
     connection_factory = PostgresConnection
 
+    # An integer representing the server version.  If the server does
+    # not support the server_version_num variable, this will be set to
+    # 0.  In practice, this means the variable will be 0 or greater
+    # than or equal to 80200.
     _version = None
 
     def __init__(self, uri):
@@ -316,9 +320,13 @@ class Postgres(Database):
         if self._version is None:
             cursor = raw_connection.cursor()
 
-            cursor.execute("SHOW server_version")
-            server_version = cursor.fetchone()[0]
-            self._version = tuple(map(int, server_version.split(".")))
+            try:
+                cursor.execute("SHOW server_version_num")
+            except psycopg2.ProgrammingError:
+                self._version = 0
+                raw_connection.rollback()
+            else:
+                self._version = int(cursor.fetchone()[0])
 
             # This will conditionally change the compilation of binary
             # variables (RawStrVariable) to preceed the placeholder with an
