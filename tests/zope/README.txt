@@ -191,4 +191,21 @@ on Storm-managed objects.
   True
 
 
+ResultSet interfaces
+--------------------
+
+Query results provide IResultSet (or ISQLObjectResultSet if SQLObject's
+compatibility layer is used).
+
+  >>> from storm.zope.interfaces import IResultSet, ISQLObjectResultSet
+  >>> from storm.store import EmptyResultSet, ResultSet
+  >>> from storm.sqlobject import SQLObjectResultSet
+  >>> IResultSet.implementedBy(ResultSet)
+  True
+  >>> IResultSet.implementedBy(EmptyResultSet)
+  True
+
+  >>> ISQLObjectResultSet.implementedBy(SQLObjectResultSet)
+  True
+
 # vim:ts=4:sw=4:et

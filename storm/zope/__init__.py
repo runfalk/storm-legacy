@@ -22,7 +22,8 @@ from zope.interface import classImplements
 from zope.security.checker import NoProxy, BasicTypes, _available_by_default
 
 from storm.info import ObjectInfo
-from storm.zope.interfaces import ISQLObjectResultSet
+from storm.store import EmptyResultSet, ResultSet
+from storm.zope.interfaces import IResultSet, ISQLObjectResultSet
 from storm import sqlobject as storm_sqlobject
 
 # The following is required for storm.info.get_obj_info() to have
@@ -33,3 +34,5 @@ from storm import sqlobject as storm_sqlobject
 _available_by_default.append("__storm_object_info__")
 BasicTypes[ObjectInfo] = NoProxy
 classImplements(storm_sqlobject.SQLObjectResultSet, ISQLObjectResultSet)
+classImplements(ResultSet, IResultSet)
+classImplements(EmptyResultSet, IResultSet)
