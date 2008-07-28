@@ -73,6 +73,16 @@ class TracerTest(TestHelper):
         self.assertEquals(stash, ["m1", (1, 2), {"c": 3}, "m2", (), {}])
 
 
+
+class MockVariable(object):
+
+    def __init__(self, value):
+        self._value = value
+
+    def get(self):
+        return self._value
+
+
 class DebugTracerTest(TestHelper):
 
     def setUp(self):
@@ -84,20 +94,22 @@ class DebugTracerTest(TestHelper):
         self.mocker.result(datetime.datetime(1,2,3,4,5,6,7))
         self.mocker.count(0, 1)
 
+        self.variable = MockVariable("PARAM")
+
     def tearDown(self):
         super(DebugTracerTest, self).tearDown()
         del _tracers[:]
 
     def test_connection_raw_execute(self):
         stderr = self.mocker.replace("sys.stderr")
-        stderr.write("[04:05:06.000007] EXECUTE: 'STATEMENT', 'PARAMS'\n")
+        stderr.write("[04:05:06.000007] EXECUTE: 'STATEMENT', ('PARAM',)\n")
         stderr.flush()
         self.mocker.replay()
 
         connection = "CONNECTION"
         raw_cursor = "RAW_CURSOR"
         statement = "STATEMENT"
-        params = "PARAMS"
+        params = [self.variable]
 
         self.tracer.connection_raw_execute(connection, raw_cursor,
                                            statement, params)
@@ -135,14 +147,14 @@ class DebugTracerTest(TestHelper):
         self.tracer = DebugTracer(sys.stdout)
 
         stdout = self.mocker.replace("sys.stdout")
-        stdout.write("[04:05:06.000007] EXECUTE: 'STATEMENT', 'PARAMS'\n")
+        stdout.write("[04:05:06.000007] EXECUTE: 'STATEMENT', ('PARAM',)\n")
         stdout.flush()
         self.mocker.replay()
 
         connection = "CONNECTION"
         raw_cursor = "RAW_CURSOR"
         statement = "STATEMENT"
-        params = "PARAMS"
+        params = [self.variable]
 
         self.tracer.connection_raw_execute(connection, raw_cursor,
                                            statement, params)
