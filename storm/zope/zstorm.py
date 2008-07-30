@@ -27,12 +27,14 @@
 import threading
 import weakref
 
-from zope.testing.cleanup import addCleanUp
 from zope.interface import implements
 
 import transaction
 from transaction.interfaces import IDataManager, ISynchronizer
-from ZODB.POSException import TransactionFailedError
+try:
+    from transaction.interfaces import TransactionFailedError
+except ImportError:
+    from ZODB.POSException import TransactionFailedError
 
 from storm.zope.interfaces import IZStorm, ZStormError
 from storm.database import create_database
@@ -286,4 +288,11 @@ class StoreDataManager(object):
 
 global_zstorm = ZStorm()
 
-addCleanUp(global_zstorm._reset)
+try:
+    from zope.testing.cleanup import addCleanUp
+except ImportError:
+    # We don't have zope.testing installed.
+    pass
+else:
+    addCleanUp(global_zstorm._reset)
+    del addCleanUp
