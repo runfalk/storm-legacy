@@ -25,18 +25,21 @@ from tests.helper import TestHelper
 try:
     import transaction
 except ImportError:
-    have_transaction = False
+    has_transaction = False
 else:
-    have_transaction = True
+    has_transaction = True
     from storm.zope.interfaces import IZStorm, ZStormError
     from storm.zope.zstorm import ZStorm
 
 try:
     from zope.component import provideUtility, getUtility
 except ImportError:
-    have_zope_component = False
+    has_zope_component = False
 else:
-    have_zope_component = True
+    has_zope_component = True
+
+has_zope = has_transaction and has_zope_component
+
 
 from storm.exceptions import OperationalError
 from storm.locals import Store, Int
@@ -45,7 +48,7 @@ from storm.locals import Store, Int
 class ZStormTest(TestHelper):
 
     def is_supported(self):
-        return have_transaction
+        return has_transaction
 
     def setUp(self):
         self.zstorm = ZStorm()
@@ -233,7 +236,7 @@ class ZStormTest(TestHelper):
 class ZStormUtilityTest(TestHelper):
 
     def is_supported(self):
-        return have_zope_component
+        return has_zope_component
 
     def test_utility(self):
         provideUtility(ZStorm())
