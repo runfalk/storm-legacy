@@ -828,7 +828,7 @@ For instance:
 {{{#!python
 from storm.locals import SQL
 
->>> ruy.name = SQL("(SELECT name || ' Ritcher' FROM person WHERE id=4)")
+>>> ruy.name = SQL("(SELECT name || ? FROM person WHERE id=4)", (" Ritcher",))
 >>> ruy.name
 u'Ruy Ritcher'
 
