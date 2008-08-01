@@ -112,7 +112,8 @@ class MySQLConnection(Connection):
             if result._raw_cursor.lastrowid:
                 for variable in statement.primary_variables:
                     if not variable.is_defined():
-                        variable.set(result._raw_cursor.lastrowid)
+                        variable.set(result._raw_cursor.lastrowid,
+                                     from_db=True)
                         break
             if noresult:
                 result = None
