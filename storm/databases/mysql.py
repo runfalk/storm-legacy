@@ -37,6 +37,7 @@ from storm.variables import Variable
 from storm.database import Database, Connection, Result
 from storm.exceptions import (
     install_exceptions, DatabaseModuleError, OperationalError)
+from storm.variables import IntVariable
 
 
 install_exceptions(MySQLdb)
@@ -62,8 +63,15 @@ class MySQLResult(Result):
 
     def get_insert_identity(self, primary_key, primary_variables):
         equals = []
+        lastrowid = self._raw_cursor.lastrowid
         for column, variable in zip(primary_key, primary_variables):
-            if variable.is_defined():
+            if not variable.is_defined():
+                if lastrowid:
+                    variable = IntVariable(lastrowid)
+                    # Only fill in one primary key variable from lastrowid.
+                    lastrowid = None
+                else:
+                    continue
                 equals.append(Eq(column, variable))
         return And(*equals)
 
