@@ -30,8 +30,9 @@ try:
 except ImportError:
     MySQLdb = dummy
 
-from storm.expr import (compile, Select, compile_select, Undef, And, Eq,
-                        SQLRaw, SQLToken, is_safe_token)
+from storm.expr import (
+    compile, Insert, Select, compile_select, Undef, And, Eq,
+    SQLRaw, SQLToken, is_safe_token)
 from storm.variables import Variable
 from storm.database import Database, Connection, Result
 from storm.exceptions import (
@@ -62,9 +63,8 @@ class MySQLResult(Result):
     def get_insert_identity(self, primary_key, primary_variables):
         equals = []
         for column, variable in zip(primary_key, primary_variables):
-            if not variable.is_defined():
-                variable = SQLRaw(self._raw_cursor.lastrowid)
-            equals.append(Eq(column, variable))
+            if variable.is_defined():
+                equals.append(Eq(column, variable))
         return And(*equals)
 
     @staticmethod
@@ -86,6 +86,30 @@ class MySQLConnection(Connection):
     result_factory = MySQLResult
     param_mark = "%s"
     compile = compile
+
+    def execute(self, statement, params=None, noresult=False):
+        if (isinstance(statement, Insert) and
+            statement.primary_variables is not Undef):
+
+            result = Connection.execute(self, statement, params)
+
+            # The lastrowid value will be non-NULL under the following
+            # conditions:
+            #  - the table had an AUTO INCREMENT column
+            #  - the column was not set during the insert, or set to 0
+            #
+            # If these conditions are met, then lastrowid will be the
+            # value of the first such column set.  We assume that it
+            # is the first undefined primary key variable.
+            if result._raw_cursor.lastrowid:
+                for variable in statement.primary_variables:
+                    if not variable.is_defined():
+                        variable.set(result._raw_cursor.lastrowid)
+                        break
+            if noresult:
+                result = None
+            return result
+        return Connection.execute(self, statement, params, noresult)
 
     def to_database(self, params):
         for param in params:
