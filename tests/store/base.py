@@ -36,7 +36,7 @@ from storm.store import *
 from storm.store import ResultSet
 
 from tests.info import Wrapper
-from tests.helper import run_this
+from tests.helper import run_this, TestHelper
 
 
 class Foo(object):
@@ -127,6 +127,17 @@ class DecorateVariable(Variable):
 class FooVariable(Foo):
     title = Property(variable_class=DecorateVariable)
 
+class StoreCacheTest(TestHelper):
+
+    def test_variable_cache_size(self):
+        store = Store(None, cache_size=10)
+        # ugly. we have to check internal variables
+        self.assertEquals(store._cache._size, 10)
+
+    def test_default_cache_size(self):
+        store = Store(None)
+        # ugly. we have to check internal variables
+        self.assertEquals(store._cache._size, 100)
 
 class StoreTest(object):
 
