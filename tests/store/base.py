@@ -127,15 +127,19 @@ class DecorateVariable(Variable):
 class FooVariable(Foo):
     title = Property(variable_class=DecorateVariable)
 
+class DummyDatabase(object):
+    def connect(self):
+        return None
+
 class StoreCacheTest(TestHelper):
 
     def test_variable_cache_size(self):
-        store = Store(None, cache_size=10)
+        store = Store(DummyDatabase(), cache_size=10)
         # ugly. we have to check internal variables
         self.assertEquals(store._cache._size, 10)
 
     def test_default_cache_size(self):
-        store = Store(None)
+        store = Store(DummyDatabase())
         # ugly. we have to check internal variables
         self.assertEquals(store._cache._size, 100)
 
