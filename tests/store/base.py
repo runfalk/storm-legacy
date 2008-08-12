@@ -33,7 +33,7 @@ from storm.variables import Variable, UnicodeVariable, IntVariable
 from storm.info import get_obj_info, ClassAlias
 from storm.exceptions import *
 from storm.store import *
-from storm.store import ResultSet
+from storm.store import ResultSet, DEFAULT_CACHE_SIZE
 
 from tests.info import Wrapper
 from tests.helper import run_this, TestHelper
@@ -134,14 +134,19 @@ class DummyDatabase(object):
 class StoreCacheTest(TestHelper):
 
     def test_variable_cache_size(self):
-        store = Store(DummyDatabase(), cache_size=10)
+
+        variable_size = 1234
+        assert variable_size != DEFAULT_CACHE_SIZE
+        store = Store(DummyDatabase(), cache_size=variable_size)
+
         # ugly. we have to check internal variables
-        self.assertEquals(store._cache._size, 10)
+        self.assertEquals(store._cache._size, variable_size)
 
     def test_default_cache_size(self):
         store = Store(DummyDatabase())
+
         # ugly. we have to check internal variables
-        self.assertEquals(store._cache._size, 100)
+        self.assertEquals(store._cache._size, DEFAULT_CACHE_SIZE)
 
 class StoreTest(object):
 
