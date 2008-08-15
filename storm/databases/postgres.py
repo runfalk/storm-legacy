@@ -313,6 +313,10 @@ class Postgres(Database):
         if psycopg2 is dummy:
             raise DatabaseModuleError("'psycopg2' module not found")
         self._dsn = make_dsn(uri)
+        self._autocommit = False
+        autocommit = uri.options.get("autocommit")
+        if autocommit == "1":
+            self._autocommit = True
 
     def raw_connect(self):
         raw_connection = psycopg2.connect(self._dsn)
@@ -350,8 +354,12 @@ class Postgres(Database):
             raw_connection.rollback()
 
         raw_connection.set_client_encoding("UTF8")
-        raw_connection.set_isolation_level(
-            psycopg2.extensions.ISOLATION_LEVEL_SERIALIZABLE)
+        if self._autocommit:
+            raw_connection.set_isolation_level(
+                psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
+        else:
+            raw_connection.set_isolation_level(
+                psycopg2.extensions.ISOLATION_LEVEL_SERIALIZABLE)
         return raw_connection
 
 

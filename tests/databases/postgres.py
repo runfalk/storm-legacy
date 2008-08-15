@@ -23,7 +23,6 @@ import os
 
 from storm.databases.postgres import (
     Postgres, compile, currval, Returning, PostgresTimeoutTracer)
-from storm.uri import URI
 from storm.database import create_database
 from storm.exceptions import ProgrammingError
 from storm.variables import DateTimeVariable, RawStrVariable
@@ -408,7 +407,7 @@ class PostgresTest(DatabaseTest, TestHelper):
         self.database._version = 80109
 
         self.connection.execute(insert)
-        
+
         self.assertFalse(variable1.is_defined())
         self.assertFalse(variable2.is_defined())
 
@@ -436,6 +435,22 @@ class PostgresTest(DatabaseTest, TestHelper):
         result = self.connection.execute("SELECT * FROM insert_returning_test")
 
         self.assertEquals(result.get_one(), (123, 456))
+
+    def test_wb_autocommit(self):
+        database = create_database("postgres://un:pw@ht:12/db?autocommit=0")
+        self.assertEquals(database._autocommit, False)
+
+        database = create_database(
+            os.environ["STORM_POSTGRES_URI"] + "?autocommit=1")
+        self.assertEquals(database._autocommit, True)
+
+        connection = database.connect()
+        self.addCleanup(connection.close)
+
+        from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+        self.assertEquals(
+            connection._raw_connection.isolation_level,
+            ISOLATION_LEVEL_AUTOCOMMIT)
 
 
 class PostgresUnsupportedTest(UnsupportedDatabaseTest, TestHelper):
