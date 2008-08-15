@@ -4,7 +4,9 @@ import sys
 from storm.tracer import (trace, install_tracer, get_tracers,
                           remove_tracer_type, remove_all_tracers, debug,
                           DebugTracer, TimeoutTracer, TimeoutError, _tracers)
+from storm.expr import Variable
 
+from tests.mocker import ARGS
 from tests.helper import TestHelper
 
 
@@ -72,6 +74,16 @@ class TracerTest(TestHelper):
         self.assertEquals(stash, ["m1", (1, 2), {"c": 3}, "m2", (), {}])
 
 
+
+class MockVariable(Variable):
+
+    def __init__(self, value):
+        self._value = value
+
+    def get(self, to_db):
+        return self._value
+
+
 class DebugTracerTest(TestHelper):
 
     def setUp(self):
@@ -83,7 +95,7 @@ class DebugTracerTest(TestHelper):
         self.mocker.result(datetime.datetime(1,2,3,4,5,6,7))
         self.mocker.count(0, 1)
 
-        self.variable = "PARAM"
+        self.variable = MockVariable("PARAM")
 
     def tearDown(self):
         super(DebugTracerTest, self).tearDown()
@@ -98,7 +110,7 @@ class DebugTracerTest(TestHelper):
         connection = "CONNECTION"
         raw_cursor = "RAW_CURSOR"
         statement = "STATEMENT"
-        params = (self.variable,)
+        params = [self.variable]
 
         self.tracer.connection_raw_execute(connection, raw_cursor,
                                            statement, params)
@@ -143,7 +155,7 @@ class DebugTracerTest(TestHelper):
         connection = "CONNECTION"
         raw_cursor = "RAW_CURSOR"
         statement = "STATEMENT"
-        params = (self.variable,)
+        params = [self.variable]
 
         self.tracer.connection_raw_execute(connection, raw_cursor,
                                            statement, params)

@@ -236,7 +236,7 @@ class Connection(object):
             self._state = STATE_RECONNECT
 
     @staticmethod
-    def to_database(params):
+    def to_database(params, to_db=True):
         """Convert some parameters into values acceptable to a database backend.
 
         It is acceptable to override this method in subclasses, but it
@@ -247,7 +247,7 @@ class Connection(object):
         """
         for param in params:
             if isinstance(param, Variable):
-                yield param.get(to_db=True)
+                yield param.get(to_db=to_db)
             else:
                 yield param
 
@@ -271,23 +271,21 @@ class Connection(object):
         @return: The dbapi cursor object, as fetched from L{build_raw_cursor}.
         """
         raw_cursor = self.build_raw_cursor()
-        if params:
-            params = tuple(self.to_database(params))
-            args = (statement, params)
-        else:
-            params = ()
-            args = (statement,)
         trace("connection_raw_execute", self, raw_cursor,
-              statement, params)
+              statement, params or ())
+        if params:
+            args = (statement, tuple(self.to_database(params)))
+        else:
+            args = (statement,)
         try:
             self._check_disconnect(raw_cursor.execute, *args)
         except Exception, error:
             trace("connection_raw_execute_error", self, raw_cursor,
-                  statement, params, error)
+                  statement, params or (), error)
             raise
         else:
             trace("connection_raw_execute_success", self, raw_cursor,
-                  statement, params)
+                  statement, params or ())
         return raw_cursor
 
     def _ensure_connected(self):

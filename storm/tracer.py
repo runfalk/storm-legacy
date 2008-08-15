@@ -11,6 +11,8 @@ class DebugTracer(object):
 
     def connection_raw_execute(self, connection, raw_cursor, statement, params):
         time = datetime.now().isoformat()[11:]
+        from storm.database import Connection
+        params = tuple(Connection.to_database(params, False))
         self._stream.write("[%s] EXECUTE: %r, %r\n" % (time, statement, params))
         self._stream.flush()
 
