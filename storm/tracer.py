@@ -11,7 +11,6 @@ class DebugTracer(object):
 
     def connection_raw_execute(self, connection, raw_cursor, statement, params):
         time = datetime.now().isoformat()[11:]
-        params = tuple(param.get() for param in params)
         self._stream.write("[%s] EXECUTE: %r, %r\n" % (time, statement, params))
         self._stream.flush()
 

@@ -271,21 +271,23 @@ class Connection(object):
         @return: The dbapi cursor object, as fetched from L{build_raw_cursor}.
         """
         raw_cursor = self.build_raw_cursor()
-        trace("connection_raw_execute", self, raw_cursor,
-              statement, params or ())
         if params:
-            args = (statement, tuple(self.to_database(params)))
+            params = tuple(self.to_database(params))
+            args = (statement, params)
         else:
+            params = ()
             args = (statement,)
+        trace("connection_raw_execute", self, raw_cursor,
+              statement, params)
         try:
             self._check_disconnect(raw_cursor.execute, *args)
         except Exception, error:
             trace("connection_raw_execute_error", self, raw_cursor,
-                  statement, params or (), error)
+                  statement, params, error)
             raise
         else:
             trace("connection_raw_execute_success", self, raw_cursor,
-                  statement, params or ())
+                  statement, params)
         return raw_cursor
 
     def _ensure_connected(self):
