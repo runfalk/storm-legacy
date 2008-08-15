@@ -72,7 +72,7 @@ class MySQLResult(Result):
                     lastrowid = None
                 else:
                     continue
-                equals.append(Eq(column, variable))
+            equals.append(Eq(column, variable))
         return And(*equals)
 
     @staticmethod
