@@ -2,6 +2,7 @@ from datetime import datetime
 import sys
 
 from storm.exceptions import TimeoutError
+from storm.expr import Variable
 
 
 class DebugTracer(object):
@@ -11,9 +12,15 @@ class DebugTracer(object):
 
     def connection_raw_execute(self, connection, raw_cursor, statement, params):
         time = datetime.now().isoformat()[11:]
-        from storm.database import Connection
-        params = tuple(Connection.to_database(params, False))
-        self._stream.write("[%s] EXECUTE: %r, %r\n" % (time, statement, params))
+        raw_params = []
+        for param in params:
+            if isinstance(param, Variable):
+                raw_params.append(param.get(to_db=True))
+            else:
+                raw_params.append(param)
+        raw_params = tuple(raw_params)
+        self._stream.write(
+            "[%s] EXECUTE: %r, %r\n" % (time, statement, raw_params))
         self._stream.flush()
 
     def connection_raw_execute_error(self, connection, raw_cursor,

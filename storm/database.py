@@ -236,7 +236,7 @@ class Connection(object):
             self._state = STATE_RECONNECT
 
     @staticmethod
-    def to_database(params, to_db=True):
+    def to_database(params):
         """Convert some parameters into values acceptable to a database backend.
 
         It is acceptable to override this method in subclasses, but it
@@ -247,7 +247,7 @@ class Connection(object):
         """
         for param in params:
             if isinstance(param, Variable):
-                yield param.get(to_db=to_db)
+                yield param.get(to_db=True)
             else:
                 yield param
 
