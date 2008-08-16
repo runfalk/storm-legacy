@@ -18,12 +18,13 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from datetime import datetime, date, time
 import os
 
 from storm.databases.mysql import MySQL
 from storm.database import create_database
+from storm.expr import Column, Insert
 from storm.uri import URI
+from storm.variables import IntVariable, UnicodeVariable
 
 from tests.databases.base import (
     DatabaseTest, DatabaseDisconnectionTest, UnsupportedDatabaseTest)
@@ -74,6 +75,36 @@ class MySQLTest(DatabaseTest, TestHelper):
         result = connection.execute("SELECT @@character_set_client")
         self.assertEquals(result.get_one(), ("ascii",))
 
+    def test_get_insert_identity(self):
+        # Primary keys are filled in during execute() for MySQL
+        pass
+
+    def test_get_insert_identity_composed(self):
+        # Primary keys are filled in during execute() for MySQL
+        pass
+
+    def test_execute_insert_auto_increment_primary_key(self):
+        id_column = Column("id", "test")
+        id_variable = IntVariable()
+        title_column = Column("title", "test")
+        title_variable = UnicodeVariable(u"testing")
+
+        # This is not part of the table.  It is just used to show that
+        # only one primary key variable is set from the insert ID.
+        dummy_column = Column("dummy", "test")
+        dummy_variable = IntVariable()
+
+        insert = Insert({title_column: title_variable},
+                        primary_columns=(id_column, dummy_column),
+                        primary_variables=(id_variable, dummy_variable))
+        self.connection.execute(insert)
+        self.assertTrue(id_variable.is_defined())
+        self.assertFalse(dummy_variable.is_defined())
+
+        # The newly inserted row should have the maximum id value for
+        # the table.
+        result = self.connection.execute("SELECT MAX(id) FROM test")
+        self.assertEqual(result.get_one()[0], id_variable.get())
 
 
 class MySQLUnsupportedTest(UnsupportedDatabaseTest, TestHelper):

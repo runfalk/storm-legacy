@@ -30,12 +30,14 @@ try:
 except ImportError:
     MySQLdb = dummy
 
-from storm.expr import (compile, Select, compile_select, Undef, And, Eq,
-                        SQLRaw, SQLToken, is_safe_token)
+from storm.expr import (
+    compile, Insert, Select, compile_select, Undef, And, Eq,
+    SQLRaw, SQLToken, is_safe_token)
 from storm.variables import Variable
 from storm.database import Database, Connection, Result
 from storm.exceptions import (
     install_exceptions, DatabaseModuleError, OperationalError)
+from storm.variables import IntVariable
 
 
 install_exceptions(MySQLdb)
@@ -59,14 +61,6 @@ def compile_sql_token_mysql(compile, expr, state):
 
 class MySQLResult(Result):
 
-    def get_insert_identity(self, primary_key, primary_variables):
-        equals = []
-        for column, variable in zip(primary_key, primary_variables):
-            if not variable.is_defined():
-                variable = SQLRaw(self._raw_cursor.lastrowid)
-            equals.append(Eq(column, variable))
-        return And(*equals)
-
     @staticmethod
     def from_database(row):
         """Convert MySQL-specific datatypes to "normal" Python types.
@@ -86,6 +80,30 @@ class MySQLConnection(Connection):
     result_factory = MySQLResult
     param_mark = "%s"
     compile = compile
+
+    def execute(self, statement, params=None, noresult=False):
+        if (isinstance(statement, Insert) and
+            statement.primary_variables is not Undef):
+
+            result = Connection.execute(self, statement, params)
+
+            # The lastrowid value will be set if:
+            #  - the table had an AUTO INCREMENT column, and
+            #  - the column was not set during the insert or set to 0
+            #
+            # If these conditions are met, then lastrowid will be the
+            # value of the first such column set.  We assume that it
+            # is the first undefined primary key variable.
+            if result._raw_cursor.lastrowid:
+                for variable in statement.primary_variables:
+                    if not variable.is_defined():
+                        variable.set(result._raw_cursor.lastrowid,
+                                     from_db=True)
+                        break
+            if noresult:
+                result = None
+            return result
+        return Connection.execute(self, statement, params, noresult)
 
     def to_database(self, params):
         for param in params:
