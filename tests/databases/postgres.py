@@ -436,21 +436,59 @@ class PostgresTest(DatabaseTest, TestHelper):
 
         self.assertEquals(result.get_one(), (123, 456))
 
-    def test_wb_autocommit(self):
-        database = create_database("postgres://un:pw@ht:12/db?autocommit=0")
-        self.assertEquals(database._autocommit, False)
-
+    def test_wb_isolation_autocommit(self):
         database = create_database(
-            os.environ["STORM_POSTGRES_URI"] + "?autocommit=1")
-        self.assertEquals(database._autocommit, True)
+            os.environ["STORM_POSTGRES_URI"] + "?isolation=autocommit")
 
         connection = database.connect()
         self.addCleanup(connection.close)
+
+        result = connection.execute("SHOW TRANSACTION ISOLATION LEVEL")
+        # It matches read committed in Postgres internel
+        self.assertEquals(result.get_one()[0], u"read committed")
 
         from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
         self.assertEquals(
             connection._raw_connection.isolation_level,
             ISOLATION_LEVEL_AUTOCOMMIT)
+
+    def test_wb_isolation_read_committed(self):
+        database = create_database(
+            os.environ["STORM_POSTGRES_URI"] + "?isolation=read-committed")
+
+        connection = database.connect()
+        self.addCleanup(connection.close)
+
+        result = connection.execute("SHOW TRANSACTION ISOLATION LEVEL")
+        self.assertEquals(result.get_one()[0], u"read committed")
+
+        from psycopg2.extensions import ISOLATION_LEVEL_READ_COMMITTED
+        self.assertEquals(
+            connection._raw_connection.isolation_level,
+            ISOLATION_LEVEL_READ_COMMITTED)
+
+    def test_wb_isolation_serializable(self):
+        database = create_database(
+            os.environ["STORM_POSTGRES_URI"] + "?isolation=serializable")
+
+        connection = database.connect()
+        self.addCleanup(connection.close)
+
+        result = connection.execute("SHOW TRANSACTION ISOLATION LEVEL")
+        self.assertEquals(result.get_one()[0], u"serializable")
+
+        from psycopg2.extensions import ISOLATION_LEVEL_SERIALIZABLE
+        self.assertEquals(
+            connection._raw_connection.isolation_level,
+            ISOLATION_LEVEL_SERIALIZABLE)
+
+    def test_default_isolation(self):
+        result = self.connection.execute("SHOW TRANSACTION ISOLATION LEVEL")
+        self.assertEquals(result.get_one()[0], u"serializable")
+
+    def test_unknown_serialization(self):
+        self.assertRaises(ValueError, create_database,
+            os.environ["STORM_POSTGRES_URI"] + "?isolation=stuff")
 
 
 class PostgresUnsupportedTest(UnsupportedDatabaseTest, TestHelper):
