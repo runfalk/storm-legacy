@@ -54,6 +54,8 @@ Bug fixes
    will now be broken.
  - Fixed a race condition when two threads try to initialize the
    ClassInfo for a given class at the same time.
+ - Improve handling of AUTO INCREMENT columns in the MySQL backend to
+   remove an unnecessary query when adding objects to a store.
 
 
 0.12 (2008-01-28)
