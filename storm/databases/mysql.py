@@ -61,20 +61,6 @@ def compile_sql_token_mysql(compile, expr, state):
 
 class MySQLResult(Result):
 
-    def get_insert_identity(self, primary_key, primary_variables):
-        equals = []
-        lastrowid = self._raw_cursor.lastrowid
-        for column, variable in zip(primary_key, primary_variables):
-            if not variable.is_defined():
-                if lastrowid:
-                    variable = IntVariable(lastrowid)
-                    # Only fill in one primary key variable from lastrowid.
-                    lastrowid = None
-                else:
-                    continue
-            equals.append(Eq(column, variable))
-        return And(*equals)
-
     @staticmethod
     def from_database(row):
         """Convert MySQL-specific datatypes to "normal" Python types.
@@ -101,10 +87,9 @@ class MySQLConnection(Connection):
 
             result = Connection.execute(self, statement, params)
 
-            # The lastrowid value will be non-NULL under the following
-            # conditions:
-            #  - the table had an AUTO INCREMENT column
-            #  - the column was not set during the insert, or set to 0
+            # The lastrowid value will be set if:
+            #  - the table had an AUTO INCREMENT column, and
+            #  - the column was not set during the insert or set to 0
             #
             # If these conditions are met, then lastrowid will be the
             # value of the first such column set.  We assume that it

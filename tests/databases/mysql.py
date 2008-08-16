@@ -75,6 +75,14 @@ class MySQLTest(DatabaseTest, TestHelper):
         result = connection.execute("SELECT @@character_set_client")
         self.assertEquals(result.get_one(), ("ascii",))
 
+    def test_get_insert_identity(self):
+        # Primary keys are filled in during execute() for MySQL
+        pass
+
+    def test_get_insert_identity_composed(self):
+        # Primary keys are filled in during execute() for MySQL
+        pass
+
     def test_execute_insert_auto_increment_primary_key(self):
         id_column = Column("id", "test")
         id_variable = IntVariable()
