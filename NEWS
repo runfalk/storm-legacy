@@ -33,6 +33,10 @@ Improvements
    While code like "item in set" was previously possible, it involved
    iterating over the result set, which is expensive for large
    databases.
+ - The storm.zope.zstorm code can now be used with only the
+   zope.interface and transaction packages installed.  This makes it
+   easier to reuse the per-thread store management and global
+   transaction handling from other web frameworks.
 
 
 Bug fixes
