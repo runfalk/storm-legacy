@@ -323,7 +323,7 @@ class Postgres(Database):
             self._isolation = isolation_mapping[isolation]
         except KeyError:
             raise ValueError(
-                "Unknown serialization level %r: expect one of "
+                "Unknown serialization level %r: expected one of "
                 "'autocommit', 'serializable', 'read-committed'" %
                 (isolation,))
 
