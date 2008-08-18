@@ -436,7 +436,7 @@ class PostgresTest(DatabaseTest, TestHelper):
 
         self.assertEquals(result.get_one(), (123, 456))
 
-    def test_wb_isolation_autocommit(self):
+    def test_isolation_autocommit(self):
         database = create_database(
             os.environ["STORM_POSTGRES_URI"] + "?isolation=autocommit")
 
@@ -447,12 +447,14 @@ class PostgresTest(DatabaseTest, TestHelper):
         # It matches read committed in Postgres internel
         self.assertEquals(result.get_one()[0], u"read committed")
 
-        from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-        self.assertEquals(
-            connection._raw_connection.isolation_level,
-            ISOLATION_LEVEL_AUTOCOMMIT)
+        connection.execute("INSERT INTO bin_test VALUES (1, 'foo')")
 
-    def test_wb_isolation_read_committed(self):
+        result = self.connection.execute("SELECT id FROM bin_test")
+        # I didn't commit, but data should already be there
+        self.assertEquals(result.get_all(), [(1,)])
+        connection.rollback()
+
+    def test_isolation_read_committed(self):
         database = create_database(
             os.environ["STORM_POSTGRES_URI"] + "?isolation=read-committed")
 
@@ -462,12 +464,26 @@ class PostgresTest(DatabaseTest, TestHelper):
         result = connection.execute("SHOW TRANSACTION ISOLATION LEVEL")
         self.assertEquals(result.get_one()[0], u"read committed")
 
-        from psycopg2.extensions import ISOLATION_LEVEL_READ_COMMITTED
-        self.assertEquals(
-            connection._raw_connection.isolation_level,
-            ISOLATION_LEVEL_READ_COMMITTED)
+        connection.execute("INSERT INTO bin_test VALUES (1, 'foo')")
 
-    def test_wb_isolation_serializable(self):
+        result = self.connection.execute("SELECT id FROM bin_test")
+        # Data should not be there already
+        self.assertEquals(result.get_all(), [])
+        connection.rollback()
+
+        # Start a transaction
+        result = connection.execute("SELECT 1")
+        self.assertEquals(result.get_one(), (1,))
+
+        self.connection.execute("INSERT INTO bin_test VALUES (1, 'foo')")
+        self.connection.commit()
+
+        result = connection.execute("SELECT id FROM bin_test")
+        # Data is already here!
+        self.assertEquals(result.get_one(), (1,))
+        connection.rollback()
+
+    def test_isolation_serializable(self):
         database = create_database(
             os.environ["STORM_POSTGRES_URI"] + "?isolation=serializable")
 
@@ -477,10 +493,17 @@ class PostgresTest(DatabaseTest, TestHelper):
         result = connection.execute("SHOW TRANSACTION ISOLATION LEVEL")
         self.assertEquals(result.get_one()[0], u"serializable")
 
-        from psycopg2.extensions import ISOLATION_LEVEL_SERIALIZABLE
-        self.assertEquals(
-            connection._raw_connection.isolation_level,
-            ISOLATION_LEVEL_SERIALIZABLE)
+        # Start a transaction
+        result = connection.execute("SELECT 1")
+        self.assertEquals(result.get_one(), (1,))
+
+        self.connection.execute("INSERT INTO bin_test VALUES (1, 'foo')")
+        self.connection.commit()
+
+        result = connection.execute("SELECT id FROM bin_test")
+        # We can't see data yet, because transaction started before
+        self.assertEquals(result.get_one(), None)
+        connection.rollback()
 
     def test_default_isolation(self):
         result = self.connection.execute("SHOW TRANSACTION ISOLATION LEVEL")
