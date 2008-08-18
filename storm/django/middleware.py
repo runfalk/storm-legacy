@@ -59,7 +59,7 @@ class ZopeTransactionMiddleware(object):
         HEAD methods, the transaction will be aborted.
         """
         commit_safe_methods = getattr(settings, 'STORM_COMMIT_SAFE_METHODS',
-                                      False)
+                                      True)
         if commit_safe_methods or request.method not in ['HEAD', 'GET']:
             transaction.commit()
         else:
