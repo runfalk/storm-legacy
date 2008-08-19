@@ -15,7 +15,7 @@ class DebugTracer(object):
         raw_params = []
         for param in params:
             if isinstance(param, Variable):
-                raw_params.append(param.get(to_db=True))
+                raw_params.append(param.get())
             else:
                 raw_params.append(param)
         raw_params = tuple(raw_params)

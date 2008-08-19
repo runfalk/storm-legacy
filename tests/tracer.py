@@ -80,7 +80,7 @@ class MockVariable(Variable):
     def __init__(self, value):
         self._value = value
 
-    def get(self, to_db):
+    def get(self):
         return self._value
 
 
