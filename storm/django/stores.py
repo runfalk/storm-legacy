@@ -49,11 +49,15 @@ def configure_stores(settings):
 have_configured_stores = False
 
 
-def get_store(name):
-    # Make sure that stores have been configured.
+def ensure_stores_configured():
     global have_configured_stores
     if not have_configured_stores:
         configure_stores(settings)
         have_configured_stores = True
+
+
+def get_store(name):
+    # Make sure that stores have been configured.
+    ensure_stores_configured()
 
     return global_zstorm.get(name)
