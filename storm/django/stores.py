@@ -61,3 +61,8 @@ def get_store(name):
     ensure_stores_configured()
 
     return global_zstorm.get(name)
+
+
+def get_store_uri(name):
+    ensure_stores_configured()
+    return global_zstorm.get_default_uris()[name]
