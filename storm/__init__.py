@@ -22,7 +22,7 @@
 import os
 
 
-version = "0.12"
+version = "0.13"
 version_info = tuple([int(x) for x in version.split(".")])
 
 
