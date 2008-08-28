@@ -101,3 +101,10 @@ class DjangoStoreTests(TestHelper):
         thread.join()
         self.assertEqual(len(other_stores), 1)
         self.assertNotEqual(other_stores[0], store)
+
+    def test_get_store_uri(self):
+        conf.settings.MIDDLEWARE_CLASSES += (
+            "storm.django.middleware.ZopeTransactionMiddleware",)
+        conf.settings.STORM_STORES = {"name": "sqlite:"}
+
+        self.assertEqual(stores.get_store_uri("name"), "sqlite:")
