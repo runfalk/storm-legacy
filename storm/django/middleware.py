@@ -40,13 +40,23 @@ class ZopeTransactionMiddleware(object):
     If this is enabled, a Zope transaction will be run to cover each
     request.
     """
+    def __init__(self):
+        self.commit_safe_methods = getattr(
+            settings, 'STORM_COMMIT_SAFE_METHODS', True)
+
     def process_request(self, request):
         """Begin a transaction on request start.."""
+        from django.db import transaction as django_transaction
+        django_transaction.enter_transaction_management()
+        django_transaction.managed(True)
         transaction.begin()
 
     def process_exception(self, request, exception):
         """Abort the transaction on errors."""
+        from django.db import transaction as django_transaction
         transaction.abort()
+        django_transaction.set_clean()
+        django_transaction.leave_transaction_management()
 
     def process_response(self, request, response):
         """Commit or abort the transaction after processing the response.
@@ -58,10 +68,15 @@ class ZopeTransactionMiddleware(object):
         setting is False, and the request used either of the GET and
         HEAD methods, the transaction will be aborted.
         """
-        commit_safe_methods = getattr(settings, 'STORM_COMMIT_SAFE_METHODS',
-                                      True)
-        if commit_safe_methods or request.method not in ['HEAD', 'GET']:
-            transaction.commit()
-        else:
-            transaction.abort()
+        from django.db import transaction as django_transaction
+        # If process_exception() has been called, then we'll no longer
+        # be in managed transaction mode.
+        if django_transaction.is_managed():
+            if self.commit_safe_methods or (
+                request.method not in ['HEAD', 'GET']):
+                transaction.commit()
+            else:
+                transaction.abort()
+            django_transaction.set_clean()
+            django_transaction.leave_transaction_management()
         return response
