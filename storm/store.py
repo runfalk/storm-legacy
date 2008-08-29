@@ -36,8 +36,7 @@ from storm.expr import (
     Union, Except, Intersect, Alias, SetExpr)
 from storm.exceptions import (
     WrongStoreError, NotFlushedError, OrderLoopError, UnorderedError,
-    NotOneError, FeatureError, CompileError, LostObjectError, ClassInfoError,
-    ExprError)
+    NotOneError, FeatureError, CompileError, LostObjectError, ClassInfoError)
 from storm import Undef
 from storm.cache import Cache
 
@@ -637,19 +636,20 @@ class Store(object):
         # Prepare cache key.
         primary_vars = []
         columns = cls_info.columns
-        is_null = True
-        for i in cls_info.primary_key_pos:
-            value = values[i]
-            if value is not None:
-                is_null = False
-            variable = columns[i].variable_factory(value=value, from_db=True)
-            primary_vars.append(variable)
 
-        if is_null:
+        for value in values:
+            if value is not None:
+                break
+        else:
             # We've got a row full of NULLs, so consider that the object
             # wasn't found.  This is useful for joins, where unexistent
-            # rows are reprsented like that.
+            # rows are represented like that.
             return None
+
+        for i in cls_info.primary_key_pos:
+            value = values[i]
+            variable = columns[i].variable_factory(value=value, from_db=True)
+            primary_vars.append(variable)
 
         # Lookup cache.
         obj_info = self._alive.get((cls, tuple(primary_vars)))
