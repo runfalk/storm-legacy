@@ -19,6 +19,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import os
+
 try:
     from django.conf import settings
     from django.http import HttpRequest, HttpResponse
@@ -44,7 +46,15 @@ class DjangoBackendTests(object):
         settings.MIDDLEWARE_CLASSES += (
             "storm.django.middleware.ZopeTransactionMiddleware",)
 
+        settings.DATABASE_ENGINE = "storm.django.backend"
+        settings.DATABASE_NAME = "django"
+        settings.STORM_STORES["django"] = self.get_store_uri()
+        stores.have_configured_stores = False
+        self.create_tables()
+
     def tearDown(self):
+        transaction.abort()
+        self.drop_tables()
         settings._target = None
         global_zstorm._reset()
         stores.have_configured_stores = False
@@ -53,3 +63,90 @@ class DjangoBackendTests(object):
 
     def get_store_uri(self):
         raise NotImplementedError
+
+    def get_wrapper_class(self):
+        raise NotImplementedError
+
+    def create_tables(self):
+        raise NotImplementedError
+
+    def drop_tables(self):
+        raise NotImplementedError
+
+    def test_create_wrapper(self):
+        from storm.django.backend import base
+        wrapper = base.DatabaseWrapper(**settings.DATABASE_OPTIONS)
+        self.assertTrue(isinstance(wrapper, self.get_wrapper_class()))
+
+        # The wrapper uses the same database connection as the store.
+        store = stores.get_store("django")
+        self.assertEqual(store._connection._raw_connection, wrapper.connection)
+
+    def test_commit(self):
+        from storm.django.backend import base
+        wrapper = base.DatabaseWrapper(**settings.DATABASE_OPTIONS)
+        cursor = wrapper.cursor()
+        cursor.execute("INSERT INTO django_test (title) VALUES ('foo')")
+        wrapper._commit()
+
+        cursor = wrapper.cursor()
+        cursor.execute("SELECT title FROM django_test")
+        result = cursor.fetchall()
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0][0], "foo")
+
+    def test_rollback(self):
+        from storm.django.backend import base
+        wrapper = base.DatabaseWrapper(**settings.DATABASE_OPTIONS)
+        cursor = wrapper.cursor()
+        cursor.execute("INSERT INTO django_test (title) VALUES ('foo')")
+        wrapper._rollback()
+
+        cursor = wrapper.cursor()
+        cursor.execute("SELECT title FROM django_test")
+        result = cursor.fetchall()
+        self.assertEqual(len(result), 0)
+
+
+class PostgresDjangoBackendTests(DjangoBackendTests, TestHelper):
+
+    def get_store_uri(self):
+        return os.environ.get("STORM_POSTGRES_URI")
+
+    def get_wrapper_class(self):
+        from storm.django.backend import base
+        return base.PostgresStormDatabaseWrapper
+
+    def create_tables(self):
+        store = stores.get_store("django")
+        store.execute("CREATE TABLE django_test ("
+                      "  id SERIAL PRIMARY KEY,"
+                      "  title TEXT)")
+        transaction.commit()
+
+    def drop_tables(self):
+        store = stores.get_store("django")
+        store.execute("DROP TABLE django_test")
+        transaction.commit()
+
+
+class MySQLDjangoBackendTests(DjangoBackendTests, TestHelper):
+
+    def get_store_uri(self):
+        return os.environ.get("STORM_MYSQL_URI")
+
+    def get_wrapper_class(self):
+        from storm.django.backend import base
+        return base.MySQLStormDatabaseWrapper
+
+    def create_tables(self):
+        store = stores.get_store("django")
+        store.execute("CREATE TABLE django_test ("
+                      "  id INT AUTO_INCREMENT PRIMARY KEY,"
+                      "  title TEXT) ENGINE=InnoDB")
+        transaction.commit()
+
+    def drop_tables(self):
+        store = stores.get_store("django")
+        store.execute("DROP TABLE django_test")
+        transaction.commit()
