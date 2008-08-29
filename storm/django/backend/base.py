@@ -40,21 +40,35 @@ class StormDatabaseWrapperMixin(object):
         self._store = None
 
 
+PostgresStormDatabaseWrapper = None
+MySQLStormDatabaseWrapper = None
+
+
 def DatabaseWrapper(*args, **kwargs):
     store_uri = get_store_uri(settings.DATABASE_NAME)
 
     # Create a DatabaseWrapper class that uses an underlying Storm
-    # connection.
+    # connection.  We don't support sqlite here because Django expects
+    # a bunch of special setup on the connection that Storm doesn't
+    # do.
     if store_uri.startswith('postgres:'):
-        from django.db.backends.postgresql_psycopg2.base import (
-            DatabaseWrapper as PostgresDatabaseWrapper)
-        class DatabaseWrapper(StormDatabaseWrapperMixin, PostgresDatabaseWrapper):
-            pass
+        global PostgresStormDatabaseWrapper
+        if PostgresStormDatabaseWrapper is None:
+            from django.db.backends.postgresql_psycopg2.base import (
+                DatabaseWrapper as PostgresDatabaseWrapper)
+            class PostgresStormDatabaseWrapper(StormDatabaseWrapperMixin,
+                                               PostgresDatabaseWrapper):
+                pass
+        DatabaseWrapper = PostgresStormDatabaseWrapper
     elif store_uri.startswith('mysql:'):
-        from django.db.backends.mysql.base import (
-            DatabaseWrapper as MySQLDatabaseWrapper)
-        class DatabaseWrapper(StormDatabaseWrapperMixin, MySQLDatabaseWrapper):
-            pass
+        global MySQLStormDatabaseWrapper
+        if MySQLStormDatabaseWrapper is None:
+            from django.db.backends.mysql.base import (
+                DatabaseWrapper as MySQLDatabaseWrapper)
+            class MySQLStormDatabaseWrapper(StormDatabaseWrapperMixin,
+                                            MySQLDatabaseWrapper):
+                pass
+        DatabaseWrapper = MySQLStormDatabaseWrapper
     else:
         assert False, (
             "Unsupported database backend: %s" % store_uri)
