@@ -642,7 +642,7 @@ class Store(object):
                 break
         else:
             # We've got a row full of NULLs, so consider that the object
-            # wasn't found.  This is useful for joins, where unexistent
+            # wasn't found.  This is useful for joins, where non-existent
             # rows are represented like that.
             return None
 
