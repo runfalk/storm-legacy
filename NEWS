@@ -1,6 +1,11 @@
 0.14 (2008-XX-XX)
 =================
 
+Improvements
+------------
+ - A new doctest describing the 'Infoheritance' pattern is integrated into
+   the test suite.
+
 Bug fixes
 ---------
  - Manage better row full of NULL in case of LEFT JOIN, without validating
@@ -46,7 +51,6 @@ Improvements
    zope.interface and transaction packages installed.  This makes it
    easier to reuse the per-thread store management and global
    transaction handling from other web frameworks.
-
 
 Bug fixes
 ---------
