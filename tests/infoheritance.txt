@@ -1,7 +1,8 @@
 This Storm document is included in Storm's source code at
 `tests/infoheritance.txt` so that it can be tested and be kept up-to-date.
 
-[[TableOfContents]]
+<<TableOfContents>>
+
 
 ==== Introduction ====
 
