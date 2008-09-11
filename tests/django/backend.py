@@ -23,7 +23,6 @@ import os
 
 try:
     from django.conf import settings
-    from django.http import HttpRequest, HttpResponse
     import transaction
 except ImportError:
     have_django_and_transaction = False
