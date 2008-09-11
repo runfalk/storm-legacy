@@ -21,7 +21,7 @@
 
 """Support for configuration and management of Storm stores in a Django app."""
 
-__all__ = ["get_store"]
+__all__ = ["ensure_stores_configured", "get_store", "get_store_uri"]
 
 
 from storm.zope.zstorm import global_zstorm
