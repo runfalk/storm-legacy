@@ -5,6 +5,8 @@ Improvements
 ------------
  - A new doctest describing the 'Infoheritance' pattern is integrated into
    the test suite.
+ - A new storm.django package has been added to allow use of Storm
+   within Django applications.
 
 Bug fixes
 ---------
