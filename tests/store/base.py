@@ -953,6 +953,27 @@ class StoreTest(object):
                           ((30, u"Title 10"), (300, u"Title 100")),
                          ])
 
+    def test_find_tuple_using_with_disallow_none(self):
+        class Bar(object):
+            __storm_table__ = "bar"
+            id = Int(primary=True, allow_none=False)
+            title = Unicode()
+            foo_id = Int()
+            foo = Reference(foo_id, Foo.id)
+
+        bar = self.store.get(Bar, 200)
+        self.store.remove(bar)
+
+        tables = self.store.using(Foo, LeftJoin(Bar, Bar.foo_id == Foo.id))
+        result = tables.find((Foo, Bar)).order_by(Foo.id)
+        lst = [(foo and (foo.id, foo.title), bar and (bar.id, bar.title))
+               for (foo, bar) in result]
+        self.assertEquals(lst, [
+                          ((10, u"Title 30"), (100, u"Title 300")),
+                          ((20, u"Title 20"), None),
+                          ((30, u"Title 10"), (300, u"Title 100")),
+                         ])
+
     def test_find_tuple_using_skip_when_none(self):
         bar = self.store.get(Bar, 200)
         bar.foo_id = None
@@ -1332,7 +1353,7 @@ class StoreTest(object):
         result = self.store.find((Count(FooValue.id), Sum(FooValue.value1)))
         result.group_by(FooValue.value2)
         self.assertRaises(FeatureError, result.remove)
-    
+
     def test_find_group_by_set(self):
         result = self.store.find((Count(FooValue.id), Sum(FooValue.value1)))
         result.group_by(FooValue.value2)
