@@ -806,6 +806,7 @@ class PickleVariableTest(TestHelper):
         def changed(owner, variable, old_value, new_value, fromdb):
             changes.append((variable, old_value, new_value, fromdb))
 
+        event.emit("start-tracking-changes", event)
         event.hook("changed", changed)
 
         variable.checkpoint()
@@ -870,6 +871,7 @@ class ListVariableTest(TestHelper):
         def changed(owner, variable, old_value, new_value, fromdb):
             changes.append((variable, old_value, new_value, fromdb))
 
+        event.emit("start-tracking-changes", event)
         event.hook("changed", changed)
 
         variable.checkpoint()

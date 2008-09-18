@@ -4172,6 +4172,19 @@ class StoreTest(object):
         self.store.reload(blob)
         self.assertEquals(blob.bin, "\x80\x02}q\x01(U\x01aK\x01U\x01bK\x02u.")
 
+    def test_wb_pickle_variable_remove(self):
+        class PickleBlob(Blob):
+            bin = Pickle()
+
+        blob = self.store.get(Blob, 20)
+        blob.bin = "\x80\x02}q\x01U\x01aK\x01s."
+        self.store.flush()
+
+        pickle_blob = self.store.get(PickleBlob, 20)
+        self.store.remove(pickle_blob)
+        self.store.flush()
+        self.assertEquals(self.store._event._hooks["flush"], set())
+
     def test_undefined_variables_filled_on_find(self):
         """
         Check that when data is fetched from the database on a find,

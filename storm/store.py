@@ -39,6 +39,7 @@ from storm.exceptions import (
     NotOneError, FeatureError, CompileError, LostObjectError, ClassInfoError)
 from storm import Undef
 from storm.cache import Cache
+from storm.event import EventSystem
 
 
 __all__ = ["Store", "AutoReload", "EmptyResultSet"]
@@ -73,6 +74,7 @@ class Store(object):
         self._cache = Cache(100)
         self._implicit_flush_block_count = 0
         self._sequence = 0 # Advisory ordering.
+        self._event = EventSystem(self)
 
     @staticmethod
     def of(obj):
@@ -407,8 +409,7 @@ class Store(object):
         normal flushing times are insufficient, such as when you want to
         make sure a database trigger gets run at a particular time.
         """
-        for obj_info in self._iter_alive():
-            obj_info.event.emit("flush")
+        self._event.emit("flush")
 
         # The _dirty list may change under us while we're running
         # the flush hooks, so we cannot just simply loop over it
@@ -790,12 +791,13 @@ class Store(object):
     def _iter_alive(self):
         return self._alive.values()
 
-
     def _enable_change_notification(self, obj_info):
+        obj_info.event.emit("start-tracking-changes", self._event)
         obj_info.event.hook("changed", self._variable_changed)
 
     def _disable_change_notification(self, obj_info):
         obj_info.event.unhook("changed", self._variable_changed)
+        obj_info.event.emit("stop-tracking-changes", self._event)
 
     def _variable_changed(self, obj_info, variable,
                           old_value, new_value, fromdb):

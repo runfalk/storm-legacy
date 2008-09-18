@@ -522,18 +522,35 @@ class EnumVariable(Variable):
             raise ValueError("Invalid enum value: %s" % repr(value))
 
 
-class PickleVariable(Variable):
+class ChangeDetectionVariable(Variable):
+    """
+    A variable which contains a reference to a mutable content. FOr this kind
+    of variable, we can't simply detect when a modification has been made, so
+    we have to synchronize the content of the variable when the store is
+    flushing current objects, to check if the state has changed.
+    """
     __slots__ = ()
 
     def __init__(self, *args, **kwargs):
         Variable.__init__(self, *args, **kwargs)
         if self.event:
-            self.event.hook("flush", self._detect_changes)
+            self.event.hook("start-tracking-changes", self._start_tracking)
             self.event.hook("object-deleted", self._detect_changes)
+
+    def _start_tracking(self, obj_info, event_system):
+        event_system.hook("flush", self._detect_changes)
+        self.event.hook("stop-tracking-changes", self._stop_tracking)
+
+    def _stop_tracking(self, obj_info, event_system):
+        event_system.unhook("flush", self._detect_changes)
 
     def _detect_changes(self, obj_info):
         if self.get_state() != self._checkpoint_state:
             self.event.emit("changed", self, None, self._value, False)
+
+
+class PickleVariable(ChangeDetectionVariable):
+    __slots__ = ()
 
     def parse_set(self, value, from_db):
         if from_db:
@@ -563,19 +580,12 @@ class PickleVariable(Variable):
             return hash(pickle.dumps(self._value, -1))
 
 
-class ListVariable(Variable):
+class ListVariable(ChangeDetectionVariable):
     __slots__ = ("_item_factory",)
 
     def __init__(self, item_factory, *args, **kwargs):
         self._item_factory = item_factory
-        Variable.__init__(self, *args, **kwargs)
-        if self.event:
-            self.event.hook("flush", self._detect_changes)
-            self.event.hook("object-deleted", self._detect_changes)
-
-    def _detect_changes(self, obj_info):
-        if self.get_state() != self._checkpoint_state:
-            self.event.emit("changed", self, None, self._value, False)
+        ChangeDetectionVariable.__init__(self, *args, **kwargs)
 
     def parse_set(self, value, from_db):
         if from_db:
