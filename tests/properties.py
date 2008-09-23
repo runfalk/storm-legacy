@@ -27,7 +27,7 @@ from storm.properties import PropertyPublisherMeta
 from storm.properties import *
 from storm.variables import *
 from storm.info import get_obj_info
-from storm.expr import Undef, Column, Select, compile, State, SQLRaw
+from storm.expr import Column, Select, compile, State, SQLRaw
 
 from tests.info import Wrapper
 from tests.helper import TestHelper
@@ -633,6 +633,7 @@ class PropertyKindsTest(TestHelper):
         self.obj.prop2 = []
 
         self.obj_info.checkpoint()
+        self.obj_info.event.emit("start-tracking-changes", self.obj_info.event)
         self.obj_info.event.hook("changed", changed)
 
         self.assertEquals(self.obj.prop1, [])
@@ -682,6 +683,7 @@ class PropertyKindsTest(TestHelper):
             changes.append((variable, old_value, new_value, fromdb))
 
         self.obj_info.checkpoint()
+        self.obj_info.event.emit("start-tracking-changes", self.obj_info.event)
         self.obj_info.event.hook("changed", changed)
 
         self.assertEquals(self.obj.prop1, [])

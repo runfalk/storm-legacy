@@ -4172,6 +4172,34 @@ class StoreTest(object):
         self.store.reload(blob)
         self.assertEquals(blob.bin, "\x80\x02}q\x01(U\x01aK\x01U\x01bK\x02u.")
 
+    def test_pickle_variable_remove(self):
+        """
+        When an object is removed from a store, it should unhook from the
+        "flush" event emitted by the store, and thus not emit a "changed" event
+        if its content change and that the store is flushed.
+        """
+        class PickleBlob(Blob):
+            bin = Pickle()
+
+        blob = self.store.get(Blob, 20)
+        blob.bin = "\x80\x02}q\x01U\x01aK\x01s."
+        self.store.flush()
+
+        pickle_blob = self.store.get(PickleBlob, 20)
+        self.store.remove(pickle_blob)
+        self.store.flush()
+
+        #  Let's change the object
+        pickle_blob.bin = "foobin"
+
+        # And subscribe to its changed event
+        obj_info = get_obj_info(pickle_blob)
+        events = []
+        obj_info.event.hook("changed", lambda *args: events.append(args))
+
+        self.store.flush()
+        self.assertEquals(events, [])
+
     def test_undefined_variables_filled_on_find(self):
         """
         Check that when data is fetched from the database on a find,

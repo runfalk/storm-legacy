@@ -198,7 +198,7 @@ class VariableTest(TestHelper):
         def changed(owner, variable, old_value, new_value, fromdb):
             changed_values.append((owner, variable,
                                    old_value, new_value, fromdb))
-        
+
         event.hook("changed", changed)
 
         variable = CustomVariable(event=event)
@@ -310,7 +310,7 @@ class VariableTest(TestHelper):
         def changed(owner, variable, old_value, new_value, fromdb):
             changed_values.append((owner, variable,
                                    old_value, new_value, fromdb))
-        
+
         event.hook("changed", changed)
 
         variable = CustomVariable(event=event)
@@ -651,7 +651,7 @@ class TimeDeltaVariableTest(TestHelper):
         self.assertEquals(variable.get(), delta)
 
         self.assertRaises(TypeError, variable.set, marker)
-    
+
     def test_get_set_from_database(self):
         delta_str = "42 days 12:34:56.78"
         delta_uni = unicode(delta_str)
@@ -789,7 +789,7 @@ class PickleVariableTest(TestHelper):
         self.assertEquals(variable.get(to_db=True), d_dump)
 
         self.assertEquals(variable.get_state(), (Undef, d_dump))
-        
+
         variable.set(marker)
         variable.set_state((Undef, d_dump))
         self.assertEquals(variable.get(), d)
@@ -806,6 +806,7 @@ class PickleVariableTest(TestHelper):
         def changed(owner, variable, old_value, new_value, fromdb):
             changes.append((variable, old_value, new_value, fromdb))
 
+        event.emit("start-tracking-changes", event)
         event.hook("changed", changed)
 
         variable.checkpoint()
@@ -870,6 +871,7 @@ class ListVariableTest(TestHelper):
         def changed(owner, variable, old_value, new_value, fromdb):
             changes.append((variable, old_value, new_value, fromdb))
 
+        event.emit("start-tracking-changes", event)
         event.hook("changed", changed)
 
         variable.checkpoint()
