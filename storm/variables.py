@@ -522,9 +522,9 @@ class EnumVariable(Variable):
             raise ValueError("Invalid enum value: %s" % repr(value))
 
 
-class ChangeDetectionVariable(Variable):
+class MutableValueVariable(Variable):
     """
-    A variable which contains a reference to a mutable content. FOr this kind
+    A variable which contains a reference to mutable content. For this kind
     of variable, we can't simply detect when a modification has been made, so
     we have to synchronize the content of the variable when the store is
     flushing current objects, to check if the state has changed.
@@ -549,7 +549,7 @@ class ChangeDetectionVariable(Variable):
             self.event.emit("changed", self, None, self._value, False)
 
 
-class PickleVariable(ChangeDetectionVariable):
+class PickleVariable(MutableValueVariable):
     __slots__ = ()
 
     def parse_set(self, value, from_db):
@@ -580,12 +580,12 @@ class PickleVariable(ChangeDetectionVariable):
             return hash(pickle.dumps(self._value, -1))
 
 
-class ListVariable(ChangeDetectionVariable):
+class ListVariable(MutableValueVariable):
     __slots__ = ("_item_factory",)
 
     def __init__(self, item_factory, *args, **kwargs):
         self._item_factory = item_factory
-        ChangeDetectionVariable.__init__(self, *args, **kwargs)
+        MutableValueVariable.__init__(self, *args, **kwargs)
 
     def parse_set(self, value, from_db):
         if from_db:
