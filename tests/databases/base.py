@@ -31,11 +31,18 @@ from storm.variables import (Variable, PickleVariable, RawStrVariable,
                              DecimalVariable, DateTimeVariable, DateVariable,
                              TimeVariable, TimeDeltaVariable)
 from storm.database import *
+from storm.event import EventSystem
 from storm.exceptions import (
     DatabaseModuleError, DisconnectionError, OperationalError)
 
 from tests.databases.proxy import ProxyTCPServer
 from tests.helper import MakePath
+
+
+class Marker(object):
+    pass
+
+marker = Marker()
 
 
 class DatabaseTest(object):
@@ -335,6 +342,22 @@ class DatabaseTest(object):
             self.assertEquals(result.get_one(), ("Title 10",))
         finally:
             connection1.rollback()
+
+    def test_connect_sets_event_system(self):
+        connection = self.database.connect(marker)
+        self.assertEqual(connection._event, marker)
+
+    def test_execute_sends_event(self):
+        event = EventSystem(marker)
+        calls = []
+        def statement_executed(owner):
+            calls.append(owner)
+        event.hook("statement-executed", statement_executed)
+
+        connection = self.database.connect(event)
+        connection.execute("SELECT 1")
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0], marker)
 
     def from_database(self, row):
         return [int(item)+1 for item in row]
