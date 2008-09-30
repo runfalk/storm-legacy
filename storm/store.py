@@ -235,6 +235,7 @@ class Store(object):
 
         The C{added} event will be fired on the object info's event system.
         """
+        self._event.emit("register-transaction")
         obj_info = get_obj_info(obj)
 
         store = obj_info.get("store")
@@ -263,6 +264,7 @@ class Store(object):
 
         The associated row will be deleted from the database.
         """
+        self._event.emit("register-transaction")
         obj_info = get_obj_info(obj)
 
         if obj_info.get("store") is not self:

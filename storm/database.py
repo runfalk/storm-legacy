@@ -192,7 +192,7 @@ class Connection(object):
             raise ClosedError("Connection is closed")
         self._ensure_connected()
         if self._event:
-            self._event.emit("statement-executed")
+            self._event.emit("register-transaction")
         if isinstance(statement, Expr):
             if params is not None:
                 raise ValueError("Can't pass parameters with expressions")

@@ -350,9 +350,9 @@ class DatabaseTest(object):
     def test_execute_sends_event(self):
         event = EventSystem(marker)
         calls = []
-        def statement_executed(owner):
+        def register_transaction(owner):
             calls.append(owner)
-        event.hook("statement-executed", statement_executed)
+        event.hook("register-transaction", register_transaction)
 
         connection = self.database.connect(event)
         connection.execute("SELECT 1")

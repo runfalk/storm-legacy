@@ -5124,13 +5124,38 @@ class StoreTest(object):
         for i, foo in enumerate(foos):
             self.assertEquals(foo.flush_order, i)
 
-    def test_statement_executed_event(self):
-        """Statement execution emits an event on the store's EventSystem."""
+    def test_execute_sends_event(self):
+        """Statement execution emits the register-transaction event."""
         calls = []
-        def statement_executed(owner):
+        def register_transaction(owner):
             calls.append(owner)
-        self.store._event.hook("statement-executed", statement_executed)
+        self.store._event.hook("register-transaction", register_transaction)
         self.store.execute("SELECT 1")
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0], self.store)
+
+    def test_add_sends_event(self):
+        """Adding an object emits the register-transaction event."""
+        calls = []
+        def register_transaction(owner):
+            calls.append(owner)
+        self.store._event.hook("register-transaction", register_transaction)
+        foo = Foo()
+        foo.title = u"Foo"
+        self.store.add(foo)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0], self.store)
+
+    def test_remove_sends_event(self):
+        """Adding an object emits the register-transaction event."""
+        calls = []
+        def register_transaction(owner):
+            calls.append(owner)
+        self.store._event.hook("register-transaction", register_transaction)
+        foo = self.store.get(Foo, 10)
+        del calls[:]
+
+        self.store.remove(foo)
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0], self.store)
 
