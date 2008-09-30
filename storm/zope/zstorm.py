@@ -129,7 +129,9 @@ class ZStorm(object):
             raise ZStormError("Store named '%s' already exists" % name)
 
         store = Store(database)
-        store.__synchronizer = StoreSynchronizer(store)
+        store._register_for_txn = True
+        store._event.hook(
+            "register-transaction", register_store_with_transaction)
 
         self._stores[id(store)] = store
         if name is not None:
@@ -168,7 +170,11 @@ class ZStorm(object):
         del self._name_index[store]
         if name in self._named:
             del self._named[name]
-        transaction.manager.unregisterSynch(store.__synchronizer)
+
+        # Make sure the store isn't hooked up to future transactions.
+        store._register_for_txn = False
+        store._event.unhook(
+            "register-transaction", register_store_with_transaction)
 
     def iterstores(self):
         """Iterate C{name, store} 2-tuples."""
@@ -191,53 +197,12 @@ class ZStorm(object):
         return self._default_uris.copy()
 
 
-class StoreSynchronizer(object):
-    """This class takes cares of plugging the store in new transactions.
+def register_store_with_transaction(store):
+    data_manager = StoreDataManager(store)
+    transaction.get().join(data_manager)
 
-    Garbage collection should work fine, because the transaction manager
-    stores synchronizers as weak references. Even then, we give a hand
-    to the garbage collector by avoiding strong circular references
-    on the store.
-    """
-
-    implements(ISynchronizer)
-
-    def __init__(self, store):
-        data_manager = StoreDataManager(store)
-
-        self._store_ref = weakref.ref(store)
-        self._data_manager_ref = weakref.ref(data_manager)
-
-        # Join now ...
-        data_manager.join(transaction.get())
-
-        # ... and in the future.
-        transaction.manager.registerSynch(self)
-
-    def _join(self, trans):
-        # If the store is still alive and the transaction is in this thread.
-        store = self._store_ref()
-        if store and trans is transaction.get():
-            data_manager = self._data_manager_ref()
-            if data_manager is None:
-                data_manager = StoreDataManager(store)
-                self._data_manager_ref = weakref.ref(data_manager)
-            try:
-                data_manager.join(trans)
-            except TransactionFailedError:
-                # It means that an *already failed* transaction is trying
-                # to join us to notify that it is indeed failed.  We don't
-                # care about these (see the double_abort test case).
-                pass
-
-    def beforeCompletion(self, trans):
-        self._join(trans)
-
-    def afterCompletion(self, trans):
-        pass
-
-    def newTransaction(self, trans):
-        self._join(trans)
+    # We don't need notification of statement execution anymore.
+    store._event.unhook("register-transaction", register_store_with_transaction)
 
 
 class StoreDataManager(object):
@@ -249,16 +214,14 @@ class StoreDataManager(object):
 
     def __init__(self, store):
         self._store = store
-        self._trans = None
-
-    def join(self, trans):
-        if trans is not self._trans:
-            self._trans = trans
-            trans.join(self)
 
     def abort(self, txn):
-        self._trans = None
-        self._store.rollback()
+        try:
+            self._store.rollback()
+        finally:
+            if self._store._register_for_txn:
+                self._store._event.hook(
+                    "register-transaction", register_store_with_transaction)
 
     def tpc_begin(self, txn):
         # Zope's transaction system will call tpc_begin() on all
@@ -270,8 +233,12 @@ class StoreDataManager(object):
         self._store.flush()
 
     def commit(self, txn):
-        self._trans = None
-        self._store.commit()
+        try:
+            self._store.commit()
+        finally:
+            if self._store._register_for_txn:
+                self._store._event.hook(
+                    "register-transaction", register_store_with_transaction)
 
     def tpc_vote(self, txn):
         pass

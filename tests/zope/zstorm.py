@@ -204,19 +204,10 @@ class ZStormTest(TestHelper):
 
     def test_wb_reset(self):
         """_reset is used to reset the zstorm utility between zope test runs.
-
-        We must make sure the L{StoreSynchronizer} is removed from the
-        transaction manager.
         """
         store = self.zstorm.get("name", "sqlite:")
-        self.assertEquals(
-            len(transaction.manager._synchs.values()[0].data.values()), 1)
-        transaction.abort()
-        self.assertEquals(
-            len(transaction.manager._synchs.values()[0].data.values()), 1)
         self.zstorm._reset()
-        self.assertEquals(
-            len(transaction.manager._synchs.values()[0].data.values()), 0)
+        self.assertEqual(list(self.zstorm.iterstores()), [])
 
     def test_store_strong_reference(self):
         """
