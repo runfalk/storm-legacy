@@ -4993,8 +4993,8 @@ class StoreTest(object):
             def __init__(self, database):
                 self.database = database
 
-            def connect(self):
-                connection = self.database.connect()
+            def connect(self, event=None):
+                connection = self.database.connect(event)
                 connection.preset_primary_key = preset_primary_key
                 return connection
 
@@ -5123,6 +5123,16 @@ class StoreTest(object):
 
         for i, foo in enumerate(foos):
             self.assertEquals(foo.flush_order, i)
+
+    def test_statement_executed_event(self):
+        """Statement execution emits an event on the store's EventSystem."""
+        calls = []
+        def statement_executed(owner):
+            calls.append(owner)
+        self.store._event.hook("statement-executed", statement_executed)
+        self.store.execute("SELECT 1")
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0], self.store)
 
 
 class EmptyResultSetTest(object):

@@ -67,14 +67,14 @@ class Store(object):
         """
         @param database: The L{storm.database.Database} instance to use.
         """
-        self._connection = database.connect()
+        self._event = EventSystem(self)
+        self._connection = database.connect(self._event)
         self._alive = WeakValueDictionary()
         self._dirty = {}
         self._order = {} # (info, info) = count
         self._cache = Cache(100)
         self._implicit_flush_block_count = 0
         self._sequence = 0 # Advisory ordering.
-        self._event = EventSystem(self)
 
     @staticmethod
     def of(obj):
