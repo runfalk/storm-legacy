@@ -201,8 +201,8 @@ def register_store_with_transaction(store):
     data_manager = StoreDataManager(store)
     transaction.get().join(data_manager)
 
-    # We don't need notification of statement execution anymore.
-    store._event.unhook("register-transaction", register_store_with_transaction)
+    # Unhook the event handler.  It will be rehooked for the next transaction.
+    return False
 
 
 class StoreDataManager(object):
