@@ -344,12 +344,6 @@ class StateTest(TestHelper):
 
 class CompileTest(TestHelper):
 
-    def assertVariablesEqual(self, checked, expected):
-        self.assertEquals(len(checked), len(expected))
-        for check, expect in zip(checked, expected):
-            self.assertEquals(check.__class__, expect.__class__)
-            self.assertEquals(check.get(), expect.get())
-
     def test_simple_inheritance(self):
         custom_compile = compile.create_child()
         statement = custom_compile(Func1())
