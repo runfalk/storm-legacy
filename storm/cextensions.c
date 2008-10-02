@@ -834,9 +834,11 @@ Variable_set(VariableObject *self, PyObject *args, PyObject *kwargs)
         Py_INCREF(value);
         REPLACE(self->_lazy_value, value);
 
-        /* new_value = Undef */
+        /* self._checkpoint_state = new_value = Undef */
+        Py_INCREF(Undef);
         Py_INCREF(Undef);
         new_value = Undef;
+        self->_checkpoint_state = Undef;
     }
     /* else: */
     else {
