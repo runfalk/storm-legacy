@@ -198,7 +198,7 @@ class Variable(object):
 
         if isinstance(value, LazyValue):
             self._lazy_value = value
-            new_value = Undef
+            self._checkpoint_state = new_value = Undef
         else:
             if not from_db and self._validator is not None:
                 # We use a factory rather than the object itself to prevent

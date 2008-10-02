@@ -5124,6 +5124,25 @@ class StoreTest(object):
         for i, foo in enumerate(foos):
             self.assertEquals(foo.flush_order, i)
 
+    def test_cache_poisoning(self):
+        """
+        When a object update a field value to the previous value, which is in
+        the cache, it correctly updates the value in the database.
+
+        Because of change detection, this has been borken in the past, see bug
+        #277095 in launchpad.
+        """
+        store = self.create_store()
+        foo1 = self.store.get(Foo, 10)
+        foo2 = store.get(Foo, 10)
+        foo1.title = u"Title 40"
+        self.assertEquals(foo2.title, u"Title 30")
+        self.store.commit()
+        store.commit()
+        foo2.title = u"Title 30"
+        store.commit()
+        self.assertEquals(foo2.title, u"Title 30")
+
 
 class EmptyResultSetTest(object):
 
