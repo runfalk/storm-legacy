@@ -527,7 +527,7 @@ class MutableValueVariable(Variable):
         self._event_system = None
         if self.event:
             self.event.hook("start-tracking-changes", self._start_tracking)
-            self.event.hook("object-deleted", self._detect_changes)
+            self.event.hook("object-deleted", self._detect_deleted)
 
     def _start_tracking(self, obj_info, event_system):
         self._event_system = event_system
@@ -538,12 +538,14 @@ class MutableValueVariable(Variable):
         event_system.unhook("flush", self._detect_changes)
         self._event_system = None
 
+    def _detect_deleted(self, obj_info):
+        self._detect_changes(obj_info)
+        if self._event_system is not None:
+            self._stop_tracking(None, self._event_system)
+
     def _detect_changes(self, obj_info):
         if self.get_state() != self._checkpoint_state:
             self.event.emit("changed", self, None, self._value, False)
-        if self._event_system is not None:
-            self._event_system.unhook("flush", self._detect_changes)
-            self._event_system = None
 
 
 class PickleVariable(MutableValueVariable):
