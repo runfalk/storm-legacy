@@ -285,15 +285,6 @@ class Variable(object):
         variable.set_state(self.get_state())
         return variable
 
-    def __eq__(self, other):
-        """Equality based on current value, not identity."""
-        return (self.__class__ is other.__class__ and
-                self._value == other._value)
-
-    def __hash__(self):
-        """Hash based on current value, not identity."""
-        return hash(self._value)
-
     def parse_get(self, value, to_db):
         """Convert the internal value to an external value.
 
@@ -579,12 +570,6 @@ class PickleVariable(MutableValueVariable):
         self._lazy_value = state[0]
         self._value = pickle.loads(state[1])
 
-    def __hash__(self):
-        try:
-            return hash(self._value)
-        except TypeError:
-            return hash(pickle.dumps(self._value, -1))
-
 
 class ListVariable(MutableValueVariable):
     __slots__ = ("_item_factory",)
@@ -615,9 +600,6 @@ class ListVariable(MutableValueVariable):
     def set_state(self, state):
         self._lazy_value = state[0]
         self._value = pickle.loads(state[1])
-
-    def __hash__(self):
-        return hash(pickle.dumps(self._value, -1))
 
 
 def _parse_time(time_str):

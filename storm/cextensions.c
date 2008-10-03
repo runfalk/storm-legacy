@@ -159,7 +159,7 @@ initialize_globals(void)
 {
     static int initialized = 0;
     PyObject *module;
-    
+
     if (initialized)
         return 1;
 
@@ -195,7 +195,7 @@ initialize_globals(void)
     module = PyImport_ImportModule("storm.info");
     if (!module)
         return 0;
-    
+
     get_cls_info = PyObject_GetAttrString(module, "get_cls_info");
     if (!get_cls_info)
         return 0;
@@ -362,7 +362,7 @@ EventSystem_unhook(EventSystemObject *self, PyObject *args)
     callback = PyTuple_GET_ITEM(args, 1);
     data = PyTuple_GetSlice(args, 2, PyTuple_GET_SIZE(args));
     if (data) {
-        /* 
+        /*
            callbacks = self._hooks.get(name)
            if callbacks is not None:
                callbacks.discard((callback, data))
@@ -458,7 +458,7 @@ EventSystem_emit(EventSystemObject *self, PyObject *all_args)
                         PyObject *callback = PyTuple_GET_ITEM(item, 0);
                         PyObject *data = PyTuple_GET_ITEM(item, 1);
                         PyObject *res;
-                        /* 
+                        /*
                            if callback(owner, *(args+data)) is False:
                                callbacks.discard((callback, data))
                         */
@@ -698,30 +698,6 @@ Variable_dealloc(VariableObject *self)
     self->ob_type->tp_free((PyObject *)self);
 }
 
-static long
-Variable_hash(VariableObject *self)
-{
-    /* return hash(self._value) */
-    return PyObject_Hash((PyObject *)self->_value);
-}
-
-static PyObject *
-Variable_richcompare(VariableObject *self, VariableObject *other, int op)
-{
-    /*
-       return (self.__class__ is other.__class__ and
-               self._value == other._value)
-    */
-    /* This test will also prevent that we access _value on a
-       non-Variable object. */
-    if (op == Py_EQ &&
-        ((PyObject *)self)->ob_type != ((PyObject *)other)->ob_type) {
-        Py_INCREF(Py_False);
-        return Py_False;
-    }
-    return PyObject_RichCompare(self->_value, other->_value, op);
-}
-
 static PyObject *
 Variable_parse_get(VariableObject *self, PyObject *args)
 {
@@ -755,7 +731,7 @@ Variable_get_lazy(VariableObject *self, PyObject *args, PyObject *kwargs)
                                      &default_))
         return NULL;
 
-    /* 
+    /*
        if self._lazy_value is Undef:
            return default
        return self._lazy_value
@@ -1140,7 +1116,7 @@ statichere PyTypeObject Variable_Type = {
     0,            /*tp_as_number*/
     0,            /*tp_as_sequence*/
     0,            /*tp_as_mapping*/
-    (hashfunc)Variable_hash, /*tp_hash*/
+    0,            /*tp_hash*/
     0,                      /*tp_call*/
     0,                      /*tp_str*/
     PyObject_GenericGetAttr,/*tp_getattro*/
@@ -1150,7 +1126,7 @@ statichere PyTypeObject Variable_Type = {
     0,                      /*tp_doc*/
     (traverseproc)Variable_traverse,  /*tp_traverse*/
     (inquiry)Variable_clear,          /*tp_clear*/
-    (richcmpfunc)Variable_richcompare, /*tp_richcompare*/
+    0,                      /*tp_richcompare*/
     0,                      /*tp_weaklistoffset*/
     0,                      /*tp_iter*/
     0,                      /*tp_iternext*/
@@ -1346,7 +1322,7 @@ Compile_when(CompileObject *self, PyObject *types)
         }
         Py_DECREF(module);
     }
-    return result;    
+    return result;
 }
 
 static PyObject *
@@ -1430,7 +1406,7 @@ Compile_is_reserved_word(CompileObject *self, PyObject *word)
     CATCH(NULL, lower_word = PyObject_CallMethod(word, "lower", NULL));
     item = PyDict_GetItem(self->_reserved_words, lower_word);
     if (item == NULL && PyErr_Occurred()) {
-        goto error; 
+        goto error;
     } else if (item != NULL && item != Py_None) {
         result = Py_True;
     }
@@ -1609,7 +1585,7 @@ Compile_one_or_many(CompileObject *self, PyObject *expr, PyObject *state,
       if (expr_type is SQLRaw or
           raw and (expr_type is str or expr_type is unicode)):
           return expr
-    */  
+    */
     if ((PyObject *)expr->ob_type == SQLRaw ||
         (raw && (PyString_CheckExact(expr) || PyUnicode_CheckExact(expr)))) {
         /* Pass our reference on. */
@@ -1683,7 +1659,7 @@ Compile_one_or_many(CompileObject *self, PyObject *expr, PyObject *state,
                     Py_INCREF(subexpr);
                 }
 
-                /* 
+                /*
                    statement = self._compile_single(subexpr, state,
                                                     outer_precedence)
                 */
@@ -1692,7 +1668,7 @@ Compile_one_or_many(CompileObject *self, PyObject *expr, PyObject *state,
                 Py_DECREF(subexpr);
                 CATCH(NULL, statement);
             }
-            
+
             /* compiled.append(statement) */
             CATCH(-1, PyList_Append(compiled, statement));
             Py_CLEAR(statement);

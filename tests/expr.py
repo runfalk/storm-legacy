@@ -292,7 +292,8 @@ class ExprTest(TestHelper):
         self.assertEquals(expr.exprs, (elem1, elem2, elem3))
 
     def test_intersect_with_kwargs(self):
-        expr = Intersect(elem1, elem2, all=True, order_by=(), limit=1, offset=2)
+        expr = Intersect(
+            elem1, elem2, all=True, order_by=(), limit=1, offset=2)
         self.assertEquals(expr.exprs, (elem1, elem2))
         self.assertEquals(expr.all, True)
         self.assertEquals(expr.order_by, ())
@@ -450,71 +451,72 @@ class CompileTest(TestHelper):
         state = State()
         statement = compile("str", state)
         self.assertEquals(statement, "?")
-        self.assertEquals(state.parameters, [RawStrVariable("str")])
+        self.assertVariablesEqual(state.parameters, [RawStrVariable("str")])
 
     def test_unicode(self):
         state = State()
         statement = compile(u"str", state)
         self.assertEquals(statement, "?")
-        self.assertEquals(state.parameters, [UnicodeVariable(u"str")])
+        self.assertVariablesEqual(state.parameters, [UnicodeVariable(u"str")])
 
     def test_int(self):
         state = State()
         statement = compile(1, state)
         self.assertEquals(statement, "?")
-        self.assertEquals(state.parameters, [IntVariable(1)])
+        self.assertVariablesEqual(state.parameters, [IntVariable(1)])
 
     def test_long(self):
         state = State()
         statement = compile(1L, state)
         self.assertEquals(statement, "?")
-        self.assertEquals(state.parameters, [IntVariable(1)])
+        self.assertVariablesEqual(state.parameters, [IntVariable(1)])
 
     def test_bool(self):
         state = State()
         statement = compile(True, state)
         self.assertEquals(statement, "?")
-        self.assertEquals(state.parameters, [BoolVariable(1)])
+        self.assertVariablesEqual(state.parameters, [BoolVariable(1)])
 
     def test_float(self):
         state = State()
         statement = compile(1.1, state)
         self.assertEquals(statement, "?")
-        self.assertEquals(state.parameters, [FloatVariable(1.1)])
+        self.assertVariablesEqual(state.parameters, [FloatVariable(1.1)])
 
     def test_decimal(self):
         state = State()
         statement = compile(Decimal("1.1"), state)
         self.assertEquals(statement, "?")
-        self.assertEquals(state.parameters, [DecimalVariable(Decimal("1.1"))])
+        self.assertVariablesEqual(
+            state.parameters, [DecimalVariable(Decimal("1.1"))])
 
     def test_datetime(self):
         dt = datetime(1977, 5, 4, 12, 34)
         state = State()
         statement = compile(dt, state)
         self.assertEquals(statement, "?")
-        self.assertEquals(state.parameters, [DateTimeVariable(dt)])
+        self.assertVariablesEqual(state.parameters, [DateTimeVariable(dt)])
 
     def test_date(self):
         d = date(1977, 5, 4)
         state = State()
         statement = compile(d, state)
         self.assertEquals(statement, "?")
-        self.assertEquals(state.parameters, [DateVariable(d)])
+        self.assertVariablesEqual(state.parameters, [DateVariable(d)])
 
     def test_time(self):
         t = time(12, 34)
         state = State()
         statement = compile(t, state)
         self.assertEquals(statement, "?")
-        self.assertEquals(state.parameters, [TimeVariable(t)])
+        self.assertVariablesEqual(state.parameters, [TimeVariable(t)])
 
     def test_timedelta(self):
         td = timedelta(days=1, seconds=2, microseconds=3)
         state = State()
         statement = compile(td, state)
         self.assertEquals(statement, "?")
-        self.assertEquals(state.parameters, [TimeDeltaVariable(td)])
+        self.assertVariablesEqual(state.parameters, [TimeDeltaVariable(td)])
 
     def test_none(self):
         state = State()
@@ -574,7 +576,7 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, 'SELECT "table 1".column1 '
                                      'FROM "table 1", "table 2" '
                                      'WHERE "table 2".column2 = ?')
-        self.assertEquals(state.parameters, [Variable(1)])
+        self.assertVariablesEqual(state.parameters, [Variable(1)])
 
     def test_select_auto_table_duplicated(self):
         expr = Select(Column(column1, table1),
@@ -584,7 +586,7 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, 'SELECT "table 1".column1 '
                                      'FROM "table 1" WHERE '
                                      '"table 1".column2 = ?')
-        self.assertEquals(state.parameters, [Variable(1)])
+        self.assertVariablesEqual(state.parameters, [Variable(1)])
 
     def test_select_auto_table_default(self):
         expr = Select(Column(column1),
@@ -594,7 +596,7 @@ class CompileTest(TestHelper):
         statement = compile(expr, state)
         self.assertEquals(statement, 'SELECT column1 FROM "table 1" '
                                      'WHERE column2 = ?')
-        self.assertEquals(state.parameters, [Variable(1)])
+        self.assertVariablesEqual(state.parameters, [Variable(1)])
 
     def test_select_auto_table_default_with_joins(self):
         expr = Select(Column(column1),
@@ -669,7 +671,6 @@ class CompileTest(TestHelper):
                                      'GROUP BY column2 HAVING 1 = 2 '
                                      'ORDER BY column1')
         self.assertEquals(state.parameters, [])
-    
 
     def test_select_contexts(self):
         column, where, table, order_by, group_by = track_contexts(5)
@@ -851,7 +852,7 @@ class CompileTest(TestHelper):
         statement = compile(expr, state)
         self.assertEquals(statement,
                           'DELETE FROM "table 1" WHERE "table 1".column1 = ?')
-        self.assertEquals(state.parameters, [Variable(1)])
+        self.assertVariablesEqual(state.parameters, [Variable(1)])
 
     def test_delete_auto_table_default(self):
         expr = Delete(Column(column1) == 1, default_table=table1)
@@ -859,7 +860,7 @@ class CompileTest(TestHelper):
         statement = compile(expr, state)
         self.assertEquals(statement,
                           'DELETE FROM "table 1" WHERE column1 = ?')
-        self.assertEquals(state.parameters, [Variable(1)])
+        self.assertVariablesEqual(state.parameters, [Variable(1)])
 
     def test_delete_auto_table_unknown(self):
         expr = Delete(Column(column1) == 1)
@@ -904,7 +905,7 @@ class CompileTest(TestHelper):
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, "?")
-        self.assertEquals(state.parameters, [Variable("value")])
+        self.assertVariablesEqual(state.parameters, [Variable("value")])
 
     def test_eq(self):
         expr = Eq(Func1(), Func2())
@@ -917,21 +918,22 @@ class CompileTest(TestHelper):
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, "func1() = ?")
-        self.assertEquals(state.parameters, [Variable("value")])
+        self.assertVariablesEqual(state.parameters, [Variable("value")])
 
     def test_is_in(self):
         expr = Func1().is_in(["Hello", "World"])
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, "func1() IN (?, ?)")
-        self.assertEquals(state.parameters, [Variable("Hello"), Variable("World")])
+        self.assertVariablesEqual(
+            state.parameters, [Variable("Hello"), Variable("World")])
 
     def test_is_in_empty(self):
         expr = Func1().is_in([])
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, "?")
-        self.assertEquals(state.parameters, [BoolVariable(False)])
+        self.assertVariablesEqual(state.parameters, [BoolVariable(False)])
 
     def test_is_in_expr(self):
         expr = Func1().is_in(Select(column1))
@@ -961,7 +963,7 @@ class CompileTest(TestHelper):
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, "func1() != ?")
-        self.assertEquals(state.parameters, [Variable("value")])
+        self.assertVariablesEqual(state.parameters, [Variable("value")])
 
     def test_ne_none(self):
         expr = Func1() != None
@@ -984,7 +986,7 @@ class CompileTest(TestHelper):
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, "func1() > ?")
-        self.assertEquals(state.parameters, [Variable("value")])
+        self.assertVariablesEqual(state.parameters, [Variable("value")])
 
     def test_ge(self):
         expr = Ge(Func1(), Func2())
@@ -997,7 +999,7 @@ class CompileTest(TestHelper):
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, "func1() >= ?")
-        self.assertEquals(state.parameters, [Variable("value")])
+        self.assertVariablesEqual(state.parameters, [Variable("value")])
 
     def test_lt(self):
         expr = Lt(Func1(), Func2())
@@ -1009,7 +1011,7 @@ class CompileTest(TestHelper):
         expr = Func1() < "value"
         statement = compile(expr, state)
         self.assertEquals(statement, "func1() < ?")
-        self.assertEquals(state.parameters, [Variable("value")])
+        self.assertVariablesEqual(state.parameters, [Variable("value")])
 
     def test_le(self):
         expr = Le(Func1(), Func2())
@@ -1022,7 +1024,7 @@ class CompileTest(TestHelper):
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, "func1() <= ?")
-        self.assertEquals(state.parameters, [Variable("value")])
+        self.assertVariablesEqual(state.parameters, [Variable("value")])
 
     def test_lshift(self):
         expr = LShift(Func1(), Func2())
@@ -1035,7 +1037,7 @@ class CompileTest(TestHelper):
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, "func1()<<?")
-        self.assertEquals(state.parameters, [Variable("value")])
+        self.assertVariablesEqual(state.parameters, [Variable("value")])
 
     def test_rshift(self):
         expr = RShift(Func1(), Func2())
@@ -1048,34 +1050,34 @@ class CompileTest(TestHelper):
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, "func1()>>?")
-        self.assertEquals(state.parameters, [Variable("value")])
+        self.assertVariablesEqual(state.parameters, [Variable("value")])
 
     def test_like(self):
         expr = Like(Func1(), "value")
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, "func1() LIKE ?")
-        self.assertEquals(state.parameters, [RawStrVariable("value")])
+        self.assertVariablesEqual(state.parameters, [RawStrVariable("value")])
 
         expr = Func1().like("Hello")
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, "func1() LIKE ?")
-        self.assertEquals(state.parameters, [Variable("Hello")])
+        self.assertVariablesEqual(state.parameters, [Variable("Hello")])
 
     def test_like_escape(self):
         expr = Like(Func1(), "value", "!")
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, "func1() LIKE ? ESCAPE ?")
-        self.assertEquals(state.parameters,
+        self.assertVariablesEqual(state.parameters,
                           [RawStrVariable("value"), RawStrVariable("!")])
 
         expr = Func1().like("Hello", "!")
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, "func1() LIKE ? ESCAPE ?")
-        self.assertEquals(state.parameters,
+        self.assertVariablesEqual(state.parameters,
                           [Variable("Hello"), RawStrVariable("!")])
 
     def test_like_compareable_case(self):
@@ -1091,7 +1093,7 @@ class CompileTest(TestHelper):
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, "func1() IN (?)")
-        self.assertEquals(state.parameters, [RawStrVariable("value")])
+        self.assertVariablesEqual(state.parameters, [RawStrVariable("value")])
 
         expr = In(Func1(), elem1)
         state = State()
@@ -1110,7 +1112,7 @@ class CompileTest(TestHelper):
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, "func1() AND ?")
-        self.assertEquals(state.parameters, [Variable("value")])
+        self.assertVariablesEqual(state.parameters, [Variable("value")])
 
     def test_or(self):
         expr = Or(elem1, elem2, Or(elem3, elem4))
@@ -1123,7 +1125,7 @@ class CompileTest(TestHelper):
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, "func1() OR ?")
-        self.assertEquals(state.parameters, [Variable("value")])
+        self.assertVariablesEqual(state.parameters, [Variable("value")])
 
     def test_and_with_strings(self):
         expr = And("elem1", "elem2")
@@ -1150,7 +1152,7 @@ class CompileTest(TestHelper):
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, "func1()+?")
-        self.assertEquals(state.parameters, [Variable("value")])
+        self.assertVariablesEqual(state.parameters, [Variable("value")])
 
     def test_sub(self):
         expr = Sub(elem1, Sub(elem2, elem3))
@@ -1163,13 +1165,13 @@ class CompileTest(TestHelper):
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, "elem1-elem2-elem3")
-        self.assertEquals(state.parameters, [])
+        self.assertVariablesEqual(state.parameters, [])
 
         expr = Func1() - "value"
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, "func1()-?")
-        self.assertEquals(state.parameters, [Variable("value")])
+        self.assertVariablesEqual(state.parameters, [Variable("value")])
 
     def test_mul(self):
         expr = Mul(elem1, elem2, Mul(elem3, elem4))
@@ -1182,7 +1184,7 @@ class CompileTest(TestHelper):
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, "func1()*?")
-        self.assertEquals(state.parameters, [Variable("value")])
+        self.assertVariablesEqual(state.parameters, [Variable("value")])
 
     def test_div(self):
         expr = Div(elem1, Div(elem2, elem3))
@@ -1201,7 +1203,7 @@ class CompileTest(TestHelper):
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, "func1()/?")
-        self.assertEquals(state.parameters, [Variable("value")])
+        self.assertVariablesEqual(state.parameters, [Variable("value")])
 
     def test_mod(self):
         expr = Mod(elem1, Mod(elem2, elem3))
@@ -1220,7 +1222,7 @@ class CompileTest(TestHelper):
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, "func1()%?")
-        self.assertEquals(state.parameters, [Variable("value")])
+        self.assertVariablesEqual(state.parameters, [Variable("value")])
 
     def test_func(self):
         expr = Func("myfunc", elem1, Func1(elem2))
@@ -1477,7 +1479,7 @@ class CompileTest(TestHelper):
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, "JOIN func1() ON func2() = ?")
-        self.assertEquals(state.parameters, [Variable("value")])
+        self.assertVariablesEqual(state.parameters, [Variable("value")])
 
     def test_join_on_with_string(self):
         expr = Join(Func1(), on="a = b")
@@ -1536,7 +1538,7 @@ class CompileTest(TestHelper):
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, "LEFT JOIN func1() ON func2() = ?")
-        self.assertEquals(state.parameters, [Variable("value")])
+        self.assertVariablesEqual(state.parameters, [Variable("value")])
 
     def test_right_join(self):
         expr = RightJoin(Func1())
@@ -1550,7 +1552,7 @@ class CompileTest(TestHelper):
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, "RIGHT JOIN func1() ON func2() = ?")
-        self.assertEquals(state.parameters, [Variable("value")])
+        self.assertVariablesEqual(state.parameters, [Variable("value")])
 
     def test_natural_join(self):
         expr = NaturalJoin(Func1())
@@ -1564,7 +1566,7 @@ class CompileTest(TestHelper):
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, "NATURAL JOIN func1() ON func2() = ?")
-        self.assertEquals(state.parameters, [Variable("value")])
+        self.assertVariablesEqual(state.parameters, [Variable("value")])
 
     def test_natural_left_join(self):
         expr = NaturalLeftJoin(Func1())
@@ -1579,7 +1581,7 @@ class CompileTest(TestHelper):
         statement = compile(expr, state)
         self.assertEquals(statement, "NATURAL LEFT JOIN func1() "
                                      "ON func2() = ?")
-        self.assertEquals(state.parameters, [Variable("value")])
+        self.assertVariablesEqual(state.parameters, [Variable("value")])
 
     def test_natural_right_join(self):
         expr = NaturalRightJoin(Func1())
@@ -1594,7 +1596,7 @@ class CompileTest(TestHelper):
         statement = compile(expr, state)
         self.assertEquals(statement, "NATURAL RIGHT JOIN func1() "
                                      "ON func2() = ?")
-        self.assertEquals(state.parameters, [Variable("value")])
+        self.assertVariablesEqual(state.parameters, [Variable("value")])
 
     def test_union(self):
         expr = Union(Func1(), elem2, elem3)
@@ -1646,9 +1648,10 @@ class CompileTest(TestHelper):
                      order_by=(column1, column2))
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement,
-                          '(SELECT elem1 AS "_1") UNION (SELECT elem2 AS "_2") '
-                          'ORDER BY "_1", "_2"')
+        self.assertEquals(
+            statement,
+            '(SELECT elem1 AS "_1") UNION (SELECT elem2 AS "_2") '
+            'ORDER BY "_1", "_2"')
         self.assertEquals(state.parameters, [])
 
     def test_union_contexts(self):
@@ -1716,7 +1719,8 @@ class CompileTest(TestHelper):
         expr = Intersect(Func1(), elem2, elem3, all=True)
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, "func1() INTERSECT ALL elem2 INTERSECT ALL elem3")
+        self.assertEquals(
+            statement, "func1() INTERSECT ALL elem2 INTERSECT ALL elem3")
         self.assertEquals(state.parameters, [])
 
     def test_intersect_order_by_limit_offset(self):
@@ -1735,11 +1739,13 @@ class CompileTest(TestHelper):
         self.assertEquals(state.parameters, [])
 
     def test_intersect_select_nested(self):
-        expr = Intersect(Select(elem1), Intersect(Select(elem2), Select(elem3)))
+        expr = Intersect(
+            Select(elem1), Intersect(Select(elem2), Select(elem3)))
         state = State()
         statement = compile(expr, state)
-        self.assertEquals(statement, "(SELECT elem1) INTERSECT"
-                                     " ((SELECT elem2) INTERSECT (SELECT elem3))")
+        self.assertEquals(
+            statement, "(SELECT elem1) INTERSECT"
+                       " ((SELECT elem2) INTERSECT (SELECT elem3))")
         self.assertEquals(state.parameters, [])
 
     def test_intersect_contexts(self):
@@ -1755,7 +1761,7 @@ class CompileTest(TestHelper):
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, 'SELECT ? FROM "table 1"')
-        self.assertEquals(state.parameters, [IntVariable(1)])
+        self.assertVariablesEqual(state.parameters, [IntVariable(1)])
 
     def test_auto_tables_with_column(self):
         expr = Select(AutoTables(Column(elem1, table1), [table2]))
@@ -1815,7 +1821,7 @@ class CompileTest(TestHelper):
                           'SELECT "table 1".elem1 FROM "table 1" JOIN '
                           '"table 2" WHERE ? IN (SELECT "table 1".elem1 '
                           'FROM "table 1" JOIN "table 2")')
-        self.assertEquals(state.parameters, [IntVariable(1)])
+        self.assertVariablesEqual(state.parameters, [IntVariable(1)])
 
     def test_sql_token(self):
         expr = SQLToken("something")
