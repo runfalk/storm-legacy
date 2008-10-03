@@ -22,6 +22,7 @@
 import decimal
 import gc
 import operator
+import weakref
 
 from storm.references import Reference, ReferenceSet, Proxy
 from storm.database import Result
@@ -4199,6 +4200,25 @@ class StoreTest(object):
 
         self.store.flush()
         self.assertEquals(events, [])
+
+    def test_pickle_variable_unhook(self):
+        class PickleBlob(Blob):
+            bin = Pickle()
+
+        blob = self.store.get(Blob, 20)
+        blob.bin = "\x80\x02}q\x01U\x01aK\x01s."
+        self.store.flush()
+
+        pickle_blob = self.store.get(PickleBlob, 20)
+        self.store.flush()
+        self.store.invalidate()
+
+        obj_info = get_obj_info(pickle_blob)
+        variable =  obj_info.variables[PickleBlob.bin]
+        var_ref = weakref.ref(variable)
+        del variable, blob, pickle_blob, obj_info
+        gc.collect()
+        self.assertTrue(var_ref() is None)
 
     def test_undefined_variables_filled_on_find(self):
         """
