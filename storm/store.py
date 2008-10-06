@@ -156,7 +156,8 @@ class Store(object):
                 variable = column.variable_factory(value=variable)
             primary_vars.append(variable)
 
-        obj_info = self._alive.get((cls_info.cls, tuple(var.get(to_db=True) for var in primary_vars)))
+        primary_values = tuple(var.get(to_db=True) for var in primary_vars)
+        obj_info = self._alive.get((cls_info.cls, primary_values))
         if obj_info is not None:
             if obj_info.get("invalidated"):
                 try:
@@ -653,7 +654,8 @@ class Store(object):
             primary_vars.append(variable)
 
         # Lookup cache.
-        obj_info = self._alive.get((cls, tuple(var.get(to_db=True) for var in primary_vars)))
+        primary_values = tuple(var.get(to_db=True) for var in primary_vars)
+        obj_info = self._alive.get((cls, primary_values))
 
         if obj_info is not None:
             # Found object in cache, and it must be valid since the
@@ -768,10 +770,14 @@ class Store(object):
         cls_info = obj_info.cls_info
         old_primary_vars = obj_info.get("primary_vars")
         if old_primary_vars is not None:
-            self._alive.pop((cls_info.cls, tuple(var.get(to_db=True) for var in old_primary_vars)), None)
+            old_primary_values = tuple(
+                var.get(to_db=True) for var in old_primary_vars)
+            self._alive.pop((cls_info.cls, old_primary_values), None)
         new_primary_vars = tuple(variable.copy()
                                  for variable in obj_info.primary_vars)
-        self._alive[cls_info.cls, tuple(var.get(to_db=True) for var in new_primary_vars)] = obj_info
+        new_primary_values = tuple(
+            var.get(to_db=True) for var in new_primary_vars)
+        self._alive[cls_info.cls, new_primary_values] = obj_info
         obj_info["primary_vars"] = new_primary_vars
         self._cache.add(obj_info)
 
@@ -785,7 +791,8 @@ class Store(object):
         primary_vars = obj_info.get("primary_vars")
         if primary_vars is not None:
             self._cache.remove(obj_info)
-            del self._alive[obj_info.cls_info.cls, tuple(var.get(to_db=True) for var in primary_vars)]
+            primary_values = tuple(var.get(to_db=True) for var in primary_vars)
+            del self._alive[obj_info.cls_info.cls, primary_values]
             del obj_info["primary_vars"]
 
     def _iter_alive(self):

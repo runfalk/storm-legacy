@@ -255,12 +255,12 @@ class PropertyTest(TestHelper):
                                      "mytable.column1 = ? AND "
                                      "mytable.prop2 = ? AND "
                                      "mytable.column3 = ?")
-        self.assertEquals(len(state.parameters), 3)
-        for param in state.parameters:
-            self.assertEquals(param.__class__, CustomVariable)
-        self.assertEquals(state.parameters[0].get(), "value1")
-        self.assertEquals(state.parameters[1].get(), "value2")
-        self.assertEquals(state.parameters[2].get(), "value3")
+
+        self.assertVariablesEqual(
+            state.parameters,
+            [CustomVariable("value1"),
+             CustomVariable("value2"),
+             CustomVariable("value3")])
 
     def test_comparable_expr_subclass(self):
         prop1 = self.SubClass.prop1
@@ -275,12 +275,11 @@ class PropertyTest(TestHelper):
                                      "mysubtable.column1 = ? AND "
                                      "mysubtable.prop2 = ? AND "
                                      "mysubtable.column3 = ?")
-        self.assertEquals(len(state.parameters), 3)
-        for param in state.parameters:
-            self.assertEquals(param.__class__, CustomVariable)
-        self.assertEquals(state.parameters[0].get(), "value1")
-        self.assertEquals(state.parameters[1].get(), "value2")
-        self.assertEquals(state.parameters[2].get(), "value3")
+        self.assertVariablesEqual(
+            state.parameters,
+            [CustomVariable("value1"),
+             CustomVariable("value2"),
+             CustomVariable("value3")])
 
     def test_set_get_delete_with_wrapper(self):
         obj = self.Class()
