@@ -102,10 +102,6 @@ class VariableTest(TestHelper):
         self.assertEquals(variable.get(to_db=True), ("g", ("s", marker)))
         self.assertEquals(variable.gets, [(("s", marker), True)])
 
-    def test_eq(self):
-        self.assertEquals(CustomVariable(marker), CustomVariable(marker))
-        self.assertNotEquals(CustomVariable(marker), CustomVariable(object()))
-
     def test_is_defined(self):
         variable = CustomVariable()
         self.assertFalse(variable.is_defined())
@@ -260,14 +256,9 @@ class VariableTest(TestHelper):
         variable = CustomVariable()
         variable.set(marker)
         variable_copy = variable.copy()
+        variable_copy.gets = []
         self.assertTrue(variable is not variable_copy)
-        self.assertTrue(variable == variable_copy)
-
-    def test_hash(self):
-        # They must hash the same to be used as cache keys.
-        obj1 = CustomVariable(marker)
-        obj2 = CustomVariable(marker)
-        self.assertEquals(hash(obj1), hash(obj2))
+        self.assertVariablesEqual([variable], [variable_copy])
 
     def test_lazy_value_setting(self):
         variable = CustomVariable()
@@ -844,13 +835,13 @@ class ListVariableTest(TestHelper):
 
         variable.set(l)
         self.assertEquals(variable.get(), l)
-        self.assertEquals(variable.get(to_db=True),
-                          [IntVariable(1), IntVariable(2)])
+        self.assertVariablesEqual(variable.get(to_db=True),
+                                  [IntVariable(1), IntVariable(2)])
 
         variable.set([1.1, 2.2], from_db=True)
         self.assertEquals(variable.get(), l)
-        self.assertEquals(variable.get(to_db=True),
-                          [IntVariable(1), IntVariable(2)])
+        self.assertVariablesEqual(variable.get(to_db=True),
+                                  [IntVariable(1), IntVariable(2)])
 
         self.assertEquals(variable.get_state(), (Undef, l_dump))
 
