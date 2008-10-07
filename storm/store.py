@@ -691,13 +691,13 @@ class Store(object):
         """Return object for obj_info, rebuilding it if it's dead."""
         obj = obj_info.get_obj()
         if obj is None:
-            # Re-enable change notification, as it may have been implicitely
-            # disabled when the previous object has been collected
-            self._enable_change_notification(obj_info)
             cls = obj_info.cls_info.cls
             obj = cls.__new__(cls)
             obj_info.set_obj(obj)
             set_obj_info(obj, obj_info)
+            # Re-enable change notification, as it may have been implicitely
+            # disabled when the previous object has been collected
+            self._enable_change_notification(obj_info)
             self._run_hook(obj_info, "__storm_loaded__")
         # Renew the cache.
         self._cache.add(obj_info)
