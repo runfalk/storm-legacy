@@ -368,6 +368,38 @@ class StoreTest(object):
         # The object was rebuilt, so the loaded hook must have run.
         self.assertTrue(foo.loaded)
 
+    def test_obj_info_with_deleted_object_and_changed_event(self):
+        """
+        When an object is collected, the variables disable change notification
+        to not create a leak. If we're holding a reference to the obj_info and
+        rebuild the object, it should re-enable change notication.
+        """
+        class PickleBlob(Blob):
+            bin = Pickle()
+
+        # Disable the cache, which holds strong references.
+        self.get_cache(self.store).set_size(0)
+
+        blob = self.store.get(Blob, 20)
+        blob.bin = "\x80\x02}q\x01U\x01aK\x01s."
+        self.store.flush()
+        del blob
+        gc.collect()
+
+        pickle_blob = self.store.get(PickleBlob, 20)
+        obj_info = get_obj_info(pickle_blob)
+        del pickle_blob
+        gc.collect()
+        self.assertEquals(obj_info.get_obj(), None)
+
+        pickle_blob = self.store.get(PickleBlob, 20)
+        pickle_blob.bin = "foobin"
+        events = []
+        obj_info.event.hook("changed", lambda *args: events.append(args))
+
+        self.store.flush()
+        self.assertEquals(len(events), 1)
+
     def test_obj_info_with_deleted_object_with_get(self):
         # Same thing, but using get rather than find.
 
