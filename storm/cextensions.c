@@ -118,6 +118,7 @@ typedef struct {
 
 typedef struct {
     PyObject_HEAD
+    PyObject *__weakreflist;
     PyObject *_value;
     PyObject *_lazy_value;
     PyObject *_checkpoint_state;
@@ -679,6 +680,8 @@ Variable_traverse(VariableObject *self, visitproc visit, void *arg)
 static int
 Variable_clear(VariableObject *self)
 {
+    if (self->__weakreflist)
+        PyObject_ClearWeakRefs((PyObject *)self);
     Py_CLEAR(self->_value);
     Py_CLEAR(self->_lazy_value);
     Py_CLEAR(self->_checkpoint_state);
@@ -1127,7 +1130,7 @@ statichere PyTypeObject Variable_Type = {
     (traverseproc)Variable_traverse,  /*tp_traverse*/
     (inquiry)Variable_clear,          /*tp_clear*/
     0,                      /*tp_richcompare*/
-    0,                      /*tp_weaklistoffset*/
+    offsetof(VariableObject, __weakreflist), /*tp_weaklistoffset*/
     0,                      /*tp_iter*/
     0,                      /*tp_iternext*/
     Variable_methods,        /*tp_methods*/
