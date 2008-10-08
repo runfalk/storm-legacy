@@ -697,6 +697,9 @@ class Store(object):
             obj = cls.__new__(cls)
             obj_info.set_obj(obj)
             set_obj_info(obj, obj_info)
+            # Re-enable change notification, as it may have been implicitely
+            # disabled when the previous object has been collected
+            self._enable_change_notification(obj_info)
             self._run_hook(obj_info, "__storm_loaded__")
         # Renew the cache.
         self._cache.add(obj_info)
