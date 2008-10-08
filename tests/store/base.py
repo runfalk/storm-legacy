@@ -28,6 +28,7 @@ from storm.references import Reference, ReferenceSet, Proxy
 from storm.database import Result
 from storm.properties import Int, Float, RawStr, Unicode, Property, Pickle
 from storm.properties import PropertyPublisherMeta, Decimal
+from storm.variables import PickleVariable
 from storm.expr import (
     Asc, Desc, Select, Func, LeftJoin, SQL, Count, Sum, Avg, And, Or, Eq)
 from storm.variables import Variable, UnicodeVariable, IntVariable
@@ -4234,8 +4235,23 @@ class StoreTest(object):
         self.assertEquals(events, [])
 
     def test_pickle_variable_unhook(self):
+        """
+        A variable instance must unhook itself from the store event system when
+        an object is deallocated: it prevents a leak if the object is never
+        removed from the store.
+        """
+        # I create a custom PickleVariable, with no __slots__ definition, to be
+        # able to get a weakref of it, thing that I can't do with
+        # PickleVariable that defines __slots__ *AND* those parent is the C
+        # implementation of Variable
+        class CustomPickleVariable(PickleVariable):
+            pass
+
+        class CustomPickle(Pickle):
+            variable_class = CustomPickleVariable
+
         class PickleBlob(Blob):
-            bin = Pickle()
+            bin = CustomPickle()
 
         blob = self.store.get(Blob, 20)
         blob.bin = "\x80\x02}q\x01U\x01aK\x01s."
