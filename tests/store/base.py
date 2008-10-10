@@ -5248,6 +5248,21 @@ class StoreTest(object):
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0], self.store)
 
+    def test_change_invalidated_object_sends_event(self):
+        """Modifying an object retrieved in a previous transaction emits the
+        register-transaction event."""
+        calls = []
+        def register_transaction(owner):
+            calls.append(owner)
+        self.store._event.hook("register-transaction", register_transaction)
+        foo = self.store.get(Foo, 10)
+        self.store.rollback()
+        del calls[:]
+
+        foo.title = u"New title"
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0], self.store)
+
 
 class EmptyResultSetTest(object):
 
