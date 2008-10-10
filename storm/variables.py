@@ -198,7 +198,7 @@ class Variable(object):
 
         if isinstance(value, LazyValue):
             self._lazy_value = value
-            new_value = Undef
+            self._checkpoint_state = new_value = Undef
         else:
             if not from_db and self._validator is not None:
                 # We use a factory rather than the object itself to prevent
@@ -284,15 +284,6 @@ class Variable(object):
         variable = self.__class__.__new__(self.__class__)
         variable.set_state(self.get_state())
         return variable
-
-    def __eq__(self, other):
-        """Equality based on current value, not identity."""
-        return (self.__class__ is other.__class__ and
-                self._value == other._value)
-
-    def __hash__(self):
-        """Hash based on current value, not identity."""
-        return hash(self._value)
 
     def parse_get(self, value, to_db):
         """Convert the internal value to an external value.
@@ -529,20 +520,28 @@ class MutableValueVariable(Variable):
     we have to synchronize the content of the variable when the store is
     flushing current objects, to check if the state has changed.
     """
-    __slots__ = ()
+    __slots__ = ("_event_system")
 
     def __init__(self, *args, **kwargs):
         Variable.__init__(self, *args, **kwargs)
+        self._event_system = None
         if self.event:
             self.event.hook("start-tracking-changes", self._start_tracking)
-            self.event.hook("object-deleted", self._detect_changes)
+            self.event.hook("object-deleted", self._detect_deleted)
 
     def _start_tracking(self, obj_info, event_system):
+        self._event_system = event_system
         event_system.hook("flush", self._detect_changes)
         self.event.hook("stop-tracking-changes", self._stop_tracking)
 
     def _stop_tracking(self, obj_info, event_system):
         event_system.unhook("flush", self._detect_changes)
+        self._event_system = None
+
+    def _detect_deleted(self, obj_info):
+        self._detect_changes(obj_info)
+        if self._event_system is not None:
+            self._stop_tracking(None, self._event_system)
 
     def _detect_changes(self, obj_info):
         if self.get_state() != self._checkpoint_state:
@@ -572,12 +571,6 @@ class PickleVariable(MutableValueVariable):
     def set_state(self, state):
         self._lazy_value = state[0]
         self._value = pickle.loads(state[1])
-
-    def __hash__(self):
-        try:
-            return hash(self._value)
-        except TypeError:
-            return hash(pickle.dumps(self._value, -1))
 
 
 class ListVariable(MutableValueVariable):
@@ -609,9 +602,6 @@ class ListVariable(MutableValueVariable):
     def set_state(self, state):
         self._lazy_value = state[0]
         self._value = pickle.loads(state[1])
-
-    def __hash__(self):
-        return hash(pickle.dumps(self._value, -1))
 
 
 def _parse_time(time_str):

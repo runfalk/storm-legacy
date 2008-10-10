@@ -231,7 +231,7 @@ class PostgresTest(DatabaseTest, TestHelper):
                           'SELECT * FROM '
                           '((SELECT 1 AS id) UNION ALL (SELECT 1)) AS "_1" '
                           'ORDER BY id+? LIMIT 1 OFFSET 1')
-        self.assertEquals(state.parameters, [Variable(1)])
+        self.assertVariablesEqual(state.parameters, [Variable(1)])
 
         result = self.connection.execute(expr)
         self.assertEquals(result.get_one(), (1,))

@@ -22,11 +22,13 @@
 import decimal
 import gc
 import operator
+import weakref
 
 from storm.references import Reference, ReferenceSet, Proxy
 from storm.database import Result
 from storm.properties import Int, Float, RawStr, Unicode, Property, Pickle
 from storm.properties import PropertyPublisherMeta, Decimal
+from storm.variables import PickleVariable
 from storm.expr import (
     Asc, Desc, Select, Func, LeftJoin, SQL, Count, Sum, Avg, And, Or, Eq)
 from storm.variables import Variable, UnicodeVariable, IntVariable
@@ -366,6 +368,38 @@ class StoreTest(object):
 
         # The object was rebuilt, so the loaded hook must have run.
         self.assertTrue(foo.loaded)
+
+    def test_obj_info_with_deleted_object_and_changed_event(self):
+        """
+        When an object is collected, the variables disable change notification
+        to not create a leak. If we're holding a reference to the obj_info and
+        rebuild the object, it should re-enable change notication.
+        """
+        class PickleBlob(Blob):
+            bin = Pickle()
+
+        # Disable the cache, which holds strong references.
+        self.get_cache(self.store).set_size(0)
+
+        blob = self.store.get(Blob, 20)
+        blob.bin = "\x80\x02}q\x01U\x01aK\x01s."
+        self.store.flush()
+        del blob
+        gc.collect()
+
+        pickle_blob = self.store.get(PickleBlob, 20)
+        obj_info = get_obj_info(pickle_blob)
+        del pickle_blob
+        gc.collect()
+        self.assertEquals(obj_info.get_obj(), None)
+
+        pickle_blob = self.store.get(PickleBlob, 20)
+        pickle_blob.bin = "foobin"
+        events = []
+        obj_info.event.hook("changed", lambda *args: events.append(args))
+
+        self.store.flush()
+        self.assertEquals(len(events), 1)
 
     def test_obj_info_with_deleted_object_with_get(self):
         # Same thing, but using get rather than find.
@@ -4200,6 +4234,40 @@ class StoreTest(object):
         self.store.flush()
         self.assertEquals(events, [])
 
+    def test_pickle_variable_unhook(self):
+        """
+        A variable instance must unhook itself from the store event system when
+        an object is deallocated: it prevents a leak if the object is never
+        removed from the store.
+        """
+        # I create a custom PickleVariable, with no __slots__ definition, to be
+        # able to get a weakref of it, thing that I can't do with
+        # PickleVariable that defines __slots__ *AND* those parent is the C
+        # implementation of Variable
+        class CustomPickleVariable(PickleVariable):
+            pass
+
+        class CustomPickle(Pickle):
+            variable_class = CustomPickleVariable
+
+        class PickleBlob(Blob):
+            bin = CustomPickle()
+
+        blob = self.store.get(Blob, 20)
+        blob.bin = "\x80\x02}q\x01U\x01aK\x01s."
+        self.store.flush()
+
+        pickle_blob = self.store.get(PickleBlob, 20)
+        self.store.flush()
+        self.store.invalidate()
+
+        obj_info = get_obj_info(pickle_blob)
+        variable =  obj_info.variables[PickleBlob.bin]
+        var_ref = weakref.ref(variable)
+        del variable, blob, pickle_blob, obj_info
+        gc.collect()
+        self.assertTrue(var_ref() is None)
+
     def test_undefined_variables_filled_on_find(self):
         """
         Check that when data is fetched from the database on a find,
@@ -5123,6 +5191,27 @@ class StoreTest(object):
 
         for i, foo in enumerate(foos):
             self.assertEquals(foo.flush_order, i)
+
+    def test_cache_poisoning(self):
+        """
+        When a object update a field value to the previous value, which is in
+        the cache, it correctly updates the value in the database.
+
+        Because of change detection, this has been broken in the past, see bug
+        #277095 in launchpad.
+        """
+        store = self.create_store()
+        foo2 = store.get(Foo, 10)
+        self.assertEquals(foo2.title, u"Title 30")
+        store.commit()
+
+        foo1 = self.store.get(Foo, 10)
+        foo1.title = u"Title 40"
+        self.store.commit()
+
+        foo2.title = u"Title 30"
+        store.commit()
+        self.assertEquals(foo2.title, u"Title 30")
 
     def test_execute_sends_event(self):
         """Statement execution emits the register-transaction event."""
