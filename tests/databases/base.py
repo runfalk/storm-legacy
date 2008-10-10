@@ -343,7 +343,7 @@ class DatabaseTest(object):
         finally:
             connection1.rollback()
 
-    def test_connect_sets_event_system(self):
+    def test_wb_connect_sets_event_system(self):
         connection = self.database.connect(marker)
         self.assertEqual(connection._event, marker)
 
