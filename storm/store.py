@@ -49,9 +49,7 @@ PENDING_ADD = 1
 PENDING_REMOVE = 2
 
 
-"""
-The number of objects the cache should have per default.
-"""
+# The maximum number of objects the cache should have per default.
 DEFAULT_CACHE_SIZE = 100
 
 
@@ -73,8 +71,8 @@ class Store(object):
     def __init__(self, database, cache_size=DEFAULT_CACHE_SIZE):
         """
         @param database: The L{storm.database.Database} instance to use.
-        @keyword cache_size: the amount of objects the internal cache should
-                             keep alive
+        @param cache_size: the maximum amount of objects the internal cache
+                            should keep alive
         """
         self._connection = database.connect()
         self._alive = WeakValueDictionary()
