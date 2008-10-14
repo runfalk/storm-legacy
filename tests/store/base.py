@@ -134,9 +134,10 @@ class DummyDatabase(object):
 class StoreCacheTest(TestHelper):
 
     def test_variable_cache_size(self):
+    
+        # ensure that the tested size is different from the default one
+        variable_size = DEFAULT_CACHE_SIZE + 10
 
-        variable_size = 1234
-        assert variable_size != DEFAULT_CACHE_SIZE
         store = Store(DummyDatabase(), cache_size=variable_size)
 
         # ugly. we have to check internal variables
