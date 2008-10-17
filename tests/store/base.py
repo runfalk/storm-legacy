@@ -4778,6 +4778,48 @@ class StoreTest(object):
         self.store.invalidate()
         self.assertEquals(called, [True, True])
 
+    def test_reset_recreates_objects(self):
+        """
+        After resetting the store, all queries return fresh objects, even if
+        there are other objects representing the same database rows still in
+        memory.
+        """
+        foo1 = self.store.get(Foo, 10)
+        foo1.dirty = True
+        self.store.reset()
+        new_foo1 = self.store.get(Foo, 10)
+        self.assertFalse(hasattr(new_foo1, "dirty"))
+        self.assertNotIdentical(new_foo1, foo1)
+
+    def test_reset_unmarks_dirty(self):
+        """
+        If an object was dirty when store.reset() is called, its changes will
+        not be affected.
+        """
+        foo1 = self.store.get(Foo, 10)
+        foo1_title = foo1.title
+        foo1.title = u"radix wuz here"
+        self.store.reset()
+        self.store.flush()
+        new_foo1 = self.store.get(Foo, 10)
+        self.assertEquals(new_foo1.title, foo1_title)
+
+    def test_reset_clears_cache(self):
+        cache = self.get_cache(self.store)
+        foo1 = self.store.get(Foo, 10)
+        self.assertTrue(get_obj_info(foo1) in cache.get_cached())
+        self.store.reset()
+        self.assertEquals(cache.get_cached(), [])
+
+    def test_reset_breaks_store_reference(self):
+        """
+        After resetting the store, all objects that were associated with that
+        store will no longer be.
+        """
+        foo1 = self.store.get(Foo, 10)
+        self.store.reset()
+        self.assertIdentical(Store.of(foo1), None)
+
     def test_result_union(self):
         result1 = self.store.find(Foo, id=30)
         result2 = self.store.find(Foo, id=10)
