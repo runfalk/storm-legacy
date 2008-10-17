@@ -29,7 +29,7 @@ except ImportError:
 else:
     has_transaction = True
     from storm.zope.interfaces import IZStorm, ZStormError
-    from storm.zope.zstorm import ZStorm
+    from storm.zope.zstorm import ZStorm, StoreDataManager
 
 try:
     from zope.component import provideUtility, getUtility
@@ -157,6 +157,43 @@ class ZStormTest(TestHelper):
                                          "name2": "sqlite:2",
                                          "name3": "sqlite:3"})
 
+    def _get_joined_stores(self):
+        """Returns the stores that are joined to the current transaction."""
+        return set(dm._store for dm in transaction.get()._resources
+                   if isinstance(dm, StoreDataManager))
+
+    def assertInTransaction(self, store):
+        """Check that the given store is joined to the transaction."""
+        self.assertTrue(store in self._get_joined_stores(),
+                        "%r should be joined to the transaction")
+
+    def assertNotInTransaction(self, store):
+        """Check that the given store is not joined to the transaction."""
+        self.assertTrue(store not in self._get_joined_stores(),
+                        "%r should not be joined to the transaction")
+
+    def test_wb_store_joins_transaction_on_use(self):
+        store = self.zstorm.get("name", "sqlite:")
+        self.assertNotInTransaction(store)
+        store.execute("SELECT 1")
+        self.assertInTransaction(store)
+
+    def test_wb_store_joins_transaction_on_use_after_commit(self):
+        store = self.zstorm.get("name", "sqlite:")
+        store.execute("SELECT 1")
+        transaction.commit()
+        self.assertNotInTransaction(store)
+        store.execute("SELECT 1")
+        self.assertInTransaction(store)
+
+    def test_wb_store_joins_transaction_on_use_after_abort(self):
+        store = self.zstorm.get("name", "sqlite:")
+        store.execute("SELECT 1")
+        transaction.abort()
+        self.assertNotInTransaction(store)
+        store.execute("SELECT 1")
+        self.assertInTransaction(store)
+
     def test_remove(self):
         removed_store = self.zstorm.get("name", "sqlite:")
         self.zstorm.remove(removed_store)
@@ -164,43 +201,24 @@ class ZStormTest(TestHelper):
             self.assertNotEquals(store, removed_store)
         self.assertRaises(ZStormError, self.zstorm.get, "name")
 
-        # Abort the transaction so that the currently registered
-        # resource detaches.
-        transaction.abort()
-
-        # Let's try to make storm blow up when committing, so that
-        # we can be sure that the removed store isn't linked to the
-        # transaction system by a synchronizer anymore.
-        class BadTable(object):
-            __storm_table__ = "bad_table"
-            id = Int(primary=True)
-        removed_store.add(BadTable())
-
-        # If this fails, the store is still linked to the transaction
-        # system.
-        transaction.commit()
-
-    def test_double_abort(self):
-        """
-        Surprisingly, transaction.abort() won't detach the internal
-        transaction from the manager.  This means that when
-        transaction.begin() runs, it will detect that there's still
-        a Transaction instance around, and will call abort on it once
-        more before instantiating a new Transaction.  The Transaction's
-        abort() method will then call beforeCompletion() on our
-        synchronizer, which then tries to join() on the current
-        transaction, which is still the old one and blows up saying
-        that a previous transaction has failed (we know it, since we
-        *aborted* it).
-        """
-        class BadTable(object):
-            __storm_table__ = "bad_table"
-            id = Int(primary=True, default=1)
+    def test_wb_removed_store_does_not_join_transaction(self):
+        """If a store has been removed, it will not join the transaction."""
         store = self.zstorm.get("name", "sqlite:")
-        store.add(BadTable())
-        self.assertRaises(OperationalError, transaction.commit)
+        self.zstorm.remove(store)
+        store.execute("SELECT 1")
+        self.assertNotInTransaction(store)
+
+    def test_wb_removed_store_does_not_join_future_transactions(self):
+        """If a store has been removed after joining a transaction, it
+        will not join new transactions."""
+        store = self.zstorm.get("name", "sqlite:")
+        store.execute("SELECT 1")
+        self.zstorm.remove(store)
+        self.assertInTransaction(store)
+
         transaction.abort()
-        transaction.abort()
+        store.execute("SELECT 1")
+        self.assertNotInTransaction(store)
 
     def test_wb_reset(self):
         """_reset is used to reset the zstorm utility between zope test runs.
