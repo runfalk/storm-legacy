@@ -42,7 +42,7 @@ has_zope = has_transaction and has_zope_component
 
 
 from storm.exceptions import OperationalError
-from storm.locals import Store, Int
+from storm.locals import Store
 
 
 class ZStormTest(TestHelper):
@@ -172,10 +172,16 @@ class ZStormTest(TestHelper):
         self.assertTrue(store not in self._get_joined_stores(),
                         "%r should not be joined to the transaction")
 
-    def test_wb_store_joins_transaction_on_use(self):
+    def test_wb_store_joins_transaction_on_register_event(self):
+        """The Store joins the transaction when register-transaction
+        is emitted.
+
+        The Store tests check the various operations that trigger this
+        event.
+        """
         store = self.zstorm.get("name", "sqlite:")
         self.assertNotInTransaction(store)
-        store.execute("SELECT 1")
+        store._event.emit("register-transaction")
         self.assertInTransaction(store)
 
     def test_wb_store_joins_transaction_on_use_after_commit(self):
