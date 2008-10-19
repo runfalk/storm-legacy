@@ -53,7 +53,6 @@ PENDING_REMOVE = 2
 DEFAULT_CACHE_SIZE = 100
 
 
-
 class Store(object):
     """The Storm Store.
 

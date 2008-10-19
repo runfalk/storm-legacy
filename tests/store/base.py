@@ -127,9 +127,12 @@ class DecorateVariable(Variable):
 class FooVariable(Foo):
     title = Property(variable_class=DecorateVariable)
 
+
 class DummyDatabase(object):
+
     def connect(self):
         return None
+
 
 class StoreCacheTest(TestHelper):
 
