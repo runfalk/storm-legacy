@@ -542,17 +542,11 @@ class MutableValueVariable(Variable):
         if self.get_state() != self._checkpoint_state:
             self.event.emit("changed", self, None, self._value, False)
 
-    def _resolve_lazy_value(self, obj_info, variable, lazy_value):
-        if self._event_system is not None:
-            self._event_system.hook("flush", self._detect_changes)
-            self.event.hook("stop-tracking-changes", self._stop_tracking)
-
     def set(self, value, from_db=False):
         if isinstance(value, LazyValue) and self._event_system is not None:
             self._event_system.unhook("flush", self._detect_changes)
-            self.event.hook("resolve-lazy-value", self._resolve_lazy_value)
-        elif self.event is not None:
-            self.event.hook("start-tracking-changes", self._start_tracking)
+        elif self._event_system is not None:
+            self._event_system.hook("flush", self._detect_changes)
         super(MutableValueVariable, self).set(value, from_db)
 
 

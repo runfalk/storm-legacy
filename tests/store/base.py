@@ -4306,6 +4306,37 @@ class StoreTest(object):
         gc.collect()
         self.assertTrue(var_ref() is None)
 
+    def test_pickle_variable_referenceset_several_transactions(self):
+        """
+        Check that a pickle variable fires the changed event when used among
+        several transactions.
+        """
+        class PickleBlob(Blob):
+            bin = Pickle()
+            foo_id = Int()
+
+        class FooBlobRefSet(Foo):
+            blobs = ReferenceSet(Foo.id, PickleBlob.foo_id)
+        blob = self.store.get(Blob, 20)
+        blob.bin = "\x80\x02}q\x01U\x01aK\x01s."
+        self.store.flush()
+
+        pickle_blob = self.store.get(PickleBlob, 20)
+
+        foo = self.store.get(FooBlobRefSet, 10)
+        foo.blobs.add(pickle_blob)
+
+        self.store.flush()
+        self.store.invalidate()
+        self.store.reload(pickle_blob)
+
+        pickle_blob.bin = "foo"
+        obj_info = get_obj_info(pickle_blob)
+        events = []
+        obj_info.event.hook("changed", lambda *args: events.append(args))
+        self.store.flush()
+        self.assertEquals(len(events), 1)
+
     def test_undefined_variables_filled_on_find(self):
         """
         Check that when data is fetched from the database on a find,
