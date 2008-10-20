@@ -553,7 +553,6 @@ class MutableValueVariable(Variable):
             self.event.hook("resolve-lazy-value", self._resolve_lazy_value)
         elif self.event is not None:
             self.event.hook("start-tracking-changes", self._start_tracking)
-            self.event.hook("object-deleted", self._detect_changes)
         super(MutableValueVariable, self).set(value, from_db)
 
 
