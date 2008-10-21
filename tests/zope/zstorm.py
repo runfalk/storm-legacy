@@ -157,20 +157,22 @@ class ZStormTest(TestHelper):
                                          "name2": "sqlite:2",
                                          "name3": "sqlite:3"})
 
-    def _get_joined_stores(self):
-        """Returns the stores that are joined to the current transaction."""
-        return set(dm._store for dm in transaction.get()._resources
-                   if isinstance(dm, StoreDataManager))
+    def _isInTransaction(self, store):
+        """Check if a Store is part of the current transaction."""
+        for dm in transaction.get()._resources:
+            if isinstance(dm, StoreDataManager) and dm._store is store:
+                return True
+        return False
 
     def assertInTransaction(self, store):
         """Check that the given store is joined to the transaction."""
-        self.assertTrue(store in self._get_joined_stores(),
-                        "%r should be joined to the transaction")
+        self.assertTrue(self._isInTransaction(store),
+                        "%r should be joined to the transaction" % store)
 
     def assertNotInTransaction(self, store):
         """Check that the given store is not joined to the transaction."""
-        self.assertTrue(store not in self._get_joined_stores(),
-                        "%r should not be joined to the transaction")
+        self.assertTrue(not self._isInTransaction(store),
+                        "%r should not be joined to the transaction" % store)
 
     def test_wb_store_joins_transaction_on_register_event(self):
         """The Store joins the transaction when register-transaction
