@@ -547,10 +547,11 @@ class MutableValueVariable(Variable):
         return super(MutableValueVariable, self).get(default, to_db)
 
     def set(self, value, from_db=False):
-        if isinstance(value, LazyValue) and self._event_system is not None:
-            self._event_system.unhook("flush", self._detect_changes)
-        elif self._event_system is not None:
-            self._event_system.hook("flush", self._detect_changes)
+        if self._event_system is not None:
+            if isinstance(value, LazyValue):
+                self._event_system.unhook("flush", self._detect_changes)
+            else:
+                self._event_system.hook("flush", self._detect_changes)
         super(MutableValueVariable, self).set(value, from_db)
 
 
