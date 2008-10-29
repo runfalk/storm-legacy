@@ -79,3 +79,9 @@
   accessGroups = set([grp1, grp2, grp3])
   if usr.groups & accessGroups:
       doSomething
+
+- Think about something like a store.cache(...) method with the same
+  signature of store.find(...) which stores objects in the cache so
+  that they don't get deallocated during the current transaction.  The
+  Cache class interface would have to be expanded to handle these cases
+  in a special way.
