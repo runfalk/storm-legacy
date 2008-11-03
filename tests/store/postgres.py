@@ -71,7 +71,7 @@ class PostgresStoreTest(TestHelper, StoreTest):
                            "(id SERIAL PRIMARY KEY,"
                            " foo_id INTEGER, title VARCHAR)")
         connection.execute("CREATE TABLE bin "
-                           "(id SERIAL PRIMARY KEY, bin BYTEA)")
+                           "(id SERIAL PRIMARY KEY, bin BYTEA, foo_id INTEGER)")
         connection.execute("CREATE TABLE link "
                            "(foo_id INTEGER, bar_id INTEGER,"
                            " PRIMARY KEY (foo_id, bar_id))")

@@ -1,4 +1,4 @@
-PYTHON = python
+PYTHON ?= python
 
 TEST_COMMAND = $(PYTHON) test
 

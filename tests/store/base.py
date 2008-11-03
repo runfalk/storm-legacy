@@ -22,11 +22,13 @@
 import decimal
 import gc
 import operator
+import weakref
 
 from storm.references import Reference, ReferenceSet, Proxy
 from storm.database import Result
 from storm.properties import Int, Float, RawStr, Unicode, Property, Pickle
 from storm.properties import PropertyPublisherMeta, Decimal
+from storm.variables import PickleVariable
 from storm.expr import (
     Asc, Desc, Select, Func, LeftJoin, SQL, Count, Sum, Avg, And, Or, Eq)
 from storm.variables import Variable, UnicodeVariable, IntVariable
@@ -385,6 +387,38 @@ class StoreTest(object):
 
         # The object was rebuilt, so the loaded hook must have run.
         self.assertTrue(foo.loaded)
+
+    def test_obj_info_with_deleted_object_and_changed_event(self):
+        """
+        When an object is collected, the variables disable change notification
+        to not create a leak. If we're holding a reference to the obj_info and
+        rebuild the object, it should re-enable change notication.
+        """
+        class PickleBlob(Blob):
+            bin = Pickle()
+
+        # Disable the cache, which holds strong references.
+        self.get_cache(self.store).set_size(0)
+
+        blob = self.store.get(Blob, 20)
+        blob.bin = "\x80\x02}q\x01U\x01aK\x01s."
+        self.store.flush()
+        del blob
+        gc.collect()
+
+        pickle_blob = self.store.get(PickleBlob, 20)
+        obj_info = get_obj_info(pickle_blob)
+        del pickle_blob
+        gc.collect()
+        self.assertEquals(obj_info.get_obj(), None)
+
+        pickle_blob = self.store.get(PickleBlob, 20)
+        pickle_blob.bin = "foobin"
+        events = []
+        obj_info.event.hook("changed", lambda *args: events.append(args))
+
+        self.store.flush()
+        self.assertEquals(len(events), 1)
 
     def test_obj_info_with_deleted_object_with_get(self):
         # Same thing, but using get rather than find.
@@ -972,6 +1006,27 @@ class StoreTest(object):
                           ((30, u"Title 10"), (300, u"Title 100")),
                          ])
 
+    def test_find_tuple_using_with_disallow_none(self):
+        class Bar(object):
+            __storm_table__ = "bar"
+            id = Int(primary=True, allow_none=False)
+            title = Unicode()
+            foo_id = Int()
+            foo = Reference(foo_id, Foo.id)
+
+        bar = self.store.get(Bar, 200)
+        self.store.remove(bar)
+
+        tables = self.store.using(Foo, LeftJoin(Bar, Bar.foo_id == Foo.id))
+        result = tables.find((Foo, Bar)).order_by(Foo.id)
+        lst = [(foo and (foo.id, foo.title), bar and (bar.id, bar.title))
+               for (foo, bar) in result]
+        self.assertEquals(lst, [
+                          ((10, u"Title 30"), (100, u"Title 300")),
+                          ((20, u"Title 20"), None),
+                          ((30, u"Title 10"), (300, u"Title 100")),
+                         ])
+
     def test_find_tuple_using_skip_when_none(self):
         bar = self.store.get(Bar, 200)
         bar.foo_id = None
@@ -1351,7 +1406,7 @@ class StoreTest(object):
         result = self.store.find((Count(FooValue.id), Sum(FooValue.value1)))
         result.group_by(FooValue.value2)
         self.assertRaises(FeatureError, result.remove)
-    
+
     def test_find_group_by_set(self):
         result = self.store.find((Count(FooValue.id), Sum(FooValue.value1)))
         result.group_by(FooValue.value2)
@@ -4170,6 +4225,137 @@ class StoreTest(object):
         self.store.reload(blob)
         self.assertEquals(blob.bin, "\x80\x02}q\x01(U\x01aK\x01U\x01bK\x02u.")
 
+    def test_pickle_variable_remove(self):
+        """
+        When an object is removed from a store, it should unhook from the
+        "flush" event emitted by the store, and thus not emit a "changed" event
+        if its content change and that the store is flushed.
+        """
+        class PickleBlob(Blob):
+            bin = Pickle()
+
+        blob = self.store.get(Blob, 20)
+        blob.bin = "\x80\x02}q\x01U\x01aK\x01s."
+        self.store.flush()
+
+        pickle_blob = self.store.get(PickleBlob, 20)
+        self.store.remove(pickle_blob)
+        self.store.flush()
+
+        #  Let's change the object
+        pickle_blob.bin = "foobin"
+
+        # And subscribe to its changed event
+        obj_info = get_obj_info(pickle_blob)
+        events = []
+        obj_info.event.hook("changed", lambda *args: events.append(args))
+
+        self.store.flush()
+        self.assertEquals(events, [])
+
+    def test_pickle_variable_unhook(self):
+        """
+        A variable instance must unhook itself from the store event system when
+        the store invalidates its objects.
+        """
+        # I create a custom PickleVariable, with no __slots__ definition, to be
+        # able to get a weakref of it, thing that I can't do with
+        # PickleVariable that defines __slots__ *AND* those parent is the C
+        # implementation of Variable
+        class CustomPickleVariable(PickleVariable):
+            pass
+
+        class CustomPickle(Pickle):
+            variable_class = CustomPickleVariable
+
+        class PickleBlob(Blob):
+            bin = CustomPickle()
+
+        blob = self.store.get(Blob, 20)
+        blob.bin = "\x80\x02}q\x01U\x01aK\x01s."
+        self.store.flush()
+
+        pickle_blob = self.store.get(PickleBlob, 20)
+        self.store.flush()
+        self.store.invalidate()
+
+        obj_info = get_obj_info(pickle_blob)
+        variable =  obj_info.variables[PickleBlob.bin]
+        var_ref = weakref.ref(variable)
+        del variable, blob, pickle_blob, obj_info
+        gc.collect()
+        self.assertTrue(var_ref() is None)
+
+    def test_pickle_variable_referenceset(self):
+        """
+        A variable instance must unhook itself from the store event system
+        explcitely when the store invalidates its objects: it's particulary
+        important when a ReferenceSet is used, because it keeps strong
+        references to objects involved.
+        """
+        class CustomPickleVariable(PickleVariable):
+            pass
+
+        class CustomPickle(Pickle):
+            variable_class = CustomPickleVariable
+
+        class PickleBlob(Blob):
+            bin = CustomPickle()
+            foo_id = Int()
+
+        class FooBlobRefSet(Foo):
+            blobs = ReferenceSet(Foo.id, PickleBlob.foo_id)
+
+        blob = self.store.get(Blob, 20)
+        blob.bin = "\x80\x02}q\x01U\x01aK\x01s."
+        self.store.flush()
+
+        pickle_blob = self.store.get(PickleBlob, 20)
+
+        foo = self.store.get(FooBlobRefSet, 10)
+        foo.blobs.add(pickle_blob)
+
+        self.store.flush()
+        self.store.invalidate()
+
+        obj_info = get_obj_info(pickle_blob)
+        variable =  obj_info.variables[PickleBlob.bin]
+        var_ref = weakref.ref(variable)
+        del variable, blob, pickle_blob, obj_info, foo
+        gc.collect()
+        self.assertTrue(var_ref() is None)
+
+    def test_pickle_variable_referenceset_several_transactions(self):
+        """
+        Check that a pickle variable fires the changed event when used among
+        several transactions.
+        """
+        class PickleBlob(Blob):
+            bin = Pickle()
+            foo_id = Int()
+
+        class FooBlobRefSet(Foo):
+            blobs = ReferenceSet(Foo.id, PickleBlob.foo_id)
+        blob = self.store.get(Blob, 20)
+        blob.bin = "\x80\x02}q\x01U\x01aK\x01s."
+        self.store.flush()
+
+        pickle_blob = self.store.get(PickleBlob, 20)
+
+        foo = self.store.get(FooBlobRefSet, 10)
+        foo.blobs.add(pickle_blob)
+
+        self.store.flush()
+        self.store.invalidate()
+        self.store.reload(pickle_blob)
+
+        pickle_blob.bin = "foo"
+        obj_info = get_obj_info(pickle_blob)
+        events = []
+        obj_info.event.hook("changed", lambda *args: events.append(args))
+        self.store.flush()
+        self.assertEquals(len(events), 1)
+
     def test_undefined_variables_filled_on_find(self):
         """
         Check that when data is fetched from the database on a find,
@@ -4680,6 +4866,48 @@ class StoreTest(object):
         self.store.invalidate()
         self.assertEquals(called, [True, True])
 
+    def test_reset_recreates_objects(self):
+        """
+        After resetting the store, all queries return fresh objects, even if
+        there are other objects representing the same database rows still in
+        memory.
+        """
+        foo1 = self.store.get(Foo, 10)
+        foo1.dirty = True
+        self.store.reset()
+        new_foo1 = self.store.get(Foo, 10)
+        self.assertFalse(hasattr(new_foo1, "dirty"))
+        self.assertNotIdentical(new_foo1, foo1)
+
+    def test_reset_unmarks_dirty(self):
+        """
+        If an object was dirty when store.reset() is called, its changes will
+        not be affected.
+        """
+        foo1 = self.store.get(Foo, 10)
+        foo1_title = foo1.title
+        foo1.title = u"radix wuz here"
+        self.store.reset()
+        self.store.flush()
+        new_foo1 = self.store.get(Foo, 10)
+        self.assertEquals(new_foo1.title, foo1_title)
+
+    def test_reset_clears_cache(self):
+        cache = self.get_cache(self.store)
+        foo1 = self.store.get(Foo, 10)
+        self.assertTrue(get_obj_info(foo1) in cache.get_cached())
+        self.store.reset()
+        self.assertEquals(cache.get_cached(), [])
+
+    def test_reset_breaks_store_reference(self):
+        """
+        After resetting the store, all objects that were associated with that
+        store will no longer be.
+        """
+        foo1 = self.store.get(Foo, 10)
+        self.store.reset()
+        self.assertIdentical(Store.of(foo1), None)
+
     def test_result_union(self):
         result1 = self.store.find(Foo, id=30)
         result2 = self.store.find(Foo, id=10)
@@ -5093,6 +5321,27 @@ class StoreTest(object):
 
         for i, foo in enumerate(foos):
             self.assertEquals(foo.flush_order, i)
+
+    def test_cache_poisoning(self):
+        """
+        When a object update a field value to the previous value, which is in
+        the cache, it correctly updates the value in the database.
+
+        Because of change detection, this has been broken in the past, see bug
+        #277095 in launchpad.
+        """
+        store = self.create_store()
+        foo2 = store.get(Foo, 10)
+        self.assertEquals(foo2.title, u"Title 30")
+        store.commit()
+
+        foo1 = self.store.get(Foo, 10)
+        foo1.title = u"Title 40"
+        self.store.commit()
+
+        foo2.title = u"Title 30"
+        store.commit()
+        self.assertEquals(foo2.title, u"Title 30")
 
 
 class EmptyResultSetTest(object):

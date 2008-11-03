@@ -23,8 +23,8 @@ import os
 
 from storm.databases.postgres import (
     Postgres, compile, currval, Returning, PostgresTimeoutTracer)
-from storm.uri import URI
 from storm.database import create_database
+from storm.exceptions import ProgrammingError
 from storm.variables import DateTimeVariable, RawStrVariable
 from storm.variables import ListVariable, IntVariable, Variable
 from storm.properties import Int
@@ -92,12 +92,14 @@ class PostgresTest(DatabaseTest, TestHelper):
 
     def test_wb_version(self):
         version = self.database._version
-        self.assertEquals(type(version), tuple)
-        for item in version:
-            self.assertEquals(type(item), int)
-        result = self.connection.execute("SHOW server_version")
-        server_version = result.get_one()[0]
-        self.assertEquals(".".join(map(str, version)), server_version)
+        self.assertEquals(type(version), int)
+        try:
+            result = self.connection.execute("SHOW server_version_num")
+        except ProgrammingError:
+            self.assertEquals(version, 0)
+        else:
+            server_version = int(result.get_one()[0])
+            self.assertEquals(version, server_version)
 
     def test_utf8_client_encoding(self):
         connection = self.database.connect()
@@ -229,7 +231,7 @@ class PostgresTest(DatabaseTest, TestHelper):
                           'SELECT * FROM '
                           '((SELECT 1 AS id) UNION ALL (SELECT 1)) AS "_1" '
                           'ORDER BY id+? LIMIT 1 OFFSET 1')
-        self.assertEquals(state.parameters, [Variable(1)])
+        self.assertVariablesEqual(state.parameters, [Variable(1)])
 
         result = self.connection.execute(expr)
         self.assertEquals(result.get_one(), (1,))
@@ -402,10 +404,10 @@ class PostgresTest(DatabaseTest, TestHelper):
         variable2 = IntVariable()
         insert = Insert({}, primary_columns=(column1, column2),
                             primary_variables=(variable1, variable2))
-        self.database._version = (8, 1, 9)
+        self.database._version = 80109
 
         self.connection.execute(insert)
-        
+
         self.assertFalse(variable1.is_defined())
         self.assertFalse(variable2.is_defined())
 
@@ -433,6 +435,83 @@ class PostgresTest(DatabaseTest, TestHelper):
         result = self.connection.execute("SELECT * FROM insert_returning_test")
 
         self.assertEquals(result.get_one(), (123, 456))
+
+    def test_isolation_autocommit(self):
+        database = create_database(
+            os.environ["STORM_POSTGRES_URI"] + "?isolation=autocommit")
+
+        connection = database.connect()
+        self.addCleanup(connection.close)
+
+        result = connection.execute("SHOW TRANSACTION ISOLATION LEVEL")
+        # It matches read committed in Postgres internel
+        self.assertEquals(result.get_one()[0], u"read committed")
+
+        connection.execute("INSERT INTO bin_test VALUES (1, 'foo')")
+
+        result = self.connection.execute("SELECT id FROM bin_test")
+        # I didn't commit, but data should already be there
+        self.assertEquals(result.get_all(), [(1,)])
+        connection.rollback()
+
+    def test_isolation_read_committed(self):
+        database = create_database(
+            os.environ["STORM_POSTGRES_URI"] + "?isolation=read-committed")
+
+        connection = database.connect()
+        self.addCleanup(connection.close)
+
+        result = connection.execute("SHOW TRANSACTION ISOLATION LEVEL")
+        self.assertEquals(result.get_one()[0], u"read committed")
+
+        connection.execute("INSERT INTO bin_test VALUES (1, 'foo')")
+
+        result = self.connection.execute("SELECT id FROM bin_test")
+        # Data should not be there already
+        self.assertEquals(result.get_all(), [])
+        connection.rollback()
+
+        # Start a transaction
+        result = connection.execute("SELECT 1")
+        self.assertEquals(result.get_one(), (1,))
+
+        self.connection.execute("INSERT INTO bin_test VALUES (1, 'foo')")
+        self.connection.commit()
+
+        result = connection.execute("SELECT id FROM bin_test")
+        # Data is already here!
+        self.assertEquals(result.get_one(), (1,))
+        connection.rollback()
+
+    def test_isolation_serializable(self):
+        database = create_database(
+            os.environ["STORM_POSTGRES_URI"] + "?isolation=serializable")
+
+        connection = database.connect()
+        self.addCleanup(connection.close)
+
+        result = connection.execute("SHOW TRANSACTION ISOLATION LEVEL")
+        self.assertEquals(result.get_one()[0], u"serializable")
+
+        # Start a transaction
+        result = connection.execute("SELECT 1")
+        self.assertEquals(result.get_one(), (1,))
+
+        self.connection.execute("INSERT INTO bin_test VALUES (1, 'foo')")
+        self.connection.commit()
+
+        result = connection.execute("SELECT id FROM bin_test")
+        # We can't see data yet, because transaction started before
+        self.assertEquals(result.get_one(), None)
+        connection.rollback()
+
+    def test_default_isolation(self):
+        result = self.connection.execute("SHOW TRANSACTION ISOLATION LEVEL")
+        self.assertEquals(result.get_one()[0], u"serializable")
+
+    def test_unknown_serialization(self):
+        self.assertRaises(ValueError, create_database,
+            os.environ["STORM_POSTGRES_URI"] + "?isolation=stuff")
 
 
 class PostgresUnsupportedTest(UnsupportedDatabaseTest, TestHelper):

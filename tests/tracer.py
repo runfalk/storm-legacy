@@ -4,6 +4,7 @@ import sys
 from storm.tracer import (trace, install_tracer, get_tracers,
                           remove_tracer_type, remove_all_tracers, debug,
                           DebugTracer, TimeoutTracer, TimeoutError, _tracers)
+from storm.expr import Variable
 
 from tests.mocker import ARGS
 from tests.helper import TestHelper
@@ -74,7 +75,7 @@ class TracerTest(TestHelper):
 
 
 
-class MockVariable(object):
+class MockVariable(Variable):
 
     def __init__(self, value):
         self._value = value
@@ -110,6 +111,20 @@ class DebugTracerTest(TestHelper):
         raw_cursor = "RAW_CURSOR"
         statement = "STATEMENT"
         params = [self.variable]
+
+        self.tracer.connection_raw_execute(connection, raw_cursor,
+                                           statement, params)
+
+    def test_connection_raw_execute_with_non_variable(self):
+        stderr = self.mocker.replace("sys.stderr")
+        stderr.write("[04:05:06.000007] EXECUTE: 'STATEMENT', ('PARAM', 1)\n")
+        stderr.flush()
+        self.mocker.replay()
+
+        connection = "CONNECTION"
+        raw_cursor = "RAW_CURSOR"
+        statement = "STATEMENT"
+        params = [self.variable, 1]
 
         self.tracer.connection_raw_execute(connection, raw_cursor,
                                            statement, params)

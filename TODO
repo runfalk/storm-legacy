@@ -1,12 +1,11 @@
 - The on_remote flag of references should be infered when the
   local property is a primary key (or part of it?).
 
+- Allow something like Int(unique=True), so that it may be used for
+  cached gets (perhaps with get(Class.the_key, value), or
+  get(Class, value, attribute=Class.the_key).
+
 - Unicode(autoreload=True) will mark the field as autoreload by default.
-
-- Generic finds:
-
-  foo, count = store.find((Foo, Count(Foo.name))).group_by(Foo.name)
-  foo_name, count = store.find((Foo.name, Count(Foo.name))).group_by(Foo.name)
 
 - Lazy-by-default attributes:
 
@@ -33,8 +32,6 @@
       attr = Unicode(lazy_group=1)
 
   lazy_group=None means not lazy.
-
-- ReferenceSet.__contains__
 
 - Implement ResultSet.reverse[d]() to invert order_by()?
 
@@ -82,3 +79,9 @@
   accessGroups = set([grp1, grp2, grp3])
   if usr.groups & accessGroups:
       doSomething
+
+- Think about something like a store.cache(...) method with the same
+  signature of store.find(...) which stores objects in the cache so
+  that they don't get deallocated during the current transaction.  The
+  Cache class interface would have to be expanded to handle these cases
+  in a special way.

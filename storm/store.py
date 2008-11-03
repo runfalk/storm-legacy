@@ -36,10 +36,10 @@ from storm.expr import (
     Union, Except, Intersect, Alias, SetExpr)
 from storm.exceptions import (
     WrongStoreError, NotFlushedError, OrderLoopError, UnorderedError,
-    NotOneError, FeatureError, CompileError, LostObjectError, ClassInfoError,
-    ExprError)
+    NotOneError, FeatureError, CompileError, LostObjectError, ClassInfoError)
 from storm import Undef
 from storm.cache import Cache
+from storm.event import EventSystem
 
 
 __all__ = ["Store", "AutoReload", "EmptyResultSet"]
@@ -80,6 +80,7 @@ class Store(object):
         self._cache = Cache(cache_size)
         self._implicit_flush_block_count = 0
         self._sequence = 0 # Advisory ordering.
+        self._event = EventSystem(self)
 
     @staticmethod
     def of(obj):
@@ -161,7 +162,8 @@ class Store(object):
                 variable = column.variable_factory(value=variable)
             primary_vars.append(variable)
 
-        obj_info = self._alive.get((cls_info.cls, tuple(primary_vars)))
+        primary_values = tuple(var.get(to_db=True) for var in primary_vars)
+        obj_info = self._alive.get((cls_info.cls, primary_values))
         if obj_info is not None:
             if obj_info.get("invalidated"):
                 try:
@@ -344,6 +346,28 @@ class Store(object):
             self._cache.remove(get_obj_info(obj))
         self._mark_autoreload(obj, True)
 
+    def reset(self):
+        """Reset this store, causing all future queries to return new objects.
+
+        Beware this method: it breaks the assumption that there will never be
+        two objects in memory which represent the same database object.
+
+        This is useful if you've got in-memory changes to an object that you
+        want to "throw out"; next time they're fetched the objects will be
+        recreated, so in-memory modifications will not be in effect for future
+        queries.
+        """
+        for obj_info in self._iter_alive():
+            if "store" in obj_info:
+                del obj_info["store"]
+        self._alive.clear()
+        self._dirty.clear()
+        self._cache.clear()
+        # The following line is untested, but then, I can't really find a way
+        # to test it without whitebox.
+        self._order.clear()
+
+
     def _mark_autoreload(self, obj=None, invalidate=False):
         if obj is None:
             obj_infos = self._iter_alive()
@@ -414,8 +438,7 @@ class Store(object):
         normal flushing times are insufficient, such as when you want to
         make sure a database trigger gets run at a particular time.
         """
-        for obj_info in self._iter_alive():
-            obj_info.event.emit("flush")
+        self._event.emit("flush")
 
         # The _dirty list may change under us while we're running
         # the flush hooks, so we cannot just simply loop over it
@@ -643,22 +666,24 @@ class Store(object):
         # Prepare cache key.
         primary_vars = []
         columns = cls_info.columns
-        is_null = True
+
+        for value in values:
+            if value is not None:
+                break
+        else:
+            # We've got a row full of NULLs, so consider that the object
+            # wasn't found.  This is useful for joins, where non-existent
+            # rows are represented like that.
+            return None
+
         for i in cls_info.primary_key_pos:
             value = values[i]
-            if value is not None:
-                is_null = False
             variable = columns[i].variable_factory(value=value, from_db=True)
             primary_vars.append(variable)
 
-        if is_null:
-            # We've got a row full of NULLs, so consider that the object
-            # wasn't found.  This is useful for joins, where unexistent
-            # rows are reprsented like that.
-            return None
-
         # Lookup cache.
-        obj_info = self._alive.get((cls, tuple(primary_vars)))
+        primary_values = tuple(var.get(to_db=True) for var in primary_vars)
+        obj_info = self._alive.get((cls, primary_values))
 
         if obj_info is not None:
             # Found object in cache, and it must be valid since the
@@ -700,6 +725,9 @@ class Store(object):
             obj = cls.__new__(cls)
             obj_info.set_obj(obj)
             set_obj_info(obj, obj_info)
+            # Re-enable change notification, as it may have been implicitely
+            # disabled when the previous object has been collected
+            self._enable_change_notification(obj_info)
             self._run_hook(obj_info, "__storm_loaded__")
         # Renew the cache.
         self._cache.add(obj_info)
@@ -773,10 +801,14 @@ class Store(object):
         cls_info = obj_info.cls_info
         old_primary_vars = obj_info.get("primary_vars")
         if old_primary_vars is not None:
-            self._alive.pop((cls_info.cls, old_primary_vars), None)
+            old_primary_values = tuple(
+                var.get(to_db=True) for var in old_primary_vars)
+            self._alive.pop((cls_info.cls, old_primary_values), None)
         new_primary_vars = tuple(variable.copy()
                                  for variable in obj_info.primary_vars)
-        self._alive[cls_info.cls, new_primary_vars] = obj_info
+        new_primary_values = tuple(
+            var.get(to_db=True) for var in new_primary_vars)
+        self._alive[cls_info.cls, new_primary_values] = obj_info
         obj_info["primary_vars"] = new_primary_vars
         self._cache.add(obj_info)
 
@@ -790,18 +822,20 @@ class Store(object):
         primary_vars = obj_info.get("primary_vars")
         if primary_vars is not None:
             self._cache.remove(obj_info)
-            del self._alive[obj_info.cls_info.cls, primary_vars]
+            primary_values = tuple(var.get(to_db=True) for var in primary_vars)
+            del self._alive[obj_info.cls_info.cls, primary_values]
             del obj_info["primary_vars"]
 
     def _iter_alive(self):
         return self._alive.values()
 
-
     def _enable_change_notification(self, obj_info):
+        obj_info.event.emit("start-tracking-changes", self._event)
         obj_info.event.hook("changed", self._variable_changed)
 
     def _disable_change_notification(self, obj_info):
         obj_info.event.unhook("changed", self._variable_changed)
+        obj_info.event.emit("stop-tracking-changes", self._event)
 
     def _variable_changed(self, obj_info, variable,
                           old_value, new_value, fromdb):

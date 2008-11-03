@@ -23,14 +23,23 @@ import thread, weakref, gc
 from tests.helper import TestHelper
 
 try:
-    from zope.component import provideUtility, getUtility
     import transaction
 except ImportError:
-    has_zope = False
+    has_transaction = False
 else:
-    has_zope = True
+    has_transaction = True
     from storm.zope.interfaces import IZStorm, ZStormError
     from storm.zope.zstorm import ZStorm
+
+try:
+    from zope.component import provideUtility, getUtility
+except ImportError:
+    has_zope_component = False
+else:
+    has_zope_component = True
+
+has_zope = has_transaction and has_zope_component
+
 
 from storm.exceptions import OperationalError
 from storm.locals import Store, Int
@@ -39,7 +48,7 @@ from storm.locals import Store, Int
 class ZStormTest(TestHelper):
 
     def is_supported(self):
-        return has_zope
+        return has_transaction
 
     def setUp(self):
         self.zstorm = ZStorm()
@@ -51,10 +60,6 @@ class ZStormTest(TestHelper):
         # Free the transaction to avoid having errors that cross
         # test cases.
         transaction.manager.free(transaction.get())
-
-    def test_utility(self):
-        provideUtility(ZStorm())
-        self.assertTrue(isinstance(getUtility(IZStorm), ZStorm))
 
     def test_create(self):
         store = self.zstorm.create(None, "sqlite:")
@@ -226,3 +231,14 @@ class ZStormTest(TestHelper):
         self.assertNotIdentical(store_ref(), None)
         store = self.zstorm.get("name")
         self.assertIdentical(store_ref(), store)
+
+
+class ZStormUtilityTest(TestHelper):
+
+    def is_supported(self):
+        return has_zope_component
+
+    def test_utility(self):
+        provideUtility(ZStorm())
+        self.assertTrue(isinstance(getUtility(IZStorm), ZStorm))
+

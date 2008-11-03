@@ -1,4 +1,20 @@
-0.13 (2008-XX-XX)
+0.14 (2008-XX-XX)
+=================
+
+Improvements
+------------
+ - A new doctest describing the 'Infoheritance' pattern is integrated into
+   the test suite.
+ - A new storm.django package has been added to allow use of Storm
+   within Django applications.
+
+Bug fixes
+---------
+ - Manage better row full of NULL in case of LEFT JOIN, without validating
+   against object constraints.
+
+
+0.13 (2008-08-28)
 =================
 
 Improvements
@@ -33,7 +49,10 @@ Improvements
    While code like "item in set" was previously possible, it involved
    iterating over the result set, which is expensive for large
    databases.
-
+ - The storm.zope.zstorm code can now be used with only the
+   zope.interface and transaction packages installed.  This makes it
+   easier to reuse the per-thread store management and global
+   transaction handling from other web frameworks.
 
 Bug fixes
 ---------
@@ -54,6 +73,8 @@ Bug fixes
    will now be broken.
  - Fixed a race condition when two threads try to initialize the
    ClassInfo for a given class at the same time.
+ - Improve handling of AUTO INCREMENT columns in the MySQL backend to
+   remove an unnecessary query when adding objects to a store.
 
 
 0.12 (2008-01-28)
