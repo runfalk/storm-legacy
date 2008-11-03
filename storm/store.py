@@ -49,10 +49,6 @@ PENDING_ADD = 1
 PENDING_REMOVE = 2
 
 
-# The maximum number of objects the cache should have per default.
-DEFAULT_CACHE_SIZE = 100
-
-
 class Store(object):
     """The Storm Store.
 
@@ -67,17 +63,20 @@ class Store(object):
 
     _result_set_factory = None
 
-    def __init__(self, database, cache_size=DEFAULT_CACHE_SIZE):
+    def __init__(self, database, cache=None):
         """
         @param database: The L{storm.database.Database} instance to use.
-        @param cache_size: The maximum number of objects the internal cache
-            should keep alive.  Defaults to L{DEFAULT_CACHE_SIZE}.
+        @param cache: The cache to use.  Defaults to a L{Cache} storing up to
+            100 objects at any given time.
         """
         self._connection = database.connect()
         self._alive = WeakValueDictionary()
         self._dirty = {}
         self._order = {} # (info, info) = count
-        self._cache = Cache(cache_size)
+        if cache is None:
+            self._cache = Cache(100)
+        else:
+            self._cache = cache
         self._implicit_flush_block_count = 0
         self._sequence = 0 # Advisory ordering.
         self._event = EventSystem(self)

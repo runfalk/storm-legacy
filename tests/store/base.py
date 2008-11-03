@@ -34,8 +34,9 @@ from storm.expr import (
 from storm.variables import Variable, UnicodeVariable, IntVariable
 from storm.info import get_obj_info, ClassAlias
 from storm.exceptions import *
+from storm.cache import Cache
 from storm.store import *
-from storm.store import ResultSet, DEFAULT_CACHE_SIZE
+from storm.store import ResultSet
 
 from tests.info import Wrapper
 from tests.helper import run_this, TestHelper
@@ -138,15 +139,14 @@ class DummyDatabase(object):
 
 class StoreCacheTest(TestHelper):
 
-    def test_wb_variable_cache_size(self):
-        # Ensure that the tested size is different from the default one.
-        variable_size = DEFAULT_CACHE_SIZE + 10
-        store = Store(DummyDatabase(), cache_size=variable_size)
-        self.assertEquals(store._cache._size, variable_size)
+    def test_wb_custom_cache(self):
+        cache = Cache(25)
+        store = Store(DummyDatabase(), cache=cache)
+        self.assertEquals(store._cache, cache)
 
     def test_wb_default_cache_size(self):
         store = Store(DummyDatabase())
-        self.assertEquals(store._cache._size, DEFAULT_CACHE_SIZE)
+        self.assertEquals(store._cache._size, 100)
 
 
 class StoreTest(object):
