@@ -4237,8 +4237,7 @@ class StoreTest(object):
     def test_pickle_variable_unhook(self):
         """
         A variable instance must unhook itself from the store event system when
-        an object is deallocated: it prevents a leak if the object is never
-        removed from the store.
+        the store invalidates its objects.
         """
         # I create a custom PickleVariable, with no __slots__ definition, to be
         # able to get a weakref of it, thing that I can't do with
@@ -4267,6 +4266,76 @@ class StoreTest(object):
         del variable, blob, pickle_blob, obj_info
         gc.collect()
         self.assertTrue(var_ref() is None)
+
+    def test_pickle_variable_referenceset(self):
+        """
+        A variable instance must unhook itself from the store event system
+        explcitely when the store invalidates its objects: it's particulary
+        important when a ReferenceSet is used, because it keeps strong
+        references to objects involved.
+        """
+        class CustomPickleVariable(PickleVariable):
+            pass
+
+        class CustomPickle(Pickle):
+            variable_class = CustomPickleVariable
+
+        class PickleBlob(Blob):
+            bin = CustomPickle()
+            foo_id = Int()
+
+        class FooBlobRefSet(Foo):
+            blobs = ReferenceSet(Foo.id, PickleBlob.foo_id)
+
+        blob = self.store.get(Blob, 20)
+        blob.bin = "\x80\x02}q\x01U\x01aK\x01s."
+        self.store.flush()
+
+        pickle_blob = self.store.get(PickleBlob, 20)
+
+        foo = self.store.get(FooBlobRefSet, 10)
+        foo.blobs.add(pickle_blob)
+
+        self.store.flush()
+        self.store.invalidate()
+
+        obj_info = get_obj_info(pickle_blob)
+        variable =  obj_info.variables[PickleBlob.bin]
+        var_ref = weakref.ref(variable)
+        del variable, blob, pickle_blob, obj_info, foo
+        gc.collect()
+        self.assertTrue(var_ref() is None)
+
+    def test_pickle_variable_referenceset_several_transactions(self):
+        """
+        Check that a pickle variable fires the changed event when used among
+        several transactions.
+        """
+        class PickleBlob(Blob):
+            bin = Pickle()
+            foo_id = Int()
+
+        class FooBlobRefSet(Foo):
+            blobs = ReferenceSet(Foo.id, PickleBlob.foo_id)
+        blob = self.store.get(Blob, 20)
+        blob.bin = "\x80\x02}q\x01U\x01aK\x01s."
+        self.store.flush()
+
+        pickle_blob = self.store.get(PickleBlob, 20)
+
+        foo = self.store.get(FooBlobRefSet, 10)
+        foo.blobs.add(pickle_blob)
+
+        self.store.flush()
+        self.store.invalidate()
+        self.store.reload(pickle_blob)
+
+        pickle_blob.bin = "foo"
+        obj_info = get_obj_info(pickle_blob)
+        events = []
+        obj_info.event.hook("changed", lambda *args: events.append(args))
+        self.store.flush()
+        self.assertEquals(len(events), 1)
 
     def test_undefined_variables_filled_on_find(self):
         """

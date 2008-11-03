@@ -50,7 +50,7 @@ class SQLiteStoreTest(TestHelper, StoreTest):
                            "(id INTEGER PRIMARY KEY,"
                            " foo_id INTEGER, title VARCHAR)")
         connection.execute("CREATE TABLE bin "
-                           "(id INTEGER PRIMARY KEY, bin BLOB)")
+                           "(id INTEGER PRIMARY KEY, bin BLOB, foo_id INTEGER)")
         connection.execute("CREATE TABLE link "
                            "(foo_id INTEGER, bar_id INTEGER)")
         # We have to use TEXT here, since NUMERIC would cause SQLite
