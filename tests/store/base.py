@@ -136,21 +136,16 @@ class DummyDatabase(object):
 
 class StoreCacheTest(TestHelper):
 
-    def test_variable_cache_size(self):
-    
-        # ensure that the tested size is different from the default one
+    def test_wb_variable_cache_size(self):
+        # Ensure that the tested size is different from the default one.
         variable_size = DEFAULT_CACHE_SIZE + 10
-
         store = Store(DummyDatabase(), cache_size=variable_size)
-
-        # ugly. we have to check internal variables
         self.assertEquals(store._cache._size, variable_size)
 
-    def test_default_cache_size(self):
+    def test_wb_default_cache_size(self):
         store = Store(DummyDatabase())
-
-        # ugly. we have to check internal variables
         self.assertEquals(store._cache._size, DEFAULT_CACHE_SIZE)
+
 
 class StoreTest(object):
 

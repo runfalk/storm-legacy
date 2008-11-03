@@ -70,8 +70,8 @@ class Store(object):
     def __init__(self, database, cache_size=DEFAULT_CACHE_SIZE):
         """
         @param database: The L{storm.database.Database} instance to use.
-        @param cache_size: the maximum amount of objects the internal cache
-                            should keep alive
+        @param cache_size: The maximum number of objects the internal cache
+            should keep alive.  Defaults to L{DEFAULT_CACHE_SIZE}.
         """
         self._connection = database.connect()
         self._alive = WeakValueDictionary()
