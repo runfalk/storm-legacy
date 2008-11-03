@@ -35,10 +35,10 @@ from storm.variables import Variable, UnicodeVariable, IntVariable
 from storm.info import get_obj_info, ClassAlias
 from storm.exceptions import *
 from storm.store import *
-from storm.store import ResultSet
+from storm.store import ResultSet, DEFAULT_CACHE_SIZE
 
 from tests.info import Wrapper
-from tests.helper import run_this
+from tests.helper import run_this, TestHelper
 
 
 class Foo(object):
@@ -128,6 +128,25 @@ class DecorateVariable(Variable):
 
 class FooVariable(Foo):
     title = Property(variable_class=DecorateVariable)
+
+
+class DummyDatabase(object):
+
+    def connect(self):
+        return None
+
+
+class StoreCacheTest(TestHelper):
+
+    def test_wb_variable_cache_size(self):
+        # Ensure that the tested size is different from the default one.
+        variable_size = DEFAULT_CACHE_SIZE + 10
+        store = Store(DummyDatabase(), cache_size=variable_size)
+        self.assertEquals(store._cache._size, variable_size)
+
+    def test_wb_default_cache_size(self):
+        store = Store(DummyDatabase())
+        self.assertEquals(store._cache._size, DEFAULT_CACHE_SIZE)
 
 
 class StoreTest(object):
