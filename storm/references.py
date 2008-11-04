@@ -22,7 +22,7 @@ from storm.exceptions import WrongStoreError, NoStoreError, ClassInfoError
 from storm.store import Store, get_where_for_args
 from storm.variables import LazyValue
 from storm.expr import (
-    Select, Column, Exists, ComparableExpr, LeftJoin, SQLRaw,
+    Select, Column, Exists, ComparableExpr, LeftJoin, Not, SQLRaw,
     compare_columns, compile)
 from storm.info import get_cls_info, get_obj_info
 
@@ -199,6 +199,9 @@ class Reference(object):
 
     def __eq__(self, other):
         return self._relation.get_where_for_local(other)
+
+    def __ne__(self, other):
+        return Not(self == other)
 
 
 class ReferenceSet(object):
