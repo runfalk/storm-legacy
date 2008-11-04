@@ -133,7 +133,7 @@ class FooVariable(Foo):
 
 class DummyDatabase(object):
 
-    def connect(self):
+    def connect(self, event=None):
         return None
 
 
@@ -5191,8 +5191,8 @@ class StoreTest(object):
             def __init__(self, database):
                 self.database = database
 
-            def connect(self):
-                connection = self.database.connect()
+            def connect(self, event=None):
+                connection = self.database.connect(event)
                 connection.preset_primary_key = preset_primary_key
                 return connection
 
@@ -5342,6 +5342,56 @@ class StoreTest(object):
         foo2.title = u"Title 30"
         store.commit()
         self.assertEquals(foo2.title, u"Title 30")
+
+    def test_execute_sends_event(self):
+        """Statement execution emits the register-transaction event."""
+        calls = []
+        def register_transaction(owner):
+            calls.append(owner)
+        self.store._event.hook("register-transaction", register_transaction)
+        self.store.execute("SELECT 1")
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0], self.store)
+
+    def test_add_sends_event(self):
+        """Adding an object emits the register-transaction event."""
+        calls = []
+        def register_transaction(owner):
+            calls.append(owner)
+        self.store._event.hook("register-transaction", register_transaction)
+        foo = Foo()
+        foo.title = u"Foo"
+        self.store.add(foo)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0], self.store)
+
+    def test_remove_sends_event(self):
+        """Adding an object emits the register-transaction event."""
+        calls = []
+        def register_transaction(owner):
+            calls.append(owner)
+        self.store._event.hook("register-transaction", register_transaction)
+        foo = self.store.get(Foo, 10)
+        del calls[:]
+
+        self.store.remove(foo)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0], self.store)
+
+    def test_change_invalidated_object_sends_event(self):
+        """Modifying an object retrieved in a previous transaction emits the
+        register-transaction event."""
+        calls = []
+        def register_transaction(owner):
+            calls.append(owner)
+        self.store._event.hook("register-transaction", register_transaction)
+        foo = self.store.get(Foo, 10)
+        self.store.rollback()
+        del calls[:]
+
+        foo.title = u"New title"
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0], self.store)
 
 
 class EmptyResultSetTest(object):

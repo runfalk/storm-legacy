@@ -29,7 +29,7 @@ except ImportError:
 else:
     have_django_and_transaction = True
     from storm.django import stores
-    from storm.zope.zstorm import global_zstorm
+    from storm.zope.zstorm import global_zstorm, StoreDataManager
 
 from tests.helper import TestHelper
 
@@ -80,6 +80,25 @@ class DjangoBackendTests(object):
         # The wrapper uses the same database connection as the store.
         store = stores.get_store("django")
         self.assertEqual(store._connection._raw_connection, wrapper.connection)
+
+    def _isInTransaction(self, store):
+        """Check if a Store is part of the current transaction."""
+        for dm in transaction.get()._resources:
+            if isinstance(dm, StoreDataManager) and dm._store is store:
+                return True
+        return False
+
+    def assertInTransaction(self, store):
+        """Check that the given store is joined to the transaction."""
+        self.assertTrue(self._isInTransaction(store),
+                        "%r should be joined to the transaction" % store)
+
+    def test_using_wrapper_joins_transaction(self):
+        from storm.django.backend import base
+        wrapper = base.DatabaseWrapper(**settings.DATABASE_OPTIONS)
+        cursor = wrapper.cursor()
+        cursor.execute("SELECT 1")
+        self.assertInTransaction(stores.get_store("django"))
 
     def test_commit(self):
         from storm.django.backend import base

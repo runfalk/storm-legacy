@@ -69,7 +69,8 @@ class Store(object):
         @param cache: The cache to use.  Defaults to a L{Cache} storing up to
             100 objects at any given time.
         """
-        self._connection = database.connect()
+        self._event = EventSystem(self)
+        self._connection = database.connect(self._event)
         self._alive = WeakValueDictionary()
         self._dirty = {}
         self._order = {} # (info, info) = count
@@ -79,7 +80,6 @@ class Store(object):
             self._cache = cache
         self._implicit_flush_block_count = 0
         self._sequence = 0 # Advisory ordering.
-        self._event = EventSystem(self)
 
     @staticmethod
     def of(obj):
@@ -241,6 +241,7 @@ class Store(object):
 
         The C{added} event will be fired on the object info's event system.
         """
+        self._event.emit("register-transaction")
         obj_info = get_obj_info(obj)
 
         store = obj_info.get("store")
@@ -269,6 +270,7 @@ class Store(object):
 
         The associated row will be deleted from the database.
         """
+        self._event.emit("register-transaction")
         obj_info = get_obj_info(obj)
 
         if obj_info.get("store") is not self:
