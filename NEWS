@@ -17,6 +17,9 @@ Bug fixes
 ---------
  - Manage better row full of NULL in case of LEFT JOIN, without validating
    against object constraints.
+ - The Reference class now has an __ne__() method, so inequality
+   checks against a reference now work in find expressions (bug
+   #244768 reported by Stuart Bishop).
 
 
 0.13 (2008-08-28)
