@@ -2838,6 +2838,12 @@ class StoreTest(object):
         self.assertTrue(bar)
         self.assertEquals(bar.foo, foo)
 
+    def test_reference_equals_none(self):
+        result = list(self.store.find(SelfRef, selfref=None))
+        self.assertEquals(len(result), 2)
+        self.assertEquals(result[0].selfref, None)
+        self.assertEquals(result[1].selfref, None)
+
     def test_reference_equals_with_composed_key(self):
         # Interesting case of self-reference.
         class LinkWithRef(Link):
@@ -2858,6 +2864,30 @@ class StoreTest(object):
         bar = self.store.find(Bar, foo=Wrapper(foo)).one()
         self.assertTrue(bar)
         self.assertEquals(bar.foo, foo)
+
+    def test_reference_not_equals(self):
+        foo = self.store.get(Foo, 10)
+
+        result = self.store.find(Bar, Bar.foo != foo)
+        self.assertEquals([200, 300], sorted(bar.id for bar in result))
+
+    def test_reference_not_equals_none(self):
+        obj = self.store.find(SelfRef, SelfRef.selfref != None).one()
+        self.assertTrue(obj)
+        self.assertNotEquals(obj.selfref, None)
+
+    def test_reference_not_equals_with_composed_key(self):
+        class LinkWithRef(Link):
+            myself = Reference((Link.foo_id, Link.bar_id),
+                               (Link.foo_id, Link.bar_id))
+
+        link = self.store.find(LinkWithRef, foo_id=10, bar_id=100).one()
+        result = list(self.store.find(LinkWithRef, LinkWithRef.myself != link))
+        self.assertTrue(link not in result, "%r not in %r" % (link, result))
+
+        result = list(self.store.find(
+            LinkWithRef, LinkWithRef.myself != (link.foo_id, link.bar_id)))
+        self.assertTrue(link not in result, "%r not in %r" % (link, result))
 
     def test_reference_self(self):
         selfref = self.store.add(SelfRef())
