@@ -162,8 +162,9 @@ class Connection(object):
     _closed = False
     _state = STATE_CONNECTED
 
-    def __init__(self, database):
+    def __init__(self, database, event=None):
         self._database = database # Ensures deallocation order.
+        self._event = event
         self._raw_connection = self._database.raw_connect()
 
     def __del__(self):
@@ -190,6 +191,8 @@ class Connection(object):
         if self._closed:
             raise ClosedError("Connection is closed")
         self._ensure_connected()
+        if self._event:
+            self._event.emit("register-transaction")
         if isinstance(statement, Expr):
             if params is not None:
                 raise ValueError("Can't pass parameters with expressions")
@@ -347,15 +350,18 @@ class Database(object):
 
     connection_factory = Connection
 
-    def connect(self):
+    def connect(self, event=None):
         """Create a connection to the database.
 
         It calls C{self.connection_factory} to allow for ease of
         customization.
 
+        @param event: The event system to broadcast messages with. If
+            not specified, then no events will be broadcast.
+
         @return: An instance of L{Connection}.
         """
-        return self.connection_factory(self)
+        return self.connection_factory(self, event)
 
     def raw_connect(self):
         """Create a raw database connection.

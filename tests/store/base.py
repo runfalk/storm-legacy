@@ -34,8 +34,9 @@ from storm.expr import (
 from storm.variables import Variable, UnicodeVariable, IntVariable
 from storm.info import get_obj_info, ClassAlias
 from storm.exceptions import *
+from storm.cache import Cache
 from storm.store import *
-from storm.store import ResultSet, DEFAULT_CACHE_SIZE
+from storm.store import ResultSet
 
 from tests.info import Wrapper
 from tests.helper import run_this, TestHelper
@@ -132,21 +133,20 @@ class FooVariable(Foo):
 
 class DummyDatabase(object):
 
-    def connect(self):
+    def connect(self, event=None):
         return None
 
 
 class StoreCacheTest(TestHelper):
 
-    def test_wb_variable_cache_size(self):
-        # Ensure that the tested size is different from the default one.
-        variable_size = DEFAULT_CACHE_SIZE + 10
-        store = Store(DummyDatabase(), cache_size=variable_size)
-        self.assertEquals(store._cache._size, variable_size)
+    def test_wb_custom_cache(self):
+        cache = Cache(25)
+        store = Store(DummyDatabase(), cache=cache)
+        self.assertEquals(store._cache, cache)
 
     def test_wb_default_cache_size(self):
         store = Store(DummyDatabase())
-        self.assertEquals(store._cache._size, DEFAULT_CACHE_SIZE)
+        self.assertEquals(store._cache._size, 100)
 
 
 class StoreTest(object):
@@ -470,6 +470,24 @@ class StoreTest(object):
         self.assertEquals(Store.of(foo), self.store)
         self.assertEquals(Store.of(Foo()), None)
         self.assertEquals(Store.of(object()), None)
+
+    def test_is_empty(self):
+        result = self.store.find(Foo, id=300)
+        self.assertEquals(result.is_empty(), True)
+        result = self.store.find(Foo, id=30)
+        self.assertEquals(result.is_empty(), False)
+
+    def test_is_empty_with_composed_key(self):
+        result = self.store.find(Link, foo_id=300, bar_id=3000)
+        self.assertEquals(result.is_empty(), True)
+        result = self.store.find(Link, foo_id=30, bar_id=300)
+        self.assertEquals(result.is_empty(), False)
+
+    def test_is_empty_with_expression_find(self):
+        result = self.store.find(Foo.title, Foo.id == 300)
+        self.assertEquals(result.is_empty(), True)
+        result = self.store.find(Foo.title, Foo.id == 30)
+        self.assertEquals(result.is_empty(), False)
 
     def test_find_iter(self):
         result = self.store.find(Foo)
@@ -5191,8 +5209,8 @@ class StoreTest(object):
             def __init__(self, database):
                 self.database = database
 
-            def connect(self):
-                connection = self.database.connect()
+            def connect(self, event=None):
+                connection = self.database.connect(event)
                 connection.preset_primary_key = preset_primary_key
                 return connection
 
@@ -5343,24 +5361,55 @@ class StoreTest(object):
         store.commit()
         self.assertEquals(foo2.title, u"Title 30")
 
-    def test_is_empty(self):
-        result = self.store.find(Foo, id=300)
-        self.assertEquals(result.is_empty(), True)
-        result = self.store.find(Foo, id=30)
-        self.assertEquals(result.is_empty(), False)
+    def test_execute_sends_event(self):
+        """Statement execution emits the register-transaction event."""
+        calls = []
+        def register_transaction(owner):
+            calls.append(owner)
+        self.store._event.hook("register-transaction", register_transaction)
+        self.store.execute("SELECT 1")
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0], self.store)
 
-    def test_is_empty_with_composed_key(self):
-        result = self.store.find(Link, foo_id=300, bar_id=3000)
-        self.assertEquals(result.is_empty(), True)
-        result = self.store.find(Link, foo_id=30, bar_id=300)
-        self.assertEquals(result.is_empty(), False)
+    def test_add_sends_event(self):
+        """Adding an object emits the register-transaction event."""
+        calls = []
+        def register_transaction(owner):
+            calls.append(owner)
+        self.store._event.hook("register-transaction", register_transaction)
+        foo = Foo()
+        foo.title = u"Foo"
+        self.store.add(foo)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0], self.store)
 
-    def test_is_empty_with_expression_find(self):
-        result = self.store.find(Foo.title, Foo.id == 300)
-        self.assertEquals(result.is_empty(), True)
-        result = self.store.find(Foo.title, Foo.id == 30)
-        self.assertEquals(result.is_empty(), False)
+    def test_remove_sends_event(self):
+        """Adding an object emits the register-transaction event."""
+        calls = []
+        def register_transaction(owner):
+            calls.append(owner)
+        self.store._event.hook("register-transaction", register_transaction)
+        foo = self.store.get(Foo, 10)
+        del calls[:]
 
+        self.store.remove(foo)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0], self.store)
+
+    def test_change_invalidated_object_sends_event(self):
+        """Modifying an object retrieved in a previous transaction emits the
+        register-transaction event."""
+        calls = []
+        def register_transaction(owner):
+            calls.append(owner)
+        self.store._event.hook("register-transaction", register_transaction)
+        foo = self.store.get(Foo, 10)
+        self.store.rollback()
+        del calls[:]
+
+        foo.title = u"New title"
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0], self.store)
 
 class EmptyResultSetTest(object):
 

@@ -7,6 +7,11 @@ Improvements
    the test suite.
  - A new storm.django package has been added to allow use of Storm
    within Django applications.
+ - The way Storm interacts with the Zope transaction manager has
+   changed.  Rather than using a synchronizer to join each new
+   transaction, it now delays joining the transaction until the store
+   is actually used.
+ - The Store constructor takes an optional cache keyword argument.
 
 Bug fixes
 ---------
