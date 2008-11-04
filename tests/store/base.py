@@ -5343,6 +5343,24 @@ class StoreTest(object):
         store.commit()
         self.assertEquals(foo2.title, u"Title 30")
 
+    def test_is_empty(self):
+        result = self.store.find(Foo, id=300)
+        self.assertEquals(result.is_empty(), True)
+        result = self.store.find(Foo, id=30)
+        self.assertEquals(result.is_empty(), False)
+
+    def test_is_empty_with_composed_key(self):
+        result = self.store.find(Link, foo_id=300, bar_id=3000)
+        self.assertEquals(result.is_empty(), True)
+        result = self.store.find(Link, foo_id=30, bar_id=300)
+        self.assertEquals(result.is_empty(), False)
+
+    def test_is_empty_with_expression_find(self):
+        result = self.store.find(Foo.title, Foo.id == 300)
+        self.assertEquals(result.is_empty(), True)
+        result = self.store.find(Foo.title, Foo.id == 30)
+        self.assertEquals(result.is_empty(), False)
+
 
 class EmptyResultSetTest(object):
 
@@ -5406,6 +5424,10 @@ class EmptyResultSetTest(object):
 
     def test_contains(self):
         self.assertEquals(Foo() in self.empty, False)
+
+    def test_is_empty(self):
+        self.assertEquals(self.result.is_empty(), True)
+        self.assertEquals(self.empty.is_empty(), True)
 
     def test_any(self):
         self.assertEquals(self.result.any(), None)
