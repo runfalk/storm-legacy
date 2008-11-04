@@ -11,6 +11,7 @@ Improvements
    changed.  Rather than using a synchronizer to join each new
    transaction, it now delays joining the transaction until the store
    is actually used.
+ - The Store constructor takes an optional cache keyword argument.
 
 Bug fixes
 ---------
