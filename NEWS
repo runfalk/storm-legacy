@@ -12,6 +12,7 @@ Improvements
    transaction, it now delays joining the transaction until the store
    is actually used.
  - The Store constructor takes an optional cache keyword argument.
+ - ResultSets now offer an is_empty() method.
 
 Bug fixes
 ---------

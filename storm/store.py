@@ -1039,6 +1039,14 @@ class ResultSet(object):
         result = self._store._connection.execute(select)
         return result.get_one() is not None
 
+    def is_empty(self):
+        """Return true if this L{ResultSet} contains no results."""
+        subselect = self._get_select()
+        subselect.limit = 1
+        select = Select(1, tables=Alias(subselect, "_tmp"), limit=1)
+        result = self._store._connection.execute(select)
+        return (not result.get_one())
+
     def any(self):
         """Return a single item from the result set.
 
@@ -1420,6 +1428,9 @@ class EmptyResultSet(object):
 
     def __contains__(self, item):
         return False
+
+    def is_empty(self):
+        return True
 
     def any(self):
         return None

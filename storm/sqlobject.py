@@ -553,7 +553,7 @@ class SQLObjectResultSet(object):
 
     def __nonzero__(self):
         result_set = self._without_prejoins()._result_set
-        return result_set.any() is not None
+        return not result_set.is_empty()
 
     def count(self):
         result_set = self._without_prejoins()._result_set

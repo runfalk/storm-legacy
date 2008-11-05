@@ -471,6 +471,24 @@ class StoreTest(object):
         self.assertEquals(Store.of(Foo()), None)
         self.assertEquals(Store.of(object()), None)
 
+    def test_is_empty(self):
+        result = self.store.find(Foo, id=300)
+        self.assertEquals(result.is_empty(), True)
+        result = self.store.find(Foo, id=30)
+        self.assertEquals(result.is_empty(), False)
+
+    def test_is_empty_with_composed_key(self):
+        result = self.store.find(Link, foo_id=300, bar_id=3000)
+        self.assertEquals(result.is_empty(), True)
+        result = self.store.find(Link, foo_id=30, bar_id=300)
+        self.assertEquals(result.is_empty(), False)
+
+    def test_is_empty_with_expression_find(self):
+        result = self.store.find(Foo.title, Foo.id == 300)
+        self.assertEquals(result.is_empty(), True)
+        result = self.store.find(Foo.title, Foo.id == 30)
+        self.assertEquals(result.is_empty(), False)
+
     def test_find_iter(self):
         result = self.store.find(Foo)
 
@@ -5423,7 +5441,6 @@ class StoreTest(object):
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0], self.store)
 
-
 class EmptyResultSetTest(object):
 
     def setUp(self):
@@ -5486,6 +5503,10 @@ class EmptyResultSetTest(object):
 
     def test_contains(self):
         self.assertEquals(Foo() in self.empty, False)
+
+    def test_is_empty(self):
+        self.assertEquals(self.result.is_empty(), True)
+        self.assertEquals(self.empty.is_empty(), True)
 
     def test_any(self):
         self.assertEquals(self.result.any(), None)
