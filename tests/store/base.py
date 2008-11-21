@@ -840,6 +840,18 @@ class StoreTest(object):
         count = self.store.find(Link).count(Link.foo_id, distinct=True)
         self.assertEquals(count, 3)
 
+    def test_find_distinct_count(self):
+        result = self.store.find(Link.foo_id)
+        result.config(distinct=True)
+        count = result.count()
+        self.assertEquals(count, 3)
+
+    def test_find_distinct_count_multiple_columns(self):
+        result = self.store.find((Link.foo_id, Link.bar_id))
+        result.config(distinct=True)
+        count = result.count()
+        self.assertEquals(count, 6)
+
     def test_find_max(self):
         self.assertEquals(self.store.find(Foo).max(Foo.id), 30)
 
