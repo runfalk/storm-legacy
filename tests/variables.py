@@ -829,7 +829,7 @@ class ListVariableTest(TestHelper):
 
     def test_get_set(self):
         # Enumeration variables are used as items so that database
-        # side and python side variables can be distinguished.
+        # side and python side values can be distinguished.
         get_map = {1: "a", 2: "b", 3: "c"}
         set_map = {"a": 1, "b": 2, "c": 3}
         item_factory = VariableFactory(
@@ -838,8 +838,6 @@ class ListVariableTest(TestHelper):
         l = ["a", "b"]
         l_dump = pickle.dumps(l, -1)
         l_vars = [item_factory(value=x) for x in l]
-        self.assertTrue(isinstance(l_vars[0], EnumVariable))
-        self.assertTrue(isinstance(l_vars[1], EnumVariable))
 
         variable = ListVariable(item_factory)
 
