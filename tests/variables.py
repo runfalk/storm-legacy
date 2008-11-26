@@ -828,20 +828,28 @@ class PickleVariableTest(TestHelper):
 class ListVariableTest(TestHelper):
 
     def test_get_set(self):
-        l = [1, 2]
-        l_dump = pickle.dumps(l, -1)
+        # Enumeration variables are used as items so that database
+        # side and python side variables can be distinguished.
+        get_map = {1: "a", 2: "b", 3: "c"}
+        set_map = {"a": 1, "b": 2, "c": 3}
+        item_factory = VariableFactory(
+            EnumVariable, get_map=get_map, set_map=set_map)
 
-        variable = ListVariable(IntVariable)
+        l = ["a", "b"]
+        l_dump = pickle.dumps(l, -1)
+        l_vars = [item_factory(value=x) for x in l]
+        self.assertTrue(isinstance(l_vars[0], EnumVariable))
+        self.assertTrue(isinstance(l_vars[1], EnumVariable))
+
+        variable = ListVariable(item_factory)
 
         variable.set(l)
         self.assertEquals(variable.get(), l)
-        self.assertVariablesEqual(variable.get(to_db=True),
-                                  [IntVariable(1), IntVariable(2)])
+        self.assertVariablesEqual(variable.get(to_db=True), l_vars)
 
-        variable.set([1.1, 2.2], from_db=True)
+        variable.set([1, 2], from_db=True)
         self.assertEquals(variable.get(), l)
-        self.assertVariablesEqual(variable.get(to_db=True),
-                                  [IntVariable(1), IntVariable(2)])
+        self.assertVariablesEqual(variable.get(to_db=True), l_vars)
 
         self.assertEquals(variable.get_state(), (Undef, l_dump))
 
@@ -849,8 +857,8 @@ class ListVariableTest(TestHelper):
         variable.set_state((Undef, l_dump))
         self.assertEquals(variable.get(), l)
 
-        variable.get().append(3)
-        self.assertEquals(variable.get(), [1, 2, 3])
+        variable.get().append("c")
+        self.assertEquals(variable.get(), ["a", "b", "c"])
 
     def test_list_events(self):
         event = EventSystem(marker)
