@@ -21,4 +21,10 @@ check: build
 	# Run the tests once with cextensions and once without them.
 	$(TEST_COMMAND) && STORM_CEXTENSIONS=1 $(TEST_COMMAND)
 
+clean:
+	rm -rf build
+	find . -name "*.so" -type f -exec rm -f {} \;
+	find . -name "*.pyc" -type f -exec rm -f {} \;
+	find . -name "*~" -type f -exec rm -f {} \;
+
 .PHONY: all build test
