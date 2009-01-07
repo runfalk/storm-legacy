@@ -1204,7 +1204,7 @@ class ResultSet(object):
 
     def count(self, expr=Undef, distinct=False):
         """Get the number of objects represented by this ResultSet."""
-        if expr is Undef and self._distinct:
+        if expr is Undef and (self._distinct or self._limit is not Undef):
             subselect = self._get_select()
             select = Select(Count(), tables=Alias(subselect, "_tmp"))
             result = self._store._connection.execute(select)

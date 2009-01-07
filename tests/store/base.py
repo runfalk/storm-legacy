@@ -840,6 +840,12 @@ class StoreTest(object):
         count = self.store.find(Link).count(Link.foo_id, distinct=True)
         self.assertEquals(count, 3)
 
+    def test_find_limit_count(self):
+        result = self.store.find(Link.foo_id)
+        result.config(limit=2)
+        count = result.count()
+        self.assertEquals(count, 2)
+
     def test_find_distinct_count(self):
         result = self.store.find(Link.foo_id)
         result.config(distinct=True)
