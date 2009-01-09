@@ -21,6 +21,8 @@ Bug fixes
  - The Reference class now has an __ne__() method, so inequality
    checks against a reference now work in find expressions (bug
    #244768 reported by Stuart Bishop).
+ - Make ResultSet.count() handles the distinct, limit and offset flags, to
+   really reflect the length of the current ResultSet.
 
 
 0.13 (2008-08-28)
