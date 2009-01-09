@@ -869,6 +869,18 @@ class StoreTest(object):
         count = result.count()
         self.assertEquals(count, 6)
 
+    def test_find_count_column_with_implicit_distinct(self):
+        result = self.store.find(Link)
+        result.config(distinct=True)
+        count = result.count(Link.foo_id)
+        self.assertEquals(count, 3)
+
+    def test_find_count_multiple_columns_with_implicit_distinct(self):
+        result = self.store.find(Link)
+        result.config(distinct=True)
+        count = result.count((Link.foo_id, Link.bar_id))
+        self.assertEquals(count, 6)
+
     def test_find_max(self):
         self.assertEquals(self.store.find(Foo).max(Foo.id), 30)
 
@@ -5576,7 +5588,7 @@ class EmptyResultSetTest(object):
     def test_count(self):
         self.assertEquals(self.result.count(), 0)
         self.assertEquals(self.empty.count(), 0)
-        self.assertEquals(self.empty.count(column="abc"), 0)
+        self.assertEquals(self.empty.count(expr="abc"), 0)
         self.assertEquals(self.empty.count(distinct=True), 0)
 
     def test_max(self):
