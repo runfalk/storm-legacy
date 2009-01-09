@@ -1,4 +1,4 @@
-0.14 (2008-XX-XX)
+0.14 (2009-01-09)
 =================
 
 Improvements
@@ -23,6 +23,9 @@ Bug fixes
    #244768 reported by Stuart Bishop).
  - Make ResultSet.count() handles the distinct, limit and offset flags, to
    really reflect the length of the current ResultSet.
+ - The store doesn't iterate on all the alive objects anymore, using instead
+   events that objects can subscribe to. This improves performance drastically
+   when lots of objects are in the cache.
 
 
 0.13 (2008-08-28)
