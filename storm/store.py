@@ -1204,16 +1204,7 @@ class ResultSet(object):
 
     def count(self, expr=Undef, distinct=False):
         """Get the number of objects represented by this ResultSet."""
-        if (self._distinct or self._limit is not Undef or
-            self._offset is not Undef):
-            subselect = self._get_select()
-            if expr is not Undef:
-                subselect.columns = expr
-            select = Select(Count(), tables=Alias(subselect, "_tmp"))
-            result = self._store._connection.execute(select)
-            return int(result.get_one()[0])
-        else:
-            return int(self._aggregate(Count(expr, distinct)))
+        return int(self._aggregate(Count(expr, distinct)))
 
     def max(self, expr):
         """Get the highest value from an expression."""

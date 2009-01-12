@@ -1,3 +1,15 @@
+0.15 (2009-XX-XX)
+=================
+
+Improvements
+------------
+
+Bug fixes
+---------
+ - Revert management of distinct, offset and limit by the ResultSet.count()
+   method. It didn't handle some corner cases.
+
+
 0.14 (2009-01-09)
 =================
 
