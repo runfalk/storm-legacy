@@ -22,6 +22,10 @@ from datetime import datetime, date, time, timedelta
 from decimal import Decimal
 import cPickle as pickle
 import re
+try:
+    import uuid
+except ImportError:
+    uuid = None
 
 from storm.exceptions import NoneError
 from storm import Undef, has_cextensions
@@ -42,6 +46,7 @@ __all__ = [
     "TimeVariable",
     "TimeDeltaVariable",
     "EnumVariable",
+    "UUIDVariable",
     "PickleVariable",
     "ListVariable",
 ]
@@ -486,6 +491,24 @@ class TimeDeltaVariable(Variable):
             if not isinstance(value, timedelta):
                 raise TypeError("Expected timedelta, found %s" % repr(value))
             return value
+
+
+class UUIDVariable(Variable):
+    __slots__ = ()
+
+    def parse_set(self, value, from_db):
+        assert uuid is not None, "The uuid module was not found."
+        if from_db and isinstance(value, basestring):
+            value = uuid.UUID(value)
+        elif not isinstance(value, uuid.UUID):
+            raise TypeError("Expected UUID, found %r: %r"
+                            % (type(value), value))
+        return value
+
+    def parse_get(self, value, to_db):
+        if to_db:
+            return str(value)
+        return value
 
 
 class EnumVariable(Variable):
