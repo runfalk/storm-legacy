@@ -88,7 +88,8 @@ class DebugTracerTest(TestHelper):
 
     def setUp(self):
         super(DebugTracerTest, self).setUp()
-        self.tracer = DebugTracer()
+        self.stream = self.mocker.mock(file)
+        self.tracer = DebugTracer(self.stream)
 
         datetime_mock = self.mocker.replace("datetime.datetime")
         datetime_mock.now()
@@ -98,13 +99,26 @@ class DebugTracerTest(TestHelper):
         self.variable = MockVariable("PARAM")
 
     def tearDown(self):
-        super(DebugTracerTest, self).tearDown()
         del _tracers[:]
+        super(DebugTracerTest, self).tearDown()
+
+    def test_wb_debug_tracer_uses_stderr_by_default(self):
+        self.mocker.replay()
+
+        tracer = DebugTracer()
+        self.assertEqual(tracer._stream, sys.stderr)
+
+    def test_wb_debug_tracer_uses_first_arg_as_stream(self):
+        self.mocker.replay()
+
+        marker = object()
+        tracer = DebugTracer(marker)
+        self.assertEqual(tracer._stream, marker)
 
     def test_connection_raw_execute(self):
-        stderr = self.mocker.replace("sys.stderr")
-        stderr.write("[04:05:06.000007] EXECUTE: 'STATEMENT', ('PARAM',)\n")
-        stderr.flush()
+        self.stream.write(
+            "[04:05:06.000007] EXECUTE: 'STATEMENT', ('PARAM',)\n")
+        self.stream.flush()
         self.mocker.replay()
 
         connection = "CONNECTION"
@@ -116,9 +130,9 @@ class DebugTracerTest(TestHelper):
                                            statement, params)
 
     def test_connection_raw_execute_with_non_variable(self):
-        stderr = self.mocker.replace("sys.stderr")
-        stderr.write("[04:05:06.000007] EXECUTE: 'STATEMENT', ('PARAM', 1)\n")
-        stderr.flush()
+        self.stream.write(
+            "[04:05:06.000007] EXECUTE: 'STATEMENT', ('PARAM', 1)\n")
+        self.stream.flush()
         self.mocker.replay()
 
         connection = "CONNECTION"
@@ -130,9 +144,8 @@ class DebugTracerTest(TestHelper):
                                            statement, params)
 
     def test_connection_raw_execute_error(self):
-        stderr = self.mocker.replace("sys.stderr")
-        stderr.write("[04:05:06.000007] ERROR: ERROR\n")
-        stderr.flush()
+        self.stream.write("[04:05:06.000007] ERROR: ERROR\n")
+        self.stream.flush()
         self.mocker.replay()
 
         connection = "CONNECTION"
@@ -145,9 +158,8 @@ class DebugTracerTest(TestHelper):
                                                  statement, params, error)
 
     def test_connection_raw_execute_success(self):
-        stderr = self.mocker.replace("sys.stderr")
-        stderr.write("[04:05:06.000007] DONE\n")
-        stderr.flush()
+        self.stream.write("[04:05:06.000007] DONE\n")
+        self.stream.flush()
         self.mocker.replay()
 
         connection = "CONNECTION"
@@ -157,22 +169,6 @@ class DebugTracerTest(TestHelper):
 
         self.tracer.connection_raw_execute_success(connection, raw_cursor,
                                                    statement, params)
-
-    def test_custom_stream(self):
-        self.tracer = DebugTracer(sys.stdout)
-
-        stdout = self.mocker.replace("sys.stdout")
-        stdout.write("[04:05:06.000007] EXECUTE: 'STATEMENT', ('PARAM',)\n")
-        stdout.flush()
-        self.mocker.replay()
-
-        connection = "CONNECTION"
-        raw_cursor = "RAW_CURSOR"
-        statement = "STATEMENT"
-        params = [self.variable]
-
-        self.tracer.connection_raw_execute(connection, raw_cursor,
-                                           statement, params)
 
 
 class TimeoutTracerTestBase(TestHelper):
