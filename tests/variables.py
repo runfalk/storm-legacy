@@ -801,6 +801,12 @@ class UUIDVariableTest(TestHelper):
         variable.set(u"0609f76b-878f-4546-baf5-c1b135e8de72", from_db=True)
         self.assertEquals(variable.get(), value)
 
+        # Some other representations for UUID values.
+        variable.set("{0609f76b-878f-4546-baf5-c1b135e8de72}", from_db=True)
+        self.assertEquals(variable.get(), value)
+        variable.set("0609f76b878f4546baf5c1b135e8de72", from_db=True)
+        self.assertEquals(variable.get(), value)
+
 
 class PickleVariableTest(TestHelper):
 

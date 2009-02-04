@@ -21,6 +21,10 @@
 from datetime import datetime, date, time, timedelta
 from decimal import Decimal as decimal
 import gc
+try:
+    import uuid
+except ImportError:
+    uuid = None
 
 from storm.exceptions import NoneError, PropertyPathError
 from storm.properties import PropertyPublisherMeta
@@ -549,6 +553,37 @@ class PropertyKindsTest(TestHelper):
                           timedelta(days=42, seconds=42, microseconds=42))
 
         self.assertRaises(TypeError, setattr, self.obj, "prop1", object())
+
+    def test_uuid(self):
+        # Skip test if uuid module is not available.
+        if uuid is None:
+            return
+
+        value1 = uuid.UUID("{0609f76b-878f-4546-baf5-c1b135e8de72}")
+        value2 = uuid.UUID("{c9703f9d-0abb-47d7-a793-8f90f1b98d5e}")
+        self.setup(UUID, default=value1, allow_none=False)
+
+        self.assertTrue(isinstance(self.column1, Column))
+        self.assertTrue(isinstance(self.column2, Column))
+        self.assertEquals(self.column1.name, "column1")
+        self.assertEquals(self.column1.table, self.SubClass)
+        self.assertEquals(self.column2.name, "prop2")
+        self.assertEquals(self.column2.table, self.SubClass)
+        self.assertTrue(isinstance(self.variable1, UUIDVariable))
+        self.assertTrue(isinstance(self.variable2, UUIDVariable))
+
+        self.assertEquals(self.obj.prop1, value1)
+        self.assertRaises(NoneError, setattr, self.obj, "prop1", None)
+        self.obj.prop2 = None
+        self.assertEquals(self.obj.prop2, None)
+
+        self.obj.prop1 = value1
+        self.assertEquals(self.obj.prop1, value1)
+        self.obj.prop1 = value2
+        self.assertEquals(self.obj.prop1, value2)
+
+        self.assertRaises(TypeError, setattr, self.obj, "prop1",
+                          "{0609f76b-878f-4546-baf5-c1b135e8de72}")
 
     def test_enum(self):
         self.setup(Enum, map={"foo": 1, "bar": 2},

@@ -28,15 +28,15 @@ from storm.expr import Column, Undef
 from storm.variables import (
     Variable, VariableFactory, BoolVariable, IntVariable, FloatVariable,
     DecimalVariable, RawStrVariable, UnicodeVariable, DateTimeVariable,
-    DateVariable, TimeVariable, TimeDeltaVariable, PickleVariable,
-    ListVariable, EnumVariable)
+    DateVariable, TimeVariable, TimeDeltaVariable, UUIDVariable,
+    PickleVariable, ListVariable, EnumVariable)
 
 
 
 __all__ = ["Property", "SimpleProperty",
            "Bool", "Int", "Float", "Decimal", "RawStr", "Unicode",
-           "DateTime", "Date", "Time", "TimeDelta", "Enum", "Pickle", "List",
-           "PropertyRegistry"]
+           "DateTime", "Date", "Time", "TimeDelta", "UUID", "Enum",
+           "Pickle", "List", "PropertyRegistry"]
 
 
 class Property(object):
@@ -165,6 +165,9 @@ class Time(SimpleProperty):
 
 class TimeDelta(SimpleProperty):
     variable_class = TimeDeltaVariable
+
+class UUID(SimpleProperty):
+    variable_class = UUIDVariable
 
 class Pickle(SimpleProperty):
     variable_class = PickleVariable
