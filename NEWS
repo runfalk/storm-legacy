@@ -8,6 +8,7 @@ Bug fixes
 ---------
  - Revert management of distinct, offset and limit by the ResultSet.count()
    method. It didn't handle some corner cases.
+ - The test suite now passes when run with Python 2.6.
 
 
 0.14 (2009-01-09)
