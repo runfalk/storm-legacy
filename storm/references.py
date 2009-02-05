@@ -18,6 +18,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+from storm import Undef
 from storm.exceptions import WrongStoreError, NoStoreError, ClassInfoError
 from storm.store import Store, get_where_for_args
 from storm.variables import LazyValue
@@ -524,7 +525,7 @@ class Relation(object):
         """Return true if all variables of the local key have None values."""
         local_info = get_obj_info(local)
         for column in self._get_local_columns(local.__class__):
-            if local_info.variables[column].get() is not None:
+            if local_info.variables[column].get(Undef) is not None:
                 return False
         return True
 
