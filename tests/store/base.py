@@ -3130,6 +3130,18 @@ class StoreTest(object):
         self.store.remove(bar)
         self.assertEquals(foo.bar, None)
 
+    def test_back_reference_on_pending_add(self):
+        ref1 = SelfRef()
+        ref2 = SelfRef()
+        self.store.add(ref1)
+        self.store.add(ref2)
+
+        ref1.selfref = ref2
+        # ref2 has not been added to the database yet, but is linked
+        # to ref1.
+        self.assertEqual(ref2.id, None)
+        self.assertEqual(ref2.selfref_on_remote, ref1)
+
     def test_reference_loop_with_undefined_keys_fails(self):
         """A loop of references with undefined keys raises OrderLoopError."""
         ref1 = SelfRef()
