@@ -21,6 +21,8 @@
 from datetime import datetime, date, time, timedelta
 from decimal import Decimal
 import cPickle as pickle
+import gc
+import weakref
 
 from storm.exceptions import NoneError
 from storm.variables import *
@@ -90,6 +92,18 @@ class VariableTest(TestHelper):
         self.assertEquals(variable.sets, [(marker, False)])
         variable.set(marker, from_db=True)
         self.assertEquals(variable.sets, [(marker, False), (marker, True)])
+
+    def test_set_leak(self):
+        """When a variable is checkpointed, the value must not leak."""
+        variable = Variable()
+        m = Marker()
+        m_ref = weakref.ref(m)
+        variable.set(m)
+        variable.checkpoint()
+        variable.set(LazyValue())
+        del m
+        gc.collect()
+        self.assertIdentical(m_ref(), None)
 
     def test_get(self):
         variable = CustomVariable()
