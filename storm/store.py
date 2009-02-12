@@ -1283,11 +1283,15 @@ class ResultSet(object):
 
         # For now only "Class.attr == var" is supported in args.
         for expr in args:
-            if (not isinstance(expr, Eq) or
-                not isinstance(expr.expr1, Column) or
-                not isinstance(expr.expr2, (Column, Variable))):
+            if not isinstance(expr, Eq):
                 raise FeatureError("Unsupported set expression: %r" %
                                    repr(expr))
+            elif not isinstance(expr.expr1, Column):
+                raise FeatureError("Unsupported left operand in set "
+                                   "expression: %r" % repr(expr.expr1))
+            elif not isinstance(expr.expr2, (Expr, Variable)):
+                raise FeatureError("Unsupported right operand in set "
+                                   "expression: %r" % repr(expr.expr2))
             changes[expr.expr1] = expr.expr2
 
         for key, value in kwargs.items():
@@ -1295,9 +1299,6 @@ class ResultSet(object):
             if value is None:
                 changes[column] = None
             elif isinstance(value, Expr):
-                if not isinstance(value, Column):
-                    raise FeatureError("Unsupported set expression: %r" %
-                                       repr(value))
                 changes[column] = value
             else:
                 changes[column] = column.variable_factory(value=value)
@@ -1309,9 +1310,14 @@ class ResultSet(object):
         try:
             cached = self.cached()
         except CompileError:
+            # We are iterating through all objects in memory here, so
+            # check if the object type matches to avoid trying to
+            # invalidate a column that does not exist, on an unrelated
+            # object.
             for obj_info in self._store._iter_alive():
-                for column in changes:
-                    obj_info.variables[column].set(AutoReload)
+                if obj_info.cls_info is self._find_spec.default_cls_info:
+                    for column in changes:
+                        obj_info.variables[column].set(AutoReload)
         else:
             changes = changes.items()
             for obj in cached:
@@ -1321,6 +1327,12 @@ class ResultSet(object):
                         pass
                     elif isinstance(value, Variable):
                         value = value.get()
+                    elif isinstance(value, Expr):
+                        # If the value is an Expression that means we
+                        # can't compute it by ourselves: we rely on
+                        # the database to compute it, so just set the
+                        # column to AutoReload.
+                        variables[column].set(AutoReload)
                     else:
                         value = variables[value].get()
                     variables[column].set(value)
