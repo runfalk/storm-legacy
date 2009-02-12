@@ -1331,8 +1331,8 @@ class ResultSet(object):
                         # If the value is an Expression that means we
                         # can't compute it by ourselves: we rely on
                         # the database to compute it, so just set the
-                        # column to AutoReload.
-                        variables[column].set(AutoReload)
+                        # value to AutoReload.
+                        value = AutoReload
                     else:
                         value = variables[value].get()
                     variables[column].set(value)

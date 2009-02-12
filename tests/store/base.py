@@ -2417,19 +2417,21 @@ class StoreTest(object):
         self.assertEquals(bar1.title, "Title 400")
 
     def test_find_set_func_autoreloads(self):
-        foo1 = self.store.get(Foo, 20)
-        self.store.find(Foo, title=u"Title 20").set(title=Lower(u"Title 40"))
+        foo1 = self.store.get(FooValue, 1)
+        self.assertEquals(foo1.value1, 2)
+        self.store.find(FooValue, id=1).set(value1=SQL("value1 + 1"))
         foo1_vars = get_obj_info(foo1).variables
-        self.assertEquals(foo1_vars[Foo.title].get_lazy(), AutoReload)
-        self.assertEquals(foo1.title, "title 40")
+        self.assertEquals(foo1_vars[FooValue.value1].get_lazy(), AutoReload)
+        self.assertEquals(foo1.value1, 3)
 
     def test_find_set_func_equality_autoreloads(self):
-        foo1 = self.store.get(Foo, 20)
-        self.store.find(Foo, title=u"Title 20").set(
-            Foo.title == Lower(u"Title 40"))
+        foo1 = self.store.get(FooValue, 1)
+        self.assertEquals(foo1.value1, 2)
+        self.store.find(FooValue, id=1).set(
+            FooValue.value1 == SQL("value1 + 1"))
         foo1_vars = get_obj_info(foo1).variables
-        self.assertEquals(foo1_vars[Foo.title].get_lazy(), AutoReload)
-        self.assertEquals(foo1.title, "title 40")
+        self.assertEquals(foo1_vars[FooValue.value1].get_lazy(), AutoReload)
+        self.assertEquals(foo1.value1, 3)
 
     def test_wb_find_set_checkpoints(self):
         bar = self.store.get(Bar, 200)
