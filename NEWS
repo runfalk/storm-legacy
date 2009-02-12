@@ -4,6 +4,8 @@
 Improvements
 ------------
 
+- Added support for using Expressions with ResultSet.set().
+
 Bug fixes
 ---------
  - Revert management of distinct, offset and limit by the ResultSet.count()
