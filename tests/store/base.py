@@ -2321,12 +2321,12 @@ class StoreTest(object):
         foo = self.store.get(Foo, 20)
         self.assertEquals(foo.title, "Title 40")
 
-    def test_find_set_func(self):
+    def test_find_set_with_func_expr(self):
         self.store.find(Foo, title=u"Title 20").set(title=Lower(u"Title 40"))
         foo = self.store.get(Foo, 20)
         self.assertEquals(foo.title, "title 40")
 
-    def test_find_set_func_equality(self):
+    def test_find_set_equality_with_func_expr(self):
         self.store.find(Foo, title=u"Title 20").set(
             Foo.title == Lower(u"Title 40"))
         foo = self.store.get(Foo, 20)
@@ -2391,6 +2391,15 @@ class StoreTest(object):
         result = self.store.find(Foo, title=u"Title 20")
         self.assertRaises(FeatureError, result.set, Foo.title > u"Title 40")
 
+    def test_find_set_expr_unsupported_without_column(self):
+        result = self.store.find(Foo, title=u"Title 20")
+        self.assertRaises(FeatureError, result.set,
+                          Eq(object(), IntVariable(1)))
+
+    def test_find_set_expr_unsupported_without_expr_or_variable(self):
+        result = self.store.find(Foo, title=u"Title 20")
+        self.assertRaises(FeatureError, result.set, Eq(Foo.id, object()))
+
     def test_find_set_expr_unsupported_autoreloads(self):
         bar1 = self.store.get(Bar, 200)
         bar2 = self.store.get(Bar, 300)
@@ -2405,6 +2414,12 @@ class StoreTest(object):
         self.assertEquals(bar2.title, "Title 100")
 
     def test_find_set_expr_unsupported_mixed_autoreloads(self):
+        # For an expression that does not compile (eg:
+        # ResultSet.cached() raises a CompileError), while setting
+        # cached entries' columns to AutoReload, if objects of
+        # different types could be found in the cache then a KeyError
+        # would happen if some object did not have a matching
+        # column. See Bug #328603 for more info.
         foo1 = self.store.get(Foo, 20)
         bar1 = self.store.get(Bar, 200)
         self.store.find(Bar, id=Select(SQL("200"))).set(title=u"Title 400")
@@ -2416,7 +2431,13 @@ class StoreTest(object):
         self.assertEquals(foo1.title, "Title 20")
         self.assertEquals(bar1.title, "Title 400")
 
-    def test_find_set_func_autoreloads(self):
+    def test_find_set_autoreloads_with_func_expr(self):
+        # In the process of fixing this bug, we've temporarily
+        # introduced another bug: the expression would be called
+        # twice. We've used an expression that increments the value by
+        # one here to see if that case is triggered. In the buggy
+        # bugfix, the value would end up being incremented by two due
+        # to misfiring two updates.
         foo1 = self.store.get(FooValue, 1)
         self.assertEquals(foo1.value1, 2)
         self.store.find(FooValue, id=1).set(value1=SQL("value1 + 1"))
@@ -2424,7 +2445,7 @@ class StoreTest(object):
         self.assertEquals(foo1_vars[FooValue.value1].get_lazy(), AutoReload)
         self.assertEquals(foo1.value1, 3)
 
-    def test_find_set_func_equality_autoreloads(self):
+    def test_find_set_equality_autoreloads_with_func_expr(self):
         foo1 = self.store.get(FooValue, 1)
         self.assertEquals(foo1.value1, 2)
         self.store.find(FooValue, id=1).set(
