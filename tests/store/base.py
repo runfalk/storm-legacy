@@ -30,7 +30,8 @@ from storm.properties import Int, Float, RawStr, Unicode, Property, Pickle
 from storm.properties import PropertyPublisherMeta, Decimal
 from storm.variables import PickleVariable
 from storm.expr import (
-    Asc, Desc, Select, Func, LeftJoin, SQL, Count, Sum, Avg, And, Or, Eq)
+    Asc, Desc, Select, Func, LeftJoin, SQL, Count, Sum, Avg, And, Or, Eq,
+    Lower)
 from storm.variables import Variable, UnicodeVariable, IntVariable
 from storm.info import get_obj_info, ClassAlias
 from storm.exceptions import *
@@ -2320,6 +2321,17 @@ class StoreTest(object):
         foo = self.store.get(Foo, 20)
         self.assertEquals(foo.title, "Title 40")
 
+    def test_find_set_with_func_expr(self):
+        self.store.find(Foo, title=u"Title 20").set(title=Lower(u"Title 40"))
+        foo = self.store.get(Foo, 20)
+        self.assertEquals(foo.title, "title 40")
+
+    def test_find_set_equality_with_func_expr(self):
+        self.store.find(Foo, title=u"Title 20").set(
+            Foo.title == Lower(u"Title 40"))
+        foo = self.store.get(Foo, 20)
+        self.assertEquals(foo.title, "title 40")
+
     def test_find_set_column(self):
         self.store.find(Bar, title=u"Title 200").set(foo_id=Bar.id)
         bar = self.store.get(Bar, 200)
@@ -2370,7 +2382,8 @@ class StoreTest(object):
     def test_find_set_on_cached_unsupported_python_expr(self):
         foo1 = self.store.get(Foo, 20)
         foo2 = self.store.get(Foo, 30)
-        self.store.find(Foo, Foo.id == Select(SQL("20"))).set(title=u"Title 40")
+        self.store.find(
+            Foo, Foo.id == Select(SQL("20"))).set(title=u"Title 40")
         self.assertEquals(foo1.title, "Title 40")
         self.assertEquals(foo2.title, "Title 10")
 
@@ -2378,9 +2391,14 @@ class StoreTest(object):
         result = self.store.find(Foo, title=u"Title 20")
         self.assertRaises(FeatureError, result.set, Foo.title > u"Title 40")
 
-    def test_find_set_expr_unsupported_2(self):
+    def test_find_set_expr_unsupported_without_column(self):
         result = self.store.find(Foo, title=u"Title 20")
-        self.assertRaises(FeatureError, result.set, Foo.title == Func("func"))
+        self.assertRaises(FeatureError, result.set,
+                          Eq(object(), IntVariable(1)))
+
+    def test_find_set_expr_unsupported_without_expr_or_variable(self):
+        result = self.store.find(Foo, title=u"Title 20")
+        self.assertRaises(FeatureError, result.set, Eq(Foo.id, object()))
 
     def test_find_set_expr_unsupported_autoreloads(self):
         bar1 = self.store.get(Bar, 200)
@@ -2394,6 +2412,47 @@ class StoreTest(object):
         self.assertEquals(bar2_vars[Bar.foo_id].get_lazy(), None)
         self.assertEquals(bar1.title, "Title 400")
         self.assertEquals(bar2.title, "Title 100")
+
+    def test_find_set_expr_unsupported_mixed_autoreloads(self):
+        # For an expression that does not compile (eg:
+        # ResultSet.cached() raises a CompileError), while setting
+        # cached entries' columns to AutoReload, if objects of
+        # different types could be found in the cache then a KeyError
+        # would happen if some object did not have a matching
+        # column. See Bug #328603 for more info.
+        foo1 = self.store.get(Foo, 20)
+        bar1 = self.store.get(Bar, 200)
+        self.store.find(Bar, id=Select(SQL("200"))).set(title=u"Title 400")
+        foo1_vars = get_obj_info(foo1).variables
+        bar1_vars = get_obj_info(bar1).variables
+        self.assertNotEquals(foo1_vars[Foo.title].get_lazy(), AutoReload)
+        self.assertEquals(bar1_vars[Bar.title].get_lazy(), AutoReload)
+        self.assertEquals(bar1_vars[Bar.foo_id].get_lazy(), None)
+        self.assertEquals(foo1.title, "Title 20")
+        self.assertEquals(bar1.title, "Title 400")
+
+    def test_find_set_autoreloads_with_func_expr(self):
+        # In the process of fixing this bug, we've temporarily
+        # introduced another bug: the expression would be called
+        # twice. We've used an expression that increments the value by
+        # one here to see if that case is triggered. In the buggy
+        # bugfix, the value would end up being incremented by two due
+        # to misfiring two updates.
+        foo1 = self.store.get(FooValue, 1)
+        self.assertEquals(foo1.value1, 2)
+        self.store.find(FooValue, id=1).set(value1=SQL("value1 + 1"))
+        foo1_vars = get_obj_info(foo1).variables
+        self.assertEquals(foo1_vars[FooValue.value1].get_lazy(), AutoReload)
+        self.assertEquals(foo1.value1, 3)
+
+    def test_find_set_equality_autoreloads_with_func_expr(self):
+        foo1 = self.store.get(FooValue, 1)
+        self.assertEquals(foo1.value1, 2)
+        self.store.find(FooValue, id=1).set(
+            FooValue.value1 == SQL("value1 + 1"))
+        foo1_vars = get_obj_info(foo1).variables
+        self.assertEquals(foo1_vars[FooValue.value1].get_lazy(), AutoReload)
+        self.assertEquals(foo1.value1, 3)
 
     def test_wb_find_set_checkpoints(self):
         bar = self.store.get(Bar, 200)
