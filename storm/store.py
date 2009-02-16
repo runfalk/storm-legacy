@@ -67,7 +67,7 @@ class Store(object):
         """
         @param database: The L{storm.database.Database} instance to use.
         @param cache: The cache to use.  Defaults to a L{Cache} storing up to
-            100 objects at any given time.
+            1000 objects at any given time.
         """
         self._event = EventSystem(self)
         self._connection = database.connect(self._event)

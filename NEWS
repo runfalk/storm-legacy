@@ -3,8 +3,12 @@
 
 Improvements
 ------------
-
-- Added support for using Expressions with ResultSet.set().
+ - Added support for using Expressions with ResultSet.set().
+ - The default cache size was changed from 100 to 1000 objects.
+ - Added the new GenerationalCache with a faster implementation of
+   the caching API (by Jeroen Vermeulen).  This will likely become
+   the default implementation in the future, so please test it if
+   possible.
 
 Bug fixes
 ---------
