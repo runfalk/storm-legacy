@@ -524,7 +524,10 @@ class Relation(object):
         """Return true if all variables of the local key have None values."""
         local_info = get_obj_info(local)
         for column in self._get_local_columns(local.__class__):
-            if local_info.variables[column].get() is not None:
+            variable = local_info.variables[column]
+            if not variable.is_defined():
+                Store.of(local).flush()
+            if variable.get() is not None:
                 return False
         return True
 
