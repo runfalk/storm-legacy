@@ -2989,6 +2989,18 @@ class StoreTest(object):
         # Bypass the store to prevent flushing.
         self.assertEquals(self.get_bar_200_title(), "Title 200")
 
+    def test_reference_wont_touch_store_when_key_is_unset(self):
+        bar = self.store.get(Bar, 200)
+        del bar.foo_id
+        bar.title = u"Don't flush this!"
+
+        self.assertEquals(bar.foo, None)
+
+        # Bypass the store to prevent flushing.
+        connection = self.store._connection
+        result = connection.execute("SELECT title FROM bar WHERE id=200")
+        self.assertEquals(result.get_one()[0], "Title 200")
+
     def test_reference_wont_touch_store_with_composed_key_none(self):
         class Bar(object):
             __storm_table__ = "bar"
@@ -3176,18 +3188,6 @@ class StoreTest(object):
         self.assertEquals(foo.bar, bar)
         self.store.remove(bar)
         self.assertEquals(foo.bar, None)
-
-    def test_back_reference_on_pending_add(self):
-        ref1 = SelfRef()
-        ref2 = SelfRef()
-        self.store.add(ref1)
-        self.store.add(ref2)
-
-        ref1.selfref = ref2
-        # ref2 has not been added to the database yet, but is linked
-        # to ref1.
-        self.assertEqual(ref2.id, None)
-        self.assertEqual(ref2.selfref_on_remote, ref1)
 
     def test_reference_loop_with_undefined_keys_fails(self):
         """A loop of references with undefined keys raises OrderLoopError."""
