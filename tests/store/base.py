@@ -2930,18 +2930,6 @@ class StoreTest(object):
         # Bypass the store to prevent flushing.
         self.assertEquals(self.get_bar_200_title(), "Title 200")
 
-    def test_reference_wont_touch_store_when_key_is_unset(self):
-        bar = self.store.get(Bar, 200)
-        del bar.foo_id
-        bar.title = u"Don't flush this!"
-
-        self.assertEquals(bar.foo, None)
-
-        # Bypass the store to prevent flushing.
-        connection = self.store._connection
-        result = connection.execute("SELECT title FROM bar WHERE id=200")
-        self.assertEquals(result.get_one()[0], "Title 200")
-
     def test_reference_wont_touch_store_with_composed_key_none(self):
         class Bar(object):
             __storm_table__ = "bar"
