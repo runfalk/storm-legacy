@@ -9,6 +9,8 @@ Improvements
    the caching API (by Jeroen Vermeulen).  This will likely become
    the default implementation in the future, so please test it if
    possible.
+ - A new UUID property type has been added.  It depends on the uuid
+   module introduced in Python 2.5 to represent values.
 
 Bug fixes
 ---------

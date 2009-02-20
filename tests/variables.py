@@ -23,6 +23,10 @@ from decimal import Decimal
 import cPickle as pickle
 import gc
 import weakref
+try:
+    import uuid
+except ImportError:
+    uuid = None
 
 from storm.exceptions import NoneError
 from storm.variables import *
@@ -775,6 +779,47 @@ class ParseIntervalTest(TestHelper):
                                       "'day' in interval 'day'")
         else:
             self.fail("ValueError not raised")
+
+
+class UUIDVariableTest(TestHelper):
+
+    def is_supported(self):
+        return uuid is not None
+
+    def test_get_set(self):
+        value = uuid.UUID("{0609f76b-878f-4546-baf5-c1b135e8de72}")
+
+        variable = UUIDVariable()
+
+        variable.set(value)
+        self.assertEquals(variable.get(), value)
+        self.assertEquals(
+            variable.get(to_db=True), "0609f76b-878f-4546-baf5-c1b135e8de72")
+
+        self.assertRaises(TypeError, variable.set, marker)
+        self.assertRaises(TypeError, variable.set,
+                          "0609f76b-878f-4546-baf5-c1b135e8de72")
+        self.assertRaises(TypeError, variable.set,
+                          u"0609f76b-878f-4546-baf5-c1b135e8de72")
+
+    def test_get_set_from_database(self):
+        value = uuid.UUID("{0609f76b-878f-4546-baf5-c1b135e8de72}")
+
+        variable = UUIDVariable()
+
+        # Strings and UUID objects are accepted from the database.
+        variable.set(value, from_db=True)
+        self.assertEquals(variable.get(), value)
+        variable.set("0609f76b-878f-4546-baf5-c1b135e8de72", from_db=True)
+        self.assertEquals(variable.get(), value)
+        variable.set(u"0609f76b-878f-4546-baf5-c1b135e8de72", from_db=True)
+        self.assertEquals(variable.get(), value)
+
+        # Some other representations for UUID values.
+        variable.set("{0609f76b-878f-4546-baf5-c1b135e8de72}", from_db=True)
+        self.assertEquals(variable.get(), value)
+        variable.set("0609f76b878f4546baf5c1b135e8de72", from_db=True)
+        self.assertEquals(variable.get(), value)
 
 
 class PickleVariableTest(TestHelper):
