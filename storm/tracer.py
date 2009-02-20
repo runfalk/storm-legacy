@@ -8,7 +8,9 @@ from storm.expr import Variable
 class DebugTracer(object):
 
     def __init__(self, stream=None):
-        self._stream = stream or sys.stderr
+        if stream is None:
+            stream = sys.stderr
+        self._stream = stream
 
     def connection_raw_execute(self, connection, raw_cursor, statement, params):
         time = datetime.now().isoformat()[11:]

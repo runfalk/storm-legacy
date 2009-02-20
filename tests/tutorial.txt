@@ -83,7 +83,7 @@ store we've created above.
 
 {{{#!python
 >>> store.add(joe)
-<Person object at 0x...>
+<...Person object at 0x...>
 
 >>> print "%r, %r" % (joe.id, joe.name)
 None, u'Joe Johnes'
@@ -166,7 +166,7 @@ Flushes may also happen explicitly.
 >>> mary = Person()
 >>> mary.name = u"Mary Margaret"
 >>> store.add(mary)
-<Person object at 0x...>
+<...Person object at 0x...>
 
 >>> print "%r, %r" % (mary.id, mary.name)
 None, u'Mary Margaret'
@@ -539,7 +539,7 @@ we can check it if we're really curious.
 
 {{{#!python
 >>> store.get(CompanyAccountant, (sweets.id, frank.id))
-<CompanyAccountant object at 0x...>
+<...CompanyAccountant object at 0x...>
 
 }}}
 
@@ -618,7 +618,7 @@ company.  We can use a sub-select to get the data we want.
 {{{#!python
 >>> laura = Accountant(u"Laura Montgomery")
 >>> store.add(laura)
-<Accountant ...>
+<...Accountant ...>
 
 >>> subselect = Select(CompanyAccountant.accountant_id, distinct=True)
 >>> result = store.find(Accountant, Not(Accountant.id.is_in(subselect)))
@@ -897,11 +897,11 @@ custom stream may also be used.
 >>> list(result)
 [...] EXECUTE: u'SELECT employee.company_id, employee.id, employee.name, "...".company_id, "...".id, "...".name FROM employee, employee AS "..." WHERE employee.company_id = "...".company_id AND employee.id > "...".id', ()
 [...] DONE
-[(<Employee object at ...>, <Employee object at ...>)]
+[(<...Employee object at ...>, <...Employee object at ...>)]
 
 >>> debug(False)
 >>> list(result)
-[(<Employee object at ...>, <Employee object at ...>)]
+[(<...Employee object at ...>, <...Employee object at ...>)]
 
 }}}
 
