@@ -561,7 +561,8 @@ class MutableValueVariable(Variable):
         self._event_system = None
 
     def _detect_changes(self, obj_info):
-        if self.get_state() != self._checkpoint_state:
+        if (self._checkpoint_state is not Undef and
+            self.get_state() != self._checkpoint_state):
             self.event.emit("changed", self, None, self._value, False)
 
     def get(self, default=None, to_db=False):

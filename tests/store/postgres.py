@@ -23,11 +23,10 @@ import gc
 
 from storm.database import create_database
 from storm.properties import Int, List
+from storm.info import get_obj_info
 
 from tests.store.base import StoreTest, EmptyResultSetTest, Foo
 from tests.helper import TestHelper
-
-from tests.helper import run_this
 
 
 class Lst1(object):
@@ -162,6 +161,25 @@ class PostgresStoreTest(TestHelper, StoreTest):
         foo2 = self.store.add(Foo())
         self.store.flush()
         self.assertEquals(foo2.id-foo1.id, 1)
+
+    def test_list_unnecessary_update(self):
+        """
+        Flushing an object with a list variable doesn't create an unnecessary
+        UPDATE statement.
+        """
+        self.store.execute("INSERT INTO lst1 VALUES (1, '{}')", noresult=True)
+
+        lst = self.store.find(Lst1, id=1).one()
+        self.assertTrue(lst)
+        self.store.invalidate()
+
+        lst2 = self.store.find(Lst1, id=1).one()
+        self.assertTrue(lst2)
+        obj_info = get_obj_info(lst2)
+        events = []
+        obj_info.event.hook("changed", lambda *args: events.append(args))
+        self.store.flush()
+        self.assertEquals(events, [])
 
 
 class PostgresEmptyResultSetTest(TestHelper, EmptyResultSetTest):
