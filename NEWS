@@ -20,6 +20,8 @@ Bug fixes
  - Revert management of distinct, offset and limit by the ResultSet.count()
    method. It didn't handle some corner cases.
  - The test suite now passes when run with Python 2.6.
+ - ListVariable now converts its elements to database representation
+   correctly (bug #136806 reported by Marc Tardif).
 
 
 0.14 (2009-01-09)
