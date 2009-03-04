@@ -5524,6 +5524,9 @@ class EmptyResultSetTest(object):
         self.drop_tables()
         self.create_tables()
         self.create_store()
+        # Most of the tests here exercise the same functionality using
+        # self.empty and self.result to ensure that EmptyResultSet and
+        # ResultSet behave the same way, in the same situations.
         self.empty = EmptyResultSet()
         self.result = self.store.find(Foo)
 
@@ -5640,6 +5643,19 @@ class EmptyResultSetTest(object):
     def test_sum(self):
         self.assertEquals(self.result.sum(Foo.id), None)
         self.assertEquals(self.empty.sum(Foo.id), None)
+
+    def test_select_no_columns(self):
+        self.assertRaises(FeatureError, self.result.select)
+        self.assertRaises(FeatureError, self.empty.select)
+
+    def test_select(self):
+        result1 = self.result.select(Foo.id)
+        result2 = self.store.find(Foo, Foo.id.is_in(result1))
+        self.assertEquals(list(result2), [])
+
+        result1 = self.empty.select(Foo.id)
+        result2 = self.store.find(Foo, Foo.id.is_in(result1))
+        self.assertEquals(list(result2), [])
 
     def test_values_no_columns(self):
         self.assertRaises(FeatureError, list, self.result.values())

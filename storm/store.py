@@ -1498,6 +1498,13 @@ class EmptyResultSet(object):
     def sum(self, column):
         return None
 
+    def select(self, *columns):
+        if not columns:
+            raise FeatureError("select() takes at least one column "
+                               "as argument")
+        select = self._get_select()
+        return select
+
     def values(self, *columns):
         if not columns:
             raise FeatureError("values() takes at least one column "
