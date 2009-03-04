@@ -11,6 +11,9 @@ Improvements
    possible.
  - A new UUID property type has been added.  It depends on the uuid
    module introduced in Python 2.5 to represent values.
+ - The StoreDataManager now gets passed a transaction manager from the
+   ZStorm utility.  This will make it easier to support non-default
+   transaction managers in the future.
 
 Bug fixes
 ---------
