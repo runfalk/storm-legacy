@@ -1237,6 +1237,8 @@ class ResultSet(object):
         if not columns:
             raise FeatureError("select() takes at least one column "
                                "as argument")
+        if self._select is not Undef:
+            raise FeatureError("select() can't be used with set expressions")
         select = self._get_select()
         select.columns = columns
         return select
@@ -1254,6 +1256,8 @@ class ResultSet(object):
         if not columns:
             raise FeatureError("values() takes at least one column "
                                "as argument")
+        if self._select is not Undef:
+            raise FeatureError("values() can't be used with set expressions")
         select = self._get_select()
         select.columns = columns
         result = self._store._connection.execute(select)

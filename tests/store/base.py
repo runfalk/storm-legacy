@@ -902,6 +902,14 @@ class StoreTest(object):
         result2 = self.store.find(Foo, Foo.id.is_in(result1.select(Foo.id)))
         self.assertEquals(list(result2), [foo])
 
+    def test_find_select_with_set_expression(self):
+        foo1 = self.store.get(Foo, 10)
+        foo2 = self.store.get(Foo, 20)
+        result1 = self.store.find(Foo, Foo.id == 10)
+        result2 = self.store.find(Foo, Foo.id == 20)
+        result3 = result1.union(result2)
+        self.assertRaises(FeatureError, result3.select, Foo.id)
+
     def test_find_values(self):
         values = self.store.find(Foo).order_by(Foo.id).values(Foo.id)
         self.assertEquals(list(values), [10, 20, 30])
@@ -927,6 +935,14 @@ class StoreTest(object):
     def test_find_slice_values(self):
         values = self.store.find(Foo).order_by(Foo.id)[1:2].values(Foo.id)
         self.assertEquals(list(values), [20])
+
+    def test_find_values_with_set_expression(self):
+        foo1 = self.store.get(Foo, 10)
+        foo2 = self.store.get(Foo, 20)
+        result1 = self.store.find(Foo, Foo.id == 10)
+        result2 = self.store.find(Foo, Foo.id == 20)
+        result3 = result1.union(result2)
+        self.assertRaises(FeatureError, list, result3.values(Foo.id))
 
     def test_find_remove(self):
         self.store.find(Foo, Foo.id == 20).remove()
