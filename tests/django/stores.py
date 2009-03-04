@@ -26,7 +26,6 @@ try:
     from django.core.exceptions import ImproperlyConfigured
     import transaction
 except ImportError:
-    import traceback; traceback.print_exc()
     have_django_and_transaction = False
 else:
     have_django_and_transaction = True

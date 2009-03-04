@@ -814,6 +814,7 @@ Variable_set(VariableObject *self, PyObject *args, PyObject *kwargs)
         Py_INCREF(Undef);
         Py_INCREF(Undef);
         new_value = Undef;
+        Py_DECREF(self->_checkpoint_state);
         self->_checkpoint_state = Undef;
     }
     /* else: */

@@ -117,7 +117,7 @@ def test_with_unittest():
 
     if opts.verbose:
         runner.verbosity = 2
- 
+
     loader = unittest.TestLoader()
 
     unittests, doctests = find_tests(args)
@@ -131,40 +131,41 @@ def test_with_unittest():
             self.total_tests += tests
             self.total_failures += failures
             self.total_errors += errors
-            print "(tests=%d, failures=%d, errors=%d)" % \
-                  (tests, failures, errors)
+            sys.stderr.write("(tests=%d, failures=%d, errors=%d)\n" %
+                             (tests, failures, errors))
 
     unittest_summary = Summary()
     doctest_summary = Summary()
 
     if unittests:
-        print "Running unittests..."
+        sys.stderr.write("Running unittests...\n")
         for relpath in unittests:
-            print "[%s]" % relpath
+            sys.stderr.write("[%s]\n" % relpath)
             modpath = relpath.replace(os.path.sep, '.')[:-3]
             module = __import__(modpath, None, None, [""])
             test = loader.loadTestsFromModule(module)
             result = runner.run(test)
             unittest_summary(test.countTestCases(),
                              len(result.failures), len(result.errors))
-            print
+            sys.stderr.write("\n")
 
     if doctests:
-        print "Running doctests..."
+        sys.stderr.write("Running doctests...\n")
         doctest_flags = doctest.ELLIPSIS
         for relpath in doctests:
-            print "[%s]" % relpath
+            sys.stderr.write("[%s]\n" % relpath)
             failures, total = doctest.testfile(relpath,
                                                optionflags=doctest_flags)
             doctest_summary(total, failures, 0)
-            print
+            sys.stderr.write("\n")
 
-    print "Total test cases: %d" % unittest_summary.total_tests
-    print "Total doctests: %d" % doctest_summary.total_tests
-    print "Total failures: %d" % (unittest_summary.total_failures +
-                                  doctest_summary.total_failures)
-    print "Total errors: %d" % (unittest_summary.total_errors +
-                                doctest_summary.total_errors)
+    sys.stderr.write("Total test cases: %d\n" % unittest_summary.total_tests)
+    sys.stderr.write("Total doctests: %d\n" % doctest_summary.total_tests)
+    sys.stderr.write("Total failures: %d\n" %
+                     (unittest_summary.total_failures +
+                      doctest_summary.total_failures))
+    sys.stderr.write("Total errors: %d\n" % (unittest_summary.total_errors +
+                                             doctest_summary.total_errors))
 
     failed = bool(unittest_summary.total_failures or
                   unittest_summary.total_errors or

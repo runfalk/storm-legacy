@@ -118,6 +118,9 @@ class IResultSet(Interface):
     def cached():
         """Return matching objects from the cache for the current query."""
 
+    def is_empty():
+        """Return true if the result set contains no results."""
+
 
 class ISQLObjectResultSet(Interface):
 

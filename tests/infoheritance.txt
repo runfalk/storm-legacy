@@ -202,7 +202,7 @@ And we can easily find them again.
 >>> store.rollback()
 
 >>> [type(person.info) for person in store.find(Person).order_by(Person.name)]
-[<class 'SecretAgent'>, <class 'Teacher'>]
+[<class '...SecretAgent'>, <class '...Teacher'>]
 >>>
 }}}
 
