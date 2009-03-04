@@ -1499,7 +1499,7 @@ class EmptyResultSet(object):
         if not columns:
             raise FeatureError("select() takes at least one column "
                                "as argument")
-        return ()
+        return Select(columns, False)
 
     def values(self, *columns):
         if not columns:
