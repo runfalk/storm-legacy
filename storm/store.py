@@ -1225,6 +1225,22 @@ class ResultSet(object):
         """Get the sum of all values in an expression."""
         return self._aggregate(Sum(expr), expr)
 
+    def select(self, *columns):
+        """Get a L{Select} expression to retrieve only the specified columns.
+
+        @param columns: One or more L{storm.expr.Column} objects whose values
+            will be fetched.
+        @return: A L{Select} expression configured to use the query parameters
+            specified for this result set, and also limited to only retrieving
+            data for the specified columns.
+        """
+        if not columns:
+            raise FeatureError("select() takes at least one column "
+                               "as argument")
+        select = self._get_select()
+        select.columns = columns
+        return select
+
     def values(self, *columns):
         """Retrieve only the specified columns.
 

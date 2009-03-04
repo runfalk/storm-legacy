@@ -887,6 +887,21 @@ class StoreTest(object):
         result = self.store.find(Foo)
         self.assertEquals(result.order_by(Foo.id).max(Foo.id), 30)
 
+    def test_find_select_with_no_arguments(self):
+        result = self.store.find(Foo)
+        self.assertRaises(FeatureError, result.select)
+
+    def test_find_select_empty(self):
+        result1 = self.store.find(Foo, Foo.id < 10)
+        result2 = self.store.find(Foo, Foo.id.is_in(result1.select(Foo.id)))
+        self.assertEquals(list(result2), [])
+
+    def test_find_select(self):
+        foo = self.store.get(Foo, 10)
+        result1 = self.store.find(Foo, Foo.id <= 10)
+        result2 = self.store.find(Foo, Foo.id.is_in(result1.select(Foo.id)))
+        self.assertEquals(list(result2), [foo])
+
     def test_find_values(self):
         values = self.store.find(Foo).order_by(Foo.id).values(Foo.id)
         self.assertEquals(list(values), [10, 20, 30])
@@ -5499,6 +5514,7 @@ class StoreTest(object):
         foo.title = u"New title"
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0], self.store)
+
 
 class EmptyResultSetTest(object):
 
