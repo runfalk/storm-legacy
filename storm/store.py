@@ -1437,9 +1437,6 @@ class EmptyResultSet(object):
     def __init__(self, ordered=False):
         self._order_by = ordered
 
-    def _get_select(self):
-        return Select(SQLRaw("1"), SQLRaw("1 = 2"))
-
     def copy(self):
         result = EmptyResultSet(self._order_by)
         return result
