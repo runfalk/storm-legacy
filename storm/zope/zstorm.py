@@ -60,6 +60,8 @@ class ZStorm(object):
 
     implements(IZStorm)
 
+    transaction_manager = transaction.manager
+
     _databases = {}
 
     def __init__(self):
@@ -131,7 +133,8 @@ class ZStorm(object):
         store = Store(database)
         store._register_for_txn = True
         store._event.hook(
-            "register-transaction", register_store_with_transaction)
+            "register-transaction", register_store_with_transaction,
+            self.transaction_manager)
 
         self._stores[id(store)] = store
         if name is not None:
@@ -174,7 +177,8 @@ class ZStorm(object):
         # Make sure the store isn't hooked up to future transactions.
         store._register_for_txn = False
         store._event.unhook(
-            "register-transaction", register_store_with_transaction)
+            "register-transaction", register_store_with_transaction,
+            self.transaction_manager)
 
     def iterstores(self):
         """Iterate C{name, store} 2-tuples."""
@@ -197,9 +201,9 @@ class ZStorm(object):
         return self._default_uris.copy()
 
 
-def register_store_with_transaction(store):
-    data_manager = StoreDataManager(store)
-    transaction.get().join(data_manager)
+def register_store_with_transaction(store, transaction_manager):
+    data_manager = StoreDataManager(store, transaction_manager)
+    transaction_manager.get().join(data_manager)
 
     # Unhook the event handler.  It will be rehooked for the next transaction.
     return False
@@ -210,10 +214,9 @@ class StoreDataManager(object):
 
     implements(IDataManager)
 
-    transaction_manager = transaction.manager
-
-    def __init__(self, store):
+    def __init__(self, store, transaction_manager):
         self._store = store
+        self.transaction_manager = transaction_manager
 
     def abort(self, txn):
         try:
@@ -221,7 +224,8 @@ class StoreDataManager(object):
         finally:
             if self._store._register_for_txn:
                 self._store._event.hook(
-                    "register-transaction", register_store_with_transaction)
+                    "register-transaction", register_store_with_transaction,
+                    self.transaction_manager)
 
     def tpc_begin(self, txn):
         # Zope's transaction system will call tpc_begin() on all
@@ -238,7 +242,8 @@ class StoreDataManager(object):
         finally:
             if self._store._register_for_txn:
                 self._store._event.hook(
-                    "register-transaction", register_store_with_transaction)
+                    "register-transaction", register_store_with_transaction,
+                    self.transaction_manager)
 
     def tpc_vote(self, txn):
         pass
