@@ -22,7 +22,7 @@ import os
 import gc
 
 from storm.database import create_database
-from storm.properties import Int, List
+from storm.properties import Enum, Int, List
 from storm.info import get_obj_info
 
 from tests.store.base import StoreTest, EmptyResultSetTest, Foo
@@ -33,6 +33,11 @@ class Lst1(object):
     __storm_table__ = "lst1"
     id = Int(primary=True)
     ints = List(type=Int())
+
+class LstEnum(object):
+    __storm_table__ = "lst1"
+    id = Int(primary=True)
+    ints = List(type=Enum(map={"one": 1, "two": 2, "three": 3}))
 
 class Lst2(object):
     __storm_table__ = "lst2"
@@ -118,6 +123,27 @@ class PostgresStoreTest(TestHelper, StoreTest):
 
         result = self.store.execute("SELECT ints FROM lst1 WHERE id=1")
         self.assertEquals(result.get_one(), ([1,2,3,4,5],))
+
+    def test_list_enum_variable(self):
+
+        lst = LstEnum()
+        lst.id = 1
+        lst.ints = ["one", "two"]
+        self.store.add(lst)
+
+        result = self.store.execute("SELECT ints FROM lst1 WHERE id=1")
+        self.assertEquals(result.get_one(), ([1,2],))
+
+        del lst
+        gc.collect()
+
+        lst = self.store.find(LstEnum, LstEnum.ints == ["one", "two"]).one()
+        self.assertTrue(lst)
+
+        lst.ints.append("three")
+
+        result = self.store.execute("SELECT ints FROM lst1 WHERE id=1")
+        self.assertEquals(result.get_one(), ([1,2,3],))
 
     def test_list_variable_nested(self):
 

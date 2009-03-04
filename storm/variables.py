@@ -622,8 +622,7 @@ class ListVariable(MutableValueVariable):
     def parse_get(self, value, to_db):
         if to_db:
             item_factory = self._item_factory
-            # XXX This from_db=to_db is dubious. What to do here?
-            return [item_factory(value=val, from_db=to_db) for val in value]
+            return [item_factory(value=val, from_db=False) for val in value]
         else:
             return value
 

@@ -11,12 +11,17 @@ Improvements
    possible.
  - A new UUID property type has been added.  It depends on the uuid
    module introduced in Python 2.5 to represent values.
+ - The StoreDataManager now gets passed a transaction manager from the
+   ZStorm utility.  This will make it easier to support non-default
+   transaction managers in the future.
 
 Bug fixes
 ---------
  - Revert management of distinct, offset and limit by the ResultSet.count()
    method. It didn't handle some corner cases.
  - The test suite now passes when run with Python 2.6.
+ - ListVariable now converts its elements to database representation
+   correctly (bug #136806 reported by Marc Tardif).
 
 
 0.14 (2009-01-09)
