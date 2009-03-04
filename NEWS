@@ -14,6 +14,9 @@ Improvements
  - The StoreDataManager now gets passed a transaction manager from the
    ZStorm utility.  This will make it easier to support non-default
    transaction managers in the future.
+ - ResultSet has a new select() method takes a list of columns,
+   similar to values(), and returns a Select expression.  This makes
+   it easy to use a ResultSet as a subselect.
 
 Bug fixes
 ---------
