@@ -19,7 +19,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 from tests.helper import TestHelper
-from tests.zope.zstorm import has_zope_component
+from tests.zope import has_zope_component
 
 
 if has_zope_component:
