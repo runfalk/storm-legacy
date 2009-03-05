@@ -32,4 +32,7 @@
         <require like_class="storm.references.BoundReferenceSet" />
     </class>
 
+    <adapter factory=".adapters.sqlobject_result_set_to_storm_result_set"
+             trusted="yes" />
+
 </configure>
