@@ -3,7 +3,7 @@ Section: universe/devel
 Priority: optional
 Maintainer: Jamshed Kakar <jamshed.kakar@canonical.com>
 AUTOPPA_INCLUDE(dapper):Build-Depends: debhelper, python-support, lsb-release
-AUTOPPA_INCLUDE(gutsy,hardy,intrepid,jaunty):Build-Depends: debhelper, python-central, lsb-release
+AUTOPPA_INCLUDE(hardy,intrepid,jaunty):Build-Depends: debhelper, python-central, lsb-release
 Standards-Version: 3.7.2
 XS-Python-Version: current
 
