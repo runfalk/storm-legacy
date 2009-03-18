@@ -21,25 +21,15 @@
 import thread, weakref, gc
 
 from tests.helper import TestHelper
+from tests.zope import has_transaction, has_zope_component
 
-try:
+if has_transaction:
     import transaction
-except ImportError:
-    has_transaction = False
-else:
-    has_transaction = True
     from storm.zope.interfaces import IZStorm, ZStormError
     from storm.zope.zstorm import ZStorm, StoreDataManager
 
-try:
+if has_zope_component:
     from zope.component import provideUtility, getUtility
-except ImportError:
-    has_zope_component = False
-else:
-    has_zope_component = True
-
-has_zope = has_transaction and has_zope_component
-
 
 from storm.exceptions import OperationalError
 from storm.locals import Store
