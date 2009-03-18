@@ -14,6 +14,10 @@ Improvements
  - The StoreDataManager now gets passed a transaction manager from the
    ZStorm utility.  This will make it easier to support non-default
    transaction managers in the future.
+ - An adapter is now available for converting ISQLObjectResultSet
+   objects to IResultSet.  This is intended to help in gradual porting
+   SQLObject applications to Storm's native API (bug #338184, by Gavin
+   Panella).
 
 Bug fixes
 ---------
