@@ -27,10 +27,7 @@ class StormDatabaseWrapperMixin(object):
     connection = property(_get_connection, _set_connection)
 
     def _cursor(self, *args):
-        if args:
-            cursor = super(StormDatabaseWrapperMixin, self)._cursor(*args)
-        else:
-            cursor = super(StormDatabaseWrapperMixin, self)._cursor()
+        cursor = super(StormDatabaseWrapperMixin, self)._cursor(*args)
         self._store._event.emit("register-transaction")
         return cursor
 
