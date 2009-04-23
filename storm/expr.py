@@ -206,8 +206,13 @@ if has_cextensions:
 class CompilePython(Compile):
 
     def get_matcher(self, expr):
-        exec "def match(get_column): return bool(%s)" % self(expr)
-        return match
+        state = State()
+        source = self(expr, state)
+        namespace = {"__builtins__": __builtins__}
+        namespace.update(("_%d" % index, value)
+                         for (index, value) in enumerate(state.parameters))
+        exec "def match(get_column): return bool(%s)" % source in namespace
+        return namespace['match']
 
 
 class State(object):
@@ -351,7 +356,9 @@ def compile_none(compile, expr, state):
 @compile_python.when(str, unicode, bool, int, long, float,
                      datetime, date, time, timedelta, type(None))
 def compile_python_builtin(compile, expr, state):
-    return repr(expr)
+    index = len(state.parameters)
+    state.parameters.append(expr)
+    return "_%d" % index
 
 
 @compile.when(Variable)
@@ -361,7 +368,9 @@ def compile_variable(compile, variable, state):
 
 @compile_python.when(Variable)
 def compile_python_variable(compile, variable, state):
-    return repr(variable.get())
+    index = len(state.parameters)
+    state.parameters.append(variable.get())
+    return "_%d" % index
 
 
 # --------------------------------------------------------------------
