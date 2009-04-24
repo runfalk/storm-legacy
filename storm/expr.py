@@ -1165,9 +1165,12 @@ class Count(FuncExpr):
 @compile.when(Count)
 def compile_count(compile, count, state):
     if count.column is not Undef:
+        state.push("context", EXPR)
+        column = compile(count.column, state)
+        state.pop()
         if count.distinct:
-            return "COUNT(DISTINCT %s)" % compile(count.column, state)
-        return "COUNT(%s)" % compile(count.column, state)
+            return "COUNT(DISTINCT %s)" % column
+        return "COUNT(%s)" % column
     return "COUNT(*)"
 
 
@@ -1186,7 +1189,10 @@ class NamedFunc(FuncExpr):
 
 @compile.when(Func, NamedFunc)
 def compile_func(compile, func, state):
-    return "%s(%s)" % (func.name, compile(func.args, state))
+    state.push("context", EXPR)
+    args = compile(func.args, state)
+    state.pop()
+    return "%s(%s)" % (func.name, args)
 
 
 class Max(NamedFunc):
