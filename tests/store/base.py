@@ -841,6 +841,47 @@ class StoreTest(object):
         count = self.store.find(Link).count(Link.foo_id, distinct=True)
         self.assertEquals(count, 3)
 
+    def test_find_limit_count(self):
+        result = self.store.find(Link.foo_id)
+        result.config(limit=2)
+        count = result.count()
+        self.assertEquals(count, 2)
+
+    def test_find_offset_count(self):
+        result = self.store.find(Link.foo_id)
+        result.config(offset=3)
+        count = result.count()
+        self.assertEquals(count, 3)
+
+    def test_find_sliced_count(self):
+        result = self.store.find(Link.foo_id)
+        count = result[2:4].count()
+        self.assertEquals(count, 2)
+
+    def test_find_distinct_count(self):
+        result = self.store.find(Link.foo_id)
+        result.config(distinct=True)
+        count = result.count()
+        self.assertEquals(count, 3)
+
+    def test_find_distinct_count_multiple_columns(self):
+        result = self.store.find((Link.foo_id, Link.bar_id))
+        result.config(distinct=True)
+        count = result.count()
+        self.assertEquals(count, 6)
+
+    def test_find_count_column_with_implicit_distinct(self):
+        result = self.store.find(Link)
+        result.config(distinct=True)
+        count = result.count(Link.foo_id)
+        self.assertEquals(count, 3)
+
+    def test_find_count_multiple_columns_with_implicit_distinct(self):
+        result = self.store.find(Link)
+        result.config(distinct=True)
+        count = result.count((Link.foo_id, Link.bar_id))
+        self.assertEquals(count, 6)
+
     def test_find_max(self):
         self.assertEquals(self.store.find(Foo).max(Foo.id), 30)
 
