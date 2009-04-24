@@ -874,12 +874,6 @@ class StoreTest(object):
         result = self.store.find(Link)
         result.config(distinct=True)
         count = result.count(Link.foo_id)
-        self.assertEquals(count, 3)
-
-    def test_find_count_multiple_columns_with_implicit_distinct(self):
-        result = self.store.find(Link)
-        result.config(distinct=True)
-        count = result.count((Link.foo_id, Link.bar_id))
         self.assertEquals(count, 6)
 
     def test_find_max(self):
