@@ -1366,6 +1366,36 @@ class ResultSet(object):
                      # in get_column().
         return objects
 
+    def find(self, *args, **kwargs):
+        """Perform a query on objects within this result set.
+
+        This is analogous to L{Store.find}, although it doesn't take a
+        C{cls_spec} argument, instead using the same tables as the
+        existing result set.
+
+        @param args: Instances of L{Expr}.
+        @param kwargs: Mapping of simple column names to values or
+            expressions to query for.
+
+        @return: A L{ResultSet} of matching instances.
+        """
+        if self._select is not Undef:
+            raise FeatureError("Can't query set expressions")
+        if self._offset is not Undef or self._limit is not Undef:
+            raise FeatureError("Can't query a sliced result set")
+        if self._group_by is not Undef:
+            raise FeatureError("Can't query grouped result sets")
+
+        result_set = self.copy()
+        extra_where = get_where_for_args(
+            args, kwargs, self._find_spec.default_cls)
+        if extra_where is not Undef:
+            if result_set._where is Undef:
+                result_set._where = extra_where
+            else:
+                result_set._where = And(result_set._where, extra_where)
+        return result_set
+
     def _set_expr(self, expr_cls, other, all=False):
         if not self._find_spec.is_compatible(other._find_spec):
             raise FeatureError("Incompatible results for set operation")
@@ -1494,6 +1524,9 @@ class EmptyResultSet(object):
 
     def cached(self):
         return []
+
+    def find(self, *args, **kwargs):
+        return self
 
     def union(self, other):
         if isinstance(other, EmptyResultSet):

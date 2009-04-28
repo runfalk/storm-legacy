@@ -5015,6 +5015,41 @@ class StoreTest(object):
         self.store.reset()
         self.assertIdentical(Store.of(foo1), None)
 
+    def test_result_find(self):
+        result1 = self.store.find(Foo, Foo.id <= 20)
+        result2 = result1.find(Foo.id > 10)
+        self.assertEqual(result2.count(), 1)
+        self.assertEqual(result2.one().id, 20)
+
+    def test_result_find_kwargs(self):
+        result1 = self.store.find(Foo, Foo.id <= 20)
+        result2 = result1.find(id=20)
+        self.assertEqual(result2.count(), 1)
+        self.assertEqual(result2.one().id, 20)
+
+    def test_result_find_undef_where(self):
+        result = self.store.find(Foo, Foo.id == 20).find()
+        self.assertEqual(result.count(), 1)
+        self.assertEqual(result.one().id, 20)
+        result = self.store.find(Foo).find(Foo.id == 20)
+        self.assertEqual(result.count(), 1)
+        self.assertEqual(result.one().id, 20)
+
+    def test_result_find_fails_on_set_expr(self):
+        result1 = self.store.find(Foo)
+        result2 = self.store.find(Foo)
+        result = result1.union(result2)
+        self.assertRaises(FeatureError, result.find, Foo.id == 20)
+
+    def test_result_find_fails_on_slice(self):
+        result = self.store.find(Foo)[1:2]
+        self.assertRaises(FeatureError, result.find, Foo.id == 20)
+
+    def test_result_find_fails_on_group_by(self):
+        result = self.store.find(Foo)
+        result.group_by(Foo)
+        self.assertRaises(FeatureError, result.find, Foo.id == 20)
+
     def test_result_union(self):
         result1 = self.store.find(Foo, id=30)
         result2 = self.store.find(Foo, id=10)
@@ -5640,6 +5675,10 @@ class EmptyResultSetTest(object):
     def test_cached(self):
         self.assertEquals(self.result.cached(), [])
         self.assertEquals(self.empty.cached(), [])
+
+    def test_find(self):
+        self.assertEquals(list(self.result.find(Foo.title == u"foo")), [])
+        self.assertEquals(list(self.empty.find(Foo.title == u"foo")), [])
 
     def test_union(self):
         self.assertEquals(self.empty.union(self.empty), self.empty)
