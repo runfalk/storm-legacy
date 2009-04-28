@@ -5018,22 +5018,42 @@ class StoreTest(object):
     def test_result_find(self):
         result1 = self.store.find(Foo, Foo.id <= 20)
         result2 = result1.find(Foo.id > 10)
-        self.assertEqual(result2.count(), 1)
-        self.assertEqual(result2.one().id, 20)
+        foo = result2.one()
+        self.assertTrue(foo)
+        self.assertEqual(foo.id, 20)
 
     def test_result_find_kwargs(self):
         result1 = self.store.find(Foo, Foo.id <= 20)
         result2 = result1.find(id=20)
-        self.assertEqual(result2.count(), 1)
-        self.assertEqual(result2.one().id, 20)
+        foo = result2.one()
+        self.assertTrue(foo)
+        self.assertEqual(foo.id, 20)
+
+    def test_result_find_introduce_join(self):
+        result1 = self.store.find(Foo, Foo.id <= 20)
+        result2 = result1.find(Foo.id == Bar.foo_id,
+                               Bar.title == u"Title 300")
+        foo = result2.one()
+        self.assertTrue(foo)
+        self.assertEqual(foo.id, 10)
+
+    def test_result_find_tuple(self):
+        result1 = self.store.find((Foo, Bar), Foo.id == Bar.foo_id)
+        result2 = result1.find(Bar.title == u"Title 100")
+        foo_bar = result2.one()
+        self.assertTrue(foo_bar)
+        foo, bar = foo_bar
+        self.assertEqual(foo.id, 30)
+        self.assertEqual(bar.id, 300)
 
     def test_result_find_undef_where(self):
         result = self.store.find(Foo, Foo.id == 20).find()
         self.assertEqual(result.count(), 1)
         self.assertEqual(result.one().id, 20)
         result = self.store.find(Foo).find(Foo.id == 20)
-        self.assertEqual(result.count(), 1)
-        self.assertEqual(result.one().id, 20)
+        foo = result.one()
+        self.assertTrue(foo)
+        self.assertEqual(foo.id, 20)
 
     def test_result_find_fails_on_set_expr(self):
         result1 = self.store.find(Foo)
