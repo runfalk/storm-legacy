@@ -5048,8 +5048,9 @@ class StoreTest(object):
 
     def test_result_find_undef_where(self):
         result = self.store.find(Foo, Foo.id == 20).find()
-        self.assertEqual(result.count(), 1)
-        self.assertEqual(result.one().id, 20)
+        foo = result.one()
+        self.assertTrue(foo)
+        self.assertEqual(foo.id, 20)
         result = self.store.find(Foo).find(Foo.id == 20)
         foo = result.one()
         self.assertTrue(foo)
