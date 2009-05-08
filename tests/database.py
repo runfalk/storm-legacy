@@ -227,6 +227,54 @@ class ConnectionTest(TestHelper):
                                         ("ERROR", self.connection, RawCursor,
                                          "something", (), error)])
 
+    def test_tracing_check_disconnect(self):
+        tracer = FakeTracer()
+        tracer_mock = self.mocker.patch(tracer)
+        tracer_mock.connection_raw_execute(ARGS)
+        self.mocker.throw(DatabaseError('connection closed'))
+        self.mocker.replay()
+
+        install_tracer(tracer_mock)
+        self.connection.is_disconnection_error = (
+            lambda exc: 'connection closed' in str(exc))
+
+        self.assertRaises(DisconnectionError,
+                          self.connection.execute, "something")
+
+    def test_tracing_success_check_disconnect(self):
+        tracer = FakeTracer()
+        tracer_mock = self.mocker.patch(tracer)
+        tracer_mock.connection_raw_execute(ARGS)
+        tracer_mock.connection_raw_execute_success(ARGS)
+        self.mocker.throw(DatabaseError('connection closed'))
+        self.mocker.replay()
+
+        install_tracer(tracer_mock)
+        self.connection.is_disconnection_error = (
+            lambda exc: 'connection closed' in str(exc))
+
+        self.assertRaises(DisconnectionError,
+                          self.connection.execute, "something")
+
+    def test_tracing_error_check_disconnect(self):
+        cursor_mock = self.mocker.patch(RawCursor)
+        cursor_mock.execute(ARGS)
+        error = ZeroDivisionError()
+        self.mocker.throw(error)
+        tracer = FakeTracer()
+        tracer_mock = self.mocker.patch(tracer)
+        tracer_mock.connection_raw_execute(ARGS)
+        tracer_mock.connection_raw_execute_error(ARGS)
+        self.mocker.throw(DatabaseError('connection closed'))
+        self.mocker.replay()
+
+        install_tracer(tracer_mock)
+        self.connection.is_disconnection_error = (
+            lambda exc: 'connection closed' in str(exc))
+
+        self.assertRaises(DisconnectionError,
+                          self.connection.execute, "something")
+
     def test_commit(self):
         self.connection.commit()
         self.assertEquals(self.executed, ["COMMIT"])
