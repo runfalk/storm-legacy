@@ -2158,7 +2158,7 @@ prepare_type(PyTypeObject *type)
     if (!type->tp_base && !type->tp_new)
         type->tp_new = PyType_GenericNew;
     if (!type->tp_free) {
-        assert((type->tp_flags & PyTPFLAGS_HAVE_GC) != 0);
+        assert((type->tp_flags & Py_TPFLAGS_HAVE_GC) != 0);
         type->tp_free = PyObject_GC_Del;
     }
     return PyType_Ready(type);
