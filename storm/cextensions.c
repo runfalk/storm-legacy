@@ -21,8 +21,7 @@
 #
 */
 #include <Python.h>
-#include <structmember.h>
-
+#include "structmember.h"
 
 #if PY_VERSION_HEX < 0x02050000 && !defined(PY_SSIZE_T_MIN)
 typedef int Py_ssize_t;
@@ -527,8 +526,8 @@ statichere PyTypeObject EventSystem_Type = {
     0,                      /*tp_hash*/
     0,                      /*tp_call*/
     0,                      /*tp_str*/
-    PyObject_GenericGetAttr,/*tp_getattro*/
-    PyObject_GenericSetAttr,/*tp_setattro*/
+    0, /* PyObject_GenericGetAttr,*/ /*tp_getattro*/
+    0, /* PyObject_GenericSetAttr,*/ /*tp_setattro*/
     0,                      /*tp_as_buffer*/
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
     0,                      /*tp_doc*/
@@ -547,9 +546,9 @@ statichere PyTypeObject EventSystem_Type = {
     0,                      /*tp_descr_set*/
     0,                      /*tp_dictoffset*/
     (initproc)EventSystem_init, /*tp_init*/
-    PyType_GenericAlloc,    /*tp_alloc*/
-    PyType_GenericNew,      /*tp_new*/
-    PyObject_GC_Del,        /*tp_free*/
+    0, /* PyType_GenericAlloc, */    /*tp_alloc*/
+    0, /* PyType_GenericNew, */      /*tp_new*/
+    0, /* PyObject_GC_Del, */        /*tp_free*/
     0,                      /*tp_is_gc*/
 };
 
@@ -1122,8 +1121,8 @@ statichere PyTypeObject Variable_Type = {
     0,            /*tp_hash*/
     0,                      /*tp_call*/
     0,                      /*tp_str*/
-    PyObject_GenericGetAttr,/*tp_getattro*/
-    PyObject_GenericSetAttr,/*tp_setattro*/
+    0, /* PyObject_GenericGetAttr,/*tp_getattro*/
+    0, /* PyObject_GenericSetAttr,/*tp_setattro*/
     0,                      /*tp_as_buffer*/
     Py_TPFLAGS_DEFAULT|Py_TPFLAGS_BASETYPE|Py_TPFLAGS_HAVE_GC, /*tp_flags*/
     0,                      /*tp_doc*/
@@ -1142,9 +1141,9 @@ statichere PyTypeObject Variable_Type = {
     0,                      /*tp_descr_set*/
     0,                      /*tp_dictoffset*/
     (initproc)Variable_init, /*tp_init*/
-    PyType_GenericAlloc,    /*tp_alloc*/
+    0, /* PyType_GenericAlloc,    /*tp_alloc*/
     Variable_new,      /*tp_new*/
-    PyObject_GC_Del,        /*tp_free*/
+    0, /* PyObject_GC_Del,        /*tp_free*/
     0,                      /*tp_is_gc*/
 };
 
@@ -1786,8 +1785,8 @@ statichere PyTypeObject Compile_Type = {
     0,                      /*tp_hash*/
     (ternaryfunc)Compile__call__, /*tp_call*/
     0,                      /*tp_str*/
-    PyObject_GenericGetAttr,/*tp_getattro*/
-    PyObject_GenericSetAttr,/*tp_setattro*/
+    0, /* PyObject_GenericGetAttr,/*tp_getattro*/
+    0, /* PyObject_GenericSetAttr,/*tp_setattro*/
     0,                      /*tp_as_buffer*/
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
     0,                      /*tp_doc*/
@@ -1806,9 +1805,9 @@ statichere PyTypeObject Compile_Type = {
     0,                      /*tp_descr_set*/
     0,                      /*tp_dictoffset*/
     (initproc)Compile_init, /*tp_init*/
-    PyType_GenericAlloc,    /*tp_alloc*/
-    PyType_GenericNew,      /*tp_new*/
-    PyObject_GC_Del,        /*tp_free*/
+    0, /* PyType_GenericAlloc,    /*tp_alloc*/
+    0, /* PyType_GenericNew,      /*tp_new*/
+    0, /* PyObject_GC_Del,        /*tp_free*/
     0,                      /*tp_is_gc*/
 };
 
@@ -2054,11 +2053,11 @@ statichere PyTypeObject ObjectInfo_Type = {
     0,            /*tp_as_number*/
     0,            /*tp_as_sequence*/
     0,            /*tp_as_mapping*/
-    (hashfunc)_Py_HashPointer, /*tp_hash*/
+    0, /* (hashfunc)_Py_HashPointer, /*tp_hash*/
     0,                      /*tp_call*/
     0,                      /*tp_str*/
-    PyObject_GenericGetAttr, /*tp_getattro*/
-    PyObject_GenericSetAttr, /*tp_setattro*/
+    0, /* PyObject_GenericGetAttr, /*tp_getattro*/
+    0, /* PyObject_GenericSetAttr, /*tp_setattro*/
     0,                      /*tp_as_buffer*/
     Py_TPFLAGS_DEFAULT|Py_TPFLAGS_BASETYPE|Py_TPFLAGS_HAVE_GC, /*tp_flags*/
     0,                      /*tp_doc*/
@@ -2077,9 +2076,9 @@ statichere PyTypeObject ObjectInfo_Type = {
     0,                      /*tp_descr_set*/
     0,                      /*tp_dictoffset*/
     (initproc)ObjectInfo_init, /*tp_init*/
-    PyType_GenericAlloc,    /*tp_alloc*/
+    0, /* PyType_GenericAlloc,    /*tp_alloc*/
     0,                      /*tp_new*/
-    PyObject_GC_Del,        /*tp_free*/
+    0, /* PyObject_GC_Del,        /*tp_free*/
     0,                      /*tp_is_gc*/
 };
 
@@ -2124,12 +2123,24 @@ static PyMethodDef cextensions_methods[] = {
     {NULL, NULL}
 };
 
+#define PREPARE_TYPE(a, new) \
+    a.tp_getattro = PyObject_GenericGetAttr; 	\
+    a.tp_setattro = PyObject_GenericSetAttr; 	\
+    a.tp_alloc = PyType_GenericAlloc;		\
+    if (new) a.tp_new = PyType_GenericNew;		\
+    a.tp_free = _PyObject_Del;
 
 DL_EXPORT(void)
 initcextensions(void)
 {
     PyObject *module;
-
+    
+    PREPARE_TYPE(EventSystem_Type, 1);
+    PREPARE_TYPE(Compile_Type, 1);
+    PREPARE_TYPE(ObjectInfo_Type, 0);
+    ObjectInfo_Type.tp_hash = (hashfunc)_Py_HashPointer;
+    PREPARE_TYPE(Variable_Type, 0);
+   
     PyType_Ready(&EventSystem_Type);
     PyType_Ready(&Variable_Type);
     PyType_Ready(&Compile_Type);
