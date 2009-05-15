@@ -33,7 +33,7 @@ from storm.variables import (Variable, PickleVariable, RawStrVariable,
 from storm.database import *
 from storm.event import EventSystem
 from storm.exceptions import (
-    DatabaseModuleError, DisconnectionError, OperationalError)
+    DatabaseError, DatabaseModuleError, DisconnectionError, OperationalError)
 
 from tests.databases.proxy import ProxyTCPServer
 from tests.helper import MakePath
@@ -514,6 +514,28 @@ class DatabaseDisconnectionTest(object):
         self.assertTrue(result.get_one())
         self.proxy.restart()
         self.assertRaises(DisconnectionError, self.connection.commit)
+
+    def test_wb_catch_already_disconnected(self):
+        """If Storm detects connections that have already been disconnected.
+
+        If the connection is being used outside of Storm's control,
+        then it is possible that Storm won't see the disconnection.
+        It should be able to recover from this situation though.
+        """
+        result = self.connection.execute("SELECT 1")
+        self.assertTrue(result.get_one())
+        self.proxy.restart()
+        # Perform an action that should result in a disconnection.
+        try:
+            cursor = self.connection._raw_connection.cursor()
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+        except DatabaseError, exc:
+            self.assertTrue(self.connection.is_disconnection_error(exc))
+        else:
+            self.fail("Disconnection was not caught.")
+        self.assertRaises(DisconnectionError,
+                          self.connection.execute, "SELECT 1")
 
     def test_connection_stays_disconnected_in_transaction(self):
         """Test that connection does not immediately reconnect."""
