@@ -36,7 +36,7 @@ from storm.expr import (
 from storm.variables import Variable, ListVariable, RawStrVariable
 from storm.database import Database, Connection, Result
 from storm.exceptions import (
-    install_exceptions, DatabaseError, DatabaseModuleError,
+    install_exceptions, DatabaseError, DatabaseModuleError, InterfaceError,
     OperationalError, ProgrammingError, TimeoutError)
 from storm.tracer import TimeoutTracer
 
@@ -285,17 +285,20 @@ class PostgresConnection(Connection):
                 yield param
 
     def is_disconnection_error(self, exc):
-        if not isinstance(exc, (OperationalError, ProgrammingError)):
+        if not isinstance(exc, (InterfaceError, OperationalError,
+                                ProgrammingError)):
             return False
 
         # XXX: 2007-09-17 jamesh
-        # I have no idea why I am seeing the last exception message
-        # after upgrading to Gutsy.
+        # The last message is for the benefit of old versions of
+        # psycopg2 (prior to 2.0.7) which have a bug related to
+        # stripping the error severity from the message.
         msg = str(exc)
         return ("server closed the connection unexpectedly" in msg or
                 "could not connect to server" in msg or
                 "no connection to the server" in msg or
                 "connection not open" in msg or
+                "connection already closed" in msg or
                 "losed the connection unexpectedly" in msg)
 
 
