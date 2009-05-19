@@ -209,10 +209,15 @@ class CompilePython(Compile):
         state = State()
         source = self(expr, state)
         namespace = {"__builtins__": __builtins__}
-        namespace.update(("_%d" % index, value)
-                         for (index, value) in enumerate(state.parameters))
-        exec "def match(get_column): return bool(%s)" % source in namespace
-        return namespace['match']
+        code = ("def closure(parameters, bool):\n"
+                "    [%s] = parameters\n"
+                "    def match(get_column):\n"
+                "        return bool(%s)\n"
+                "    return match" %
+                (",".join("_%d" % i for i in range(len(state.parameters))),
+                 source))
+        exec code in namespace
+        return namespace['closure'](state.parameters, bool)
 
 
 class State(object):
