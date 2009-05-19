@@ -2010,13 +2010,17 @@ class CompilePythonTest(TestHelper):
 
     def test_column(self):
         expr = Column(column1)
-        py_expr = compile_python(expr)
-        self.assertEquals(py_expr, "get_column('column1')")
+        state = State()
+        py_expr = compile_python(expr, state)
+        self.assertEquals(py_expr, "get_column(_0)")
+        self.assertEquals(state.parameters, [expr])
 
     def test_column_table(self):
         expr = Column(column1, table1)
-        py_expr = compile_python(expr)
-        self.assertEquals(py_expr, "get_column('column1')")
+        state = State()
+        py_expr = compile_python(expr, state)
+        self.assertEquals(py_expr, "get_column(_0)")
+        self.assertEquals(state.parameters, [expr])
 
     def test_variable(self):
         expr = Variable("value")
@@ -2141,8 +2145,8 @@ class CompilePythonTest(TestHelper):
 
         match = compile_python.get_matcher((col1 > 10) & (col2 < 10))
 
-        self.assertTrue(match({"column1": 15, "column2": 5}.get))
-        self.assertFalse(match({"column1": 5, "column2": 15}.get))
+        self.assertTrue(match({col1: 15, col2: 5}.get))
+        self.assertFalse(match({col1: 5, col2: 15}.get))
 
 
 class LazyValueExprTest(TestHelper):

@@ -794,7 +794,9 @@ def compile_column(compile, column, state):
 
 @compile_python.when(Column)
 def compile_python_column(compile, column, state):
-    return "get_column(%s)" % repr(column.name)
+    index = len(state.parameters)
+    state.parameters.append(column)
+    return "get_column(_%d)" % index
 
 
 # --------------------------------------------------------------------
