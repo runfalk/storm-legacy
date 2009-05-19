@@ -1951,28 +1951,20 @@ class CompilePythonTest(TestHelper):
         self.assertRaises(CompileError, compile_python, Func1())
 
     def test_str(self):
-        state = State()
-        py_expr = compile_python("str", state)
-        self.assertEquals(py_expr, "_0")
-        self.assertEquals(state.parameters, ["str"])
+        py_expr = compile_python("str")
+        self.assertEquals(py_expr, "'str'")
 
     def test_unicode(self):
-        state = State()
-        py_expr = compile_python(u"str", state)
-        self.assertEquals(py_expr, "_0")
-        self.assertEquals(state.parameters, [u"str"])
+        py_expr = compile_python(u"str")
+        self.assertEquals(py_expr, "u'str'")
 
     def test_int(self):
-        state = State()
-        py_expr = compile_python(1, state)
-        self.assertEquals(py_expr, "_0")
-        self.assertEquals(state.parameters, [1])
+        py_expr = compile_python(1)
+        self.assertEquals(py_expr, "1")
 
     def test_long(self):
-        state = State()
-        py_expr = compile_python(1L, state)
-        self.assertEquals(py_expr, "_0")
-        self.assertEquals(state.parameters, [1L])
+        py_expr = compile_python(1L)
+        self.assertEquals(py_expr, "1L")
 
     def test_bool(self):
         state = State()
@@ -1981,10 +1973,8 @@ class CompilePythonTest(TestHelper):
         self.assertEquals(state.parameters, [True])
 
     def test_float(self):
-        state = State()
-        py_expr = compile_python(1.1, state)
-        self.assertEquals(py_expr, "_0")
-        self.assertEquals(state.parameters, [1.1])
+        py_expr = compile_python(1.1)
+        self.assertEquals(py_expr, repr(1.1))
 
     def test_datetime(self):
         dt = datetime(1977, 5, 4, 12, 34)
