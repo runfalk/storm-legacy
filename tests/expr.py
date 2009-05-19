@@ -1937,8 +1937,10 @@ class CompilePythonTest(TestHelper):
 
     def test_compile_sequence(self):
         expr = [elem1, Variable(1), (Variable(2), None)]
-        py_expr = compile_python(expr)
-        self.assertEquals(py_expr, "elem1, 1, 2, None")
+        state = State()
+        py_expr = compile_python(expr, state)
+        self.assertEquals(py_expr, "elem1, _0, _1, None")
+        self.assertEquals(state.parameters, [1, 2])
 
     def test_compile_invalid(self):
         self.assertRaises(CompileError, compile_python, object())
@@ -1949,48 +1951,68 @@ class CompilePythonTest(TestHelper):
         self.assertRaises(CompileError, compile_python, Func1())
 
     def test_str(self):
-        py_expr = compile_python("str")
-        self.assertEquals(py_expr, "'str'")
+        state = State()
+        py_expr = compile_python("str", state)
+        self.assertEquals(py_expr, "_0")
+        self.assertEquals(state.parameters, ["str"])
 
     def test_unicode(self):
-        py_expr = compile_python(u"str")
-        self.assertEquals(py_expr, "u'str'")
+        state = State()
+        py_expr = compile_python(u"str", state)
+        self.assertEquals(py_expr, "_0")
+        self.assertEquals(state.parameters, [u"str"])
 
     def test_int(self):
-        py_expr = compile_python(1)
-        self.assertEquals(py_expr, "1")
+        state = State()
+        py_expr = compile_python(1, state)
+        self.assertEquals(py_expr, "_0")
+        self.assertEquals(state.parameters, [1])
 
     def test_long(self):
-        py_expr = compile_python(1L)
-        self.assertEquals(py_expr, "1L")
+        state = State()
+        py_expr = compile_python(1L, state)
+        self.assertEquals(py_expr, "_0")
+        self.assertEquals(state.parameters, [1L])
 
     def test_bool(self):
-        py_expr = compile_python(True)
-        self.assertEquals(py_expr, "True")
+        state = State()
+        py_expr = compile_python(True, state)
+        self.assertEquals(py_expr, "_0")
+        self.assertEquals(state.parameters, [True])
 
     def test_float(self):
-        py_expr = compile_python(1.1)
-        self.assertEquals(py_expr, repr(1.1))
+        state = State()
+        py_expr = compile_python(1.1, state)
+        self.assertEquals(py_expr, "_0")
+        self.assertEquals(state.parameters, [1.1])
 
     def test_datetime(self):
         dt = datetime(1977, 5, 4, 12, 34)
-        py_expr = compile_python(dt)
-        self.assertEquals(py_expr, repr(dt))
+        state = State()
+        py_expr = compile_python(dt, state)
+        self.assertEquals(py_expr, "_0")
+        self.assertEquals(state.parameters, [dt])
 
     def test_date(self):
         d = date(1977, 5, 4)
-        py_expr = compile_python(d)
-        self.assertEquals(py_expr, repr(d))
+        state = State()
+        py_expr = compile_python(d, state)
+        self.assertEquals(py_expr, "_0")
+        self.assertEquals(state.parameters, [d])
 
     def test_time(self):
         t = time(12, 34)
-        py_expr = compile_python(t)
-        self.assertEquals(py_expr, repr(t))
+        state = State()
+        py_expr = compile_python(t, state)
+        self.assertEquals(py_expr, "_0")
+        self.assertEquals(state.parameters, [t])
 
     def test_timedelta(self):
         td = timedelta(days=1, seconds=2, microseconds=3)
-        py_expr = compile_python(td)
-        self.assertEquals(py_expr, repr(td))
+        state = State()
+        py_expr = compile_python(td, state)
+        self.assertEquals(py_expr, "_0")
+        self.assertEquals(state.parameters, [td])
 
     def test_none(self):
         py_expr = compile_python(None)
@@ -2008,53 +2030,73 @@ class CompilePythonTest(TestHelper):
 
     def test_variable(self):
         expr = Variable("value")
-        py_expr = compile_python(expr)
-        self.assertEquals(py_expr, "'value'")
+        state = State()
+        py_expr = compile_python(expr, state)
+        self.assertEquals(py_expr, "_0")
+        self.assertEquals(state.parameters, ["value"])
 
     def test_eq(self):
         expr = Eq(Variable(1), Variable(2))
-        py_expr = compile_python(expr)
-        self.assertEquals(py_expr, "1 == 2")
+        state = State()
+        py_expr = compile_python(expr, state)
+        self.assertEquals(py_expr, "_0 == _1")
+        self.assertEquals(state.parameters, [1, 2])
 
     def test_ne(self):
         expr = Ne(Variable(1), Variable(2))
-        py_expr = compile_python(expr)
-        self.assertEquals(py_expr, "1 != 2")
+        state = State()
+        py_expr = compile_python(expr, state)
+        self.assertEquals(py_expr, "_0 != _1")
+        self.assertEquals(state.parameters, [1, 2])
 
     def test_gt(self):
         expr = Gt(Variable(1), Variable(2))
-        py_expr = compile_python(expr)
-        self.assertEquals(py_expr, "1 > 2")
+        state = State()
+        py_expr = compile_python(expr, state)
+        self.assertEquals(py_expr, "_0 > _1")
+        self.assertEquals(state.parameters, [1, 2])
 
     def test_ge(self):
         expr = Ge(Variable(1), Variable(2))
-        py_expr = compile_python(expr)
-        self.assertEquals(py_expr, "1 >= 2")
+        state = State()
+        py_expr = compile_python(expr, state)
+        self.assertEquals(py_expr, "_0 >= _1")
+        self.assertEquals(state.parameters, [1, 2])
 
     def test_lt(self):
         expr = Lt(Variable(1), Variable(2))
-        py_expr = compile_python(expr)
-        self.assertEquals(py_expr, "1 < 2")
+        state = State()
+        py_expr = compile_python(expr, state)
+        self.assertEquals(py_expr, "_0 < _1")
+        self.assertEquals(state.parameters, [1, 2])
 
     def test_le(self):
         expr = Le(Variable(1), Variable(2))
-        py_expr = compile_python(expr)
-        self.assertEquals(py_expr, "1 <= 2")
+        state = State()
+        py_expr = compile_python(expr, state)
+        self.assertEquals(py_expr, "_0 <= _1")
+        self.assertEquals(state.parameters, [1, 2])
 
     def test_lshift(self):
         expr = LShift(Variable(1), Variable(2))
-        py_expr = compile_python(expr)
-        self.assertEquals(py_expr, "1<<2")
+        state = State()
+        py_expr = compile_python(expr, state)
+        self.assertEquals(py_expr, "_0<<_1")
+        self.assertEquals(state.parameters, [1, 2])
 
     def test_rshift(self):
         expr = RShift(Variable(1), Variable(2))
-        py_expr = compile_python(expr)
-        self.assertEquals(py_expr, "1>>2")
+        state = State()
+        py_expr = compile_python(expr, state)
+        self.assertEquals(py_expr, "_0>>_1")
+        self.assertEquals(state.parameters, [1, 2])
 
     def test_in(self):
         expr = In(Variable(1), Variable(2))
-        py_expr = compile_python(expr)
-        self.assertEquals(py_expr, "1 in (2,)")
+        state = State()
+        py_expr = compile_python(expr, state)
+        self.assertEquals(py_expr, "_0 in (_1,)")
+        self.assertEquals(state.parameters, [1, 2])
 
     def test_and(self):
         expr = And(elem1, elem2, And(elem3, elem4))

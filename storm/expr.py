@@ -359,11 +359,16 @@ def compile_none(compile, expr, state):
 
 
 @compile_python.when(str, unicode, bool, int, long, float,
-                     datetime, date, time, timedelta, type(None))
+                     datetime, date, time, timedelta)
 def compile_python_builtin(compile, expr, state):
     index = len(state.parameters)
     state.parameters.append(expr)
     return "_%d" % index
+
+
+@compile_python.when(type(None))
+def compile_python_none(compile, expr, state):
+    return "None"
 
 
 @compile.when(Variable)
