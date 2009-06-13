@@ -3,6 +3,8 @@
 
 Improvements
 ------------
+ - Add support for latest version on Django by not checking arguments
+   passed to _cursor.
  - Added support for using Expressions with ResultSet.set().
  - The default cache size was changed from 100 to 1000 objects.
  - Added the new GenerationalCache with a faster implementation of
