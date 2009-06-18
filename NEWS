@@ -28,6 +28,8 @@ Bug fixes
  - The test suite now passes when run with Python 2.6.
  - ListVariable now converts its elements to database representation
    correctly (bug #136806 reported by Marc Tardif).
+ - compile_python now works for values that don't produce valid Python
+   expressions with repr().
 
 
 0.14 (2009-01-09)
