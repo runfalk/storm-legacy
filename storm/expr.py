@@ -208,7 +208,7 @@ class CompilePython(Compile):
     def get_matcher(self, expr):
         state = State()
         source = self(expr, state)
-        namespace = {"__builtins__": __builtins__}
+        namespace = {}
         code = ("def closure(parameters, bool):\n"
                 "    [%s] = parameters\n"
                 "    def match(get_column):\n"

@@ -2148,6 +2148,18 @@ class CompilePythonTest(TestHelper):
         self.assertTrue(match({col1: 15, col2: 5}.get))
         self.assertFalse(match({col1: 5, col2: 15}.get))
 
+    def test_match_bad_repr(self):
+        """The get_matcher() works for expressions containing values
+        whose repr is not valid Python syntax."""
+        class BadRepr(object):
+            def __repr__(self):
+                return "$Not a valid Python expression$"
+
+        value = BadRepr()
+        col1 = Column(column1)
+        match = compile_python.get_matcher(col1 == Variable(value))
+        self.assertTrue(match({col1: value}.get))
+
 
 class LazyValueExprTest(TestHelper):
 
