@@ -1359,11 +1359,8 @@ class ResultSet(object):
             match = None
         else:
             match = compile_python.get_matcher(self._where)
-            name_to_column = dict(
-                (column.name, column)
-                for column in self._find_spec.default_cls_info.columns)
-            def get_column(name, name_to_column=name_to_column):
-                return obj_info.variables[name_to_column[name]].get()
+            def get_column(column):
+                return obj_info.variables[column].get()
         objects = []
         cls = self._find_spec.default_cls_info.cls
         for obj_info in self._store._iter_alive():
