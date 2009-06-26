@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2006, 2007 Canonical
+# Copyright (c) 2006-2009 Canonical
 #
 # Written by Gustavo Niemeyer <gustavo@niemeyer.net>
 #
@@ -19,13 +19,23 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 from datetime import datetime, date, time, timedelta
+from distutils.version import LooseVersion
 
 from storm.databases import dummy
 
+# PostgreSQL support in Storm requires psycopg2 2.0.7 or greater.
+# Earlier versions of psyocpg2 contain data loss bugs.
+# See https://bugs.edge.launchpad.net/storm/+bug/322206 for more details.
+REQUIRED_PSYCOPG2_VERSION = LooseVersion('2.0.7')
+PSYCOPG2_VERSION = None
 try:
     import psycopg2
-    import psycopg2.extensions
-except:
+    PSYCOPG2_VERSION = LooseVersion(psycopg2.__version__.split(' ')[0])
+    if PSYCOPG2_VERSION < REQUIRED_PSYCOPG2_VERSION:
+        psycopg2 = dummy
+    else:
+        import psycopg2.extensions
+except ImportError:
     psycopg2 = dummy
 
 from storm.expr import (
@@ -311,7 +321,9 @@ class Postgres(Database):
 
     def __init__(self, uri):
         if psycopg2 is dummy:
-            raise DatabaseModuleError("'psycopg2' module not found")
+            raise DatabaseModuleError(
+                "'psycopg2' %s not found. Found %s."
+                % (REQUIRED_PSYCOPG2_VERSION, PSYCOPG2_VERSION))
         self._dsn = make_dsn(uri)
         isolation = uri.options.get("isolation", "serializable")
         isolation_mapping = {
