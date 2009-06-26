@@ -1151,9 +1151,9 @@ class ResultSet(object):
         if self._select is not Undef:
             raise FeatureError("Removing isn't supported with "
                                "set expressions (unions, etc)")
-        self._store._connection.execute(
-            Delete(self._where, self._find_spec.default_cls_info.table),
-            noresult=True)
+        result = self._store._connection.execute(
+            Delete(self._where, self._find_spec.default_cls_info.table))
+        return result.rowcount
 
     def group_by(self, *expr):
         """Group this ResultSet by the given expressions.
@@ -1462,7 +1462,7 @@ class EmptyResultSet(object):
         return self
 
     def remove(self):
-        pass
+        return 0
 
     def count(self, expr=Undef, distinct=False):
         return 0

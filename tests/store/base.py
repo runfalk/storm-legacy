@@ -3757,7 +3757,6 @@ class StoreTest(object):
                           (400, 20, "Title 100"),
                          ])
 
-
     def test_indirect_reference_set(self):
         foo = self.store.get(FooIndRefSet, 20)
 
@@ -5500,6 +5499,20 @@ class StoreTest(object):
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0], self.store)
 
+    def test_rowcount_insert(self):
+        result = self.store.execute("INSERT INTO foo VALUES (999, '999')")
+        self.assertEquals(result.rowcount, 1)
+
+    def test_rowcount_delete(self):
+        result = self.store.execute("DELETE FROM foo WHERE id <= 30")
+        self.assertEquals(result.rowcount, 3)
+
+    def test_rowcount_update(self):
+        result = self.store.execute(
+            "UPDATE foo SET title='whatever' WHERE id <= 30")
+        self.assertEquals(result.rowcount, 3)
+
+
 class EmptyResultSetTest(object):
 
     def setUp(self):
@@ -5600,8 +5613,8 @@ class EmptyResultSetTest(object):
         self.assertEquals(self.empty.order_by(Foo.title), self.empty)
 
     def test_remove(self):
-        self.assertEquals(self.result.remove(), None)
-        self.assertEquals(self.empty.remove(), None)
+        self.assertEquals(self.result.remove(), 0)
+        self.assertEquals(self.empty.remove(), 0)
 
     def test_count(self):
         self.assertEquals(self.result.count(), 0)
