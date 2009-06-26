@@ -203,24 +203,6 @@ def compile_sql_token_postgres(compile, expr, state):
     return compile_sql_token(compile, expr, state)
 
 
-def compile_str_variable_with_E(compile, variable, state):
-    """Include an E just before the placeholder of string variables.
-
-    PostgreSQL 8.2 will issue a warning without it, and psycopg
-    will use the plain '' rather than E''.  The problem is being
-    tracked at the following URL::
-
-        http://www.initd.org/tracker/psycopg/ticket/202
-
-    """
-    state.parameters.append(variable)
-    if type(variable.get(to_db=True)) is str:
-        return "E?"
-    return "?"
-
-psycopg_needs_E = None
-
-
 class PostgresResult(Result):
 
     def get_insert_identity(self, primary_key, primary_variables):
@@ -322,7 +304,7 @@ class Postgres(Database):
     def __init__(self, uri):
         if psycopg2 is dummy:
             raise DatabaseModuleError(
-                "'psycopg2' %s not found. Found %s."
+                "'psycopg2' >= %s not found. Found %s."
                 % (REQUIRED_PSYCOPG2_VERSION, PSYCOPG2_VERSION))
         self._dsn = make_dsn(uri)
         isolation = uri.options.get("isolation", "serializable")
@@ -349,29 +331,8 @@ class Postgres(Database):
                 cursor.execute("SHOW server_version_num")
             except psycopg2.ProgrammingError:
                 self._version = 0
-                raw_connection.rollback()
             else:
                 self._version = int(cursor.fetchone()[0])
-
-            # This will conditionally change the compilation of binary
-            # variables (RawStrVariable) to preceed the placeholder with an
-            # 'E', if psycopg isn't doing it by itself.
-            #
-            # The "failing" code path isn't unittested because that
-            # would depend on a working psycopg version, or in an older
-            # postgresql version.  Both branches were manually tested
-            # for correctness at some point.
-            global psycopg_needs_E
-            try:
-                # If psycopg behaves correctly, this will break trying
-                # to run a query with EE''.
-                cursor.execute("SELECT E%s", (psycopg2.Binary(""),))
-            except psycopg2.ProgrammingError:
-                psycopg_needs_E = False
-            else:
-                psycopg_needs_E = True
-                compile.when(RawStrVariable)(compile_str_variable_with_E)
-
             raw_connection.rollback()
 
         raw_connection.set_client_encoding("UTF8")
