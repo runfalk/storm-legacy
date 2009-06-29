@@ -377,6 +377,23 @@ class DatabaseTest(object):
         result.from_database = self.from_database
         self.assertEquals(iter(result).next(), (2, 3))
 
+    def test_rowcount_insert(self):
+        # All supported backends support rowcount, so far.
+        result = self.connection.execute(
+            "INSERT INTO test VALUES (999, '999')")
+        self.assertEquals(result.rowcount, 1)
+
+    def test_rowcount_delete(self):
+        # All supported backends support rowcount, so far.
+        result = self.connection.execute("DELETE FROM test")
+        self.assertEquals(result.rowcount, 2)
+
+    def test_rowcount_update(self):
+        # All supported backends support rowcount, so far.
+        result = self.connection.execute(
+            "UPDATE test SET title='whatever'")
+        self.assertEquals(result.rowcount, 2)
+
 
 class UnsupportedDatabaseTest(object):
     

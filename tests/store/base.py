@@ -5499,22 +5499,6 @@ class StoreTest(object):
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0], self.store)
 
-    def test_rowcount_insert(self):
-        # All supported backends support rowcount, so far.
-        result = self.store.execute("INSERT INTO foo VALUES (999, '999')")
-        self.assertEquals(result.rowcount, 1)
-
-    def test_rowcount_delete(self):
-        # All supported backends support rowcount, so far.
-        result = self.store.execute("DELETE FROM foo WHERE id <= 30")
-        self.assertEquals(result.rowcount, 3)
-
-    def test_rowcount_update(self):
-        # All supported backends support rowcount, so far.
-        result = self.store.execute(
-            "UPDATE foo SET title='whatever' WHERE id <= 30")
-        self.assertEquals(result.rowcount, 3)
-
     def test_rowcount_remove(self):
         # All supported backends support rowcount, so far.
         result_to_remove = self.store.find(Foo, Foo.id <= 30)
