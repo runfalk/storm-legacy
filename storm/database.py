@@ -124,7 +124,6 @@ class Result(object):
         @return: the number of affected rows, or None if the database
             backend does not provide this information. Return value
             is undefined if all results have not yet been retrieved.
-
         """
         if self._raw_cursor.rowcount == -1:
             return None
