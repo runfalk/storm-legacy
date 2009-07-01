@@ -516,7 +516,7 @@ class DatabaseDisconnectionTest(object):
         self.assertRaises(DisconnectionError, self.connection.commit)
 
     def test_wb_catch_already_disconnected(self):
-        """If Storm detects connections that have already been disconnected.
+        """Storm detects connections that have already been disconnected.
 
         If the connection is being used outside of Storm's control,
         then it is possible that Storm won't see the disconnection.
