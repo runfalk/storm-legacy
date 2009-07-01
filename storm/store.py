@@ -1371,7 +1371,8 @@ class ResultSet(object):
 
         This is analogous to L{Store.find}, although it doesn't take a
         C{cls_spec} argument, instead using the same tables as the
-        existing result set.
+        existing result set, and restricts the results to those in
+        this set.
 
         @param args: Instances of L{Expr}.
         @param kwargs: Mapping of simple column names to values or
