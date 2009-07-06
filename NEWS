@@ -20,6 +20,10 @@ Improvements
    objects to IResultSet.  This is intended to help in gradual porting
    SQLObject applications to Storm's native API (bug #338184, by Gavin
    Panella).
+ - If a disconnection occurs outside of Storm's control, a
+   DisconnectionError will still be raised next time the connection is
+   used through Storm.  This is useful if the connection is being
+   shared with another framework like Django (bug #374909).
 
 Bug fixes
 ---------
