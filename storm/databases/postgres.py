@@ -25,7 +25,7 @@ from storm.databases import dummy
 
 # PostgreSQL support in Storm requires psycopg2 2.0.7 or greater.
 # Earlier versions of psyocpg2 contain data loss bugs.
-# See https://bugs.edge.launchpad.net/storm/+bug/322206 for more details.
+# See https://bugs.launchpad.net/storm/+bug/322206 for more details.
 REQUIRED_PSYCOPG2_VERSION = LooseVersion('2.0.7')
 PSYCOPG2_VERSION = None
 try:
@@ -43,7 +43,7 @@ from storm.expr import (
     Sequence, Like, SQLToken, COLUMN, COLUMN_NAME, COLUMN_PREFIX, TABLE,
     compile, compile_select, compile_insert, compile_set_expr, compile_like,
     compile_sql_token)
-from storm.variables import Variable, ListVariable, RawStrVariable
+from storm.variables import Variable, ListVariable
 from storm.database import Database, Connection, Result
 from storm.exceptions import (
     install_exceptions, DatabaseError, DatabaseModuleError,
