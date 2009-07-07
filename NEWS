@@ -24,6 +24,9 @@ Improvements
    DisconnectionError will still be raised next time the connection is
    used through Storm.  This is useful if the connection is being
    shared with another framework like Django (bug #374909).
+ - The PostgreSQL backend now requires psycopg2 >= 2.0.7.  The work
+   around for broken quoting behaviour in older psycopg2 versions has
+   been removed. (bug #322206).
 
 Bug fixes
 ---------
