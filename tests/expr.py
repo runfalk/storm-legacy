@@ -2120,6 +2120,11 @@ class CompilePythonTest(TestHelper):
         py_expr = compile_python(expr)
         self.assertEquals(py_expr, "elem1+elem2+elem3+elem4")
 
+    def test_neg(self):
+        expr = Neg(elem1)
+        py_expr = compile_python(expr)
+        self.assertEquals(py_expr, "-elem1")
+
     def test_sub(self):
         expr = Sub(elem1, Sub(elem2, elem3))
         py_expr = compile_python(expr)

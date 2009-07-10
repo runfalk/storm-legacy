@@ -1277,6 +1277,10 @@ class Neg(PrefixExpr):
     __slots__ = ()
     prefix = "-"
 
+@compile_python.when(Neg)
+def compile_neg_expr(compile, expr, state):
+    return "-%s" % compile(expr.expr, state, raw=True)
+
 class Asc(SuffixExpr):
     __slots__ = ()
     suffix = "ASC"
