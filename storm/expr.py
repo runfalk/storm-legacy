@@ -473,6 +473,9 @@ class Comparable(object):
             other = getattr(self, "variable_factory", Variable)(value=other)
         return Mod(self, other)
 
+    def __neg__(self):
+        return Neg(self)
+
     def is_in(self, others):
         if not isinstance(others, Expr):
             others = list(others)
@@ -1269,6 +1272,10 @@ class Not(PrefixExpr):
 class Exists(PrefixExpr):
     __slots__ = ()
     prefix = "EXISTS"
+
+class Neg(PrefixExpr):
+    __slots__ = ()
+    prefix = "-"
 
 class Asc(SuffixExpr):
     __slots__ = ()

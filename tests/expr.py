@@ -1330,6 +1330,19 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, "EXISTS func1()")
         self.assertEquals(state.parameters, [])
 
+    def test_neg(self):
+        expr = Neg(Func1())
+        state = State()
+        statement = compile(expr, state)
+        self.assertEquals(statement, "- func1()")
+        self.assertEquals(state.parameters, [])
+
+        expr = -Func1()
+        state = State()
+        statement = compile(expr, state)
+        self.assertEquals(statement, "- func1()")
+        self.assertEquals(state.parameters, [])
+
     def test_asc(self):
         expr = Asc(Func1())
         state = State()
