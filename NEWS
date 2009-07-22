@@ -27,6 +27,9 @@ Improvements
  - The PostgreSQL backend now requires psycopg2 >= 2.0.7.  The work
    around for broken quoting behaviour in older psycopg2 versions has
    been removed. (bug #322206).
+ - A new Neg expression is available.  It provides unary minus by
+   prepending a minus sign to whatever expression is passed to it
+   (bug #397654 by Michael Hudson).
 
 Bug fixes
 ---------
