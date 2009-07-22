@@ -1330,6 +1330,19 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, "EXISTS func1()")
         self.assertEquals(state.parameters, [])
 
+    def test_neg(self):
+        expr = Neg(Func1())
+        state = State()
+        statement = compile(expr, state)
+        self.assertEquals(statement, "- func1()")
+        self.assertEquals(state.parameters, [])
+
+        expr = -Func1()
+        state = State()
+        statement = compile(expr, state)
+        self.assertEquals(statement, "- func1()")
+        self.assertEquals(state.parameters, [])
+
     def test_asc(self):
         expr = Asc(Func1())
         state = State()
@@ -2106,6 +2119,11 @@ class CompilePythonTest(TestHelper):
         expr = Add(elem1, elem2, Add(elem3, elem4))
         py_expr = compile_python(expr)
         self.assertEquals(py_expr, "elem1+elem2+elem3+elem4")
+
+    def test_neg(self):
+        expr = Neg(elem1)
+        py_expr = compile_python(expr)
+        self.assertEquals(py_expr, "-elem1")
 
     def test_sub(self):
         expr = Sub(elem1, Sub(elem2, elem3))
