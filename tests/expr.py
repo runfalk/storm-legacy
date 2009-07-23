@@ -1316,6 +1316,20 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, "UPPER(func1())")
         self.assertEquals(state.parameters, [])
 
+    def test_coalesce(self):
+        expr = Coalesce(Func1())
+        state = State()
+        statement = compile(expr, state)
+        self.assertEquals(statement, "COALESCE(func1())")
+        self.assertEquals(state.parameters, [])
+
+    def test_coalesce_with_many_arguments(self):
+        expr = Coalesce(Func1(), Func2(), None)
+        state = State()
+        statement = compile(expr, state)
+        self.assertEquals(statement, "COALESCE(func1(), func2(), NULL)")
+        self.assertEquals(state.parameters, [])
+
     def test_not(self):
         expr = Not(Func1())
         state = State()

@@ -1238,6 +1238,11 @@ class Upper(NamedFunc):
     name = "UPPER"
 
 
+class Coalesce(NamedFunc):
+    __slots__ = ()
+    name = "COALESCE"
+
+
 # --------------------------------------------------------------------
 # Prefix and suffix expressions
 
