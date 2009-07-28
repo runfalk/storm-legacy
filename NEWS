@@ -30,6 +30,7 @@ Improvements
  - A new Neg expression is available.  It provides unary minus by
    prepending a minus sign to whatever expression is passed to it
    (bug #397654 by Michael Hudson).
+ - A new Coalese expressions is available.
 
 Bug fixes
 ---------
