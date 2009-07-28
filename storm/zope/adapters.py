@@ -1,3 +1,4 @@
+#
 # Copyright (c) 2006, 2007 Canonical
 #
 # Written by Gustavo Niemeyer <gustavo@niemeyer.net>
@@ -18,24 +19,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-__all__ = [
-    'has_transaction',
-    'has_zope',
-    'has_zope_component',
-    ]
+from zope.component import adapter
+from zope.interface import implementer
 
-try:
-    import transaction
-except ImportError:
-    has_transaction = False
-else:
-    has_transaction = True
+from storm.zope.interfaces import IResultSet, ISQLObjectResultSet
 
-try:
-    import zope.component
-except ImportError:
-    has_zope_component = False
-else:
-    has_zope_component = True
 
-has_zope = has_transaction and has_zope_component
+@adapter(ISQLObjectResultSet)
+@implementer(IResultSet)
+def sqlobject_result_set_to_storm_result_set(so_result_set):
+    return so_result_set._result_set

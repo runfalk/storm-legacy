@@ -206,8 +206,18 @@ if has_cextensions:
 class CompilePython(Compile):
 
     def get_matcher(self, expr):
-        exec "def match(get_column): return bool(%s)" % self(expr)
-        return match
+        state = State()
+        source = self(expr, state)
+        namespace = {}
+        code = ("def closure(parameters, bool):\n"
+                "    [%s] = parameters\n"
+                "    def match(get_column):\n"
+                "        return bool(%s)\n"
+                "    return match" %
+                (",".join("_%d" % i for i in range(len(state.parameters))),
+                 source))
+        exec code in namespace
+        return namespace['closure'](state.parameters, bool)
 
 
 class State(object):
@@ -348,10 +358,16 @@ def compile_none(compile, expr, state):
     return "NULL"
 
 
-@compile_python.when(str, unicode, bool, int, long, float,
-                     datetime, date, time, timedelta, type(None))
+@compile_python.when(str, unicode, int, long, float, type(None))
 def compile_python_builtin(compile, expr, state):
     return repr(expr)
+
+
+@compile_python.when(bool, datetime, date, time, timedelta)
+def compile_python_bool_and_dates(compile, expr, state):
+    index = len(state.parameters)
+    state.parameters.append(expr)
+    return "_%d" % index
 
 
 @compile.when(Variable)
@@ -361,7 +377,9 @@ def compile_variable(compile, variable, state):
 
 @compile_python.when(Variable)
 def compile_python_variable(compile, variable, state):
-    return repr(variable.get())
+    index = len(state.parameters)
+    state.parameters.append(variable.get())
+    return "_%d" % index
 
 
 # --------------------------------------------------------------------
@@ -454,6 +472,9 @@ class Comparable(object):
         if not isinstance(other, (Expr, Variable)):
             other = getattr(self, "variable_factory", Variable)(value=other)
         return Mod(self, other)
+
+    def __neg__(self):
+        return Neg(self)
 
     def is_in(self, others):
         if not isinstance(others, Expr):
@@ -776,7 +797,9 @@ def compile_column(compile, column, state):
 
 @compile_python.when(Column)
 def compile_python_column(compile, column, state):
-    return "get_column(%s)" % repr(column.name)
+    index = len(state.parameters)
+    state.parameters.append(column)
+    return "get_column(_%d)" % index
 
 
 # --------------------------------------------------------------------
@@ -1215,6 +1238,11 @@ class Upper(NamedFunc):
     name = "UPPER"
 
 
+class Coalesce(NamedFunc):
+    __slots__ = ()
+    name = "COALESCE"
+
+
 # --------------------------------------------------------------------
 # Prefix and suffix expressions
 
@@ -1249,6 +1277,14 @@ class Not(PrefixExpr):
 class Exists(PrefixExpr):
     __slots__ = ()
     prefix = "EXISTS"
+
+class Neg(PrefixExpr):
+    __slots__ = ()
+    prefix = "-"
+
+@compile_python.when(Neg)
+def compile_neg_expr(compile, expr, state):
+    return "-%s" % compile(expr.expr, state, raw=True)
 
 class Asc(SuffixExpr):
     __slots__ = ()

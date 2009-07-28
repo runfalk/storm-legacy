@@ -28,7 +28,8 @@ supported in modules in L{storm.databases}.
 from storm.expr import Expr, State, compile
 from storm.tracer import trace
 from storm.variables import Variable
-from storm.exceptions import ClosedError, DatabaseError, DisconnectionError
+from storm.exceptions import (
+    ClosedError, DatabaseError, DisconnectionError, Error)
 from storm.uri import URI
 import storm
 
@@ -273,9 +274,10 @@ class Connection(object):
 
         @return: The dbapi cursor object, as fetched from L{build_raw_cursor}.
         """
-        raw_cursor = self.build_raw_cursor()
-        trace("connection_raw_execute", self, raw_cursor,
-              statement, params or ())
+        raw_cursor = self._check_disconnect(self.build_raw_cursor)
+        self._check_disconnect(
+            trace, "connection_raw_execute", self, raw_cursor,
+            statement, params or ())
         if params:
             args = (statement, tuple(self.to_database(params)))
         else:
@@ -283,12 +285,14 @@ class Connection(object):
         try:
             self._check_disconnect(raw_cursor.execute, *args)
         except Exception, error:
-            trace("connection_raw_execute_error", self, raw_cursor,
-                  statement, params or (), error)
+            self._check_disconnect(
+                trace, "connection_raw_execute_error", self, raw_cursor,
+                statement, params or (), error)
             raise
         else:
-            trace("connection_raw_execute_success", self, raw_cursor,
-                  statement, params or ())
+            self._check_disconnect(
+                trace, "connection_raw_execute_success", self, raw_cursor,
+                statement, params or ())
         return raw_cursor
 
     def _ensure_connected(self):
@@ -323,7 +327,7 @@ class Connection(object):
         """Run the given function, checking for database disconnections."""
         try:
             return function(*args, **kwargs)
-        except DatabaseError, exc:
+        except Error, exc:
             if self.is_disconnection_error(exc):
                 self._state = STATE_DISCONNECTED
                 self._raw_connection = None
