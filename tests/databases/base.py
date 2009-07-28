@@ -522,12 +522,11 @@ class DatabaseDisconnectionTest(object):
         InterfaceErrors are a form of a disconnection error, so rollback()
         should swallow them and reconnect.
         """
-        orig_raw_connection = self.connection._raw_connection
         class FakeConnection:
             def rollback(self):
                 raise InterfaceError('connection already closed')
+        self.connection._raw_connection = FakeConnection()
         try:
-            self.connection._raw_connection = FakeConnection()
             self.connection.rollback()
         except Exception, exc:
             self.fail('Exception should have been swallowed: %s' % repr(exc))
