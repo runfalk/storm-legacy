@@ -33,7 +33,8 @@ from storm.variables import (Variable, PickleVariable, RawStrVariable,
 from storm.database import *
 from storm.event import EventSystem
 from storm.exceptions import (
-    DatabaseError, DatabaseModuleError, DisconnectionError, OperationalError)
+    DatabaseError, DatabaseModuleError, DisconnectionError, InterfaceError,
+    OperationalError)
 
 from tests.databases.proxy import ProxyTCPServer
 from tests.helper import MakePath
@@ -514,6 +515,22 @@ class DatabaseDisconnectionTest(object):
         self.assertTrue(result.get_one())
         self.proxy.restart()
         self.assertRaises(DisconnectionError, self.connection.commit)
+
+    def test_rollback_swallows_InterfaceError(self):
+        """Test that InterfaceErrors get caught on rollback().
+
+        InterfaceErrors are a form of a disconnection error, so rollback()
+        should swallow them and reconnect.
+        """
+        orig_raw_connection = self.connection._raw_connection
+        class FakeConnection:
+            def rollback(self):
+                raise InterfaceError('connection already closed')
+        try:
+            self.connection._raw_connection = FakeConnection()
+            self.connection.rollback()
+        except Exception, exc:
+            self.fail('Exception should have been swallowed: %s' % repr(exc))
 
     def test_wb_catch_already_disconnected(self):
         """Storm detects connections that have already been disconnected.
