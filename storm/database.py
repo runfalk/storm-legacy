@@ -117,6 +117,19 @@ class Result(object):
             for result in results:
                 yield tuple(self.from_database(result))
 
+    @property
+    def rowcount(self):
+        """
+        See PEP 249 for further details on rowcount.
+
+        @return: the number of affected rows, or None if the database
+            backend does not provide this information. Return value
+            is undefined if all results have not yet been retrieved.
+        """
+        if self._raw_cursor.rowcount == -1:
+            return None
+        return self._raw_cursor.rowcount
+
     def get_insert_identity(self, primary_columns, primary_variables):
         """Get a query which will return the row that was just inserted.
 

@@ -3757,7 +3757,6 @@ class StoreTest(object):
                           (400, 20, "Title 100"),
                          ])
 
-
     def test_indirect_reference_set(self):
         foo = self.store.get(FooIndRefSet, 20)
 
@@ -5556,6 +5555,12 @@ class StoreTest(object):
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0], self.store)
 
+    def test_rowcount_remove(self):
+        # All supported backends support rowcount, so far.
+        result_to_remove = self.store.find(Foo, Foo.id <= 30)
+        self.assertEquals(result_to_remove.remove(), 3)
+
+
 class EmptyResultSetTest(object):
 
     def setUp(self):
@@ -5656,8 +5661,8 @@ class EmptyResultSetTest(object):
         self.assertEquals(self.empty.order_by(Foo.title), self.empty)
 
     def test_remove(self):
-        self.assertEquals(self.result.remove(), None)
-        self.assertEquals(self.empty.remove(), None)
+        self.assertEquals(self.result.remove(), 0)
+        self.assertEquals(self.empty.remove(), 0)
 
     def test_count(self):
         self.assertEquals(self.result.count(), 0)
