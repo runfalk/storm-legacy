@@ -35,6 +35,10 @@ Improvements
    without the first argument (it uses the same classes as the original
    result), and only returns results found in the original result set.
    (bug #338255).
+ - Result.rowcount exposes the number of rows affected by the
+   query, when known.
+ - ResultSet.remove returns the number of rows deleted from the database.
+   (bug #180122).
 
 Bug fixes
 ---------
