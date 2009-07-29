@@ -20,6 +20,21 @@ Improvements
    objects to IResultSet.  This is intended to help in gradual porting
    SQLObject applications to Storm's native API (bug #338184, by Gavin
    Panella).
+ - If a disconnection occurs outside of Storm's control, a
+   DisconnectionError will still be raised next time the connection is
+   used through Storm.  This is useful if the connection is being
+   shared with another framework like Django (bug #374909).
+ - The PostgreSQL backend now requires psycopg2 >= 2.0.7.  The work
+   around for broken quoting behaviour in older psycopg2 versions has
+   been removed. (bug #322206).
+ - A new Neg expression is available.  It provides unary minus by
+   prepending a minus sign to whatever expression is passed to it
+   (bug #397654 by Michael Hudson).
+ - A new Coalese expressions is available.
+ - ResultSets now have a find().  It acts similar to Store.find(), but
+   without the first argument (it uses the same classes as the original
+   result), and only returns results found in the original result set.
+   (bug #338255).
 
 Bug fixes
 ---------

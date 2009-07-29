@@ -5014,6 +5014,62 @@ class StoreTest(object):
         self.store.reset()
         self.assertIdentical(Store.of(foo1), None)
 
+    def test_result_find(self):
+        result1 = self.store.find(Foo, Foo.id <= 20)
+        result2 = result1.find(Foo.id > 10)
+        foo = result2.one()
+        self.assertTrue(foo)
+        self.assertEqual(foo.id, 20)
+
+    def test_result_find_kwargs(self):
+        result1 = self.store.find(Foo, Foo.id <= 20)
+        result2 = result1.find(id=20)
+        foo = result2.one()
+        self.assertTrue(foo)
+        self.assertEqual(foo.id, 20)
+
+    def test_result_find_introduce_join(self):
+        result1 = self.store.find(Foo, Foo.id <= 20)
+        result2 = result1.find(Foo.id == Bar.foo_id,
+                               Bar.title == u"Title 300")
+        foo = result2.one()
+        self.assertTrue(foo)
+        self.assertEqual(foo.id, 10)
+
+    def test_result_find_tuple(self):
+        result1 = self.store.find((Foo, Bar), Foo.id == Bar.foo_id)
+        result2 = result1.find(Bar.title == u"Title 100")
+        foo_bar = result2.one()
+        self.assertTrue(foo_bar)
+        foo, bar = foo_bar
+        self.assertEqual(foo.id, 30)
+        self.assertEqual(bar.id, 300)
+
+    def test_result_find_undef_where(self):
+        result = self.store.find(Foo, Foo.id == 20).find()
+        foo = result.one()
+        self.assertTrue(foo)
+        self.assertEqual(foo.id, 20)
+        result = self.store.find(Foo).find(Foo.id == 20)
+        foo = result.one()
+        self.assertTrue(foo)
+        self.assertEqual(foo.id, 20)
+
+    def test_result_find_fails_on_set_expr(self):
+        result1 = self.store.find(Foo)
+        result2 = self.store.find(Foo)
+        result = result1.union(result2)
+        self.assertRaises(FeatureError, result.find, Foo.id == 20)
+
+    def test_result_find_fails_on_slice(self):
+        result = self.store.find(Foo)[1:2]
+        self.assertRaises(FeatureError, result.find, Foo.id == 20)
+
+    def test_result_find_fails_on_group_by(self):
+        result = self.store.find(Foo)
+        result.group_by(Foo)
+        self.assertRaises(FeatureError, result.find, Foo.id == 20)
+
     def test_result_union(self):
         result1 = self.store.find(Foo, id=30)
         result2 = self.store.find(Foo, id=10)
@@ -5645,6 +5701,10 @@ class EmptyResultSetTest(object):
     def test_cached(self):
         self.assertEquals(self.result.cached(), [])
         self.assertEquals(self.empty.cached(), [])
+
+    def test_find(self):
+        self.assertEquals(list(self.result.find(Foo.title == u"foo")), [])
+        self.assertEquals(list(self.empty.find(Foo.title == u"foo")), [])
 
     def test_union(self):
         self.assertEquals(self.empty.union(self.empty), self.empty)

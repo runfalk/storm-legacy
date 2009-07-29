@@ -5,7 +5,7 @@
 """
 
 #
-# Copyright (c) 2006, 2007 Canonical
+# Copyright (c) 2006-2009 Canonical
 #
 # Written by Gustavo Niemeyer <gustavo@niemeyer.net>
 #
@@ -144,10 +144,12 @@ class ZStorm(object):
         return store
 
     def get(self, name, default_uri=None):
-        """Get the store called C{name} or None if one isn't available.
+        """Get the store called C{name}, creating it first if necessary.
 
         @param default_uri: Optionally, the URI to use to create a
            store called C{name} when one doesn't already exist.
+        @raises ZStormError: Raised if C{uri} is None and no default
+            URI exists for C{name}.
         """
         store = self._named.get(name)
         if not store:

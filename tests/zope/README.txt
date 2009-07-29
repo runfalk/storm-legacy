@@ -115,7 +115,7 @@ Great!  Let's try it out.
 
   >>> person = Person(u"John Doe")
   >>> store.add(person)
-  <Person object at ...>
+  <...Person object at ...>
   >>> transaction.commit()
 
 Notice that we're not using store.commit directly; we're using Zope's
@@ -135,7 +135,7 @@ Aborting transactions
 Let's make sure aborting transactions works, too.
 
   >>> store.add(Person(u"Imposter!"))
-  <Person object at ...>
+  <...Person object at ...>
 
 At this point a store.find should return the new object.
 
