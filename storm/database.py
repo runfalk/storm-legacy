@@ -243,7 +243,7 @@ class Connection(object):
         if self._state == STATE_CONNECTED:
             try:
                 self._raw_connection.rollback()
-            except DatabaseError, exc:
+            except Error, exc:
                 if self.is_disconnection_error(exc):
                     self._raw_connection = None
                     self._state = STATE_RECONNECT

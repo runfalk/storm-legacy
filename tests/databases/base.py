@@ -26,14 +26,15 @@ import sys
 import os
 
 from storm.uri import URI
-from storm.expr import Select, Column, Undef, SQLToken, SQLRaw, Count, Alias
+from storm.expr import Select, Column, SQLToken, SQLRaw, Count, Alias
 from storm.variables import (Variable, PickleVariable, RawStrVariable,
                              DecimalVariable, DateTimeVariable, DateVariable,
                              TimeVariable, TimeDeltaVariable)
 from storm.database import *
 from storm.event import EventSystem
 from storm.exceptions import (
-    DatabaseError, DatabaseModuleError, DisconnectionError, OperationalError)
+    DatabaseError, DatabaseModuleError, DisconnectionError, Error,
+    OperationalError)
 
 from tests.databases.proxy import ProxyTCPServer
 from tests.helper import MakePath
@@ -531,6 +532,39 @@ class DatabaseDisconnectionTest(object):
         self.assertTrue(result.get_one())
         self.proxy.restart()
         self.assertRaises(DisconnectionError, self.connection.commit)
+
+    def test_wb_catch_already_disconnected_on_rollback(self):
+        """Connection.rollback() swallows disconnection errors.
+
+        If the connection is being used outside of Storm's control,
+        then it is possible that Storm won't see the disconnection.
+        It should be able to recover from this situation though.
+        """
+        result = self.connection.execute("SELECT 1")
+        self.assertTrue(result.get_one())
+        self.proxy.restart()
+        # Perform an action that should result in a disconnection.
+        try:
+            cursor = self.connection._raw_connection.cursor()
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+        except Error, exc:
+            self.assertTrue(self.connection.is_disconnection_error(exc))
+        else:
+            self.fail("Disconnection was not caught.")
+
+        # Make sure our raw connection's rollback() raises a disconnection
+        # error when called.
+        try:
+            self.connection._raw_connection.rollback()
+        except Error, exc:
+            self.assertTrue(self.connection.is_disconnection_error(exc))
+        else:
+            self.fail("Disconnection was not raised.")
+
+        # Our rollback() will catch and swallow that disconnection error,
+        # though.
+        self.connection.rollback()
 
     def test_wb_catch_already_disconnected(self):
         """Storm detects connections that have already been disconnected.
