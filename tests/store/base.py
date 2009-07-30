@@ -864,6 +864,13 @@ class StoreTest(object):
         count = result.count()
         self.assertEquals(count, 3)
 
+    def test_find_distinct_order_by_limit_count(self):
+        result = self.store.find(Foo)
+        result.order_by(Foo.title)
+        result.config(distinct=True, limit=3)
+        count = result.count()
+        self.assertEquals(count, 3)
+
     def test_find_distinct_count_multiple_columns(self):
         result = self.store.find((Link.foo_id, Link.bar_id))
         result.config(distinct=True)

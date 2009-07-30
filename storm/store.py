@@ -1188,13 +1188,12 @@ class ResultSet(object):
         if self._group_by is not Undef:
             raise FeatureError("Single aggregates aren't supported after a "
                                " GROUP BY clause ")
-        dummy, default_tables = self._find_spec.get_columns_and_tables()
+        columns, default_tables = self._find_spec.get_columns_and_tables()
         if (self._select is Undef and not self._distinct and
             self._offset is Undef and self._limit is Undef):
             select = Select(aggregate_func(expr), self._where,
                             self._tables, default_tables)
         else:
-            columns = self._find_spec.get_primary_keys_and_exprs()
             if expr is Undef:
                 aggregate = aggregate_func(expr)
             else:
@@ -1582,15 +1581,6 @@ class FindSpec(object):
                 columns.extend(info.columns)
                 default_tables.append(info.table)
         return columns, default_tables
-
-    def get_primary_keys_and_exprs(self):
-        columns = []
-        for is_expr, info in self._cls_spec_info:
-            if is_expr:
-                columns.append(info)
-            else:
-                columns.extend(info.primary_key)
-        return columns
 
     def is_compatible(self, find_spec):
         """Return True if this FindSpec is compatible with a second one."""
