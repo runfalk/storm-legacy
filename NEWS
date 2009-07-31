@@ -44,7 +44,9 @@ Bug fixes
 ---------
  - The fix for ResultSet.count() on distinct results from last release
    has been improved, and the fix has been extended to the other
-   aggregates.
+   aggregates.  This may change the result of some count(), min(),
+   max(), sum() and avg() calls for results using distinct, limit or
+   offset.
  - The test suite now passes when run with Python 2.6.
  - ListVariable now converts its elements to database representation
    correctly (bug #136806 reported by Marc Tardif).
