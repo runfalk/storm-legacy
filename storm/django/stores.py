@@ -31,13 +31,6 @@ from django.core.exceptions import ImproperlyConfigured
 
 
 def configure_stores(settings):
-    if "storm.django.middleware.ZopeTransactionMiddleware" not in (
-        settings.MIDDLEWARE_CLASSES):
-        raise ImproperlyConfigured(
-            "You need to register "
-            "storm.django.middleware.ZopeTransactionMiddleware "
-            "in MIDDLEWARE_CLASSES to use Storm.")
-
     if not hasattr(settings, "STORM_STORES"):
         raise ImproperlyConfigured(
             "You need to specify STORM_STORES in your Django settings file.")
