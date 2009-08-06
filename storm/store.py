@@ -1151,9 +1151,9 @@ class ResultSet(object):
         if self._select is not Undef:
             raise FeatureError("Removing isn't supported with "
                                "set expressions (unions, etc)")
-        self._store._connection.execute(
-            Delete(self._where, self._find_spec.default_cls_info.table),
-            noresult=True)
+        result = self._store._connection.execute(
+            Delete(self._where, self._find_spec.default_cls_info.table))
+        return result.rowcount
 
     def group_by(self, *expr):
         """Group this ResultSet by the given expressions.
@@ -1184,15 +1184,24 @@ class ResultSet(object):
         self._having = And(*expr)
         return self
 
-    def _aggregate(self, expr, column=None):
+    def _aggregate(self, aggregate_func, expr, column=None):
         if self._group_by is not Undef:
             raise FeatureError("Single aggregates aren't supported after a "
                                " GROUP BY clause ")
-        dummy, default_tables = self._find_spec.get_columns_and_tables()
-        if self._select is Undef:
-            select = Select(expr, self._where, self._tables, default_tables)
+        columns, default_tables = self._find_spec.get_columns_and_tables()
+        if (self._select is Undef and not self._distinct and
+            self._offset is Undef and self._limit is Undef):
+            select = Select(aggregate_func(expr), self._where,
+                            self._tables, default_tables)
         else:
-            select = Select(expr, tables=Alias(self._select))
+            if expr is Undef:
+                aggregate = aggregate_func(expr)
+            else:
+                alias = Alias(expr, "_expr")
+                columns.append(alias)
+                aggregate = aggregate_func(alias)
+            subquery = replace_columns(self._get_select(), columns)
+            select = Select(aggregate, tables=Alias(subquery, "_tmp"))
         result = self._store._connection.execute(select)
         value = result.get_one()[0]
         variable_factory = getattr(column, "variable_factory", None)
@@ -1204,26 +1213,26 @@ class ResultSet(object):
 
     def count(self, expr=Undef, distinct=False):
         """Get the number of objects represented by this ResultSet."""
-        return int(self._aggregate(Count(expr, distinct)))
+        return int(self._aggregate(lambda expr: Count(expr, distinct), expr))
 
     def max(self, expr):
         """Get the highest value from an expression."""
-        return self._aggregate(Max(expr), expr)
+        return self._aggregate(Max, expr, expr)
 
     def min(self, expr):
         """Get the lowest value from an expression."""
-        return self._aggregate(Min(expr), expr)
+        return self._aggregate(Min, expr, expr)
 
     def avg(self, expr):
         """Get the average value from an expression."""
-        value = self._aggregate(Avg(expr))
+        value = self._aggregate(Avg, expr)
         if value is None:
             return value
         return float(value)
 
     def sum(self, expr):
         """Get the sum of all values in an expression."""
-        return self._aggregate(Sum(expr), expr)
+        return self._aggregate(Sum, expr, expr)
 
     def values(self, *columns):
         """Retrieve only the specified columns.
@@ -1363,6 +1372,37 @@ class ResultSet(object):
                      # in get_column().
         return objects
 
+    def find(self, *args, **kwargs):
+        """Perform a query on objects within this result set.
+
+        This is analogous to L{Store.find}, although it doesn't take a
+        C{cls_spec} argument, instead using the same tables as the
+        existing result set, and restricts the results to those in
+        this set.
+
+        @param args: Instances of L{Expr}.
+        @param kwargs: Mapping of simple column names to values or
+            expressions to query for.
+
+        @return: A L{ResultSet} of matching instances.
+        """
+        if self._select is not Undef:
+            raise FeatureError("Can't query set expressions")
+        if self._offset is not Undef or self._limit is not Undef:
+            raise FeatureError("Can't query a sliced result set")
+        if self._group_by is not Undef:
+            raise FeatureError("Can't query grouped result sets")
+
+        result_set = self.copy()
+        extra_where = get_where_for_args(
+            args, kwargs, self._find_spec.default_cls)
+        if extra_where is not Undef:
+            if result_set._where is Undef:
+                result_set._where = extra_where
+            else:
+                result_set._where = And(result_set._where, extra_where)
+        return result_set
+
     def _set_expr(self, expr_cls, other, all=False):
         if not self._find_spec.is_compatible(other._find_spec):
             raise FeatureError("Incompatible results for set operation")
@@ -1462,7 +1502,7 @@ class EmptyResultSet(object):
         return self
 
     def remove(self):
-        pass
+        return 0
 
     def count(self, expr=Undef, distinct=False):
         return 0
@@ -1491,6 +1531,9 @@ class EmptyResultSet(object):
 
     def cached(self):
         return []
+
+    def find(self, *args, **kwargs):
+        return self
 
     def union(self, other):
         if isinstance(other, EmptyResultSet):

@@ -23,7 +23,6 @@ import threading
 
 try:
     from django import conf
-    from django.core.exceptions import ImproperlyConfigured
     import transaction
 except ImportError:
     have_django_and_transaction = False
@@ -55,13 +54,6 @@ class DjangoStoreTests(TestHelper):
         # test cases.
         transaction.manager.free(transaction.get())
         super(DjangoStoreTests, self).tearDown()
-
-    def test_configure_stores_requires_transaction_middleware(self):
-        self.assertRaises(ImproperlyConfigured,
-                          stores.configure_stores, conf.settings)
-        conf.settings.MIDDLEWARE_CLASSES += (
-            "storm.django.middleware.ZopeTransactionMiddleware",)
-        stores.configure_stores(conf.settings)
 
     def test_configure_stores_configures_store_uris(self):
         conf.settings.MIDDLEWARE_CLASSES += (

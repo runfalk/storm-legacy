@@ -31,11 +31,22 @@ Improvements
    prepending a minus sign to whatever expression is passed to it
    (bug #397654 by Michael Hudson).
  - A new Coalese expressions is available.
+ - ResultSets now have a find().  It acts similar to Store.find(), but
+   without the first argument (it uses the same classes as the original
+   result), and only returns results found in the original result set.
+   (bug #338255).
+ - Result.rowcount exposes the number of rows affected by the
+   query, when known.
+ - ResultSet.remove returns the number of rows deleted from the database.
+   (bug #180122).
 
 Bug fixes
 ---------
- - Revert management of distinct, offset and limit by the ResultSet.count()
-   method. It didn't handle some corner cases.
+ - The fix for ResultSet.count() on distinct results from last release
+   has been improved, and the fix has been extended to the other
+   aggregates.  This may change the result of some count(), min(),
+   max(), sum() and avg() calls for results using distinct, limit or
+   offset.
  - The test suite now passes when run with Python 2.6.
  - ListVariable now converts its elements to database representation
    correctly (bug #136806 reported by Marc Tardif).
