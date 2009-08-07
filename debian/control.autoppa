@@ -3,9 +3,9 @@ Section: universe/devel
 Priority: optional
 Maintainer: Jamshed Kakar <jamshed.kakar@canonical.com>
 AUTOPPA_INCLUDE(dapper):Build-Depends: debhelper, python-support, python2.4-dev, lsb-release
-AUTOPPA_INCLUDE(hardy,intrepid,jaunty,karmic):Build-Depends: debhelper, python-central, python-dev, lsb-release
+AUTOPPA_INCLUDE(hardy,intrepid,jaunty,karmic):Build-Depends: debhelper, python-central, python-all-dev, lsb-release
 Standards-Version: 3.7.2
-XS-Python-Version: current
+XS-Python-Version: all
 
 Package: python-storm
 Architecture: any

@@ -11,7 +11,9 @@ root_dir = debian/$(package)
 build: build-stamp
 build-stamp:
 	dh_testdir
-	python setup.py build
+	for python_version in `pyversions -r`; \
+		do $${python_version} setup.py build; \
+	done
 	touch build-stamp
 
 clean:
@@ -25,7 +27,10 @@ install: build
 	dh_testdir
 	dh_testroot
 	dh_clean -k
-	python setup.py install --root $(root_dir)
+	pyversions -r debian/control
+	for python_version in `pyversions -r`; \
+		do $${python_version} setup.py install --root $(root_dir); \
+	done
 
 binary-indep: build install
 
