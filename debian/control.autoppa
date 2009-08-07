@@ -12,6 +12,7 @@ Package: python-storm
 Architecture: any
 Depends: ${python:Depends}, ${shlibs:Depends}
 Provides: ${python:Provides}
+Suggests: python-psycopg2, python-mysqldb
 XB-Python-Version: ${python:Versions}
 Description: Storm is an object-relational mapper (ORM) for Python
  developed at Canonical.  The project has been in development for more

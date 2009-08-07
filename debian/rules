@@ -15,7 +15,7 @@ build-stamp:
 ifeq ($(use_pycentral),yes)
 	python setup.py build
 else
-	for python_version in `pyversions -r`; \
+	for python_version in `pyversions -r debian/control`; \
 		do $${python_version} setup.py build; \
 	done
 endif
