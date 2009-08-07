@@ -52,6 +52,7 @@ Bug fixes
    correctly (bug #136806 reported by Marc Tardif).
  - compile_python now works for values that don't produce valid Python
    expressions with repr().
+ - The C extension should now build under Windows.
 
 
 0.14 (2009-01-09)
