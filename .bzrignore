@@ -1,2 +1,11 @@
 build
 storm.egg-info
+build-stamp
+dist
+debian/files
+debian/python-storm
+debian/python-storm.debhelper.log
+debian/python-storm.postinst.debhelper
+debian/python-storm.preinst.debhelper
+debian/python-storm.prerm.debhelper
+debian/python-storm.substvars
