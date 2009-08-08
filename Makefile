@@ -21,8 +21,17 @@ check: build
 	# Run the tests once with cextensions and once without them.
 	$(TEST_COMMAND) && STORM_CEXTENSIONS=1 $(TEST_COMMAND)
 
+release:
+	$(PYTHON) setup.py sdist --formats bztar
+
 clean:
 	rm -rf build
+	rm -rf build-stamp
+	rm -rf dist
+	rm -rf storm.egg-info
+	rm -rf debian/files
+	rm -rf debian/python-storm
+	rm -rf debian/python-storm.*
 	find . -name "*.so" -type f -exec rm -f {} \;
 	find . -name "*.pyc" -type f -exec rm -f {} \;
 	find . -name "*~" -type f -exec rm -f {} \;
