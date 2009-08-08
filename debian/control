@@ -2,7 +2,7 @@ Source: storm
 Section: universe/devel
 Priority: optional
 Maintainer: Jamshed Kakar <jamshed.kakar@canonical.com>
-Build-Depends: debhelper, lsb-release, python-central, python-all-dev, python2.4, python2.5
+Build-Depends: debhelper, lsb-release, python-central, python-all-dev, python2.4, python2.5, python2.6
 Standards-Version: 3.7.2
 XS-Python-Version: all
 
