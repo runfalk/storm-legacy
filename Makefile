@@ -18,11 +18,11 @@ build:
 	$(PYTHON) setup.py build_ext -i
 
 check: build
-	# Run the tests once with cextensions and once without them.
-	$(TEST_COMMAND) && STORM_CEXTENSIONS=1 $(TEST_COMMAND)
+	# Run the tests once with C extensions and once without them.
+	$(TEST_COMMAND) && STORM_CEXTENSIONS=0 $(TEST_COMMAND)
 
 release:
-	$(PYTHON) setup.py sdist --formats bztar
+	$(PYTHON) setup.py sdist
 
 clean:
 	rm -rf build
