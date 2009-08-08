@@ -13,11 +13,11 @@ build-stamp:
 	dh_testdir
 
 ifeq ($(use_pycentral),yes)
-	python setup.py build
-else
-	for python_version in `pyversions -r debian/control`; \
+	for python_version in `pyversions -r`; \
 		do $${python_version} setup.py build; \
 	done
+else
+	python setup.py build
 endif
 	touch build-stamp
 
@@ -34,11 +34,11 @@ install: build
 	dh_clean -k
 
 ifeq ($(use_pycentral),yes)
-	python setup.py install --root $(root_dir)
-else
 	for python_version in `pyversions -r`; \
 		do $${python_version} setup.py install --root $(root_dir); \
 	done
+else
+	python setup.py install --root $(root_dir)
 endif
 
 binary-indep: build install
