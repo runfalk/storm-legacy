@@ -26,8 +26,12 @@ release:
 
 clean:
 	rm -rf build
+	rm -rf build-stamp
 	rm -rf dist
 	rm -rf storm.egg-info
+	rm -rf debian/files
+	rm -rf debian/python-storm
+	rm -rf debian/python-storm.*
 	find . -name "*.so" -type f -exec rm -f {} \;
 	find . -name "*.pyc" -type f -exec rm -f {} \;
 	find . -name "*~" -type f -exec rm -f {} \;
