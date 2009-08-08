@@ -1,3 +1,10 @@
+storm (0.15-1~storm1.9.10) karmic; urgency=low
+
+  * C extensions build on all support releases of Ubuntu.
+  * New 0.15 upsream release.
+
+ -- Jamshed Kakar <jkakar@kakar.ca>  Sat, 8 Aug 2009 02:41:22 +0000
+
 storm (0.15-1~storm1.9.04) jaunty; urgency=low
 
   * C extensions build on all support releases of Ubuntu.
