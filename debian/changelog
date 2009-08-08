@@ -1,3 +1,10 @@
+storm (0.15-1~storm1.6.06) dapper; urgency=low
+
+  * C extensions build on all support releases of Ubuntu.
+  * New 0.15 upsream release.
+
+ -- Jamshed Kakar <jkakar@kakar.ca>  Sat, 8 Aug 2009 02:41:10 +0000
+
 storm (0.10.0-feisty1-storm1) feisty; urgency=low
 
   * New upstream release.
