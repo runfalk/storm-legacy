@@ -1,8 +1,23 @@
-0.15 (2009-XX-XX)
+0.16 (2009-XX-XX)
 =================
 
 Improvements
 ------------
+ - ResultSet has a new select() method takes a list of columns,
+   similar to values(), and returns a Select expression.  This makes
+   it easy to use a ResultSet as a subselect.
+
+Bug fixes
+---------
+
+
+0.15 (2009-08-07)
+=================
+
+Improvements
+------------
+ - Add support for latest version on Django by not checking arguments
+   passed to _cursor.
  - Added support for using Expressions with ResultSet.set().
  - The default cache size was changed from 100 to 1000 objects.
  - Added the new GenerationalCache with a faster implementation of
@@ -14,17 +29,43 @@ Improvements
  - The StoreDataManager now gets passed a transaction manager from the
    ZStorm utility.  This will make it easier to support non-default
    transaction managers in the future.
- - ResultSet has a new select() method takes a list of columns,
-   similar to values(), and returns a Select expression.  This makes
-   it easy to use a ResultSet as a subselect.
+ - An adapter is now available for converting ISQLObjectResultSet
+   objects to IResultSet.  This is intended to help in gradual porting
+   SQLObject applications to Storm's native API (bug #338184, by Gavin
+   Panella).
+ - If a disconnection occurs outside of Storm's control, a
+   DisconnectionError will still be raised next time the connection is
+   used through Storm.  This is useful if the connection is being
+   shared with another framework like Django (bug #374909).
+ - The PostgreSQL backend now requires psycopg2 >= 2.0.7.  The work
+   around for broken quoting behaviour in older psycopg2 versions has
+   been removed. (bug #322206).
+ - A new Neg expression is available.  It provides unary minus by
+   prepending a minus sign to whatever expression is passed to it
+   (bug #397654 by Michael Hudson).
+ - A new Coalese expressions is available.
+ - ResultSets now have a find().  It acts similar to Store.find(), but
+   without the first argument (it uses the same classes as the original
+   result), and only returns results found in the original result set.
+   (bug #338255).
+ - Result.rowcount exposes the number of rows affected by the
+   query, when known.
+ - ResultSet.remove returns the number of rows deleted from the database.
+   (bug #180122).
 
 Bug fixes
 ---------
- - Revert management of distinct, offset and limit by the ResultSet.count()
-   method. It didn't handle some corner cases.
+ - The fix for ResultSet.count() on distinct results from last release
+   has been improved, and the fix has been extended to the other
+   aggregates.  This may change the result of some count(), min(),
+   max(), sum() and avg() calls for results using distinct, limit or
+   offset.
  - The test suite now passes when run with Python 2.6.
  - ListVariable now converts its elements to database representation
    correctly (bug #136806 reported by Marc Tardif).
+ - compile_python now works for values that don't produce valid Python
+   expressions with repr().
+ - The C extension should now build under Windows.
 
 
 0.14 (2009-01-09)

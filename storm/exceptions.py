@@ -130,7 +130,7 @@ class TimeoutError(StormError):
 def install_exceptions(module):
     for exception in (Error, Warning, DatabaseError, InternalError,
                       OperationalError, ProgrammingError, IntegrityError,
-                      DataError, NotSupportedError):
+                      DataError, NotSupportedError, InterfaceError):
         module_exception = getattr(module, exception.__name__, None)
         if module_exception is not None:
             module_exception.__bases__ += (exception,)

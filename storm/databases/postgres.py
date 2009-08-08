@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2006, 2007 Canonical
+# Copyright (c) 2006-2009 Canonical
 #
 # Written by Gustavo Niemeyer <gustavo@niemeyer.net>
 #
@@ -19,13 +19,23 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 from datetime import datetime, date, time, timedelta
+from distutils.version import LooseVersion
 
 from storm.databases import dummy
 
+# PostgreSQL support in Storm requires psycopg2 2.0.7 or greater.
+# Earlier versions of psyocpg2 contain data loss bugs.
+# See https://bugs.launchpad.net/storm/+bug/322206 for more details.
+REQUIRED_PSYCOPG2_VERSION = LooseVersion('2.0.7')
+PSYCOPG2_VERSION = None
 try:
     import psycopg2
-    import psycopg2.extensions
-except:
+    PSYCOPG2_VERSION = LooseVersion(psycopg2.__version__.split(' ')[0])
+    if PSYCOPG2_VERSION < REQUIRED_PSYCOPG2_VERSION:
+        psycopg2 = dummy
+    else:
+        import psycopg2.extensions
+except ImportError:
     psycopg2 = dummy
 
 from storm.expr import (
@@ -33,10 +43,10 @@ from storm.expr import (
     Sequence, Like, SQLToken, COLUMN, COLUMN_NAME, COLUMN_PREFIX, TABLE,
     compile, compile_select, compile_insert, compile_set_expr, compile_like,
     compile_sql_token)
-from storm.variables import Variable, ListVariable, RawStrVariable
+from storm.variables import Variable, ListVariable
 from storm.database import Database, Connection, Result
 from storm.exceptions import (
-    install_exceptions, DatabaseError, DatabaseModuleError,
+    install_exceptions, DatabaseError, DatabaseModuleError, InterfaceError,
     OperationalError, ProgrammingError, TimeoutError)
 from storm.tracer import TimeoutTracer
 
@@ -193,24 +203,6 @@ def compile_sql_token_postgres(compile, expr, state):
     return compile_sql_token(compile, expr, state)
 
 
-def compile_str_variable_with_E(compile, variable, state):
-    """Include an E just before the placeholder of string variables.
-
-    PostgreSQL 8.2 will issue a warning without it, and psycopg
-    will use the plain '' rather than E''.  The problem is being
-    tracked at the following URL::
-
-        http://www.initd.org/tracker/psycopg/ticket/202
-
-    """
-    state.parameters.append(variable)
-    if type(variable.get(to_db=True)) is str:
-        return "E?"
-    return "?"
-
-psycopg_needs_E = None
-
-
 class PostgresResult(Result):
 
     def get_insert_identity(self, primary_key, primary_variables):
@@ -285,17 +277,20 @@ class PostgresConnection(Connection):
                 yield param
 
     def is_disconnection_error(self, exc):
-        if not isinstance(exc, (OperationalError, ProgrammingError)):
+        if not isinstance(exc, (InterfaceError, OperationalError,
+                                ProgrammingError)):
             return False
 
         # XXX: 2007-09-17 jamesh
-        # I have no idea why I am seeing the last exception message
-        # after upgrading to Gutsy.
+        # The last message is for the benefit of old versions of
+        # psycopg2 (prior to 2.0.7) which have a bug related to
+        # stripping the error severity from the message.
         msg = str(exc)
         return ("server closed the connection unexpectedly" in msg or
                 "could not connect to server" in msg or
                 "no connection to the server" in msg or
                 "connection not open" in msg or
+                "connection already closed" in msg or
                 "losed the connection unexpectedly" in msg)
 
 
@@ -311,7 +306,9 @@ class Postgres(Database):
 
     def __init__(self, uri):
         if psycopg2 is dummy:
-            raise DatabaseModuleError("'psycopg2' module not found")
+            raise DatabaseModuleError(
+                "'psycopg2' >= %s not found. Found %s."
+                % (REQUIRED_PSYCOPG2_VERSION, PSYCOPG2_VERSION))
         self._dsn = make_dsn(uri)
         isolation = uri.options.get("isolation", "serializable")
         isolation_mapping = {
@@ -337,29 +334,8 @@ class Postgres(Database):
                 cursor.execute("SHOW server_version_num")
             except psycopg2.ProgrammingError:
                 self._version = 0
-                raw_connection.rollback()
             else:
                 self._version = int(cursor.fetchone()[0])
-
-            # This will conditionally change the compilation of binary
-            # variables (RawStrVariable) to preceed the placeholder with an
-            # 'E', if psycopg isn't doing it by itself.
-            #
-            # The "failing" code path isn't unittested because that
-            # would depend on a working psycopg version, or in an older
-            # postgresql version.  Both branches were manually tested
-            # for correctness at some point.
-            global psycopg_needs_E
-            try:
-                # If psycopg behaves correctly, this will break trying
-                # to run a query with EE''.
-                cursor.execute("SELECT E%s", (psycopg2.Binary(""),))
-            except psycopg2.ProgrammingError:
-                psycopg_needs_E = False
-            else:
-                psycopg_needs_E = True
-                compile.when(RawStrVariable)(compile_str_variable_with_E)
-
             raw_connection.rollback()
 
         raw_connection.set_client_encoding("UTF8")

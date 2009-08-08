@@ -66,7 +66,7 @@ def find_tests(testpaths=()):
             elif relpath == os.path.join("tests", "zope", "README.txt"):
                 # Special case the inclusion of the Zope-dependent
                 # ZStorm doctest.
-                from tests.zope.zstorm import has_zope
+                from tests.zope import has_zope
                 if has_zope:
                     doctests.append(relpath)
             elif filename.endswith(".txt"):

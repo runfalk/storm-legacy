@@ -17,3 +17,25 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+
+__all__ = [
+    'has_transaction',
+    'has_zope',
+    'has_zope_component',
+    ]
+
+try:
+    import transaction
+except ImportError:
+    has_transaction = False
+else:
+    has_transaction = True
+
+try:
+    import zope.component
+except ImportError:
+    has_zope_component = False
+else:
+    has_zope_component = True
+
+has_zope = has_transaction and has_zope_component

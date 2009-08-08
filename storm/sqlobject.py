@@ -557,12 +557,7 @@ class SQLObjectResultSet(object):
 
     def count(self):
         result_set = self._without_prejoins()._result_set
-        # XXX 2008-04-14 jamesh: this should probably be handled at
-        # the store level.
-        if self._distinct:
-            return result_set.count(self._cls.id, distinct=True)
-        else:
-            return result_set.count()
+        return result_set.count()
 
     def orderBy(self, orderBy):
         return self._copy(orderBy=orderBy)

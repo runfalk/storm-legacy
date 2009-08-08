@@ -24,7 +24,7 @@ import os
 from storm.databases.postgres import (
     Postgres, compile, currval, Returning, PostgresTimeoutTracer)
 from storm.database import create_database
-from storm.exceptions import ProgrammingError
+from storm.exceptions import InterfaceError, ProgrammingError
 from storm.variables import DateTimeVariable, RawStrVariable
 from storm.variables import ListVariable, IntVariable, Variable
 from storm.properties import Int
@@ -525,6 +525,21 @@ class PostgresDisconnectionTest(DatabaseDisconnectionTest, TestHelper):
     environment_variable = "STORM_POSTGRES_URI"
     host_environment_variable = "STORM_POSTGRES_HOST_URI"
     default_port = 5432
+
+    def test_rollback_swallows_InterfaceError(self):
+        """Test that InterfaceErrors get caught on rollback().
+
+        InterfaceErrors are a form of a disconnection error, so rollback()
+        must swallow them and reconnect.
+        """
+        class FakeConnection:
+            def rollback(self):
+                raise InterfaceError('connection already closed')
+        self.connection._raw_connection = FakeConnection()
+        try:
+            self.connection.rollback()
+        except Exception, exc:
+            self.fail('Exception should have been swallowed: %s' % repr(exc))
 
 
 class PostgresTimeoutTracerTest(TimeoutTracerTestBase):

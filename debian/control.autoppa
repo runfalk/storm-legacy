@@ -2,15 +2,17 @@ Source: storm
 Section: universe/devel
 Priority: optional
 Maintainer: Jamshed Kakar <jamshed.kakar@canonical.com>
-AUTOPPA_INCLUDE(dapper):Build-Depends: debhelper, python-support, lsb-release
-AUTOPPA_INCLUDE(edgy,feisty,gutsy):Build-Depends: debhelper, python-central, lsb-release
+AUTOPPA_INCLUDE(dapper):Build-Depends: debhelper, python-support, python2.4-dev, lsb-release
+AUTOPPA_INCLUDE(hardy,intrepid):Build-Depends: debhelper, lsb-release, python-central, python-all-dev, python2.4, python2.5
+AUTOPPA_INCLUDE(jaunty,karmic):Build-Depends: debhelper, lsb-release, python-central, python-all-dev, python2.4, python2.5, python2.6
 Standards-Version: 3.7.2
-XS-Python-Version: current
+XS-Python-Version: all
 
 Package: python-storm
 Architecture: any
 Depends: ${python:Depends}, ${shlibs:Depends}
 Provides: ${python:Provides}
+Suggests: python-psycopg2, python-mysqldb
 XB-Python-Version: ${python:Versions}
 Description: Storm is an object-relational mapper (ORM) for Python
  developed at Canonical.  The project has been in development for more

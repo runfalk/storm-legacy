@@ -19,36 +19,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import os
+from zope.component import adapter
+from zope.interface import implementer
+
+from storm.zope.interfaces import IResultSet, ISQLObjectResultSet
 
 
-version = "0.16"
-version_info = tuple([int(x) for x in version.split(".")])
-
-
-class UndefType(object):
-
-    def __repr__(self):
-        return "Undef"
-
-    def __reduce__(self):
-        return "Undef"
-
-
-Undef = UndefType()
-
-
-# XXX The default is 1 for now.  In the future we'll invert this logic so
-#     that it's enabled by default.
-has_cextensions = False
-if os.environ.get("STORM_CEXTENSIONS") == "1":
-    try:
-        from storm import cextensions
-        has_cextensions = True
-    except ImportError, e:
-        # XXX Once the logic is inverted and cextensions are enabled by
-        #     default, use the following version so that people may opt
-        #     to use and distribute the pure Python version.
-        #if "cextensions" not in str(e):
-        #    raise
-        raise
+@adapter(ISQLObjectResultSet)
+@implementer(IResultSet)
+def sqlobject_result_set_to_storm_result_set(so_result_set):
+    return so_result_set._result_set

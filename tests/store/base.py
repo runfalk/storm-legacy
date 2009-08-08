@@ -841,6 +841,48 @@ class StoreTest(object):
         count = self.store.find(Link).count(Link.foo_id, distinct=True)
         self.assertEquals(count, 3)
 
+    def test_find_limit_count(self):
+        result = self.store.find(Link.foo_id)
+        result.config(limit=2)
+        count = result.count()
+        self.assertEquals(count, 2)
+
+    def test_find_offset_count(self):
+        result = self.store.find(Link.foo_id)
+        result.config(offset=3)
+        count = result.count()
+        self.assertEquals(count, 3)
+
+    def test_find_sliced_count(self):
+        result = self.store.find(Link.foo_id)
+        count = result[2:4].count()
+        self.assertEquals(count, 2)
+
+    def test_find_distinct_count(self):
+        result = self.store.find(Link.foo_id)
+        result.config(distinct=True)
+        count = result.count()
+        self.assertEquals(count, 3)
+
+    def test_find_distinct_order_by_limit_count(self):
+        result = self.store.find(Foo)
+        result.order_by(Foo.title)
+        result.config(distinct=True, limit=3)
+        count = result.count()
+        self.assertEquals(count, 3)
+
+    def test_find_distinct_count_multiple_columns(self):
+        result = self.store.find((Link.foo_id, Link.bar_id))
+        result.config(distinct=True)
+        count = result.count()
+        self.assertEquals(count, 6)
+
+    def test_find_count_column_with_implicit_distinct(self):
+        result = self.store.find(Link)
+        result.config(distinct=True)
+        count = result.count(Link.foo_id)
+        self.assertEquals(count, 6)
+
     def test_find_max(self):
         self.assertEquals(self.store.find(Foo).max(Foo.id), 30)
 
@@ -3788,7 +3830,6 @@ class StoreTest(object):
                           (400, 20, "Title 100"),
                          ])
 
-
     def test_indirect_reference_set(self):
         foo = self.store.get(FooIndRefSet, 20)
 
@@ -5046,6 +5087,62 @@ class StoreTest(object):
         self.store.reset()
         self.assertIdentical(Store.of(foo1), None)
 
+    def test_result_find(self):
+        result1 = self.store.find(Foo, Foo.id <= 20)
+        result2 = result1.find(Foo.id > 10)
+        foo = result2.one()
+        self.assertTrue(foo)
+        self.assertEqual(foo.id, 20)
+
+    def test_result_find_kwargs(self):
+        result1 = self.store.find(Foo, Foo.id <= 20)
+        result2 = result1.find(id=20)
+        foo = result2.one()
+        self.assertTrue(foo)
+        self.assertEqual(foo.id, 20)
+
+    def test_result_find_introduce_join(self):
+        result1 = self.store.find(Foo, Foo.id <= 20)
+        result2 = result1.find(Foo.id == Bar.foo_id,
+                               Bar.title == u"Title 300")
+        foo = result2.one()
+        self.assertTrue(foo)
+        self.assertEqual(foo.id, 10)
+
+    def test_result_find_tuple(self):
+        result1 = self.store.find((Foo, Bar), Foo.id == Bar.foo_id)
+        result2 = result1.find(Bar.title == u"Title 100")
+        foo_bar = result2.one()
+        self.assertTrue(foo_bar)
+        foo, bar = foo_bar
+        self.assertEqual(foo.id, 30)
+        self.assertEqual(bar.id, 300)
+
+    def test_result_find_undef_where(self):
+        result = self.store.find(Foo, Foo.id == 20).find()
+        foo = result.one()
+        self.assertTrue(foo)
+        self.assertEqual(foo.id, 20)
+        result = self.store.find(Foo).find(Foo.id == 20)
+        foo = result.one()
+        self.assertTrue(foo)
+        self.assertEqual(foo.id, 20)
+
+    def test_result_find_fails_on_set_expr(self):
+        result1 = self.store.find(Foo)
+        result2 = self.store.find(Foo)
+        result = result1.union(result2)
+        self.assertRaises(FeatureError, result.find, Foo.id == 20)
+
+    def test_result_find_fails_on_slice(self):
+        result = self.store.find(Foo)[1:2]
+        self.assertRaises(FeatureError, result.find, Foo.id == 20)
+
+    def test_result_find_fails_on_group_by(self):
+        result = self.store.find(Foo)
+        result.group_by(Foo)
+        self.assertRaises(FeatureError, result.find, Foo.id == 20)
+
     def test_result_union(self):
         result1 = self.store.find(Foo, id=30)
         result2 = self.store.find(Foo, id=10)
@@ -5531,6 +5628,11 @@ class StoreTest(object):
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0], self.store)
 
+    def test_rowcount_remove(self):
+        # All supported backends support rowcount, so far.
+        result_to_remove = self.store.find(Foo, Foo.id <= 30)
+        self.assertEquals(result_to_remove.remove(), 3)
+
 
 class EmptyResultSetTest(object):
 
@@ -5635,8 +5737,8 @@ class EmptyResultSetTest(object):
         self.assertEquals(self.empty.order_by(Foo.title), self.empty)
 
     def test_remove(self):
-        self.assertEquals(self.result.remove(), None)
-        self.assertEquals(self.empty.remove(), None)
+        self.assertEquals(self.result.remove(), 0)
+        self.assertEquals(self.empty.remove(), 0)
 
     def test_count(self):
         self.assertEquals(self.result.count(), 0)
@@ -5688,6 +5790,10 @@ class EmptyResultSetTest(object):
     def test_cached(self):
         self.assertEquals(self.result.cached(), [])
         self.assertEquals(self.empty.cached(), [])
+
+    def test_find(self):
+        self.assertEquals(list(self.result.find(Foo.title == u"foo")), [])
+        self.assertEquals(list(self.empty.find(Foo.title == u"foo")), [])
 
     def test_union(self):
         self.assertEquals(self.empty.union(self.empty), self.empty)
