@@ -43,7 +43,7 @@ Undef = UndefType()
 # imported Storm will automatically use Python versions of the optimized code
 # in the C extension.
 has_cextensions = False
-if not os.environ.get("STORM_CEXTENSIONS") == "0":
+if os.environ.get("STORM_CEXTENSIONS") != "0":
     try:
         from storm import cextensions
         has_cextensions = True
