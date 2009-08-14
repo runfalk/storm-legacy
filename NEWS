@@ -4,6 +4,9 @@
 Improvements
 ------------
 
+- C extensions are enabled by default.  Define the
+  STORM_CEXTENSIONS=0 environment variable to disable them.
+
 Bug fixes
 ---------
 
