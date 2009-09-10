@@ -395,6 +395,24 @@ class DatabaseTest(object):
             "UPDATE test SET title='whatever'")
         self.assertEquals(result.rowcount, 2)
 
+    def test_expr_startswith(self):
+        self.connection.execute("INSERT INTO test VALUES (30, '!!_%blah')")
+        self.connection.execute("INSERT INTO test VALUES (40, '!!blah')")
+        id = Column("id", SQLToken("test"))
+        title = Column("title", SQLToken("test"))
+        expr = Select(id, title.startswith(u"!!_%"))
+        result = list(self.connection.execute(expr))
+        self.assertEquals(result, [(30,)])
+
+    def test_expr_endswith(self):
+        self.connection.execute("INSERT INTO test VALUES (30, 'blah_%!!')")
+        self.connection.execute("INSERT INTO test VALUES (40, 'blah!!')")
+        id = Column("id", SQLToken("test"))
+        title = Column("title", SQLToken("test"))
+        expr = Select(id, title.endswith(u"_%!!"))
+        result = list(self.connection.execute(expr))
+        self.assertEquals(result, [(30,)])
+
 
 class UnsupportedDatabaseTest(object):
     
