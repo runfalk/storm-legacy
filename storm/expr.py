@@ -515,8 +515,14 @@ class Comparable(object):
 
     def endswith(self, suffix):
         if not isinstance(suffix, unicode):
-            raise ExprError("Expected unicode argument, got %r" % type(prefix))
+            raise ExprError("Expected unicode argument, got %r" % type(suffix))
         pattern = u"%" + suffix.translate(like_escape)
+        return Like(self, pattern, u"!")
+
+    def contains_string(self, substring):
+        if not isinstance(substring, unicode):
+            raise ExprError("Expected unicode argument, got %r" % type(substring))
+        pattern = u"%" + substring.translate(like_escape) + u"%"
         return Like(self, pattern, u"!")
 
 

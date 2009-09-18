@@ -204,6 +204,17 @@ class ExprTest(TestHelper):
         self.assertEquals(like_expr.expr2, u"%abc!!!!!_!%")
         self.assertEquals(like_expr.escape, u"!")
 
+    def test_contains_string(self):
+        expr = Func1()
+        self.assertRaises(
+            ExprError, expr.contains_string, "not a unicode string")
+
+        like_expr = expr.contains_string(u"abc!!_%")
+        self.assertTrue(isinstance(like_expr, Like))
+        self.assertTrue(like_expr.expr1 is expr)
+        self.assertEquals(like_expr.expr2, u"%abc!!!!!_!%%")
+        self.assertEquals(like_expr.escape, u"!")
+
     def test_eq(self):
         expr = Eq(elem1, elem2)
         self.assertEquals(expr.expr1, elem1)

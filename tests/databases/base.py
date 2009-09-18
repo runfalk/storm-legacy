@@ -413,6 +413,15 @@ class DatabaseTest(object):
         result = list(self.connection.execute(expr))
         self.assertEquals(result, [(30,)])
 
+    def test_expr_endswith(self):
+        self.connection.execute("INSERT INTO test VALUES (30, 'blah_%!!x')")
+        self.connection.execute("INSERT INTO test VALUES (40, 'blah!!x')")
+        id = Column("id", SQLToken("test"))
+        title = Column("title", SQLToken("test"))
+        expr = Select(id, title.contains_string(u"_%!!"))
+        result = list(self.connection.execute(expr))
+        self.assertEquals(result, [(30,)])
+
 
 class UnsupportedDatabaseTest(object):
     
