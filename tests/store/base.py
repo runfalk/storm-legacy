@@ -421,6 +421,32 @@ class StoreTest(object):
         self.store.flush()
         self.assertEquals(len(events), 1)
 
+    def test_wb_flush_event_with_deleted_object_before_flush(self):
+        """
+        When an object is deleted before flush and it contains mutable
+        variables, those variables unhook from the global event system to
+        prevent a leak.
+        """
+        class PickleBlob(Blob):
+            bin = Pickle()
+
+        # Disable the cache, which holds strong references.
+        self.get_cache(self.store).set_size(0)
+
+        blob = self.store.get(Blob, 20)
+        blob.bin = "\x80\x02}q\x01U\x01aK\x01s."
+        self.store.flush()
+        del blob
+        gc.collect()
+
+        pickle_blob = self.store.get(PickleBlob, 20)
+        pickle_blob.bin = "foobin"
+        del pickle_blob
+
+        self.store.flush()
+        self.assertEquals(self.store._event._hooks["flush"], set())
+
+
     def test_obj_info_with_deleted_object_with_get(self):
         # Same thing, but using get rather than find.
 
