@@ -1099,6 +1099,16 @@ class SetExpr(Expr):
         self.order_by = kwargs.get("order_by", Undef)
         self.limit = kwargs.get("limit", Undef)
         self.offset = kwargs.get("offset", Undef)
+        # If the first expression is of a compatible type, directly
+        # include its sub expressions.
+        if len(self.exprs) > 0:
+            first = self.exprs[0]
+            if (isinstance(first, self.__class__) and
+                first.all == self.all and
+                first.limit is Undef and
+                first.offset is Undef):
+                self.exprs = first.exprs + self.exprs[1:]
+
 
 @compile.when(SetExpr)
 def compile_set_expr(compile, expr, state):
