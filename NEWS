@@ -3,10 +3,13 @@
 
 Improvements
 ------------
+ - The set expression constructor will now flatten its first argument
+   if it is of the same type.  The resulting expression tree uses less
+   stack when compiling so reduces the chance of hitting Python's
+   recursion limit (bug #242813).
 
 Bug fixes
 ---------
-
  - Remove a leak when mutable variables (ListVariable or PickleVariable
    instances) are collected before store.flush, leaving hooks behind them.
 
