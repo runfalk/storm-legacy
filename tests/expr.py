@@ -292,13 +292,17 @@ class ExprTest(TestHelper):
         expr = Union(Union(elem1, elem2, all=True), elem3, all=True)
         self.assertEquals(expr.exprs, (elem1, elem2, elem3))
 
-        # Don't collapse if order_by, limit or offset are set.
-        expr = Union(Union(elem1, elem2, order_by=()), elem3)
-        self.assertTrue(isinstance(expr.exprs[0], Union))
+        # Don't collapse if limit or offset are set.
         expr = Union(Union(elem1, elem2, limit=1), elem3)
         self.assertTrue(isinstance(expr.exprs[0], Union))
         expr = Union(Union(elem1, elem2, offset=3), elem3)
         self.assertTrue(isinstance(expr.exprs[0], Union))
+
+        # Don't collapse other set expressions.
+        expr = Union(Except(elem1, elem2), elem3)
+        self.assertTrue(isinstance(expr.exprs[0], Except))
+        expr = Union(Intersect(elem1, elem2), elem3)
+        self.assertTrue(isinstance(expr.exprs[0], Intersect))
 
     def test_except(self):
         expr = Except(elem1, elem2, elem3)
@@ -329,13 +333,17 @@ class ExprTest(TestHelper):
         expr = Except(Except(elem1, elem2, all=True), elem3, all=True)
         self.assertEquals(expr.exprs, (elem1, elem2, elem3))
 
-        # Don't collapse if order_by, limit or offset are set.
-        expr = Except(Except(elem1, elem2, order_by=()), elem3)
-        self.assertTrue(isinstance(expr.exprs[0], Except))
+        # Don't collapse if limit or offset are set.
         expr = Except(Except(elem1, elem2, limit=1), elem3)
         self.assertTrue(isinstance(expr.exprs[0], Except))
         expr = Except(Except(elem1, elem2, offset=3), elem3)
         self.assertTrue(isinstance(expr.exprs[0], Except))
+
+        # Don't collapse other set expressions.
+        expr = Except(Union(elem1, elem2), elem3)
+        self.assertTrue(isinstance(expr.exprs[0], Union))
+        expr = Except(Intersect(elem1, elem2), elem3)
+        self.assertTrue(isinstance(expr.exprs[0], Intersect))
 
     def test_intersect(self):
         expr = Intersect(elem1, elem2, elem3)
@@ -367,13 +375,17 @@ class ExprTest(TestHelper):
         expr = Intersect(Intersect(elem1, elem2, all=True), elem3, all=True)
         self.assertEquals(expr.exprs, (elem1, elem2, elem3))
 
-        # Don't collapse if order_by, limit or offset are set.
-        expr = Intersect(Intersect(elem1, elem2, order_by=()), elem3)
-        self.assertTrue(isinstance(expr.exprs[0], Intersect))
+        # Don't collapse if limit or offset are set.
         expr = Intersect(Intersect(elem1, elem2, limit=1), elem3)
         self.assertTrue(isinstance(expr.exprs[0], Intersect))
         expr = Intersect(Intersect(elem1, elem2, offset=3), elem3)
         self.assertTrue(isinstance(expr.exprs[0], Intersect))
+
+        # Don't collapse other set expressions.
+        expr = Intersect(Union(elem1, elem2), elem3)
+        self.assertTrue(isinstance(expr.exprs[0], Union))
+        expr = Intersect(Except(elem1, elem2), elem3)
+        self.assertTrue(isinstance(expr.exprs[0], Except))
 
     def test_auto_tables(self):
         expr = AutoTables(elem1, [elem2])

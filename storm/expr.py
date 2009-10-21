@@ -1105,7 +1105,6 @@ class SetExpr(Expr):
             first = self.exprs[0]
             if (isinstance(first, self.__class__) and
                 first.all == self.all and
-                first.order_by is Undef and
                 first.limit is Undef and
                 first.offset is Undef):
                 self.exprs = first.exprs + self.exprs[1:]
