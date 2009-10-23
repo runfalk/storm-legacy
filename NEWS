@@ -12,6 +12,9 @@ Bug fixes
 ---------
  - Remove a leak when mutable variables (ListVariable or PickleVariable
    instances) are collected before store.flush, leaving hooks behind them.
+ - The ResultSet min, max and sum methods now work correctly when the
+   result set is empty and the column has allow_none=False set.
+   Previously this resulted in a NoneError (bug #457801).
 
 
 0.15 (2009-08-07)
