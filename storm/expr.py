@@ -395,6 +395,15 @@ def compile_python_unsupported(compile, expr, state):
     raise CompileError("Can't compile python expressions with %r" % type(expr))
 
 
+# A translation table that can escape a unicode string for use in a
+# Like() expression that uses "!" as the escape character.
+like_escape = {
+    ord(u"!"): u"!!",
+    ord(u"_"): u"!_",
+    ord(u"%"): u"!%"
+    }
+
+
 class Comparable(object):
     __slots__ = ()
 
@@ -497,6 +506,24 @@ class Comparable(object):
 
     def upper(self):
         return Upper(self)
+
+    def startswith(self, prefix):
+        if not isinstance(prefix, unicode):
+            raise ExprError("Expected unicode argument, got %r" % type(prefix))
+        pattern = prefix.translate(like_escape) + u"%"
+        return Like(self, pattern, u"!")
+
+    def endswith(self, suffix):
+        if not isinstance(suffix, unicode):
+            raise ExprError("Expected unicode argument, got %r" % type(suffix))
+        pattern = u"%" + suffix.translate(like_escape)
+        return Like(self, pattern, u"!")
+
+    def contains_string(self, substring):
+        if not isinstance(substring, unicode):
+            raise ExprError("Expected unicode argument, got %r" % type(substring))
+        pattern = u"%" + substring.translate(like_escape) + u"%"
+        return Like(self, pattern, u"!")
 
 
 class ComparableExpr(Expr, Comparable):

@@ -7,6 +7,10 @@ Improvements
    if it is of the same type.  The resulting expression tree uses less
    stack when compiling so reduces the chance of hitting Python's
    recursion limit (bug #242813).
+ - Add startswith(), endswith() and contains_string() methods to
+   Comparable.  These methods perform prefix, suffix and substring
+   checks respectively using the LIKE operator, taking care of escaping
+   for you (bug #387840).
 
 Bug fixes
 ---------
