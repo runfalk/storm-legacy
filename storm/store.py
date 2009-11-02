@@ -1206,7 +1206,7 @@ class ResultSet(object):
         value = result.get_one()[0]
         variable_factory = getattr(column, "variable_factory", None)
         if variable_factory:
-            variable = variable_factory()
+            variable = variable_factory(allow_none=True)
             result.set_variable(variable, value)
             return variable.get()
         return value

@@ -550,7 +550,7 @@ class MutableValueVariable(Variable):
         Variable.__init__(self, *args, **kwargs)
         if self.event is not None:
             self.event.hook("start-tracking-changes", self._start_tracking)
-            self.event.hook("object-deleted", self._detect_changes)
+            self.event.hook("object-deleted", self._detect_changes_and_stop)
 
     def _start_tracking(self, obj_info, event_system):
         self._event_system = event_system
@@ -564,6 +564,11 @@ class MutableValueVariable(Variable):
         if (self._checkpoint_state is not Undef and
             self.get_state() != self._checkpoint_state):
             self.event.emit("changed", self, None, self._value, False)
+    
+    def _detect_changes_and_stop(self, obj_info):
+        self._detect_changes(obj_info)
+        if self._event_system is not None:
+            self._stop_tracking(obj_info, self._event_system)
 
     def get(self, default=None, to_db=False):
         if self._event_system is not None:
