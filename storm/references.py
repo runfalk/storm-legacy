@@ -648,7 +648,11 @@ class Relation(object):
         else:
             local_info.event.hook("changed", self._break_on_local_diverged,
                                   remote_info)
+            local_info.event.hook("flushed", self._break_on_local_flushed,
+                                  remote_info)
             remote_info.event.hook("changed", self._break_on_remote_diverged,
+                                   local_info)
+            remote_info.event.hook("flushed", self._break_on_remote_flushed,
                                    local_info)
             if self.on_remote:
                 remote_info.event.hook("removed", self._break_on_remote_removed,

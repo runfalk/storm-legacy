@@ -2605,6 +2605,35 @@ class StoreTest(object):
         bar.foo_id = SQL("20")
         self.assertEquals(bar.foo.id, 20)
 
+    def test_reference_remote_leak_on_flush(self):
+        """
+        When an object is flushed, it correctly notifies objects holding a
+        reference to it so that we don't see a leak.
+        """
+        self.get_cache(self.store).set_size(0)
+        bar = self.store.get(Bar, 100)
+        bar.foo.title = u"Changed title"
+        foo_ref = weakref.ref(bar.foo)
+        self.store.flush()
+        gc.collect()
+        self.assertEquals(foo_ref(), None)
+
+    def test_reference_local_leak_on_flush(self):
+        """
+        When an object is flushed, it correctly notifies objects it's holding
+        reference to so that we don't see a leak.
+        """
+        class MyFoo(Foo):
+            bar = Reference(Foo.id, Bar.foo_id, on_remote=True)
+        self.get_cache(self.store).set_size(0)
+        foo = self.store.get(MyFoo, 10)
+        self.assertTrue(foo.bar)
+        foo.title = u"Changed title"
+        bar_ref = weakref.ref(foo.bar)
+        self.store.flush()
+        gc.collect()
+        self.assertEquals(bar_ref(), None)
+
     def test_reference_break_on_remote_diverged_by_lazy(self):
         class MyBar(Bar):
             pass
@@ -4484,7 +4513,7 @@ class StoreTest(object):
         self.store.invalidate()
 
         obj_info = get_obj_info(pickle_blob)
-        variable =  obj_info.variables[PickleBlob.bin]
+        variable = obj_info.variables[PickleBlob.bin]
         var_ref = weakref.ref(variable)
         del variable, blob, pickle_blob, obj_info
         gc.collect()
@@ -4523,7 +4552,7 @@ class StoreTest(object):
         self.store.invalidate()
 
         obj_info = get_obj_info(pickle_blob)
-        variable =  obj_info.variables[PickleBlob.bin]
+        variable = obj_info.variables[PickleBlob.bin]
         var_ref = weakref.ref(variable)
         del variable, blob, pickle_blob, obj_info, foo
         gc.collect()
