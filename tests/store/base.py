@@ -30,8 +30,7 @@ from storm.properties import Int, Float, RawStr, Unicode, Property, Pickle
 from storm.properties import PropertyPublisherMeta, Decimal
 from storm.variables import PickleVariable
 from storm.expr import (
-    Asc, Desc, Select, Func, LeftJoin, SQL, Count, Sum, Avg, And, Or, Eq,
-    Lower)
+    Asc, Desc, Select, LeftJoin, SQL, Count, Sum, Avg, And, Or, Eq, Lower)
 from storm.variables import Variable, UnicodeVariable, IntVariable
 from storm.info import get_obj_info, ClassAlias
 from storm.exceptions import *
@@ -4975,6 +4974,24 @@ class StoreTest(object):
 
         obj_info = get_obj_info(foo)
         self.assertEquals(obj_info.variables[Foo.title].get_lazy(), AutoReload)
+
+    def test_primary_key_reference(self):
+        """
+        When an object reference another one using its primary key, it
+        correctly checks for the invalidated state after the store has been
+        committed, detecting if the referenced object has been removed behind
+        its back.
+        """
+        class BarOnRemote(object):
+            __storm_table__ = "bar"
+            foo_id = Int(primary=True)
+            foo = Reference(foo_id, Foo.id, on_remote=True)
+        foo = self.store.get(Foo, 10)
+        bar = self.store.get(BarOnRemote, 10)
+        self.assertEqual(bar.foo, foo)
+        self.store.execute("DELETE FROM foo WHERE id = 10")
+        self.store.commit()
+        self.assertEqual(bar.foo, None)
 
     def test_invalidate_and_get_object(self):
         foo = self.store.get(Foo, 20)
