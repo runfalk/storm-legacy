@@ -22,12 +22,13 @@
 import threading
 
 try:
-    from django import conf
+    import django
     import transaction
 except ImportError:
     have_django_and_transaction = False
 else:
     have_django_and_transaction = True
+    from django import conf
     from storm.django import stores
     from storm.zope.zstorm import global_zstorm
 
@@ -45,7 +46,10 @@ class DjangoStoreTests(TestHelper):
         conf.settings.configure(STORM_STORES={})
 
     def tearDown(self):
-        conf.settings._target = None
+        if django.VERSION >= (1, 1):
+            conf.settings._wrapped = None
+        else:
+            conf.settings._target = None
         # Reset the utility to cleanup the StoreSynchronizer's from the
         # transaction.
         global_zstorm._reset()

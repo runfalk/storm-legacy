@@ -22,12 +22,13 @@
 import os
 
 try:
-    from django.conf import settings
+    import django
     import transaction
 except ImportError:
     have_django_and_transaction = False
 else:
     have_django_and_transaction = True
+    from django.conf import settings
     from storm.django import stores
     from storm.zope.zstorm import global_zstorm, StoreDataManager
 
@@ -54,7 +55,10 @@ class DjangoBackendTests(object):
     def tearDown(self):
         transaction.abort()
         self.drop_tables()
-        settings._target = None
+        if django.VERSION >= (1, 1):
+            settings._wrapped = None
+        else:
+            settings._target = None
         global_zstorm._reset()
         stores.have_configured_stores = False
         transaction.manager.free(transaction.get())
@@ -72,9 +76,24 @@ class DjangoBackendTests(object):
     def drop_tables(self):
         raise NotImplementedError
 
-    def test_create_wrapper(self):
+    def make_wrapper(self):
         from storm.django.backend import base
-        wrapper = base.DatabaseWrapper(**settings.DATABASE_OPTIONS)
+        if django.VERSION >= (1, 1):
+            wrapper = base.DatabaseWrapper({
+                    'DATABASE_HOST': settings.DATABASE_HOST,
+                    'DATABASE_NAME': settings.DATABASE_NAME,
+                    'DATABASE_OPTIONS': settings.DATABASE_OPTIONS,
+                    'DATABASE_PASSWORD': settings.DATABASE_PASSWORD,
+                    'DATABASE_PORT': settings.DATABASE_PORT,
+                    'DATABASE_USER': settings.DATABASE_USER,
+                    'TIME_ZONE': settings.TIME_ZONE,
+                    })
+        else:
+            wrapper = base.DatabaseWrapper(**settings.DATABASE_OPTIONS)
+        return wrapper
+
+    def test_create_wrapper(self):
+        wrapper = self.make_wrapper()
         self.assertTrue(isinstance(wrapper, self.get_wrapper_class()))
 
         # The wrapper uses the same database connection as the store.
@@ -94,15 +113,13 @@ class DjangoBackendTests(object):
                         "%r should be joined to the transaction" % store)
 
     def test_using_wrapper_joins_transaction(self):
-        from storm.django.backend import base
-        wrapper = base.DatabaseWrapper(**settings.DATABASE_OPTIONS)
+        wrapper = self.make_wrapper()
         cursor = wrapper.cursor()
         cursor.execute("SELECT 1")
         self.assertInTransaction(stores.get_store("django"))
 
     def test_commit(self):
-        from storm.django.backend import base
-        wrapper = base.DatabaseWrapper(**settings.DATABASE_OPTIONS)
+        wrapper = self.make_wrapper()
         cursor = wrapper.cursor()
         cursor.execute("INSERT INTO django_test (title) VALUES ('foo')")
         wrapper._commit()
@@ -114,8 +131,7 @@ class DjangoBackendTests(object):
         self.assertEqual(result[0][0], "foo")
 
     def test_rollback(self):
-        from storm.django.backend import base
-        wrapper = base.DatabaseWrapper(**settings.DATABASE_OPTIONS)
+        wrapper = self.make_wrapper()
         cursor = wrapper.cursor()
         cursor.execute("INSERT INTO django_test (title) VALUES ('foo')")
         wrapper._rollback()
