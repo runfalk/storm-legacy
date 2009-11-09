@@ -22,7 +22,6 @@
 import optparse
 import unittest
 import doctest
-import new
 import sys
 import os
 
@@ -35,14 +34,12 @@ def find_tests(testpaths=()):
     @param testpaths: If provided, only tests in the given sequence will
                       be considered.  If not provided, all tests are
                       considered.
-    @return: (unittests, doctests) tuple, with lists of unittests and
-             doctests found, respectively.
+    @return: a test suite containing the requested tests.
     """
+    suite = unittest.TestSuite()
     topdir = os.path.abspath(os.path.dirname(__file__))
     testdir = os.path.dirname(tests.__file__)
     testpaths = set(testpaths)
-    unittests = []
-    doctests = []
     for root, dirnames, filenames in os.walk(testdir):
         for filename in filenames:
             filepath = os.path.join(root, filename)
@@ -62,17 +59,28 @@ def find_tests(testpaths=()):
                     continue
 
             if filename.endswith(".py"):
-                unittests.append(relpath)
-            elif relpath == os.path.join("tests", "zope", "README.txt"):
-                # Special case the inclusion of the Zope-dependent
-                # ZStorm doctest.
-                from tests.zope import has_zope
-                if has_zope:
-                    doctests.append(relpath)
+                modpath = relpath.replace(os.path.sep, ".")[:-3]
+                module = __import__(modpath, None, None, [""])
+                suite.addTest(
+                    unittest.defaultTestLoader.loadTestsFromModule(module))
             elif filename.endswith(".txt"):
-                doctests.append(relpath)
+                load_test = True
+                if relpath == os.path.join("tests", "zope", "README.txt"):
+                    # Special case the inclusion of the Zope-dependent
+                    # ZStorm doctest.
+                    from tests.zope import has_zope
+                    load_test = has_zope
+                if load_test:
+                    parent_path = os.path.dirname(relpath).replace(
+                        os.path.sep, ".")
+                    parent_module = __import__(parent_path, None, None, [""])
+                    suite.addTest(doctest.DocFileSuite(
+                            os.path.basename(relpath),
+                            module_relative=True,
+                            package=parent_module,
+                            optionflags=doctest.ELLIPSIS))
 
-    return unittests, doctests
+    return suite
 
 
 def parse_sys_argv():
@@ -85,27 +93,7 @@ def parse_sys_argv():
             del sys.argv[i]
     return testpaths
 
-
-def test_with_trial():
-    from twisted.scripts import trial
-    unittests, doctests = find_tests(parse_sys_argv())
-    sys.argv.extend(unittests)
-    trial.run()
-
-
-def test_with_py_test():
-    import py
-    dirname = os.path.dirname(__file__)
-    unittests, doctests = find_tests(parse_sys_argv())
-    sys.argv.extend(unittests)
-    sys.argv.extend(doctests)
-    # For timestamp checking when looping:
-    sys.argv.append(os.path.join(os.path.dirname(__file__), "storm/"))
-    py.test.cmdline.main()
-
-
-def test_with_unittest():
-
+def test_with_runner(runner):
     usage = "test.py [options] [<test filename>, ...]"
 
     parser = optparse.OptionParser(usage=usage)
@@ -113,66 +101,25 @@ def test_with_unittest():
     parser.add_option('--verbose', action='store_true')
     opts, args = parser.parse_args()
 
-    runner = unittest.TextTestRunner()
-
     if opts.verbose:
         runner.verbosity = 2
 
-    loader = unittest.TestLoader()
+    suite = find_tests(args)
+    result = runner.run(suite)
+    return not result.wasSuccessful()
 
-    unittests, doctests = find_tests(args)
 
-    class Summary:
-        def __init__(self):
-            self.total_failures = 0
-            self.total_errors = 0
-            self.total_tests = 0
-        def __call__(self, tests, failures, errors):
-            self.total_tests += tests
-            self.total_failures += failures
-            self.total_errors += errors
-            sys.stderr.write("(tests=%d, failures=%d, errors=%d)\n" %
-                             (tests, failures, errors))
+def test_with_trial():
+    from twisted.trial.reporter import TreeReporter
+    from twisted.trial.runner import TrialRunner
+    runner = TrialRunner(reporterFactory=TreeReporter, realTimeErrors=True)
+    return test_with_runner(runner)
 
-    unittest_summary = Summary()
-    doctest_summary = Summary()
 
-    if unittests:
-        sys.stderr.write("Running unittests...\n")
-        for relpath in unittests:
-            sys.stderr.write("[%s]\n" % relpath)
-            modpath = relpath.replace(os.path.sep, '.')[:-3]
-            module = __import__(modpath, None, None, [""])
-            test = loader.loadTestsFromModule(module)
-            result = runner.run(test)
-            unittest_summary(test.countTestCases(),
-                             len(result.failures), len(result.errors))
-            sys.stderr.write("\n")
+def test_with_unittest():
+    runner = unittest.TextTestRunner()
+    return test_with_runner(runner)
 
-    if doctests:
-        sys.stderr.write("Running doctests...\n")
-        doctest_flags = doctest.ELLIPSIS
-        for relpath in doctests:
-            sys.stderr.write("[%s]\n" % relpath)
-            failures, total = doctest.testfile(relpath,
-                                               optionflags=doctest_flags)
-            doctest_summary(total, failures, 0)
-            sys.stderr.write("\n")
-
-    sys.stderr.write("Total test cases: %d\n" % unittest_summary.total_tests)
-    sys.stderr.write("Total doctests: %d\n" % doctest_summary.total_tests)
-    sys.stderr.write("Total failures: %d\n" %
-                     (unittest_summary.total_failures +
-                      doctest_summary.total_failures))
-    sys.stderr.write("Total errors: %d\n" % (unittest_summary.total_errors +
-                                             doctest_summary.total_errors))
-
-    failed = bool(unittest_summary.total_failures or
-                  unittest_summary.total_errors or
-                  doctest_summary.total_failures or
-                  doctest_summary.total_errors)
-
-    sys.exit(failed)
 
 if __name__ == "__main__":
     runner = os.environ.get("STORM_TEST_RUNNER")
@@ -181,6 +128,6 @@ if __name__ == "__main__":
     runner_func = globals().get("test_with_%s" % runner.replace(".", "_"))
     if not runner_func:
         sys.exit("Test runner not found: %s" % runner)
-    runner_func()
+    sys.exit(runner_func())
 
 # vim:ts=4:sw=4:et
