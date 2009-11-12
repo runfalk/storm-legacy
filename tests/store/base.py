@@ -2607,29 +2607,15 @@ class StoreTest(object):
 
     def test_reference_remote_leak_on_flush(self):
         """
-        When an object is flushed, it correctly notifies objects holding a
-        reference to it so that we don't see a leak.
+        "changed" events only hold weak references to remote infos object, thus
+        not creating a leak when removed.
         """
         self.get_cache(self.store).set_size(0)
         bar = self.store.get(Bar, 100)
         bar.foo.title = u"Changed title"
-        foo_ref = weakref.ref(bar.foo)
-        self.store.flush()
-        gc.collect()
-        self.assertEquals(foo_ref(), None)
-
-    def test_reference_local_leak_on_flush(self):
-        """
-        When an object is flushed, it correctly notifies objects it's holding
-        reference to so that we don't see a leak.
-        """
-        class MyFoo(Foo):
-            bar = Reference(Foo.id, Bar.foo_id, on_remote=True)
-        self.get_cache(self.store).set_size(0)
-        foo = self.store.get(MyFoo, 10)
-        self.assertTrue(foo.bar)
-        foo.title = u"Changed title"
-        bar_ref = weakref.ref(foo.bar)
+        bar_ref = weakref.ref(get_obj_info(bar))
+        foo = bar.foo
+        del bar
         self.store.flush()
         gc.collect()
         self.assertEquals(bar_ref(), None)
