@@ -811,7 +811,7 @@ class Relation(object):
     def _break_on_remote_removed(self, remote_info, local_info_ref):
         """Break the remote relationship when the remote object is removed."""
         local_info = local_info_ref()
-        if local_info:
+        if local_info is not None:
             self.unlink(local_info, remote_info)
 
     def _add_all(self, obj_info, local_info):
