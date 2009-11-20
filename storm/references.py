@@ -622,7 +622,7 @@ class Relation(object):
                 #local_info.event.hook("removed", self._break_on_local_removed,
                 #                      remote_info)
                 remote_info.event.hook("removed", self._break_on_remote_removed,
-                                       local_info)
+                                       weakref.ref(local_info))
             else:
                 remote_has_changed = False
                 for local_column, remote_column in pairs:
@@ -654,7 +654,7 @@ class Relation(object):
                                    weakref.ref(local_info))
             if self.on_remote:
                 remote_info.event.hook("removed", self._break_on_remote_removed,
-                                       local_info)
+                                       weakref.ref(local_info))
 
     def unlink(self, local_info, remote_info, setting=False):
         """Break the relation between the local and remote objects.
@@ -690,7 +690,7 @@ class Relation(object):
             remote_info.event.unhook("flushed", self._break_on_remote_flushed,
                                      local_info)
             remote_info.event.unhook("removed", self._break_on_remote_removed,
-                                     local_info)
+                                     weakref.ref(local_info))
 
             if local_store is None:
                 if not self.many or not remote_infos:
@@ -808,9 +808,11 @@ class Relation(object):
         """Break the remote/local relationship on flush."""
         self.unlink(local_info, remote_info)
 
-    def _break_on_remote_removed(self, remote_info, local_info):
+    def _break_on_remote_removed(self, remote_info, local_info_ref):
         """Break the remote relationship when the remote object is removed."""
-        self.unlink(local_info, remote_info)
+        local_info = local_info_ref()
+        if local_info:
+            self.unlink(local_info, remote_info)
 
     def _add_all(self, obj_info, local_info):
         store = Store.of(obj_info)

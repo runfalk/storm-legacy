@@ -2605,10 +2605,10 @@ class StoreTest(object):
         bar.foo_id = SQL("20")
         self.assertEquals(bar.foo.id, 20)
 
-    def test_reference_remote_leak_on_flush(self):
+    def test_reference_remote_leak_on_flush_with_changed(self):
         """
         "changed" events only hold weak references to remote infos object, thus
-        not creating a leak when removed.
+        not creating a leak when unhooked.
         """
         self.get_cache(self.store).set_size(0)
         bar = self.store.get(Bar, 100)
@@ -2619,6 +2619,24 @@ class StoreTest(object):
         self.store.flush()
         gc.collect()
         self.assertEquals(bar_ref(), None)
+
+    def test_reference_remote_leak_on_flush_with_removed(self):
+        """
+        "removed" events only hold weak references to remote infos objects,
+        thus not creating a leak when unhooked.
+        """
+        self.get_cache(self.store).set_size(0)
+        class MyFoo(Foo):
+            bar = Reference(Foo.id, Bar.foo_id, on_remote=True)
+
+        foo = self.store.get(MyFoo, 10)
+        foo.bar.title = u"Changed title"
+        foo_ref = weakref.ref(get_obj_info(foo))
+        bar = foo.bar
+        del foo
+        self.store.flush()
+        gc.collect()
+        self.assertEquals(foo_ref(), None)
 
     def test_reference_break_on_remote_diverged_by_lazy(self):
         class MyBar(Bar):
