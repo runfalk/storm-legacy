@@ -11,6 +11,8 @@ Improvements
    Comparable.  These methods perform prefix, suffix and substring
    checks respectively using the LIKE operator, taking care of escaping
    for you (bug #387840).
+ - C extensions are enabled by default.  Define the
+   STORM_CEXTENSIONS=0 environment variable to disable them (bug #410592).
 
 Bug fixes
 ---------
