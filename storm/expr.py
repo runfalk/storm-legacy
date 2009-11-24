@@ -395,6 +395,15 @@ def compile_python_unsupported(compile, expr, state):
     raise CompileError("Can't compile python expressions with %r" % type(expr))
 
 
+# A translation table that can escape a unicode string for use in a
+# Like() expression that uses "!" as the escape character.
+like_escape = {
+    ord(u"!"): u"!!",
+    ord(u"_"): u"!_",
+    ord(u"%"): u"!%"
+    }
+
+
 class Comparable(object):
     __slots__ = ()
 
@@ -497,6 +506,24 @@ class Comparable(object):
 
     def upper(self):
         return Upper(self)
+
+    def startswith(self, prefix):
+        if not isinstance(prefix, unicode):
+            raise ExprError("Expected unicode argument, got %r" % type(prefix))
+        pattern = prefix.translate(like_escape) + u"%"
+        return Like(self, pattern, u"!")
+
+    def endswith(self, suffix):
+        if not isinstance(suffix, unicode):
+            raise ExprError("Expected unicode argument, got %r" % type(suffix))
+        pattern = u"%" + suffix.translate(like_escape)
+        return Like(self, pattern, u"!")
+
+    def contains_string(self, substring):
+        if not isinstance(substring, unicode):
+            raise ExprError("Expected unicode argument, got %r" % type(substring))
+        pattern = u"%" + substring.translate(like_escape) + u"%"
+        return Like(self, pattern, u"!")
 
 
 class ComparableExpr(Expr, Comparable):
@@ -1099,6 +1126,16 @@ class SetExpr(Expr):
         self.order_by = kwargs.get("order_by", Undef)
         self.limit = kwargs.get("limit", Undef)
         self.offset = kwargs.get("offset", Undef)
+        # If the first expression is of a compatible type, directly
+        # include its sub expressions.
+        if len(self.exprs) > 0:
+            first = self.exprs[0]
+            if (isinstance(first, self.__class__) and
+                first.all == self.all and
+                first.limit is Undef and
+                first.offset is Undef):
+                self.exprs = first.exprs + self.exprs[1:]
+
 
 @compile.when(SetExpr)
 def compile_set_expr(compile, expr, state):

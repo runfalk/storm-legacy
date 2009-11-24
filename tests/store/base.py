@@ -421,6 +421,32 @@ class StoreTest(object):
         self.store.flush()
         self.assertEquals(len(events), 1)
 
+    def test_wb_flush_event_with_deleted_object_before_flush(self):
+        """
+        When an object is deleted before flush and it contains mutable
+        variables, those variables unhook from the global event system to
+        prevent a leak.
+        """
+        class PickleBlob(Blob):
+            bin = Pickle()
+
+        # Disable the cache, which holds strong references.
+        self.get_cache(self.store).set_size(0)
+
+        blob = self.store.get(Blob, 20)
+        blob.bin = "\x80\x02}q\x01U\x01aK\x01s."
+        self.store.flush()
+        del blob
+        gc.collect()
+
+        pickle_blob = self.store.get(PickleBlob, 20)
+        pickle_blob.bin = "foobin"
+        del pickle_blob
+
+        self.store.flush()
+        self.assertEquals(self.store._event._hooks["flush"], set())
+
+
     def test_obj_info_with_deleted_object_with_get(self):
         # Same thing, but using get rather than find.
 
@@ -894,6 +920,16 @@ class StoreTest(object):
         self.assertEquals(title, "Title 30")
         self.assertTrue(isinstance(title, unicode))
 
+    def test_find_max_with_empty_result_and_disallow_none(self):
+        class Bar(object):
+            __storm_table__ = "bar"
+            id = Int(primary=True)
+            foo_id = Int(allow_none=False)
+
+        result = self.store.find(Bar, Bar.id > 1000)
+        self.assertTrue(result.is_empty())
+        self.assertEquals(result.max(Bar.foo_id), None)
+
     def test_find_min(self):
         self.assertEquals(self.store.find(Foo).min(Foo.id), 10)
 
@@ -904,6 +940,16 @@ class StoreTest(object):
         title = self.store.find(Foo).min(Foo.title)
         self.assertEquals(title, "Title 10")
         self.assertTrue(isinstance(title, unicode))
+
+    def test_find_min_with_empty_result_and_disallow_none(self):
+        class Bar(object):
+            __storm_table__ = "bar"
+            id = Int(primary=True)
+            foo_id = Int(allow_none=False)
+
+        result = self.store.find(Bar, Bar.id > 1000)
+        self.assertTrue(result.is_empty())
+        self.assertEquals(result.min(Bar.foo_id), None)
 
     def test_find_avg(self):
         self.assertEquals(self.store.find(Foo).avg(Foo.id), 20)
@@ -923,6 +969,16 @@ class StoreTest(object):
 
     def test_find_sum_expr(self):
         self.assertEquals(self.store.find(Foo).sum(Foo.id * 2), 120)
+
+    def test_find_sum_with_empty_result_and_disallow_none(self):
+        class Bar(object):
+            __storm_table__ = "bar"
+            id = Int(primary=True)
+            foo_id = Int(allow_none=False)
+
+        result = self.store.find(Bar, Bar.id > 1000)
+        self.assertTrue(result.is_empty())
+        self.assertEquals(result.sum(Bar.foo_id), None)
 
     def test_find_max_order_by(self):
         """Interaction between order by and aggregation shouldn't break."""
