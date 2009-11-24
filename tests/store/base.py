@@ -3471,6 +3471,15 @@ class StoreTest(object):
                           (400, 20, "Title 100"),
                          ])
 
+    def test_reference_set_assign_fails(self):
+        foo = self.store.get(FooRefSet, 20)
+        try:
+            foo.bars = []
+        except FeatureError:
+            pass
+        else:
+            self.fail("FeatureError not raised")
+
     def test_reference_set_explicitly_with_wrapper(self):
         self.add_reference_set_bar_400()
 
