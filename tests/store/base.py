@@ -4977,7 +4977,7 @@ class StoreTest(object):
 
     def test_primary_key_reference(self):
         """
-        When an object reference another one using its primary key, it
+        When an object references another one using its primary key, it
         correctly checks for the invalidated state after the store has been
         committed, detecting if the referenced object has been removed behind
         its back.
