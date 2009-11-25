@@ -465,6 +465,11 @@ class Relation(object):
         self._r_to_l = {}
 
     def get_remote(self, local):
+        """Return the remote object for this relation, using the local cache.
+
+        If the object in the cache is invalidated, we validate it again to
+        check if it's still in the database.
+        """
         local_info = get_obj_info(local)
         try:
             obj = local_info[self]["remote"]
