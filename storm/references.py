@@ -21,7 +21,7 @@
 import weakref
 
 from storm.exceptions import WrongStoreError, NoStoreError, ClassInfoError
-from storm.store import Store, get_where_for_args
+from storm.store import Store, get_where_for_args, LostObjectError
 from storm.variables import LazyValue
 from storm.expr import (
     Select, Column, Exists, ComparableExpr, LeftJoin, Not, SQLRaw,
@@ -467,11 +467,23 @@ class Relation(object):
         self._r_to_l = {}
 
     def get_remote(self, local):
+        """Return the remote object for this relation, using the local cache.
+
+        If the object in the cache is invalidated, we validate it again to
+        check if it's still in the database.
+        """
         local_info = get_obj_info(local)
         try:
-            return local_info[self]["remote"]
+            obj = local_info[self]["remote"]
         except KeyError:
             return None
+        remote_info = get_obj_info(obj)
+        if remote_info.get("invalidated"):
+            try:
+                Store.of(obj)._validate_alive(remote_info)
+            except LostObjectError:
+                return None
+        return obj
 
     def get_where_for_remote(self, local):
         """Generate a column comparison expression for reference properties.
