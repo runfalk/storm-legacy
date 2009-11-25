@@ -18,6 +18,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+import weakref
+
 from storm.exceptions import WrongStoreError, NoStoreError, ClassInfoError
 from storm.store import Store, get_where_for_args
 from storm.variables import LazyValue
@@ -620,7 +622,7 @@ class Relation(object):
                 #local_info.event.hook("removed", self._break_on_local_removed,
                 #                      remote_info)
                 remote_info.event.hook("removed", self._break_on_remote_removed,
-                                       local_info)
+                                       weakref.ref(local_info))
             else:
                 remote_has_changed = False
                 for local_column, remote_column in pairs:
@@ -649,10 +651,10 @@ class Relation(object):
             local_info.event.hook("changed", self._break_on_local_diverged,
                                   remote_info)
             remote_info.event.hook("changed", self._break_on_remote_diverged,
-                                   local_info)
+                                   weakref.ref(local_info))
             if self.on_remote:
                 remote_info.event.hook("removed", self._break_on_remote_removed,
-                                       local_info)
+                                       weakref.ref(local_info))
 
     def unlink(self, local_info, remote_info, setting=False):
         """Break the relation between the local and remote objects.
@@ -684,11 +686,11 @@ class Relation(object):
             remote_info.event.unhook("changed", self._track_remote_changes,
                                      local_info)
             remote_info.event.unhook("changed", self._break_on_remote_diverged,
-                                     local_info)
+                                     weakref.ref(local_info))
             remote_info.event.unhook("flushed", self._break_on_remote_flushed,
                                      local_info)
             remote_info.event.unhook("removed", self._break_on_remote_removed,
-                                     local_info)
+                                     weakref.ref(local_info))
 
             if local_store is None:
                 if not self.many or not remote_infos:
@@ -781,13 +783,16 @@ class Relation(object):
                 self.unlink(local_info, remote_info)
 
     def _break_on_remote_diverged(self, remote_info, remote_variable,
-                                  old_value, new_value, fromdb, local_info):
+                                  old_value, new_value, fromdb, local_info_ref):
         """Break the remote/local relationship on diverging changes.
 
         This hook ensures that if the remote object has an attribute
         changed by hand in a way that diverges from the local object,
         the relationship is undone.
         """
+        local_info = local_info_ref()
+        if local_info is None:
+            return
         local_column = self._get_local_column(local_info.cls_info.cls,
                                               remote_variable.column)
         if local_column is not None:
@@ -803,9 +808,11 @@ class Relation(object):
         """Break the remote/local relationship on flush."""
         self.unlink(local_info, remote_info)
 
-    def _break_on_remote_removed(self, remote_info, local_info):
+    def _break_on_remote_removed(self, remote_info, local_info_ref):
         """Break the remote relationship when the remote object is removed."""
-        self.unlink(local_info, remote_info)
+        local_info = local_info_ref()
+        if local_info is not None:
+            self.unlink(local_info, remote_info)
 
     def _add_all(self, obj_info, local_info):
         store = Store.of(obj_info)
