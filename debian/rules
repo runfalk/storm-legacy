@@ -35,10 +35,10 @@ install: build
 
 ifeq ($(use_pycentral),yes)
 	for python_version in `pyversions -r`; \
-		do $${python_version} setup.py install --root $(root_dir); \
+		do $${python_version} setup.py install --root $(root_dir) --prefix /usr; \
 	done
 else
-	python setup.py install --root $(root_dir)
+	python setup.py install --root $(root_dir) --prefix /usr
 endif
 
 binary-indep: build install
