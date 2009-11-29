@@ -1,4 +1,4 @@
-0.16 (2009-XX-XX)
+0.16 (2009-11-28)
 =================
 
 Improvements
@@ -13,6 +13,11 @@ Improvements
    for you (bug #387840).
  - C extensions are enabled by default.  Define the
    STORM_CEXTENSIONS=0 environment variable to disable them (bug #410592).
+ - The README file contains information about Storm's license and
+   detailed instructions on setting up a development environment
+   suitable for running the entire test suite.
+ - 'make doc' uses Pydoctor to generate API documentation.
+ - Integration tests for Django now work with Django 1.1.
 
 Bug fixes
 ---------
@@ -22,6 +27,15 @@ Bug fixes
    result set is empty and the column has allow_none=False set.
    Previously this resulted in a NoneError (bug #457801).
  - MySQL reserved words are handled properly (bug #433833).
+ - Test loading code has been simplified.  Support for py.test has
+   been removed in this process, as it was not functioning correctly
+   and didn't fit into the PyUnit framework (bug #331905).
+ - Remote diverged and remote deleted references now use a weak
+   (Python) reference to the local object.  This prevents a leak
+   when the remote object stays in memory (bug #475148).
+ - Check for invalidated state when returning the remote object of a
+   relation: it fixes a bug if the local key of the Reference is the
+   primary key (bug #435962).
 
 
 0.15 (2009-08-07)
