@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: Jamshed Kakar <jamshed.kakar@canonical.com>
 AUTOPPA_INCLUDE(dapper):Build-Depends: debhelper, python-support, python2.4-dev, lsb-release
 AUTOPPA_INCLUDE(hardy,intrepid):Build-Depends: debhelper, lsb-release, python-central, python-all-dev, python2.4, python2.5
-AUTOPPA_INCLUDE(jaunty,karmic):Build-Depends: debhelper, lsb-release, python-central, python-all-dev, python2.4, python2.5, python2.6
+AUTOPPA_INCLUDE(jaunty,karmic,lucid):Build-Depends: debhelper, lsb-release, python-central, python-all-dev, python2.4, python2.5, python2.6
 Standards-Version: 3.7.2
 XS-Python-Version: all
 
