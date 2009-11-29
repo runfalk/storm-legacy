@@ -36,6 +36,9 @@ Bug fixes
  - Check for invalidated state when returning the remote object of a
    relation: it fixes a bug if the local key of the Reference is the
    primary key (bug #435962).
+ - The default Cache instance created for a Store honours Cache's
+   default size.  Store's docstring has been updated to reflect
+   this (bug #374180).
 
 
 0.15 (2009-08-07)

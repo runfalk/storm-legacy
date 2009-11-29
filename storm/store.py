@@ -66,8 +66,7 @@ class Store(object):
     def __init__(self, database, cache=None):
         """
         @param database: The L{storm.database.Database} instance to use.
-        @param cache: The cache to use.  Defaults to a L{Cache} storing up to
-            1000 objects at any given time.
+        @param cache: The cache to use.  Defaults to a L{Cache} instance.
         """
         self._event = EventSystem(self)
         self._connection = database.connect(self._event)
@@ -75,7 +74,7 @@ class Store(object):
         self._dirty = {}
         self._order = {} # (info, info) = count
         if cache is None:
-            self._cache = Cache(100)
+            self._cache = Cache()
         else:
             self._cache = cache
         self._implicit_flush_block_count = 0
