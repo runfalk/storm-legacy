@@ -1,3 +1,12 @@
+storm (0.16-1~ppa1.10.04) lucid; urgency=low
+
+  * See the NEWS file and https://launchpad.net/storm/+milestone/0.16
+    for details about changes made for this release.
+  * AutoPPA templating has been updated to include lucid.
+  * Storm is correctly installed to /usr instead of /usr/local.
+
+ -- Jamshed Kakar <jkakar@kakar.ca>  Sun, 29 Nov 2009 01:21:25 +0000
+
 storm (0.16-1~ppa1.9.10) karmic; urgency=low
 
   * See the NEWS file and https://launchpad.net/storm/+milestone/0.16
