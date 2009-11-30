@@ -146,7 +146,7 @@ class StoreCacheTest(TestHelper):
 
     def test_wb_default_cache_size(self):
         store = Store(DummyDatabase())
-        self.assertEquals(store._cache._size, 100)
+        self.assertEquals(store._cache._size, 1000)
 
 
 class StoreTest(object):
@@ -5870,4 +5870,3 @@ class EmptyResultSetTest(object):
         self.assertEquals(self.empty.intersection(self.empty), self.empty)
         self.assertEquals(self.empty.intersection(self.result), self.empty)
         self.assertEquals(self.result.intersection(self.empty), self.empty)
-
