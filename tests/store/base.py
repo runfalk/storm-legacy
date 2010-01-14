@@ -149,6 +149,14 @@ class StoreCacheTest(TestHelper):
         self.assertEquals(store._cache._size, 1000)
 
 
+class StoreDatabaseTest(TestHelper):
+
+    def test_store_has_reference_to_its_database(self):
+        database = DummyDatabase()
+        store = Store(database)
+        self.assertIdentical(store.database, database)
+
+
 class StoreTest(object):
 
     def setUp(self):
@@ -444,7 +452,6 @@ class StoreTest(object):
 
         self.store.flush()
         self.assertEquals(self.store._event._hooks["flush"], set())
-
 
     def test_obj_info_with_deleted_object_with_get(self):
         # Same thing, but using get rather than find.

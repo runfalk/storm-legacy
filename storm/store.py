@@ -68,6 +68,7 @@ class Store(object):
         @param database: The L{storm.database.Database} instance to use.
         @param cache: The cache to use.  Defaults to a L{Cache} instance.
         """
+        self.database = database
         self._event = EventSystem(self)
         self._connection = database.connect(self._event)
         self._alive = WeakValueDictionary()
