@@ -68,7 +68,7 @@ class Store(object):
         @param database: The L{storm.database.Database} instance to use.
         @param cache: The cache to use.  Defaults to a L{Cache} instance.
         """
-        self.database = database
+        self._database = database
         self._event = EventSystem(self)
         self._connection = database.connect(self._event)
         self._alive = WeakValueDictionary()
@@ -80,6 +80,10 @@ class Store(object):
             self._cache = cache
         self._implicit_flush_block_count = 0
         self._sequence = 0 # Advisory ordering.
+
+    def get_database(self):
+        """Return this Store's Database object."""
+        return self._database
 
     @staticmethod
     def of(obj):

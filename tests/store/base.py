@@ -154,7 +154,7 @@ class StoreDatabaseTest(TestHelper):
     def test_store_has_reference_to_its_database(self):
         database = DummyDatabase()
         store = Store(database)
-        self.assertIdentical(store.database, database)
+        self.assertIdentical(store.get_database(), database)
 
 
 class StoreTest(object):
