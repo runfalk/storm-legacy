@@ -30,8 +30,7 @@ from storm.properties import Int, Float, RawStr, Unicode, Property, Pickle
 from storm.properties import PropertyPublisherMeta, Decimal
 from storm.variables import PickleVariable
 from storm.expr import (
-    Asc, Desc, Select, Func, LeftJoin, SQL, Count, Sum, Avg, And, Or, Eq,
-    Lower)
+    Asc, Desc, Select, LeftJoin, SQL, Count, Sum, Avg, And, Or, Eq, Lower)
 from storm.variables import Variable, UnicodeVariable, IntVariable
 from storm.info import get_obj_info, ClassAlias
 from storm.exceptions import *
@@ -147,7 +146,15 @@ class StoreCacheTest(TestHelper):
 
     def test_wb_default_cache_size(self):
         store = Store(DummyDatabase())
-        self.assertEquals(store._cache._size, 100)
+        self.assertEquals(store._cache._size, 1000)
+
+
+class StoreDatabaseTest(TestHelper):
+
+    def test_store_has_reference_to_its_database(self):
+        database = DummyDatabase()
+        store = Store(database)
+        self.assertIdentical(store.get_database(), database)
 
 
 class StoreTest(object):
@@ -445,7 +452,6 @@ class StoreTest(object):
 
         self.store.flush()
         self.assertEquals(self.store._event._hooks["flush"], set())
-
 
     def test_obj_info_with_deleted_object_with_get(self):
         # Same thing, but using get rather than find.
@@ -2605,6 +2611,39 @@ class StoreTest(object):
         bar.foo_id = SQL("20")
         self.assertEquals(bar.foo.id, 20)
 
+    def test_reference_remote_leak_on_flush_with_changed(self):
+        """
+        "changed" events only hold weak references to remote infos object, thus
+        not creating a leak when unhooked.
+        """
+        self.get_cache(self.store).set_size(0)
+        bar = self.store.get(Bar, 100)
+        bar.foo.title = u"Changed title"
+        bar_ref = weakref.ref(get_obj_info(bar))
+        foo = bar.foo
+        del bar
+        self.store.flush()
+        gc.collect()
+        self.assertEquals(bar_ref(), None)
+
+    def test_reference_remote_leak_on_flush_with_removed(self):
+        """
+        "removed" events only hold weak references to remote infos objects,
+        thus not creating a leak when unhooked.
+        """
+        self.get_cache(self.store).set_size(0)
+        class MyFoo(Foo):
+            bar = Reference(Foo.id, Bar.foo_id, on_remote=True)
+
+        foo = self.store.get(MyFoo, 10)
+        foo.bar.title = u"Changed title"
+        foo_ref = weakref.ref(get_obj_info(foo))
+        bar = foo.bar
+        del foo
+        self.store.flush()
+        gc.collect()
+        self.assertEquals(foo_ref(), None)
+
     def test_reference_break_on_remote_diverged_by_lazy(self):
         class MyBar(Bar):
             pass
@@ -4493,7 +4532,7 @@ class StoreTest(object):
         self.store.invalidate()
 
         obj_info = get_obj_info(pickle_blob)
-        variable =  obj_info.variables[PickleBlob.bin]
+        variable = obj_info.variables[PickleBlob.bin]
         var_ref = weakref.ref(variable)
         del variable, blob, pickle_blob, obj_info
         gc.collect()
@@ -4532,7 +4571,7 @@ class StoreTest(object):
         self.store.invalidate()
 
         obj_info = get_obj_info(pickle_blob)
-        variable =  obj_info.variables[PickleBlob.bin]
+        variable = obj_info.variables[PickleBlob.bin]
         var_ref = weakref.ref(variable)
         del variable, blob, pickle_blob, obj_info, foo
         gc.collect()
@@ -4984,6 +5023,24 @@ class StoreTest(object):
 
         obj_info = get_obj_info(foo)
         self.assertEquals(obj_info.variables[Foo.title].get_lazy(), AutoReload)
+
+    def test_primary_key_reference(self):
+        """
+        When an object references another one using its primary key, it
+        correctly checks for the invalidated state after the store has been
+        committed, detecting if the referenced object has been removed behind
+        its back.
+        """
+        class BarOnRemote(object):
+            __storm_table__ = "bar"
+            foo_id = Int(primary=True)
+            foo = Reference(foo_id, Foo.id, on_remote=True)
+        foo = self.store.get(Foo, 10)
+        bar = self.store.get(BarOnRemote, 10)
+        self.assertEqual(bar.foo, foo)
+        self.store.execute("DELETE FROM foo WHERE id = 10")
+        self.store.commit()
+        self.assertEqual(bar.foo, None)
 
     def test_invalidate_and_get_object(self):
         foo = self.store.get(Foo, 20)
@@ -5829,4 +5886,3 @@ class EmptyResultSetTest(object):
         self.assertEquals(self.empty.intersection(self.empty), self.empty)
         self.assertEquals(self.empty.intersection(self.result), self.empty)
         self.assertEquals(self.result.intersection(self.empty), self.empty)
-
