@@ -20,7 +20,8 @@
 #
 import weakref
 
-from storm.exceptions import WrongStoreError, NoStoreError, ClassInfoError
+from storm.exceptions import (
+    ClassInfoError, FeatureError, NoStoreError, WrongStoreError)
 from storm.store import Store, get_where_for_args, LostObjectError
 from storm.variables import LazyValue
 from storm.expr import (
@@ -244,6 +245,9 @@ class ReferenceSet(object):
             return BoundIndirectReferenceSet(self._relation1,
                                              self._relation2, local,
                                              self._order_by)
+
+    def __set__(self, local, value):
+        raise FeatureError("Assigning to ResultSets not supported")
 
     def _build_relations(self):
         resolver = PropertyResolver(self, self._cls)
