@@ -29,7 +29,8 @@ from storm.expr import Expr, State, compile
 from storm.tracer import trace
 from storm.variables import Variable
 from storm.exceptions import (
-    ClosedError, DatabaseError, DisconnectionError, Error)
+    ClosedError, ConnectionBlockedError, DatabaseError, DisconnectionError,
+    Error)
 from storm.uri import URI
 import storm
 
@@ -173,6 +174,7 @@ class Connection(object):
     param_mark = "?"
     compile = compile
 
+    _blocked = False
     _closed = False
     _state = STATE_CONNECTED
 
@@ -187,6 +189,10 @@ class Connection(object):
             self.close()
         except:
             pass
+
+    def set_blocked(self, blocked):
+        """Set whether a connection is blocked."""
+        self._blocked = blocked
 
     def execute(self, statement, params=None, noresult=False):
         """Execute a statement with the given parameters.
@@ -204,6 +210,8 @@ class Connection(object):
         """
         if self._closed:
             raise ClosedError("Connection is closed")
+        if self._blocked:
+            raise ConnectionBlockedError("Access to connection is blocked")
         self._ensure_connected()
         if self._event:
             self._event.emit("register-transaction")
@@ -314,6 +322,8 @@ class Connection(object):
         If the connection is marked as dead, or if we can't reconnect,
         then raise DisconnectionError.
         """
+        if self._blocked:
+            raise ConnectionBlockedError("Access to connection is blocked")
         if self._state == STATE_CONNECTED:
             return
         elif self._state == STATE_DISCONNECTED:

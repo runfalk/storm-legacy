@@ -33,8 +33,8 @@ from storm.variables import (Variable, PickleVariable, RawStrVariable,
 from storm.database import *
 from storm.event import EventSystem
 from storm.exceptions import (
-    DatabaseError, DatabaseModuleError, DisconnectionError, Error,
-    OperationalError)
+    DatabaseError, DatabaseModuleError, ConnectionBlockedError,
+    DisconnectionError, Error, OperationalError)
 
 from tests.databases.proxy import ProxyTCPServer
 from tests.helper import MakePath
@@ -421,6 +421,18 @@ class DatabaseTest(object):
         expr = Select(id, title.contains_string(u"_%!!"))
         result = list(self.connection.execute(expr))
         self.assertEquals(result, [(30,)])
+
+    def test_set_blocked(self):
+        self.connection.execute("SELECT 1")
+        self.connection.set_blocked(True)
+        self.assertRaises(ConnectionBlockedError,
+                          self.connection.execute, "SELECT 1")
+        self.assertRaises(ConnectionBlockedError, self.connection.commit)
+        # Allow rolling back a blocked connection.
+        self.connection.rollback()
+        # Unblock the connection, allowing access again.
+        self.connection.set_blocked(False)
+        self.connection.execute("SELECT 1")
 
 
 class UnsupportedDatabaseTest(object):
