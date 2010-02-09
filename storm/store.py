@@ -571,6 +571,10 @@ class Store(object):
         assert self._implicit_flush_block_count > 0
         self._implicit_flush_block_count -= 1
 
+    def set_blocked(self, blocked):
+        """Block access to the underlying database connection."""
+        self._connection.set_blocked(blocked)
+
     def _get_changes_map(self, obj_info, adding=False):
         """Return a {column: variable} dictionary suitable for inserts/updates.
 
