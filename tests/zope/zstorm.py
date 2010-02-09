@@ -18,7 +18,9 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-import thread, weakref, gc
+import threading
+import weakref
+import gc
 
 from tests.helper import TestHelper
 from tests.zope import has_transaction, has_zope_component
@@ -77,18 +79,14 @@ class ZStormTest(TestHelper):
 
         raised = []
 
-        lock = thread.allocate_lock()
-        lock.acquire()
         def f():
             try:
-                try:
-                    self.zstorm.get("name")
-                except ZStormError:
-                    raised.append(True)
-            finally:
-                lock.release()
-        thread.start_new_thread(f, ())
-        lock.acquire()
+                self.zstorm.get("name")
+            except ZStormError:
+                raised.append(True)
+        thread = threading.Thread(target=f)
+        thread.start()
+        thread.join()
 
         self.assertTrue(raised)
 
@@ -217,6 +215,27 @@ class ZStormTest(TestHelper):
         transaction.abort()
         store.execute("SELECT 1")
         self.assertNotInTransaction(store)
+
+    def test_wb_cross_thread_store_does_not_join_transaction(self):
+        """If a zstorm registered thread crosses over to another thread,
+        it will not be usable."""
+        store = self.zstorm.get("name", "sqlite:")
+
+        failures = []
+        def f():
+            try:
+                store.execute("SELECT 1")
+            except ZStormError:
+                # Expected: wrong thread.
+                pass
+            else:
+                failures.append("didn't raise ZStormError")
+            if self._isInTransaction(store):
+                failures.append("store was joined to transaction")
+        thread = threading.Thread(target=f)
+        thread.start()
+        thread.join()
+        self.assertEqual(failures, [])
 
     def test_wb_reset(self):
         """_reset is used to reset the zstorm utility between zope test runs.
