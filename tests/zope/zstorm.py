@@ -225,11 +225,16 @@ class ZStormTest(TestHelper):
         def f():
             try:
                 store.execute("SELECT 1")
+                # And again, to show that the event handler is still
+                # attached.
+                store.execute("SELECT 1")
             except ZStormError:
                 # Expected: wrong thread.
                 pass
+            except Exception, exc:
+                failures.append("Expected ZStormError, got %r" % exc)
             else:
-                failures.append("didn't raise ZStormError")
+                failures.append("Expected ZStormError, nothing raised")
             if self._isInTransaction(store):
                 failures.append("store was joined to transaction")
         thread = threading.Thread(target=f)
