@@ -212,7 +212,8 @@ def register_store_with_transaction(store, zstorm_ref):
     # Check if the store is  known.  This could indicate a store being
     # used outside of its thread.
     if id(store) not in zstorm._stores:
-        raise ZStormError("store not registered with ZStorm")
+        raise ZStormError("Store not registered with ZStorm, or registered "
+                          "with another thread.")
 
     data_manager = StoreDataManager(store, zstorm)
     zstorm.transaction_manager.get().join(data_manager)
