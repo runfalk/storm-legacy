@@ -190,9 +190,19 @@ class Connection(object):
         except:
             pass
 
-    def set_blocked(self, blocked):
-        """Set whether a connection is blocked."""
-        self._blocked = blocked
+    def block_access(self):
+        """Block access to the connection.
+
+        Attempts to execute statements or commit a transaction will
+        result in a C{ConnectionBlockedError} exception.  Rollbacks
+        are permitted as that operation is often used in case of
+        failures.
+        """
+        self._blocked = True
+
+    def unblock_access(self):
+        """Unblock access to the connection."""
+        self._blocked = False
 
     def execute(self, statement, params=None, noresult=False):
         """Execute a statement with the given parameters.
