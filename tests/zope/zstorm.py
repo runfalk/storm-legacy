@@ -229,8 +229,7 @@ class ZStormTest(TestHelper):
                 # attached.
                 store.execute("SELECT 1")
             except ZStormError:
-                # Expected: wrong thread.
-                pass
+                failures.append("ZStormError raised")
             except Exception, exc:
                 failures.append("Expected ZStormError, got %r" % exc)
             else:
@@ -240,7 +239,7 @@ class ZStormTest(TestHelper):
         thread = threading.Thread(target=f)
         thread.start()
         thread.join()
-        self.assertEqual(failures, [])
+        self.assertEqual(failures, ["ZStormError raised"])
 
     def test_wb_reset(self):
         """_reset is used to reset the zstorm utility between zope test runs.
