@@ -23,6 +23,7 @@ import decimal
 import gc
 import operator
 import weakref
+import cPickle
 
 from storm.references import Reference, ReferenceSet, Proxy
 from storm.database import Result
@@ -452,6 +453,30 @@ class StoreTest(object):
 
         self.store.flush()
         self.assertEquals(self.store._event._hooks["flush"], set())
+
+    def test_mutable_variable_detect_change_from_alive(self):
+        """
+        Changes in a mutable variable like a L{PickleVariable} are correctly
+        detected, even if the object comes from the alive cache.
+        """
+        class PickleBlob(Blob):
+            bin = Pickle()
+
+        blob = PickleBlob()
+        blob.bin = {"k": "v"}
+        blob.id = 4000
+        self.store.add(blob)
+        self.store.commit()
+
+        blob = self.store.find(PickleBlob, PickleBlob.id == 4000).one()
+        blob.bin["k1"] = "v1"
+
+        self.store.commit()
+
+        result = list(self.store.execute("SELECT bin FROM bin WHERE id=4000"))
+        self.assertEquals(
+            cPickle.loads(result[0][0]),
+            {"k1": "v1", "k": "v"})
 
     def test_obj_info_with_deleted_object_with_get(self):
         # Same thing, but using get rather than find.
