@@ -703,7 +703,6 @@ class Store(object):
             # with fresh data, since we got it anyway.
             self._set_values(obj_info, cls_info.columns, result,
                              values, keep_defined=True)
-            obj_info.checkpoint()
         else:
             # Nothing found in the cache. Build everything from the ground.
             obj = cls.__new__(cls)

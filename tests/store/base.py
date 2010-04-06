@@ -478,6 +478,22 @@ class StoreTest(object):
             cPickle.loads(result[0][0]),
             {"k1": "v1", "k": "v"})
 
+    def test_wb_checkpoint_doesnt_override_changed(self):
+        """
+        This test ensures that we don't uselessly checkpoint when getting back
+        objects from the alive cache, which would hide changed values from the
+        store.
+        """
+        foo = self.store.get(Foo, 20)
+        foo.title = u"changed"
+        self.store.block_implicit_flushes()
+        foo2 = self.store.find(Foo, Foo.id == 20).one()
+        self.store.unblock_implicit_flushes()
+        self.store.commit()
+
+        result = list(self.store.execute("SELECT title FROM foo WHERE id=20"))
+        self.assertEquals(result[0][0], u"changed")
+
     def test_obj_info_with_deleted_object_with_get(self):
         # Same thing, but using get rather than find.
 
