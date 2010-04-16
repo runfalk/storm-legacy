@@ -212,6 +212,8 @@ class Connection(object):
             compiled if necessary.
         @param noresult: If True, no result will be returned.
 
+        @raise ConnectionBlockedError: Raised if access to the connection
+            has been blocked with L{block_access}.
         @raise DisconnectionError: Raised when the connection is lost.
             Reconnection happens automatically on rollback.
 
@@ -249,6 +251,8 @@ class Connection(object):
     def commit(self):
         """Commit the connection.
 
+        @raise ConnectionBlockedError: Raised if access to the connection
+            has been blocked with L{block_access}.
         @raise DisconnectionError: Raised when the connection is lost.
             Reconnection happens automatically on rollback.
 
