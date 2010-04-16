@@ -2370,6 +2370,18 @@ class StoreTest(object):
         self.store.unblock_implicit_flushes()
         self.assertRaises(RuntimeError, self.store.get, Foo, 20)
 
+    def test_block_access(self):
+        """Access to the store is blocked by block_access()."""
+        # The set_blocked() method blocks access to the connection.
+        self.store.block_access()
+        self.assertRaises(ConnectionBlockedError,
+                          self.store.execute, "SELECT 1")
+        self.assertRaises(ConnectionBlockedError, self.store.commit)
+        # The rollback method is not blocked.
+        self.store.rollback()
+        self.store.unblock_access()
+        self.store.execute("SELECT 1")
+
     def test_reload(self):
         foo = self.store.get(Foo, 20)
         self.store.execute("UPDATE foo SET title='Title 40' WHERE id=20")

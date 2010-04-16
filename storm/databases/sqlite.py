@@ -120,6 +120,7 @@ class SQLiteConnection(Connection):
                 yield param
 
     def commit(self):
+        self._ensure_connected()
         # See story at the end to understand why we do COMMIT manually.
         if self._in_transaction:
             self.raw_execute("COMMIT", _end=True)

@@ -29,7 +29,8 @@ from storm.expr import Expr, State, compile
 from storm.tracer import trace
 from storm.variables import Variable
 from storm.exceptions import (
-    ClosedError, DatabaseError, DisconnectionError, Error)
+    ClosedError, ConnectionBlockedError, DatabaseError, DisconnectionError,
+    Error)
 from storm.uri import URI
 import storm
 
@@ -173,6 +174,7 @@ class Connection(object):
     param_mark = "?"
     compile = compile
 
+    _blocked = False
     _closed = False
     _state = STATE_CONNECTED
 
@@ -188,6 +190,20 @@ class Connection(object):
         except:
             pass
 
+    def block_access(self):
+        """Block access to the connection.
+
+        Attempts to execute statements or commit a transaction will
+        result in a C{ConnectionBlockedError} exception.  Rollbacks
+        are permitted as that operation is often used in case of
+        failures.
+        """
+        self._blocked = True
+
+    def unblock_access(self):
+        """Unblock access to the connection."""
+        self._blocked = False
+
     def execute(self, statement, params=None, noresult=False):
         """Execute a statement with the given parameters.
 
@@ -196,6 +212,8 @@ class Connection(object):
             compiled if necessary.
         @param noresult: If True, no result will be returned.
 
+        @raise ConnectionBlockedError: Raised if access to the connection
+            has been blocked with L{block_access}.
         @raise DisconnectionError: Raised when the connection is lost.
             Reconnection happens automatically on rollback.
 
@@ -204,6 +222,8 @@ class Connection(object):
         """
         if self._closed:
             raise ClosedError("Connection is closed")
+        if self._blocked:
+            raise ConnectionBlockedError("Access to connection is blocked")
         self._ensure_connected()
         if self._event:
             self._event.emit("register-transaction")
@@ -231,6 +251,8 @@ class Connection(object):
     def commit(self):
         """Commit the connection.
 
+        @raise ConnectionBlockedError: Raised if access to the connection
+            has been blocked with L{block_access}.
         @raise DisconnectionError: Raised when the connection is lost.
             Reconnection happens automatically on rollback.
 
@@ -314,6 +336,8 @@ class Connection(object):
         If the connection is marked as dead, or if we can't reconnect,
         then raise DisconnectionError.
         """
+        if self._blocked:
+            raise ConnectionBlockedError("Access to connection is blocked")
         if self._state == STATE_CONNECTED:
             return
         elif self._state == STATE_DISCONNECTED:
