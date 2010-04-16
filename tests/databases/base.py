@@ -1,3 +1,4 @@
+
 # -*- encoding: utf-8 -*-
 #
 # Copyright (c) 2006, 2007 Canonical
@@ -423,6 +424,7 @@ class DatabaseTest(object):
         self.assertEquals(result, [(30,)])
 
     def test_block_access(self):
+        """Access to the connection is blocked by block_access()."""
         self.connection.execute("SELECT 1")
         self.connection.block_access()
         self.assertRaises(ConnectionBlockedError,

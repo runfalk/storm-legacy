@@ -2371,6 +2371,7 @@ class StoreTest(object):
         self.assertRaises(RuntimeError, self.store.get, Foo, 20)
 
     def test_block_access(self):
+        """Access to the store is blocked by block_access()."""
         # The set_blocked() method blocks access to the connection.
         self.store.block_access()
         self.assertRaises(ConnectionBlockedError,
