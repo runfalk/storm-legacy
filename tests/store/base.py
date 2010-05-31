@@ -33,13 +33,16 @@ from storm.expr import (
     Asc, Desc, Select, LeftJoin, SQL, Count, Sum, Avg, And, Or, Eq, Lower)
 from storm.variables import Variable, UnicodeVariable, IntVariable
 from storm.info import get_obj_info, ClassAlias
-from storm.exceptions import *
+from storm.exceptions import (
+    ClosedError, ConnectionBlockedError, FeatureError, LostObjectError,
+    NoStoreError, NotFlushedError, NotOneError, OrderLoopError, UnorderedError,
+    WrongStoreError)
 from storm.cache import Cache
-from storm.store import *
+from storm.store import AutoReload, EmptyResultSet, Store
 from storm.store import ResultSet
 
 from tests.info import Wrapper
-from tests.helper import run_this, TestHelper
+from tests.helper import TestHelper
 
 
 class Foo(object):
