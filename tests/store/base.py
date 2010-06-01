@@ -4290,6 +4290,12 @@ class StoreTest(object):
         self.assertEquals(type(bar.foo), MyFoo)
 
     def test_string_indirect_reference_set(self):
+        """
+        A L{ReferenceSet} can have its reference keys specified as strings
+        when the class its a member of uses the L{PropertyPublisherMeta}
+        metaclass.  This makes it possible to work around problems with
+        circular dependencies by delaying property resolution.
+        """
         class Base(object):
             __metaclass__ = PropertyPublisherMeta
 
@@ -4322,6 +4328,39 @@ class StoreTest(object):
                           (100, "Title 300"),
                           (200, "Title 200"),
                          ])
+
+    def test_string_reference_set_order_by(self):
+        """
+        A L{ReferenceSet} can have its default order by specified as a string
+        when the class its a member of uses the L{PropertyPublisherMeta}
+        metaclass.  This makes it possible to work around problems with
+        circular dependencies by delaying resolution of the order by column.
+        """
+        class Base(object):
+            __metaclass__ = PropertyPublisherMeta
+
+        class MyFoo(Base):
+            __storm_table__ = "foo"
+            id = Int(primary=True)
+            title = Unicode()
+            bars = ReferenceSet("id", "MyLink.foo_id",
+                                "MyLink.bar_id", "MyBar.id",
+                                order_by="MyBar.title")
+
+        class MyBar(Base):
+            __storm_table__ = "bar"
+            id = Int(primary=True)
+            title = Unicode()
+
+        class MyLink(Base):
+            __storm_table__ = "link"
+            __storm_primary__ = "foo_id", "bar_id"
+            foo_id = Int()
+            bar_id = Int()
+
+        foo = self.store.get(MyFoo, 20)
+        items = [(bar.id, bar.title) for bar in foo.bars]
+        self.assertEquals(items, [(200, "Title 200"), (100, "Title 300")])
 
     def test_flush_order(self):
         foo1 = Foo()
