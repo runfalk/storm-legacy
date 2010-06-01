@@ -369,7 +369,7 @@ class DecimalVariable(Variable):
     @staticmethod
     def parse_get(value, to_db):
         if to_db:
-            return str(value)
+            return unicode(value)
         return value
 
 
