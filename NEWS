@@ -10,6 +10,7 @@ Improvements
 
 Bug fixes
 ---------
+ - Make storm compatible with psycopg2 2.2 (bug #585704).
 
 
 0.16 (2009-11-28)
