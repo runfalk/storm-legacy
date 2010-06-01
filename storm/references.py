@@ -241,8 +241,7 @@ class ReferenceSet(object):
         #    return None
 
         if self._relation2 is None:
-            return BoundReferenceSet(self._relation1, local,
-                                     self._order_by)
+            return BoundReferenceSet(self._relation1, local, self._order_by)
         else:
             return BoundIndirectReferenceSet(self._relation1,
                                              self._relation2, local,
