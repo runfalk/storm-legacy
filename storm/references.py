@@ -214,6 +214,7 @@ class ReferenceSet(object):
     # not be available yet.
     _relation1 = LazyAttribute("_relation1", "_build_relations")
     _relation2 = LazyAttribute("_relation2", "_build_relations")
+    _order_by = LazyAttribute("_order_by", "_build_relations")
 
     def __init__(self, local_key1, remote_key1,
                  remote_key2=None, local_key2=None, order_by=None):
@@ -221,7 +222,7 @@ class ReferenceSet(object):
         self._remote_key1 = remote_key1
         self._remote_key2 = remote_key2
         self._local_key2 = local_key2
-        self._order_by = order_by
+        self._default_order_by = order_by
         self._cls = None
 
     def __get__(self, local, cls=None):
@@ -251,6 +252,11 @@ class ReferenceSet(object):
 
     def _build_relations(self):
         resolver = PropertyResolver(self, self._cls)
+
+        if self._default_order_by is not None:
+            self._order_by = resolver.resolve(self._default_order_by)
+        else:
+            self._order_by = None
 
         self._local_key1 = resolver.resolve(self._local_key1)
         self._remote_key1 = resolver.resolve(self._remote_key1)
@@ -913,7 +919,7 @@ class PropertyResolver(object):
     def _resolve_string(self, property_path):
         if self._registry is None:
             try:
-                registry = self._used_cls._storm_property_registry
+                self._registry = self._used_cls._storm_property_registry
             except AttributeError:
                 raise RuntimeError("When using strings on references, "
                                    "classes involved must be subclasses "
@@ -921,7 +927,7 @@ class PropertyResolver(object):
             cls = _find_descriptor_class(self._used_cls, self._reference)
             self._namespace = "%s.%s" % (cls.__module__, cls.__name__)
 
-        return registry.get(property_path, self._namespace)
+        return self._registry.get(property_path, self._namespace)
 
 
 def _find_descriptor_class(used_cls, descr):
