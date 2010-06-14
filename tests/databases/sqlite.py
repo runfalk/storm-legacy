@@ -77,20 +77,11 @@ class SQLiteMemoryTest(DatabaseTest, TestHelper):
 
     def test_sqlite_specific_reserved_words(self):
         reserved_words = """
-            abort action add after all alter analyze and as asc attach
-            autoincrement before begin between by cascade case cast check
-            collate column commit conflict constraint create cross
-            current_date current_time current_timestamp database default
-            deferrable deferred delete desc detach distinct drop each else
-            end escape except exclusive exists explain fail for foreign from
-            full glob group having if ignore immediate in index indexed
-            initially inner insert instead intersect into is isnull join key
-            left like limit match natural no not notnull null of offset on or
-            order outer plan pragma primary query raise references regexp
-            reindex release rename replace restrict right rollback row
-            savepoint select set table temp temporary then to transaction
-            trigger union unique update using vacuum values view virtual when
-            where
+            abort after analyze attach autoincrement before conflict
+            database detach each exclusive explain fail glob if ignore
+            index indexed instead isnull limit notnull offset plan
+            pragma query raise regexp reindex release rename replace
+            row savepoint temp trigger vacuum virtual
             """.split()
         for word in reserved_words:
             self.assertTrue(self.connection.compile.is_reserved_word(word),
