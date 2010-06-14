@@ -227,3 +227,18 @@ create_from_uri = SQLite
 #     http://www.sqlite.org/lockingv3.html
 #     http://docs.python.org/lib/sqlite3-Controlling-Transactions.html
 #
+
+# --------------------------------------------------------------------
+# Reserved words, SQLite specific
+
+# The list of reserved words here are SQLite specific.  SQL92 reserved words
+# are registered in storm.expr, near the "Reserved words, from SQL1992"
+# comment.  The reserved words here were taken from:
+#
+# http://www.sqlite.org/lang_keywords.html
+compile.add_reserved_words("""
+    abort after analyze attach autoincrement before conflict database detach
+    each exclusive explain fail glob if ignore index indexed instead isnull
+    limit notnull offset plan pragma query raise regexp reindex release
+    rename replace row savepoint temp trigger vacuum virtual
+    """.split())
