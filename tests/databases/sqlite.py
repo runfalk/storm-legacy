@@ -76,6 +76,11 @@ class SQLiteMemoryTest(DatabaseTest, TestHelper):
                               synchronous_values[value])
 
     def test_sqlite_specific_reserved_words(self):
+        """Check sqlite-specific reserved words are recognized.
+
+        This uses a list copied from http://www.sqlite.org/lang_keywords.html
+        with the reserved words from SQL1992 removed.
+        """
         reserved_words = """
             abort after analyze attach autoincrement before conflict
             database detach each exclusive explain fail glob if ignore
