@@ -223,23 +223,23 @@ class ZStormTest(TestHelper):
 
         failures = []
         def f():
-            try:
-                store.execute("SELECT 1")
-                # And again, to show that the event handler is still
-                # attached.
-                store.execute("SELECT 1")
-            except ZStormError:
-                failures.append("ZStormError raised")
-            except Exception, exc:
-                failures.append("Expected ZStormError, got %r" % exc)
-            else:
-                failures.append("Expected ZStormError, nothing raised")
-            if self._isInTransaction(store):
-                failures.append("store was joined to transaction")
+            # We perform this twice to show that ZStormError is raised
+            # consistently (i.e. not just the first time).
+            for i in range(2):
+                try:
+                    store.execute("SELECT 1")
+                except ZStormError:
+                    failures.append("ZStormError raised")
+                except Exception, exc:
+                    failures.append("Expected ZStormError, got %r" % exc)
+                else:
+                    failures.append("Expected ZStormError, nothing raised")
+                if self._isInTransaction(store):
+                    failures.append("store was joined to transaction")
         thread = threading.Thread(target=f)
         thread.start()
         thread.join()
-        self.assertEqual(failures, ["ZStormError raised"])
+        self.assertEqual(failures, ["ZStormError raised"] * 2)
 
     def test_wb_reset(self):
         """_reset is used to reset the zstorm utility between zope test runs.
