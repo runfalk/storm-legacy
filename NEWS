@@ -17,6 +17,7 @@ Improvements
 
 Bug fixes
 ---------
+ - SQLite reserved words are handled properly (bug #593633).
 
 
 0.16 (2009-11-28)
