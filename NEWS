@@ -3,6 +3,14 @@
 
 Improvements
 ------------
+ - The order_by parameter defined on ReferenceSet can now be
+   specified as a string, to workaround circular dependency issues.
+   The order by property column will be resolved after import time
+   (bug #580037).
+ - The Store and Connection classes have block_access() and
+   unblock_access() methods that can be used to block access to the
+   database connection.  This can be used to ensure that an
+   application doesn't access the database at unexpected times.
 
 Bug fixes
 ---------

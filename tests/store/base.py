@@ -33,13 +33,16 @@ from storm.expr import (
     Asc, Desc, Select, LeftJoin, SQL, Count, Sum, Avg, And, Or, Eq, Lower)
 from storm.variables import Variable, UnicodeVariable, IntVariable
 from storm.info import get_obj_info, ClassAlias
-from storm.exceptions import *
+from storm.exceptions import (
+    ClosedError, ConnectionBlockedError, FeatureError, LostObjectError,
+    NoStoreError, NotFlushedError, NotOneError, OrderLoopError, UnorderedError,
+    WrongStoreError)
 from storm.cache import Cache
-from storm.store import *
+from storm.store import AutoReload, EmptyResultSet, Store
 from storm.store import ResultSet
 
 from tests.info import Wrapper
-from tests.helper import run_this, TestHelper
+from tests.helper import TestHelper
 
 
 class Foo(object):
@@ -2370,6 +2373,18 @@ class StoreTest(object):
         self.store.unblock_implicit_flushes()
         self.assertRaises(RuntimeError, self.store.get, Foo, 20)
 
+    def test_block_access(self):
+        """Access to the store is blocked by block_access()."""
+        # The set_blocked() method blocks access to the connection.
+        self.store.block_access()
+        self.assertRaises(ConnectionBlockedError,
+                          self.store.execute, "SELECT 1")
+        self.assertRaises(ConnectionBlockedError, self.store.commit)
+        # The rollback method is not blocked.
+        self.store.rollback()
+        self.store.unblock_access()
+        self.store.execute("SELECT 1")
+
     def test_reload(self):
         foo = self.store.get(Foo, 20)
         self.store.execute("UPDATE foo SET title='Title 40' WHERE id=20")
@@ -4275,6 +4290,12 @@ class StoreTest(object):
         self.assertEquals(type(bar.foo), MyFoo)
 
     def test_string_indirect_reference_set(self):
+        """
+        A L{ReferenceSet} can have its reference keys specified as strings
+        when the class its a member of uses the L{PropertyPublisherMeta}
+        metaclass.  This makes it possible to work around problems with
+        circular dependencies by delaying property resolution.
+        """
         class Base(object):
             __metaclass__ = PropertyPublisherMeta
 
@@ -4307,6 +4328,39 @@ class StoreTest(object):
                           (100, "Title 300"),
                           (200, "Title 200"),
                          ])
+
+    def test_string_reference_set_order_by(self):
+        """
+        A L{ReferenceSet} can have its default order by specified as a string
+        when the class its a member of uses the L{PropertyPublisherMeta}
+        metaclass.  This makes it possible to work around problems with
+        circular dependencies by delaying resolution of the order by column.
+        """
+        class Base(object):
+            __metaclass__ = PropertyPublisherMeta
+
+        class MyFoo(Base):
+            __storm_table__ = "foo"
+            id = Int(primary=True)
+            title = Unicode()
+            bars = ReferenceSet("id", "MyLink.foo_id",
+                                "MyLink.bar_id", "MyBar.id",
+                                order_by="MyBar.title")
+
+        class MyBar(Base):
+            __storm_table__ = "bar"
+            id = Int(primary=True)
+            title = Unicode()
+
+        class MyLink(Base):
+            __storm_table__ = "link"
+            __storm_primary__ = "foo_id", "bar_id"
+            foo_id = Int()
+            bar_id = Int()
+
+        foo = self.store.get(MyFoo, 20)
+        items = [(bar.id, bar.title) for bar in foo.bars]
+        self.assertEquals(items, [(200, "Title 200"), (100, "Title 300")])
 
     def test_flush_order(self):
         foo1 = Foo()
