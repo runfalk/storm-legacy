@@ -11,6 +11,9 @@ Improvements
    unblock_access() methods that can be used to block access to the
    database connection.  This can be used to ensure that an
    application doesn't access the database at unexpected times.
+ - When using stores managed by ZStorm, a ZStormError will be raised
+   on attempts to use a per-thread store from the wrong thread (bug
+   #348815).
 
 Bug fixes
 ---------
