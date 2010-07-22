@@ -315,7 +315,6 @@ class Store(object):
         result = self._connection.execute(select)
         values = result.get_one()
         self._set_values(obj_info, cls_info.columns, result, values)
-        obj_info.checkpoint()
         self._set_clean(obj_info)
 
     def autoreload(self, obj=None):
@@ -535,8 +534,6 @@ class Store(object):
             self._enable_change_notification(obj_info)
             self._add_to_alive(obj_info)
 
-            obj_info.checkpoint()
-
         else:
 
             cached_primary_vars = obj_info["primary_vars"]
@@ -554,9 +551,6 @@ class Store(object):
                 self._fill_missing_values(obj_info, obj_info.primary_vars)
 
                 self._add_to_alive(obj_info)
-
-
-            obj_info.checkpoint()
 
         self._run_hook(obj_info, "__storm_flushed__")
 
@@ -653,6 +647,8 @@ class Store(object):
                     # must have just been sent to the database, so this
                     # was already set there.
                     variable.set(AutoReload)
+            else:
+                variable.checkpoint()
 
         if missing_columns:
             where = result.get_insert_identity(cls_info.primary_key,
@@ -720,8 +716,6 @@ class Store(object):
 
             self._set_values(obj_info, cls_info.columns, result, values)
 
-            obj_info.checkpoint()
-
             self._add_to_alive(obj_info)
             self._enable_change_notification(obj_info)
             self._enable_lazy_resolving(obj_info)
@@ -777,6 +771,8 @@ class Store(object):
                 variable.set(value, from_db=True)
             else:
                 result.set_variable(variable, value)
+
+            variable.checkpoint()
 
 
     def _is_dirty(self, obj_info):
@@ -901,8 +897,6 @@ class Store(object):
             result = self._connection.execute(Select(autoreload_columns, where))
             self._set_values(obj_info, autoreload_columns,
                              result, result.get_one())
-            for column in autoreload_columns:
-                obj_info.variables[column].checkpoint()
 
 
 class ResultSet(object):

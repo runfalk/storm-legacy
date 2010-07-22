@@ -23,6 +23,7 @@ import decimal
 import gc
 import operator
 import weakref
+import cPickle
 
 from storm.references import Reference, ReferenceSet, Proxy
 from storm.database import Result
@@ -455,6 +456,44 @@ class StoreTest(object):
 
         self.store.flush()
         self.assertEquals(self.store._event._hooks["flush"], set())
+
+    def test_mutable_variable_detect_change_from_alive(self):
+        """
+        Changes in a mutable variable like a L{PickleVariable} are correctly
+        detected, even if the object comes from the alive cache.
+        """
+        class PickleBlob(Blob):
+            bin = Pickle()
+
+        blob = PickleBlob()
+        blob.bin = {"k": "v"}
+        blob.id = 4000
+        self.store.add(blob)
+        self.store.commit()
+
+        blob = self.store.find(PickleBlob, PickleBlob.id == 4000).one()
+        blob.bin["k1"] = "v1"
+
+        self.store.commit()
+
+        blob = self.store.find(PickleBlob, PickleBlob.id == 4000).one()
+        self.assertEquals(blob.bin, {"k1": "v1", "k": "v"})
+
+    def test_wb_checkpoint_doesnt_override_changed(self):
+        """
+        This test ensures that we don't uselessly checkpoint when getting back
+        objects from the alive cache, which would hide changed values from the
+        store.
+        """
+        foo = self.store.get(Foo, 20)
+        foo.title = u"changed"
+        self.store.block_implicit_flushes()
+        foo2 = self.store.find(Foo, Foo.id == 20).one()
+        self.store.unblock_implicit_flushes()
+        self.store.commit()
+
+        foo3 = self.store.find(Foo, Foo.id == 20).one()
+        self.assertEquals(foo3.title, u"changed")
 
     def test_obj_info_with_deleted_object_with_get(self):
         # Same thing, but using get rather than find.
