@@ -473,10 +473,8 @@ class StoreTest(object):
 
         self.store.commit()
 
-        result = list(self.store.execute("SELECT bin FROM bin WHERE id=4000"))
-        self.assertEquals(
-            cPickle.loads(str(result[0][0])),
-            {"k1": "v1", "k": "v"})
+        blob = self.store.find(PickleBlob, PickleBlob.id == 4000).one()
+        self.assertEquals(blob.bin, {"k1": "v1", "k": "v"})
 
     def test_wb_checkpoint_doesnt_override_changed(self):
         """
@@ -491,8 +489,8 @@ class StoreTest(object):
         self.store.unblock_implicit_flushes()
         self.store.commit()
 
-        result = list(self.store.execute("SELECT title FROM foo WHERE id=20"))
-        self.assertEquals(result[0][0], u"changed")
+        foo3 = self.store.find(Foo, Foo.id == 20).one()
+        self.assertEquals(foo3.title, u"changed")
 
     def test_obj_info_with_deleted_object_with_get(self):
         # Same thing, but using get rather than find.
