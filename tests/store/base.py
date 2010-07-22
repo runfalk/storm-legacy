@@ -518,7 +518,7 @@ class StoreTest(object):
         """
         L{ResultSet.is_empty} strips the C{ORDER BY} clause, if one is
         present, since it isn't required to actually determine if a result set
-        has any natching rows.  This should provide some performance
+        has any matching rows.  This should provide some performance
         improvement when the ordered result set would be large.
         """
         statements = []
@@ -531,7 +531,8 @@ class StoreTest(object):
         result = self.store.find(Foo, Foo.id == 300)
         result.order_by(Foo.id)
         self.assertEqual(True, result.is_empty())
-        self.assertNotIn("ORDER BY", statements.pop())
+        [statement] = statements
+        self.assertNotIn("ORDER BY", statement)
 
     def test_is_empty_with_composed_key(self):
         result = self.store.find(Link, foo_id=300, bar_id=3000)
