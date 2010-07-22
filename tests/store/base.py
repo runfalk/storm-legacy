@@ -475,7 +475,7 @@ class StoreTest(object):
 
         result = list(self.store.execute("SELECT bin FROM bin WHERE id=4000"))
         self.assertEquals(
-            cPickle.loads(result[0][0]),
+            cPickle.loads(str(result[0][0])),
             {"k1": "v1", "k": "v"})
 
     def test_wb_checkpoint_doesnt_override_changed(self):
