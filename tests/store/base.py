@@ -30,7 +30,8 @@ from storm.properties import Int, Float, RawStr, Unicode, Property, Pickle
 from storm.properties import PropertyPublisherMeta, Decimal
 from storm.variables import PickleVariable
 from storm.expr import (
-    Asc, Desc, Select, LeftJoin, SQL, Count, Sum, Avg, And, Or, Eq, Lower)
+    Asc, Desc, Select, LeftJoin, SQL, Count, Sum, Avg, And, Or, Eq, Lower,
+    compile)
 from storm.variables import Variable, UnicodeVariable, IntVariable
 from storm.info import get_obj_info, ClassAlias
 from storm.exceptions import (
@@ -512,6 +513,25 @@ class StoreTest(object):
         self.assertEquals(result.is_empty(), True)
         result = self.store.find(Foo, id=30)
         self.assertEquals(result.is_empty(), False)
+
+    def test_wb_is_empty_strips_order_by(self):
+        """
+        L{ResultSet.is_empty} strips the C{ORDER BY} clause, if one is
+        present, since it isn't required to actually determine if a result set
+        has any natching rows.  This should provide some performance
+        improvement when the ordered result set would be large.
+        """
+        statements = []
+        original_execute = self.store._connection.execute
+        def execute(expr):
+            statements.append(compile(expr))
+            return original_execute(expr)
+        self.store._connection.execute = execute
+
+        result = self.store.find(Foo, Foo.id == 300)
+        result.order_by(Foo.id)
+        self.assertEqual(True, result.is_empty())
+        self.assertNotIn("ORDER BY", statements.pop())
 
     def test_is_empty_with_composed_key(self):
         result = self.store.find(Link, foo_id=300, bar_id=3000)
