@@ -1049,6 +1049,7 @@ class ResultSet(object):
         """Return true if this L{ResultSet} contains no results."""
         subselect = self._get_select()
         subselect.limit = 1
+        subselect.order_by = Undef
         select = Select(1, tables=Alias(subselect, "_tmp"), limit=1)
         result = self._store._connection.execute(select)
         return (not result.get_one())
