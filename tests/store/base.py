@@ -557,8 +557,8 @@ class StoreTest(object):
         """
         L{ResultSet.is_empty} strips the C{ORDER BY} clause, if one is
         present, since it isn't required to actually determine if a result set
-        has any matching rows.  This should provide some performance
-        improvement when the ordered result set would be large.
+        has any matching rows.  This should provide a performance improvement
+        when the ordered result set would be large.
         """
         statements = []
         original_execute = self.store._connection.execute
@@ -878,6 +878,26 @@ class StoreTest(object):
 
         foo = self.store.find(Foo, id=40).any()
         self.assertEquals(foo, None)
+
+    def test_wb_any_strips_order_by(self):
+        """
+        L{ResultSet.any} strips the C{ORDER BY} clause, if one is present,
+        since it isn't required to actually get any object.  This should
+        provide a performance improvement when the ordered result set would be
+        large.
+        """
+        statements = []
+        original_execute = self.store._connection.execute
+        def execute(expr):
+            statements.append(compile(expr))
+            return original_execute(expr)
+        self.store._connection.execute = execute
+
+        result = self.store.find(Foo, Foo.id == 300)
+        result.order_by(Foo.id)
+        result.any()
+        [statement] = statements
+        self.assertNotIn("ORDER BY", statement)
 
     def test_find_first(self, *args):
         self.assertRaises(UnorderedError, self.store.find(Foo).first)

@@ -1061,6 +1061,7 @@ class ResultSet(object):
         """
         select = self._get_select()
         select.limit = 1
+        select.order_by = Undef
         result = self._store._connection.execute(select)
         values = result.get_one()
         if values:
