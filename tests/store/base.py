@@ -1070,7 +1070,7 @@ class StoreTest(object):
         foo = self.store.get(Foo, 10)
         result1 = self.store.find(Foo, Foo.id <= 10)
         subselect = result1.get_select_expr(Foo.id)
-        self.assertEqual([Foo.id], subselect.columns)
+        self.assertEqual((Foo.id,), subselect.columns)
         result2 = self.store.find(Foo, Foo.id.is_in(subselect))
         self.assertEqual([foo], list(result2))
 
@@ -6019,12 +6019,12 @@ class EmptyResultSetTest(object):
         without a list of L{Column}s.
         """
         subselect = self.result.get_select_expr(Foo.id)
-        self.assertEqual([Foo.id], subselect.columns)
+        self.assertEqual((Foo.id,), subselect.columns)
         result = self.store.find(Foo, Foo.id.is_in(subselect))
         self.assertEquals(list(result), [])
 
         subselect = self.empty.get_select_expr(Foo.id)
-        self.assertEqual([Foo.id], subselect.columns)
+        self.assertEqual((Foo.id,), subselect.columns)
         result = self.store.find(Foo, Foo.id.is_in(subselect))
         self.assertEquals(list(result), [])
 
