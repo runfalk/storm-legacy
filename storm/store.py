@@ -1269,6 +1269,8 @@ class ResultSet(object):
 
         @param columns: One or more L{storm.expr.Column} objects whose
             values will be fetched.
+        @raises FeatureError: Raised if no columns are specified or if this
+            result is a set expression such as a union.
         @return: An iterator of tuples of the values for each column
             from each matching row in the database.
         """
