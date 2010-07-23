@@ -14,10 +14,17 @@ Improvements
  - When using stores managed by ZStorm, a ZStormError will be raised
    on attempts to use a per-thread store from the wrong thread (bug
    #348815).
+ - ResultSet.is_empty strips the ORDER BY clause, when present, to
+   provide a performance boost for queries that would match a large
+   number of rows (bug #246200).
 
 Bug fixes
 ---------
  - SQLite reserved words are handled properly (bug #593633).
+ - A bug in change checkpointing logic has been fixed to detect
+   changes in mutable objects correctly and to prevent useless (or
+   potentially harmful!) columns to be specified in updates (bug
+   #553334).
 
 
 0.16 (2009-11-28)
