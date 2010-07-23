@@ -1058,24 +1058,24 @@ class StoreTest(object):
         result = self.store.find(Foo)
         self.assertRaises(FeatureError, result.select)
 
-    def test_find_select_empty(self):
+    def test_find_get_select_expr_without_results(self):
         result1 = self.store.find(Foo, Foo.id < 10)
-        result2 = self.store.find(Foo, Foo.id.is_in(result1.select(Foo.id)))
+        subselect = result1.get_select_expr(Foo.id)
+        result2 = self.store.find(Foo, Foo.id.is_in(subselect))
         self.assertEquals(list(result2), [])
 
-    def test_find_select(self):
+    def test_find_get_select_expr(self):
         foo = self.store.get(Foo, 10)
         result1 = self.store.find(Foo, Foo.id <= 10)
-        result2 = self.store.find(Foo, Foo.id.is_in(result1.select(Foo.id)))
+        subselect = result1.get_select_expr(Foo.id)
+        result2 = self.store.find(Foo, Foo.id.is_in(subselect))
         self.assertEquals(list(result2), [foo])
 
-    def test_find_select_with_set_expression(self):
-        foo1 = self.store.get(Foo, 10)
-        foo2 = self.store.get(Foo, 20)
+    def test_find_get_select_expr_with_set_expression(self):
         result1 = self.store.find(Foo, Foo.id == 10)
         result2 = self.store.find(Foo, Foo.id == 20)
         result3 = result1.union(result2)
-        self.assertRaises(FeatureError, result3.select, Foo.id)
+        self.assertRaises(FeatureError, result3.get_select_expr, Foo.id)
 
     def test_find_values(self):
         values = self.store.find(Foo).order_by(Foo.id).values(Foo.id)
@@ -5998,16 +5998,16 @@ class EmptyResultSetTest(object):
         self.assertEquals(self.result.sum(Foo.id), None)
         self.assertEquals(self.empty.sum(Foo.id), None)
 
-    def test_select_no_columns(self):
-        self.assertRaises(FeatureError, self.result.select)
-        self.assertRaises(FeatureError, self.empty.select)
+    def test_get_select_expr_without_columns(self):
+        self.assertRaises(FeatureError, self.result.get_select_expr)
+        self.assertRaises(FeatureError, self.empty.get_select_expr)
 
-    def test_select(self):
-        result1 = self.result.select(Foo.id)
+    def test_get_select_expr(self):
+        result1 = self.result.get_select_expr(Foo.id)
         result2 = self.store.find(Foo, Foo.id.is_in(result1))
         self.assertEquals(list(result2), [])
 
-        result1 = self.empty.select(Foo.id)
+        result1 = self.empty.get_select_expr(Foo.id)
         result2 = self.store.find(Foo, Foo.id.is_in(result1))
         self.assertEquals(list(result2), [])
 
