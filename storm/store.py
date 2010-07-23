@@ -1246,7 +1246,6 @@ class ResultSet(object):
 
         @param columns: One or more L{storm.expr.Column} objects whose values
             will be fetched.
-
         @raises FeatureError: Raised if no columns are specified or if this
             result is a set expression such as a union.
         @return: A L{Select} expression configured to use the query parameters
@@ -1548,6 +1547,15 @@ class EmptyResultSet(object):
         return None
 
     def get_select_expr(self, *columns):
+        """Get a L{Select} expression to retrieve only the specified columns.
+
+        @param columns: One or more L{storm.expr.Column} objects whose values
+            will be fetched.
+        @raises FeatureError: Raised if no columns are specified.
+        @return: A L{Select} expression configured to use the query parameters
+            specified for this result set.  The result of the select will
+            always be an empty set of rows.
+        """
         if not columns:
             raise FeatureError("select() takes at least one column "
                                "as argument")
