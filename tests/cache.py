@@ -1,3 +1,5 @@
+from unittest import defaultTestLoader
+
 from storm.properties import Int
 from storm.info import get_obj_info
 from storm.cache import Cache, GenerationalCache
@@ -379,4 +381,4 @@ class TestGenerationalCache(BaseCacheTest):
 
 
 def test_suite():
-    return unittest.TestLoader().loadTestsFromName(__name__)
+    return defaultTestLoader.loadTestsFromName(__name__)

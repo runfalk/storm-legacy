@@ -127,6 +127,10 @@ class TimeoutError(StormError):
         return "%r, %r" % (self.statement, self.params)
 
 
+class ConnectionBlockedError(StormError):
+    """Raised when an attempt is made to use a blocked connection."""
+
+
 def install_exceptions(module):
     for exception in (Error, Warning, DatabaseError, InternalError,
                       OperationalError, ProgrammingError, IntegrityError,

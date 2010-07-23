@@ -66,20 +66,24 @@ class Store(object):
     def __init__(self, database, cache=None):
         """
         @param database: The L{storm.database.Database} instance to use.
-        @param cache: The cache to use.  Defaults to a L{Cache} storing up to
-            1000 objects at any given time.
+        @param cache: The cache to use.  Defaults to a L{Cache} instance.
         """
+        self._database = database
         self._event = EventSystem(self)
         self._connection = database.connect(self._event)
         self._alive = WeakValueDictionary()
         self._dirty = {}
         self._order = {} # (info, info) = count
         if cache is None:
-            self._cache = Cache(100)
+            self._cache = Cache()
         else:
             self._cache = cache
         self._implicit_flush_block_count = 0
         self._sequence = 0 # Advisory ordering.
+
+    def get_database(self):
+        """Return this Store's Database object."""
+        return self._database
 
     @staticmethod
     def of(obj):
@@ -311,7 +315,6 @@ class Store(object):
         result = self._connection.execute(select)
         values = result.get_one()
         self._set_values(obj_info, cls_info.columns, result, values)
-        obj_info.checkpoint()
         self._set_clean(obj_info)
 
     def autoreload(self, obj=None):
@@ -531,8 +534,6 @@ class Store(object):
             self._enable_change_notification(obj_info)
             self._add_to_alive(obj_info)
 
-            obj_info.checkpoint()
-
         else:
 
             cached_primary_vars = obj_info["primary_vars"]
@@ -551,9 +552,6 @@ class Store(object):
 
                 self._add_to_alive(obj_info)
 
-
-            obj_info.checkpoint()
-
         self._run_hook(obj_info, "__storm_flushed__")
 
         obj_info.event.emit("flushed")
@@ -566,6 +564,14 @@ class Store(object):
         """Unblock implicit flushes from operations like execute()."""
         assert self._implicit_flush_block_count > 0
         self._implicit_flush_block_count -= 1
+
+    def block_access(self):
+        """Block access to the underlying database connection."""
+        self._connection.block_access()
+
+    def unblock_access(self):
+        """Unblock access to the underlying database connection."""
+        self._connection.unblock_access()
 
     def _get_changes_map(self, obj_info, adding=False):
         """Return a {column: variable} dictionary suitable for inserts/updates.
@@ -641,6 +647,8 @@ class Store(object):
                     # must have just been sent to the database, so this
                     # was already set there.
                     variable.set(AutoReload)
+            else:
+                variable.checkpoint()
 
         if missing_columns:
             where = result.get_insert_identity(cls_info.primary_key,
@@ -708,8 +716,6 @@ class Store(object):
 
             self._set_values(obj_info, cls_info.columns, result, values)
 
-            obj_info.checkpoint()
-
             self._add_to_alive(obj_info)
             self._enable_change_notification(obj_info)
             self._enable_lazy_resolving(obj_info)
@@ -765,6 +771,8 @@ class Store(object):
                 variable.set(value, from_db=True)
             else:
                 result.set_variable(variable, value)
+
+            variable.checkpoint()
 
 
     def _is_dirty(self, obj_info):
@@ -889,8 +897,6 @@ class Store(object):
             result = self._connection.execute(Select(autoreload_columns, where))
             self._set_values(obj_info, autoreload_columns,
                              result, result.get_one())
-            for column in autoreload_columns:
-                obj_info.variables[column].checkpoint()
 
 
 class ResultSet(object):
@@ -1043,6 +1049,7 @@ class ResultSet(object):
         """Return true if this L{ResultSet} contains no results."""
         subselect = self._get_select()
         subselect.limit = 1
+        subselect.order_by = Undef
         select = Select(1, tables=Alias(subselect, "_tmp"), limit=1)
         result = self._store._connection.execute(select)
         return (not result.get_one())
@@ -1206,7 +1213,7 @@ class ResultSet(object):
         value = result.get_one()[0]
         variable_factory = getattr(column, "variable_factory", None)
         if variable_factory:
-            variable = variable_factory()
+            variable = variable_factory(allow_none=True)
             result.set_variable(variable, value)
             return variable.get()
         return value

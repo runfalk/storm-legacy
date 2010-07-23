@@ -22,7 +22,13 @@
 import os
 
 
-version = "0.16"
+# Use a 4-digit version for development versions with 99 as the final version.
+# For example, if 0.15 is the currently released version of Storm, the
+# development version should be version 0.15.0.99.  This will make it obvious
+# that this isn't the 0.15 release version while also allowing us to release
+# an 0.15.1 if need be.  Release versions should use 2-digit version numbers,
+# with 0.16 being the next release version in this example.
+version = "0.16.0.99"
 version_info = tuple([int(x) for x in version.split(".")])
 
 
@@ -38,17 +44,15 @@ class UndefType(object):
 Undef = UndefType()
 
 
-# XXX The default is 1 for now.  In the future we'll invert this logic so
-#     that it's enabled by default.
+# C extensions are enabled by default.  They are not used if the
+# STORM_CEXTENSIONS environment variable is set to '0'.  If they can't be
+# imported Storm will automatically use Python versions of the optimized code
+# in the C extension.
 has_cextensions = False
-if os.environ.get("STORM_CEXTENSIONS") == "1":
+if os.environ.get("STORM_CEXTENSIONS") != "0":
     try:
         from storm import cextensions
         has_cextensions = True
     except ImportError, e:
-        # XXX Once the logic is inverted and cextensions are enabled by
-        #     default, use the following version so that people may opt
-        #     to use and distribute the pure Python version.
-        #if "cextensions" not in str(e):
-        #    raise
-        raise
+        if "cextensions" not in str(e):
+           raise

@@ -20,13 +20,14 @@
 #
 
 try:
-    from django import conf
-    from django.http import HttpRequest, HttpResponse
+    import django
     import transaction
 except ImportError:
     have_django_and_transaction = False
 else:
     have_django_and_transaction = True
+    from django import conf
+    from django.http import HttpRequest, HttpResponse
     from storm.django.middleware import ZopeTransactionMiddleware
 
 from tests.helper import TestHelper
@@ -44,7 +45,10 @@ class TransactionMiddlewareTests(TestHelper):
         self.django_transaction = django_transaction
 
     def tearDown(self):
-        conf.settings._target = None
+        if django.VERSION >= (1, 1):
+            conf.settings._wrapped = None
+        else:
+            conf.settings._target = None
         super(TransactionMiddlewareTests, self).tearDown()
 
     def test_process_request_begins_transaction(self):

@@ -106,9 +106,34 @@ class MySQLTest(DatabaseTest, TestHelper):
         result = self.connection.execute("SELECT MAX(id) FROM test")
         self.assertEqual(result.get_one()[0], id_variable.get())
 
+    def test_mysql_specific_reserved_words(self):
+        reserved_words = """
+            accessible analyze asensitive before bigint binary blob call
+            change condition current_user database databases day_hour
+            day_microsecond day_minute day_second delayed deterministic
+            distinctrow div dual each elseif enclosed escaped exit explain
+            float4 float8 force fulltext high_priority hour_microsecond
+            hour_minute hour_second if ignore index infile inout int1 int2
+            int3 int4 int8 iterate keys kill leave limit linear lines load
+            localtime localtimestamp lock long longblob longtext loop
+            low_priority master_ssl_verify_server_cert mediumblob mediumint
+            mediumtext middleint minute_microsecond minute_second mod modifies
+            no_write_to_binlog optimize optionally out outfile purge range
+            read_write reads regexp release rename repeat replace require
+            return rlike schemas second_microsecond sensitive separator show
+            spatial specific sql_big_result sql_calc_found_rows
+            sql_small_result sqlexception sqlwarning ssl starting
+            straight_join terminated tinyblob tinyint tinytext trigger undo
+            unlock unsigned use utc_date utc_time utc_timestamp varbinary
+            varcharacter while xor year_month zerofill
+            """.split()
+        for word in reserved_words:
+            self.assertTrue(self.connection.compile.is_reserved_word(word),
+                            "Word missing: %s" % (word,))
+
 
 class MySQLUnsupportedTest(UnsupportedDatabaseTest, TestHelper):
-    
+
     dbapi_module_names = ["MySQLdb"]
     db_module_name = "mysql"
 

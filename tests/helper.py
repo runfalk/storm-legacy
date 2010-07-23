@@ -67,6 +67,9 @@ class TestHelper(mocker.MockerTestCase):
                 break
         is_supported = getattr(self, "is_supported", None)
         if is_supported is not None and not is_supported():
+            if hasattr(result, "addSkip"):
+                result.startTest(self)
+                result.addSkip(self, "Test not supported")
             return
         unittest.TestCase.run(self, result)
 

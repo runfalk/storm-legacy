@@ -23,6 +23,7 @@ import decimal
 import gc
 import operator
 import weakref
+import cPickle
 
 from storm.references import Reference, ReferenceSet, Proxy
 from storm.database import Result
@@ -30,17 +31,20 @@ from storm.properties import Int, Float, RawStr, Unicode, Property, Pickle
 from storm.properties import PropertyPublisherMeta, Decimal
 from storm.variables import PickleVariable
 from storm.expr import (
-    Asc, Desc, Select, Func, LeftJoin, SQL, Count, Sum, Avg, And, Or, Eq,
-    Lower)
+    Asc, Desc, Select, LeftJoin, SQL, Count, Sum, Avg, And, Or, Eq, Lower,
+    compile)
 from storm.variables import Variable, UnicodeVariable, IntVariable
 from storm.info import get_obj_info, ClassAlias
-from storm.exceptions import *
+from storm.exceptions import (
+    ClosedError, ConnectionBlockedError, FeatureError, LostObjectError,
+    NoStoreError, NotFlushedError, NotOneError, OrderLoopError, UnorderedError,
+    WrongStoreError)
 from storm.cache import Cache
-from storm.store import *
+from storm.store import AutoReload, EmptyResultSet, Store
 from storm.store import ResultSet
 
 from tests.info import Wrapper
-from tests.helper import run_this, TestHelper
+from tests.helper import TestHelper
 
 
 class Foo(object):
@@ -147,7 +151,15 @@ class StoreCacheTest(TestHelper):
 
     def test_wb_default_cache_size(self):
         store = Store(DummyDatabase())
-        self.assertEquals(store._cache._size, 100)
+        self.assertEquals(store._cache._size, 1000)
+
+
+class StoreDatabaseTest(TestHelper):
+
+    def test_store_has_reference_to_its_database(self):
+        database = DummyDatabase()
+        store = Store(database)
+        self.assertIdentical(store.get_database(), database)
 
 
 class StoreTest(object):
@@ -421,6 +433,69 @@ class StoreTest(object):
         self.store.flush()
         self.assertEquals(len(events), 1)
 
+    def test_wb_flush_event_with_deleted_object_before_flush(self):
+        """
+        When an object is deleted before flush and it contains mutable
+        variables, those variables unhook from the global event system to
+        prevent a leak.
+        """
+        class PickleBlob(Blob):
+            bin = Pickle()
+
+        # Disable the cache, which holds strong references.
+        self.get_cache(self.store).set_size(0)
+
+        blob = self.store.get(Blob, 20)
+        blob.bin = "\x80\x02}q\x01U\x01aK\x01s."
+        self.store.flush()
+        del blob
+        gc.collect()
+
+        pickle_blob = self.store.get(PickleBlob, 20)
+        pickle_blob.bin = "foobin"
+        del pickle_blob
+
+        self.store.flush()
+        self.assertEquals(self.store._event._hooks["flush"], set())
+
+    def test_mutable_variable_detect_change_from_alive(self):
+        """
+        Changes in a mutable variable like a L{PickleVariable} are correctly
+        detected, even if the object comes from the alive cache.
+        """
+        class PickleBlob(Blob):
+            bin = Pickle()
+
+        blob = PickleBlob()
+        blob.bin = {"k": "v"}
+        blob.id = 4000
+        self.store.add(blob)
+        self.store.commit()
+
+        blob = self.store.find(PickleBlob, PickleBlob.id == 4000).one()
+        blob.bin["k1"] = "v1"
+
+        self.store.commit()
+
+        blob = self.store.find(PickleBlob, PickleBlob.id == 4000).one()
+        self.assertEquals(blob.bin, {"k1": "v1", "k": "v"})
+
+    def test_wb_checkpoint_doesnt_override_changed(self):
+        """
+        This test ensures that we don't uselessly checkpoint when getting back
+        objects from the alive cache, which would hide changed values from the
+        store.
+        """
+        foo = self.store.get(Foo, 20)
+        foo.title = u"changed"
+        self.store.block_implicit_flushes()
+        foo2 = self.store.find(Foo, Foo.id == 20).one()
+        self.store.unblock_implicit_flushes()
+        self.store.commit()
+
+        foo3 = self.store.find(Foo, Foo.id == 20).one()
+        self.assertEquals(foo3.title, u"changed")
+
     def test_obj_info_with_deleted_object_with_get(self):
         # Same thing, but using get rather than find.
 
@@ -477,6 +552,26 @@ class StoreTest(object):
         self.assertEquals(result.is_empty(), True)
         result = self.store.find(Foo, id=30)
         self.assertEquals(result.is_empty(), False)
+
+    def test_wb_is_empty_strips_order_by(self):
+        """
+        L{ResultSet.is_empty} strips the C{ORDER BY} clause, if one is
+        present, since it isn't required to actually determine if a result set
+        has any matching rows.  This should provide some performance
+        improvement when the ordered result set would be large.
+        """
+        statements = []
+        original_execute = self.store._connection.execute
+        def execute(expr):
+            statements.append(compile(expr))
+            return original_execute(expr)
+        self.store._connection.execute = execute
+
+        result = self.store.find(Foo, Foo.id == 300)
+        result.order_by(Foo.id)
+        self.assertEqual(True, result.is_empty())
+        [statement] = statements
+        self.assertNotIn("ORDER BY", statement)
 
     def test_is_empty_with_composed_key(self):
         result = self.store.find(Link, foo_id=300, bar_id=3000)
@@ -894,6 +989,16 @@ class StoreTest(object):
         self.assertEquals(title, "Title 30")
         self.assertTrue(isinstance(title, unicode))
 
+    def test_find_max_with_empty_result_and_disallow_none(self):
+        class Bar(object):
+            __storm_table__ = "bar"
+            id = Int(primary=True)
+            foo_id = Int(allow_none=False)
+
+        result = self.store.find(Bar, Bar.id > 1000)
+        self.assertTrue(result.is_empty())
+        self.assertEquals(result.max(Bar.foo_id), None)
+
     def test_find_min(self):
         self.assertEquals(self.store.find(Foo).min(Foo.id), 10)
 
@@ -904,6 +1009,16 @@ class StoreTest(object):
         title = self.store.find(Foo).min(Foo.title)
         self.assertEquals(title, "Title 10")
         self.assertTrue(isinstance(title, unicode))
+
+    def test_find_min_with_empty_result_and_disallow_none(self):
+        class Bar(object):
+            __storm_table__ = "bar"
+            id = Int(primary=True)
+            foo_id = Int(allow_none=False)
+
+        result = self.store.find(Bar, Bar.id > 1000)
+        self.assertTrue(result.is_empty())
+        self.assertEquals(result.min(Bar.foo_id), None)
 
     def test_find_avg(self):
         self.assertEquals(self.store.find(Foo).avg(Foo.id), 20)
@@ -923,6 +1038,16 @@ class StoreTest(object):
 
     def test_find_sum_expr(self):
         self.assertEquals(self.store.find(Foo).sum(Foo.id * 2), 120)
+
+    def test_find_sum_with_empty_result_and_disallow_none(self):
+        class Bar(object):
+            __storm_table__ = "bar"
+            id = Int(primary=True)
+            foo_id = Int(allow_none=False)
+
+        result = self.store.find(Bar, Bar.id > 1000)
+        self.assertTrue(result.is_empty())
+        self.assertEquals(result.sum(Bar.foo_id), None)
 
     def test_find_max_order_by(self):
         """Interaction between order by and aggregation shouldn't break."""
@@ -2339,6 +2464,18 @@ class StoreTest(object):
         self.store.unblock_implicit_flushes()
         self.assertRaises(RuntimeError, self.store.get, Foo, 20)
 
+    def test_block_access(self):
+        """Access to the store is blocked by block_access()."""
+        # The set_blocked() method blocks access to the connection.
+        self.store.block_access()
+        self.assertRaises(ConnectionBlockedError,
+                          self.store.execute, "SELECT 1")
+        self.assertRaises(ConnectionBlockedError, self.store.commit)
+        # The rollback method is not blocked.
+        self.store.rollback()
+        self.store.unblock_access()
+        self.store.execute("SELECT 1")
+
     def test_reload(self):
         foo = self.store.get(Foo, 20)
         self.store.execute("UPDATE foo SET title='Title 40' WHERE id=20")
@@ -2579,6 +2716,39 @@ class StoreTest(object):
         self.assertEquals(bar.foo.id, 10)
         bar.foo_id = SQL("20")
         self.assertEquals(bar.foo.id, 20)
+
+    def test_reference_remote_leak_on_flush_with_changed(self):
+        """
+        "changed" events only hold weak references to remote infos object, thus
+        not creating a leak when unhooked.
+        """
+        self.get_cache(self.store).set_size(0)
+        bar = self.store.get(Bar, 100)
+        bar.foo.title = u"Changed title"
+        bar_ref = weakref.ref(get_obj_info(bar))
+        foo = bar.foo
+        del bar
+        self.store.flush()
+        gc.collect()
+        self.assertEquals(bar_ref(), None)
+
+    def test_reference_remote_leak_on_flush_with_removed(self):
+        """
+        "removed" events only hold weak references to remote infos objects,
+        thus not creating a leak when unhooked.
+        """
+        self.get_cache(self.store).set_size(0)
+        class MyFoo(Foo):
+            bar = Reference(Foo.id, Bar.foo_id, on_remote=True)
+
+        foo = self.store.get(MyFoo, 10)
+        foo.bar.title = u"Changed title"
+        foo_ref = weakref.ref(get_obj_info(foo))
+        bar = foo.bar
+        del foo
+        self.store.flush()
+        gc.collect()
+        self.assertEquals(foo_ref(), None)
 
     def test_reference_break_on_remote_diverged_by_lazy(self):
         class MyBar(Bar):
@@ -3446,6 +3616,15 @@ class StoreTest(object):
                           (400, 20, "Title 100"),
                          ])
 
+    def test_reference_set_assign_fails(self):
+        foo = self.store.get(FooRefSet, 20)
+        try:
+            foo.bars = []
+        except FeatureError:
+            pass
+        else:
+            self.fail("FeatureError not raised")
+
     def test_reference_set_explicitly_with_wrapper(self):
         self.add_reference_set_bar_400()
 
@@ -4202,6 +4381,12 @@ class StoreTest(object):
         self.assertEquals(type(bar.foo), MyFoo)
 
     def test_string_indirect_reference_set(self):
+        """
+        A L{ReferenceSet} can have its reference keys specified as strings
+        when the class its a member of uses the L{PropertyPublisherMeta}
+        metaclass.  This makes it possible to work around problems with
+        circular dependencies by delaying property resolution.
+        """
         class Base(object):
             __metaclass__ = PropertyPublisherMeta
 
@@ -4234,6 +4419,39 @@ class StoreTest(object):
                           (100, "Title 300"),
                           (200, "Title 200"),
                          ])
+
+    def test_string_reference_set_order_by(self):
+        """
+        A L{ReferenceSet} can have its default order by specified as a string
+        when the class its a member of uses the L{PropertyPublisherMeta}
+        metaclass.  This makes it possible to work around problems with
+        circular dependencies by delaying resolution of the order by column.
+        """
+        class Base(object):
+            __metaclass__ = PropertyPublisherMeta
+
+        class MyFoo(Base):
+            __storm_table__ = "foo"
+            id = Int(primary=True)
+            title = Unicode()
+            bars = ReferenceSet("id", "MyLink.foo_id",
+                                "MyLink.bar_id", "MyBar.id",
+                                order_by="MyBar.title")
+
+        class MyBar(Base):
+            __storm_table__ = "bar"
+            id = Int(primary=True)
+            title = Unicode()
+
+        class MyLink(Base):
+            __storm_table__ = "link"
+            __storm_primary__ = "foo_id", "bar_id"
+            foo_id = Int()
+            bar_id = Int()
+
+        foo = self.store.get(MyFoo, 20)
+        items = [(bar.id, bar.title) for bar in foo.bars]
+        self.assertEquals(items, [(200, "Title 200"), (100, "Title 300")])
 
     def test_flush_order(self):
         foo1 = Foo()
@@ -4459,7 +4677,7 @@ class StoreTest(object):
         self.store.invalidate()
 
         obj_info = get_obj_info(pickle_blob)
-        variable =  obj_info.variables[PickleBlob.bin]
+        variable = obj_info.variables[PickleBlob.bin]
         var_ref = weakref.ref(variable)
         del variable, blob, pickle_blob, obj_info
         gc.collect()
@@ -4498,7 +4716,7 @@ class StoreTest(object):
         self.store.invalidate()
 
         obj_info = get_obj_info(pickle_blob)
-        variable =  obj_info.variables[PickleBlob.bin]
+        variable = obj_info.variables[PickleBlob.bin]
         var_ref = weakref.ref(variable)
         del variable, blob, pickle_blob, obj_info, foo
         gc.collect()
@@ -4950,6 +5168,24 @@ class StoreTest(object):
 
         obj_info = get_obj_info(foo)
         self.assertEquals(obj_info.variables[Foo.title].get_lazy(), AutoReload)
+
+    def test_primary_key_reference(self):
+        """
+        When an object references another one using its primary key, it
+        correctly checks for the invalidated state after the store has been
+        committed, detecting if the referenced object has been removed behind
+        its back.
+        """
+        class BarOnRemote(object):
+            __storm_table__ = "bar"
+            foo_id = Int(primary=True)
+            foo = Reference(foo_id, Foo.id, on_remote=True)
+        foo = self.store.get(Foo, 10)
+        bar = self.store.get(BarOnRemote, 10)
+        self.assertEqual(bar.foo, foo)
+        self.store.execute("DELETE FROM foo WHERE id = 10")
+        self.store.commit()
+        self.assertEqual(bar.foo, None)
 
     def test_invalidate_and_get_object(self):
         foo = self.store.get(Foo, 20)
@@ -5811,4 +6047,3 @@ class EmptyResultSetTest(object):
         self.assertEquals(self.empty.intersection(self.empty), self.empty)
         self.assertEquals(self.empty.intersection(self.result), self.empty)
         self.assertEquals(self.result.intersection(self.empty), self.empty)
-
