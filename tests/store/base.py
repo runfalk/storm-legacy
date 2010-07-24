@@ -1054,6 +1054,36 @@ class StoreTest(object):
         result = self.store.find(Foo)
         self.assertEquals(result.order_by(Foo.id).max(Foo.id), 30)
 
+    def test_find_get_select_expr_without_columns(self):
+        """
+        A L{FeatureError} is raised if L{ResultSet.get_select_expr} is called
+        without a list of L{Column}s.
+        """
+        result = self.store.find(Foo)
+        self.assertRaises(FeatureError, result.get_select_expr)
+
+    def test_find_get_select_expr(self):
+        """
+        Only the specified L{Column}s are included in the L{Select} expression
+        provided by L{ResultSet.get_select_expr}.
+        """
+        foo = self.store.get(Foo, 10)
+        result1 = self.store.find(Foo, Foo.id <= 10)
+        subselect = result1.get_select_expr(Foo.id)
+        self.assertEqual((Foo.id,), subselect.columns)
+        result2 = self.store.find(Foo, Foo.id.is_in(subselect))
+        self.assertEqual([foo], list(result2))
+
+    def test_find_get_select_expr_with_set_expression(self):
+        """
+        A L{FeatureError} is raised if L{ResultSet.get_select_expr} is used
+        with a L{ResultSet} that represents a set expression, such as a union.
+        """
+        result1 = self.store.find(Foo, Foo.id == 10)
+        result2 = self.store.find(Foo, Foo.id == 20)
+        result3 = result1.union(result2)
+        self.assertRaises(FeatureError, result3.get_select_expr, Foo.id)
+
     def test_find_values(self):
         values = self.store.find(Foo).order_by(Foo.id).values(Foo.id)
         self.assertEquals(list(values), [10, 20, 30])
@@ -1079,6 +1109,16 @@ class StoreTest(object):
     def test_find_slice_values(self):
         values = self.store.find(Foo).order_by(Foo.id)[1:2].values(Foo.id)
         self.assertEquals(list(values), [20])
+
+    def test_find_values_with_set_expression(self):
+        """
+        A L{FeatureError} is raised if L{ResultSet.values} is used with a
+        L{ResultSet} that represents a set expression, such as a union.
+        """
+        result1 = self.store.find(Foo, Foo.id == 10)
+        result2 = self.store.find(Foo, Foo.id == 20)
+        result3 = result1.union(result2)
+        self.assertRaises(FeatureError, list, result3.values(Foo.id))
 
     def test_find_remove(self):
         self.store.find(Foo, Foo.id == 20).remove()
@@ -5847,6 +5887,9 @@ class EmptyResultSetTest(object):
         self.drop_tables()
         self.create_tables()
         self.create_store()
+        # Most of the tests here exercise the same functionality using
+        # self.empty and self.result to ensure that EmptyResultSet and
+        # ResultSet behave the same way, in the same situations.
         self.empty = EmptyResultSet()
         self.result = self.store.find(Foo)
 
@@ -5963,6 +6006,29 @@ class EmptyResultSetTest(object):
     def test_sum(self):
         self.assertEquals(self.result.sum(Foo.id), None)
         self.assertEquals(self.empty.sum(Foo.id), None)
+
+    def test_get_select_expr_without_columns(self):
+        """
+        A L{FeatureError} is raised if L{EmptyResultSet.get_select_expr} is
+        called without a list of L{Column}s.
+        """
+        self.assertRaises(FeatureError, self.result.get_select_expr)
+        self.assertRaises(FeatureError, self.empty.get_select_expr)
+
+    def test_get_select_expr_(self):
+        """
+        A L{FeatureError} is raised if L{EmptyResultSet.get_select_expr} is
+        called without a list of L{Column}s.
+        """
+        subselect = self.result.get_select_expr(Foo.id)
+        self.assertEqual((Foo.id,), subselect.columns)
+        result = self.store.find(Foo, Foo.id.is_in(subselect))
+        self.assertEquals(list(result), [])
+
+        subselect = self.empty.get_select_expr(Foo.id)
+        self.assertEqual((Foo.id,), subselect.columns)
+        result = self.store.find(Foo, Foo.id.is_in(subselect))
+        self.assertEquals(list(result), [])
 
     def test_values_no_columns(self):
         self.assertRaises(FeatureError, list, self.result.values())

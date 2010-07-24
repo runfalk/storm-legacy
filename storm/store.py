@@ -1241,6 +1241,27 @@ class ResultSet(object):
         """Get the sum of all values in an expression."""
         return self._aggregate(Sum, expr, expr)
 
+    def get_select_expr(self, *columns):
+        """Get a L{Select} expression to retrieve only the specified columns.
+
+        @param columns: One or more L{storm.expr.Column} objects whose values
+            will be fetched.
+        @raises FeatureError: Raised if no columns are specified or if this
+            result is a set expression such as a union.
+        @return: A L{Select} expression configured to use the query parameters
+            specified for this result set, and also limited to only retrieving
+            data for the specified columns.
+        """
+        if not columns:
+            raise FeatureError("select() takes at least one column "
+                               "as argument")
+        if self._select is not Undef:
+            raise FeatureError(
+                "Can't generate subselect expression for set expressions")
+        select = self._get_select()
+        select.columns = columns
+        return select
+
     def values(self, *columns):
         """Retrieve only the specified columns.
 
@@ -1248,12 +1269,16 @@ class ResultSet(object):
 
         @param columns: One or more L{storm.expr.Column} objects whose
             values will be fetched.
+        @raises FeatureError: Raised if no columns are specified or if this
+            result is a set expression such as a union.
         @return: An iterator of tuples of the values for each column
             from each matching row in the database.
         """
         if not columns:
             raise FeatureError("values() takes at least one column "
                                "as argument")
+        if self._select is not Undef:
+            raise FeatureError("values() can't be used with set expressions")
         select = self._get_select()
         select.columns = columns
         result = self._store._connection.execute(select)
@@ -1465,9 +1490,6 @@ class EmptyResultSet(object):
     def __init__(self, ordered=False):
         self._order_by = ordered
 
-    def _get_select(self):
-        return Select(SQLRaw("1"), SQLRaw("1 = 2"))
-
     def copy(self):
         result = EmptyResultSet(self._order_by)
         return result
@@ -1525,6 +1547,21 @@ class EmptyResultSet(object):
 
     def sum(self, column):
         return None
+
+    def get_select_expr(self, *columns):
+        """Get a L{Select} expression to retrieve only the specified columns.
+
+        @param columns: One or more L{storm.expr.Column} objects whose values
+            will be fetched.
+        @raises FeatureError: Raised if no columns are specified.
+        @return: A L{Select} expression configured to use the query parameters
+            specified for this result set.  The result of the select will
+            always be an empty set of rows.
+        """
+        if not columns:
+            raise FeatureError("select() takes at least one column "
+                               "as argument")
+        return Select(columns, False)
 
     def values(self, *columns):
         if not columns:

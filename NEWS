@@ -17,6 +17,9 @@ Improvements
  - ResultSet.is_empty strips the ORDER BY clause, when present, to
    provide a performance boost for queries that would match a large
    number of rows (bug #246200).
+ - A new ResultSet.get_select_expr method returns a Select
+   expression built for a specified set of columns, based on the
+   settings of the result set (bug #337494).
 
 Bug fixes
 ---------
