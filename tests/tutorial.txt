@@ -555,7 +555,7 @@ we could easily define a reversed relationship:
 ...                                     CompanyAccountant.company_id,
 ...                                     Company.id)
 
->>> [company.name for company in frank.companies]
+>>> sorted([company.name for company in frank.companies])
 [u'Circus Inc.', u'Sweets Inc.']
 
 >>> [company.name for company in karl.companies]

@@ -32,12 +32,12 @@ from storm.references import Reference, ReferenceSet
 from storm.properties import SimpleProperty, PropertyPublisherMeta
 from storm.variables import Variable
 from storm.exceptions import StormError, NotOneError
-from storm.info import get_cls_info, get_obj_info, ClassAlias
+from storm.info import get_cls_info, ClassAlias
 from storm.store import AutoReload, Store
 from storm.base import Storm
 from storm.expr import (
-    SQL, SQLRaw, Desc, And, Or, Not, In, Like, AutoTables, LeftJoin,
-    Column, compare_columns, Alias)
+    SQL, SQLRaw, Desc, And, Or, Not, In, Like, AutoTables, LeftJoin, Column,
+    compare_columns)
 from storm.tz import tzutc
 from storm import Undef
 

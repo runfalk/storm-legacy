@@ -709,6 +709,11 @@ class StoreTest(object):
                          ])
 
     def test_find_index(self):
+        """
+        L{ResultSet.__getitem__} returns the object at the specified index.
+        if a slice is used, a new L{ResultSet} is returned configured with the
+        appropriate offset and limit.
+        """
         foo = self.store.find(Foo).order_by(Foo.title)[0]
         self.assertEquals(foo.id, 30)
         self.assertEquals(foo.title, "Title 10")
@@ -865,16 +870,11 @@ class StoreTest(object):
         self.assertEquals(foo in result1.difference(result1), False)
 
     def test_find_any(self, *args):
-        foo = self.store.find(Foo).order_by(Foo.title).any()
-        self.assertEquals(foo.id, 30)
-        self.assertEquals(foo.title, "Title 10")
-
-        foo = self.store.find(Foo).order_by(Foo.id).any()
-        self.assertEquals(foo.id, 10)
-        self.assertEquals(foo.title, "Title 30")
-
-        foo = self.store.find(Foo, id=40).any()
-        self.assertEquals(foo, None)
+        """
+        L{ResultSet.any} returns an arbitrary objects from the result set.
+        """
+        self.assertNotEqual(None, self.store.find(Foo).any())
+        self.assertEqual(None, self.store.find(Foo, id=40).any())
 
     def test_find_any_strips_order_by(self):
         """
@@ -3847,14 +3847,21 @@ class StoreTest(object):
         self.assertRaises(UnorderedError, foo.bars.first)
         self.assertRaises(UnorderedError, foo.bars.last)
 
-    def test_reference_set_any(self):
+    def test_indirect_reference_set_any(self):
+        """
+        L{BoundReferenceSet.any} returns an arbitrary object from the set of
+        referenced objects.
+        """
+        foo = self.store.get(FooRefSet, 20)
+        self.assertNotEqual(None, foo.bars.any())
+
+    def test_indirect_reference_set_any_filtered(self):
+        """
+        L{BoundReferenceSet.any} optionally takes a list of filtering criteria
+        to narrow the set of objects to search.  When provided, the criteria
+        are used to filter the set before returning an arbitrary object.
+        """
         self.add_reference_set_bar_400()
-
-        foo = self.store.get(FooRefSetOrderID, 20)
-        self.assertEquals(foo.bars.any().id, 200)
-
-        foo = self.store.get(FooRefSetOrderTitle, 20)
-        self.assertEquals(foo.bars.any().id, 400)
 
         foo = self.store.get(FooRefSetOrderTitle, 20)
         self.assertEquals(foo.bars.any(Bar.id > 400), None)
@@ -3864,9 +3871,6 @@ class StoreTest(object):
 
         foo = self.store.get(FooRefSetOrderTitle, 20)
         self.assertEquals(foo.bars.any(id=200).id, 200)
-
-        foo = self.store.get(FooRefSet, 20)
-        self.assertTrue(foo.bars.any().id in [200, 400])
 
     def test_reference_set_one(self):
         self.add_reference_set_bar_400()
@@ -4161,12 +4165,20 @@ class StoreTest(object):
         self.assertRaises(UnorderedError, foo.bars.last)
 
     def test_indirect_reference_set_any(self):
-        foo = self.store.get(FooIndRefSetOrderID, 20)
-        self.assertEquals(foo.bars.any().id, 100)
+        """
+        L{BoundIndirectReferenceSet.any} returns an arbitrary object from the
+        set of referenced objects.
+        """
+        foo = self.store.get(FooIndRefSet, 20)
+        self.assertNotEqual(None, foo.bars.any())
 
-        foo = self.store.get(FooIndRefSetOrderTitle, 20)
-        self.assertEquals(foo.bars.any().id, 200)
-
+    def test_indirect_reference_set_any_filtered(self):
+        """
+        L{BoundIndirectReferenceSet.any} optionally takes a list of filtering
+        criteria to narrow the set of objects to search.  When provided, the
+        criteria are used to filter the set before returning an arbitrary
+        object.
+        """
         foo = self.store.get(FooIndRefSetOrderTitle, 20)
         self.assertEquals(foo.bars.any(Bar.id > 200), None)
 
@@ -4175,9 +4187,6 @@ class StoreTest(object):
 
         foo = self.store.get(FooIndRefSetOrderTitle, 20)
         self.assertEquals(foo.bars.any(id=200).id, 200)
-
-        foo = self.store.get(FooIndRefSet, 20)
-        self.assertTrue(foo.bars.any().id in [100, 200])
 
     def test_indirect_reference_set_one(self):
         foo = self.store.get(FooIndRefSetOrderID, 20)
