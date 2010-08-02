@@ -783,10 +783,26 @@ class SQLObjectTest(TestHelper):
         self.assertEquals(list(result.__iter__())[0].name, "John Joe")
 
     def test_result_set__nonzero__(self):
+        """
+        L{SQLObjectResultSet.__nonzero__} returns C{True} if the result set
+        doesn't contain any results.  If it does contain results, C{False} is
+        returned.
+        """
         result = self.Person.select()
         self.assertEquals(result.__nonzero__(), True)
         result = self.Person.select(self.Person.q.name == "No Person")
         self.assertEquals(result.__nonzero__(), False)
+
+    def test_result_set_is_empty(self):
+        """
+        L{SQLObjectResultSet.is_empty} returns C{True} if the result set
+        doesn't contain any results.  If it does contain results, C{False} is
+        returned.
+        """
+        result = self.Person.select()
+        self.assertEquals(result.is_empty(), True)
+        result = self.Person.select(self.Person.q.name == "No Person")
+        self.assertEquals(result.is_empty(), False)
 
     def test_result_set_distinct(self):
         result = self.Person.select("person.name = 'John Joe'",

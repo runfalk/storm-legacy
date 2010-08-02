@@ -552,6 +552,16 @@ class SQLObjectResultSet(object):
         return item in result_set
 
     def __nonzero__(self):
+        """Return C{True} if this result set doesn't contain any results.
+
+        @note: This method is provided for compatibility with SQL Object.  For
+            new code, prefer L{is_empty}.  It's compatible with L{ResultSet}
+            which doesn't have a C{__nonzero__} implementation.
+        """
+        return self.is_empty()
+
+    def is_empty(self):
+        """Return C{True} if this result set doesn't contain any results."""
         result_set = self._without_prejoins()._result_set
         return not result_set.is_empty()
 
