@@ -979,8 +979,9 @@ class ResultSet(object):
     def __getitem__(self, index):
         """Get an individual item by offset, or a range of items by slice.
 
-        If a slice is used, a new L{ResultSet} will be return
-        appropriately modified with OFFSET and LIMIT clauses.
+        @return: The matching object or, if a slice is used, a new
+            L{ResultSet} will be returned appropriately modified with
+            C{OFFSET} and C{LIMIT} clauses.
         """
         if isinstance(index, (int, long)):
             if index == 0:
@@ -990,7 +991,7 @@ class ResultSet(object):
                     index += self._offset
                 result_set = self.copy()
                 result_set.config(offset=index, limit=1)
-            obj = result_set.any()
+            obj = result_set._any()
             if obj is None:
                 raise IndexError("Index out of range")
             return obj
@@ -1057,7 +1058,22 @@ class ResultSet(object):
     def any(self):
         """Return a single item from the result set.
 
-        See also one(), first(), and last().
+        @return: An arbitrary object or C{None} if one isn't available.
+        @seealso: one(), first(), and last().
+        """
+        select = self._get_select()
+        select.limit = 1
+        select.order_by = Undef
+        result = self._store._connection.execute(select)
+        values = result.get_one()
+        if values:
+            return self._load_objects(result, values)
+        return None
+
+    def _any(self):
+        """Return a single item from the result without changing sort order.
+
+        @return: An arbitrary object or C{None} if one isn't available.
         """
         select = self._get_select()
         select.limit = 1
@@ -1070,20 +1086,21 @@ class ResultSet(object):
     def first(self):
         """Return the first item from an ordered result set.
 
-        Will raise UnorderedError if the result set isn't ordered.
-
-        See also last(), one(), and any().
+        @raises UnorderedError: Raised if the result set isn't ordered.
+        @return: The first object or C{None} if one isn't available.
+        @seealso: last(), one(), and any().
         """
         if self._order_by is Undef:
             raise UnorderedError("Can't use first() on unordered result set")
-        return self.any()
+        return self._any()
 
     def last(self):
         """Return the last item from an ordered result set.
 
-        Will raise UnorderedError if the result set isn't ordered.
-
-        See also first(), one(), and any().
+        @raises FeatureError: Raised if the result set has a C{LIMIT} set.
+        @raises UnorderedError: Raised if the result set isn't ordered.
+        @return: The last object or C{None} if one isn't available.
+        @seealso: first(), one(), and any().
         """
         if self._order_by is Undef:
             raise UnorderedError("Can't use last() on unordered result set")
@@ -1110,9 +1127,10 @@ class ResultSet(object):
     def one(self):
         """Return one item from a result set containing at most one item.
 
-        Will raise NotOneError if the result set contains more than one item.
-
-        See also first(), one(), and any().
+        @raises NotOneError: Raised if the result set contains more than one
+            item.
+        @return: The object or C{None} if one isn't available.
+        @seealso: first(), one(), and any().
         """
         select = self._get_select()
         # limit could be 1 due to slicing, for instance.

@@ -20,6 +20,9 @@ Improvements
  - A new ResultSet.get_select_expr method returns a Select
    expression built for a specified set of columns, based on the
    settings of the result set (bug #337494).
+ - ResultSet.any and ReferenceSet.any strips the ORDER BY clause,
+   when present, to provide a performance boost for queries that
+   would match a large number of rows (bug #608825).
 
 Bug fixes
 ---------
