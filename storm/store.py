@@ -1047,7 +1047,7 @@ class ResultSet(object):
         return result.get_one() is not None
 
     def is_empty(self):
-        """Return true if this L{ResultSet} contains no results."""
+        """Return C{True} if this result set doesn't contain any results."""
         subselect = self._get_select()
         subselect.limit = 1
         subselect.order_by = Undef

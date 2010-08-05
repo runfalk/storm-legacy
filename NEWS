@@ -23,6 +23,9 @@ Improvements
  - ResultSet.any and ReferenceSet.any strips the ORDER BY clause,
    when present, to provide a performance boost for queries that
    would match a large number of rows (bug #608825).
+ - SQLObjectResultSet has a new is_empty method which should be used
+   in preference to __nonzero__, because it is compatible with
+   ResultSet.
 
 Bug fixes
 ---------
