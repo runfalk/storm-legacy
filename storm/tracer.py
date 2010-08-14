@@ -39,14 +39,32 @@ class DebugTracer(object):
 
 
 class TimeoutTracer(object):
+    """Tracer checks timeout conditions before allowing a query to execute.
+
+    This tracer must be subclassed by backend-specific implementations that
+    override C{connection_raw_execute_error}, C{set_statement_timeout} and
+    C{get_remaining_time} methods.
+    """
 
     def __init__(self, granularity=5):
         self.granularity = granularity
 
-    def connection_raw_execute(self, connection, raw_cursor, statement, params):
+    def connection_raw_execute(self, connection, raw_cursor, statement,
+                               params):
+        """Check timeout conditions before a statement is executed.
+
+        @param connection: The L{Connection} to the database.
+        @param raw_cursor: A cursor object, specific to the backend being used.
+        @param statement: The SQL statement to execute.
+        @param params: The parameters to use with C{statement}.
+        @raises TimeoutError: Raised if there isn't enough time left to
+            execute C{statement}.
+        """
         remaining_time = self.get_remaining_time()
         if remaining_time <= 0:
-            raise TimeoutError(statement, params)
+            raise TimeoutError(
+                "%d seconds remaining in time budget" % remaining_time,
+                statement, params)
 
         last_remaining_time = getattr(connection,
                                       "_timeout_tracer_remaining_time", 0)
