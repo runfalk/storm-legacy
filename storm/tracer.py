@@ -39,7 +39,7 @@ class DebugTracer(object):
 
 
 class TimeoutTracer(object):
-    """Tracer checks timeout conditions before allowing a query to execute.
+    """Provide a timeout facility for connections to prevent rogue operations.
 
     This tracer must be subclassed by backend-specific implementations that
     override C{connection_raw_execute_error}, C{set_statement_timeout} and
