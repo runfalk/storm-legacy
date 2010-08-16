@@ -36,10 +36,10 @@ class Schema(object):
     @param patch_package: The Python package containing patch modules to apply,
         see also L{PatchApplier}.
     """
+    _create_patch = "CREATE TABLE patch (version INTEGER NOT NULL PRIMARY KEY)"
+    _drop_patch = "DROP TABLE patch"
 
     def __init__(self, creates, drops, deletes, patch_package):
-        """
-        """
         self._creates = creates
         self._drops = drops
         self._deletes = deletes
@@ -56,11 +56,13 @@ class Schema(object):
 
     def create(self, store):
         """Run C{CREATE TABLE} SQL statements with C{store}."""
+        self._execute_statements(store, [self._create_patch])
         self._execute_statements(store, self._creates)
 
     def drop(self, store):
         """Run C{DROP TABLE} SQL statements with C{store}."""
         self._execute_statements(store, self._drops)
+        self._execute_statements(store, [self._drop_patch])
 
     def delete(self, store):
         """Run C{DELETE FROM} SQL statements with C{store}."""

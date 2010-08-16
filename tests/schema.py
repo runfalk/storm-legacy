@@ -51,10 +51,8 @@ class SchemaTest(MockerTestCase):
         self.package = self.create_package(self.makeDir(), "patch_package")
         import patch_package
 
-        creates = ["CREATE TABLE patch (version INTEGER NOT NULL PRIMARY KEY)",
-                   "CREATE TABLE person (id INTEGER, name TEXT)"]
-        drops = ["DROP TABLE person",
-                 "DROP TABLE patch"]
+        creates = ["CREATE TABLE person (id INTEGER, name TEXT)"]
+        drops = ["DROP TABLE person"]
         deletes = ["DELETE FROM person"]
 
         self.schema = Schema(creates, drops, deletes, patch_package)
