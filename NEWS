@@ -1,6 +1,11 @@
 0.18 (2010-XX-XX)
 =================
 
+Improvements
+------------
+ - When a TimeoutError is raised it includes a description about why
+   the exception was raised, to help make it easier to reason about
+   timeout-related issues (bug #617973).
 
 0.17 (2010-08-05)
 =================

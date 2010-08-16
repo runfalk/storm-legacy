@@ -116,15 +116,17 @@ class NotSupportedError(DatabaseError):
 class DisconnectionError(OperationalError):
     pass
 
+
 class TimeoutError(StormError):
     """Raised by timeout tracers when remining time is over."""
 
-    def __init__(self, statement, params):
+    def __init__(self, message, statement, params):
+        self.message = message
         self.statement = statement
         self.params = params
 
     def __str__(self):
-        return "%r, %r" % (self.statement, self.params)
+        return "%r, %r, %r" % (self.message, self.statement, self.params)
 
 
 class ConnectionBlockedError(StormError):
