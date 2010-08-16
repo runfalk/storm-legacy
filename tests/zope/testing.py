@@ -11,7 +11,7 @@ from tests.mocker import MockerTestCase
 
 PATCH = """
 def apply(store):
-    store.execute('ALTER TABLE test ADD COLUMN bar INT UNIQUE')
+    store.execute('ALTER TABLE test ADD COLUMN bar INT')
 """
 
 
@@ -27,7 +27,7 @@ class ZStormResourceManagerTest(MockerTestCase):
         self.makeFile(path=os.path.join(patch_dir, "patch_1.py"),
                       content=PATCH)
         import patch_package
-        create = ["CREATE TABLE test (foo TEXT, bar INT UNIQUE)"]
+        create = ["CREATE TABLE test (foo TEXT UNIQUE, bar INT)"]
         drop = ["DROP TABLE test"]
         delete = ["DELETE FROM test"]
         schema = Schema(create, drop, delete, patch_package)
@@ -94,8 +94,8 @@ class ZStormResourceManagerTest(MockerTestCase):
 
         zstorm = self.resource.make([])
         store = zstorm.get("test")
-        store.add(Test(u"this", 1))
-        store.add(Test(u"that", 1))
+        store.add(Test(u"data", 1))
+        store.add(Test(u"data", 2))
         self.assertRaises(IntegrityError, self.resource.clean, zstorm)
 
     def test_clean_delete(self):

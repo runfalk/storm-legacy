@@ -51,6 +51,7 @@ class ZStormResourceManager(TestResourceManager):
             this store will result in the associated tables to be cleaned upon
             tear down.
         """
+        store.__real_commit__ = store.commit
 
         def commit_proxy():
             self._commits[store] = True
