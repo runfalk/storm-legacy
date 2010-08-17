@@ -371,7 +371,6 @@ class Store(object):
         # to test it without whitebox.
         self._order.clear()
 
-
     def _mark_autoreload(self, obj=None, invalidate=False):
         if obj is None:
             obj_infos = self._iter_alive()
@@ -533,11 +532,8 @@ class Store(object):
 
             self._enable_change_notification(obj_info)
             self._add_to_alive(obj_info)
-
         else:
-
             cached_primary_vars = obj_info["primary_vars"]
-            primary_key_idx = cls_info.primary_key_idx
 
             changes = self._get_changes_map(obj_info)
 
@@ -699,14 +695,14 @@ class Store(object):
             # primary key was extracted from result values.
             obj_info.pop("invalidated", None)
 
-            # We're not sure if the obj is still in memory at this
-            # point.  This will rebuild it if needed.
-            obj = self._get_object(obj_info)
-
             # Take that chance and fill up any undefined variables
             # with fresh data, since we got it anyway.
             self._set_values(obj_info, cls_info.columns, result,
                              values, keep_defined=True)
+
+            # We're not sure if the obj is still in memory at this
+            # point.  This will rebuild it if needed.
+            obj = self._get_object(obj_info)
         else:
             # Nothing found in the cache. Build everything from the ground.
             obj = cls.__new__(cls)
@@ -774,7 +770,6 @@ class Store(object):
 
             variable.checkpoint()
 
-
     def _is_dirty(self, obj_info):
         return obj_info in self._dirty
 
@@ -788,7 +783,6 @@ class Store(object):
 
     def _iter_dirty(self):
         return self._dirty
-
 
     def _add_to_alive(self, obj_info):
         """Add an object to the set of known in-memory objects.
@@ -860,7 +854,6 @@ class Store(object):
                     self._validate_alive(obj_info)
                 self._set_dirty(obj_info)
 
-
     def _enable_lazy_resolving(self, obj_info):
         obj_info.event.hook("resolve-lazy-value", self._resolve_lazy_value)
 
@@ -894,7 +887,8 @@ class Store(object):
         if autoreload_columns:
             where = compare_columns(obj_info.cls_info.primary_key,
                                     obj_info["primary_vars"])
-            result = self._connection.execute(Select(autoreload_columns, where))
+            result = self._connection.execute(
+                Select(autoreload_columns, where))
             self._set_values(obj_info, autoreload_columns,
                              result, result.get_one())
 
@@ -909,6 +903,7 @@ class ResultSet(object):
     Generally these should not be constructed directly, but instead
     retrieved from calls to L{Store.find}.
     """
+
     def __init__(self, store, find_spec,
                  where=Undef, tables=Undef, select=Undef):
         self._store = store
@@ -1408,10 +1403,11 @@ class ResultSet(object):
             match = None
         else:
             match = compile_python.get_matcher(self._where)
+
             def get_column(column):
                 return obj_info.variables[column].get()
+
         objects = []
-        cls = self._find_spec.default_cls_info.cls
         for obj_info in self._store._iter_alive():
             try:
                 if (obj_info.cls_info is self._find_spec.default_cls_info and
