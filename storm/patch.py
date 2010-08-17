@@ -22,8 +22,6 @@ import sys
 import os
 import re
 
-import transaction
-
 from storm.locals import StormError, Int
 
 
@@ -38,13 +36,8 @@ class UnknownPatchError(Exception):
         self._patches = patches
 
     def __str__(self):
-        from zope.component import getUtility
-        from storm.zope.interfaces import IZStorm
-        zstorm = getUtility(IZStorm)
-        name = zstorm.get_name(self._store)
-        name = "foo"
-        return "%s has patches the code doesn't know about: %s" % (
-               name, ", ".join([str(version) for version in self._patches]))
+        return "store has patches the code doesn't know about: %s" % (
+            ", ".join([str(version) for version in self._patches]))
 
 
 class BadPatchError(Exception):
@@ -74,9 +67,12 @@ class PatchApplier(object):
         the format 'patch_N.py', where N is an integer number.
     """
 
-    def __init__(self, store, package):
+    def __init__(self, store, package, committer=None):
         self._store = store
         self._package = package
+        if committer is None:
+            committer = store
+        self._committer = committer
 
     def _module(self, version):
         module_name = "patch_%d" % (version,)
@@ -91,7 +87,7 @@ class PatchApplier(object):
             module = self._module(version)
             module.apply(self._store)
         except StormError:
-            transaction.abort()
+            self._committer.rollback()
             raise
         except:
             type, value, traceback = sys.exc_info()
@@ -100,7 +96,7 @@ class PatchApplier(object):
                   "Patch %s failed: %s: %s" % \
                       (patch_repr, type.__name__, str(value)), \
                       traceback
-        transaction.commit()
+        self._committer.commit()
 
     def apply_all(self):
         unknown_patches = self.get_unknown_patch_versions()
@@ -111,7 +107,7 @@ class PatchApplier(object):
 
     def mark_applied(self, version):
         self._store.add(Patch(version))
-        transaction.commit()
+        self._committer.commit()
 
     def mark_applied_all(self):
         for version in self._get_unapplied_versions():

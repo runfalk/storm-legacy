@@ -22,14 +22,9 @@ import traceback
 import sys
 import os
 
-import transaction
-
-from storm.zope.zstorm import ZStorm
-from storm.locals import StormError
-
-from tests.mocker import MockerTestCase
-
+from storm.locals import StormError, Store, create_database
 from storm.patch import Patch, PatchApplier, UnknownPatchError, BadPatchError
+from tests.mocker import MockerTestCase
 
 
 patch_test_0 = """
@@ -118,8 +113,6 @@ class PatchTest(MockerTestCase):
     def setUp(self):
         super(PatchTest, self).setUp()
 
-        self.zstorm = ZStorm()
-
         self.patchdir = self.makeDir()
         self.pkgdir = os.path.join(self.patchdir, "mypackage")
         os.makedirs(self.pkgdir)
@@ -139,7 +132,7 @@ class PatchTest(MockerTestCase):
 
         self.filename = self.makeFile()
         self.uri = "sqlite:///%s" % self.filename
-        self.store = self.zstorm.create(None, self.uri)
+        self.store = Store(create_database(self.uri))
 
         self.store.execute("CREATE TABLE patch "
                            "(version INTEGER NOT NULL PRIMARY KEY)")
@@ -149,19 +142,31 @@ class PatchTest(MockerTestCase):
 
         import mypackage
         self.mypackage = mypackage
-        self.patch_applier = PatchApplier(self.store, self.mypackage)
 
-        # Create another store just to keep track of the state of the
+        # Create another connection just to keep track of the state of the
         # whole transaction manager.  See the assertion functions below.
-        self.another_store = self.zstorm.create(None, "sqlite:")
+        self.another_store = Store(create_database("sqlite:"))
         self.another_store.execute("CREATE TABLE test (id INT)")
         self.another_store.commit()
         self.prepare_for_transaction_check()
 
+        class Committer(object):
+
+            def commit(committer):
+                self.store.commit()
+                self.another_store.commit()
+
+            def rollback(committer):
+                self.store.rollback()
+                self.another_store.rollback()
+
+        self.committer = Committer()
+        self.patch_applier = PatchApplier(self.store, self.mypackage,
+                                          self.committer)
+
     def tearDown(self):
         super(PatchTest, self).tearDown()
-        transaction.abort()
-        self.zstorm._reset()
+        self.committer.rollback()
         sys.path.remove(self.patchdir)
         for name in list(sys.modules):
             if name == "mypackage" or name.startswith("mypackage."):

@@ -18,8 +18,6 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-import transaction
-
 from storm.locals import StormError
 from storm.patch import PatchApplier
 
@@ -39,11 +37,12 @@ class Schema(object):
     _create_patch = "CREATE TABLE patch (version INTEGER NOT NULL PRIMARY KEY)"
     _drop_patch = "DROP TABLE patch"
 
-    def __init__(self, creates, drops, deletes, patch_package):
+    def __init__(self, creates, drops, deletes, patch_package, committer=None):
         self._creates = creates
         self._drops = drops
         self._deletes = deletes
         self._patch_package = patch_package
+        self._committer = committer
 
     def _execute_statements(self, store, statements):
         for statement in statements:
@@ -74,14 +73,15 @@ class Schema(object):
         If a schema isn't present a new one will be created.  Unapplied
         patches will be applied to an existing schema.
         """
-        patch_applier = PatchApplier(store, self._patch_package)
+        patch_applier = PatchApplier(store, self._patch_package,
+                                     self._committer)
         try:
             store.execute("SELECT * FROM patch WHERE 1=2")
         except StormError:
             # No schema at all. Create it from the ground.
-            transaction.abort()
+            store.rollback()
             self.create(store)
             patch_applier.mark_applied_all()
-            transaction.commit()
+            store.commit()
         else:
             patch_applier.apply_all()
