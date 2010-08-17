@@ -4,7 +4,7 @@ import sys
 from pysqlite2.dbapi2 import IntegrityError
 
 from storm.locals import create_database, Store, Unicode, Int
-from storm.schema import Schema
+from storm.zope.schema import ZSchema
 from storm.zope.testing import ZStormResourceManager
 from tests.mocker import MockerTestCase
 
@@ -30,7 +30,7 @@ class ZStormResourceManagerTest(MockerTestCase):
         create = ["CREATE TABLE test (foo TEXT UNIQUE, bar INT)"]
         drop = ["DROP TABLE test"]
         delete = ["DELETE FROM test"]
-        schema = Schema(create, drop, delete, patch_package)
+        schema = ZSchema(create, drop, delete, patch_package)
         uri = "sqlite:///%s" % self.makeFile()
         self.resource = ZStormResourceManager({"test": (uri, schema)})
         self.store = Store(create_database(uri))

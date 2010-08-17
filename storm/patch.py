@@ -18,11 +18,23 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+"""Apply database patches.
+
+The L{PatchApplier} class can be used to apply and keep track of a series
+of database patches.
+
+To create a patch series all is needed is to add Python files under a module
+of choice, an name them as 'patch_N.py' where 'N' is the version of the patch
+in the series.
+
+The L{PatchApplier} can be then used to apply to a L{Store} all the available
+patches. After a patch has been applied, its version is recorded in a special
+'patch' table in the given L{Store}, and it won't be applied again.
+"""
+
 import sys
 import os
 import re
-
-import transaction
 
 from storm.locals import StormError, Int
 
@@ -38,13 +50,8 @@ class UnknownPatchError(Exception):
         self._patches = patches
 
     def __str__(self):
-        from zope.component import getUtility
-        from storm.zope.interfaces import IZStorm
-        zstorm = getUtility(IZStorm)
-        name = zstorm.get_name(self._store)
-        name = "foo"
-        return "%s has patches the code doesn't know about: %s" % (
-               name, ", ".join([str(version) for version in self._patches]))
+        return "store has patches the code doesn't know about: %s" % (
+            ", ".join([str(version) for version in self._patches]))
 
 
 class BadPatchError(Exception):
@@ -68,22 +75,37 @@ class Patch(object):
 class PatchApplier(object):
     """Apply to a L{Store} the database patches from a given Python package.
 
-    @param store: The L{Storm} to apply the patches to.
+    @param store: The L{Store} to apply the patches to.
     @param package: The Python package containing the patches. Each patch is
         represented by a file inside the module, whose filename must match
         the format 'patch_N.py', where N is an integer number.
     """
 
-    def __init__(self, store, package):
+    def __init__(self, store, package, committer=None):
         self._store = store
         self._package = package
+        if committer is None:
+            committer = store
+        self._committer = committer
 
     def _module(self, version):
+        """Import the Python module of the patch file with the given version.
+
+        @param: The version of the module patch to import.
+        @return: The imported module.
+        """
         module_name = "patch_%d" % (version,)
         return __import__(self._package.__name__ + "." + module_name,
                           None, None, [''])
 
     def apply(self, version):
+        """Execute the patch with the given version.
+
+        This will call the 'apply' function defined in the patch file with
+        the given version, passing it our L{Store}.
+
+        @param version: The version of the patch to execute.
+        """
         patch = Patch(version)
         self._store.add(patch)
         module = None
@@ -91,7 +113,7 @@ class PatchApplier(object):
             module = self._module(version)
             module.apply(self._store)
         except StormError:
-            transaction.abort()
+            self._committer.rollback()
             raise
         except:
             type, value, traceback = sys.exc_info()
@@ -100,9 +122,14 @@ class PatchApplier(object):
                   "Patch %s failed: %s: %s" % \
                       (patch_repr, type.__name__, str(value)), \
                       traceback
-        transaction.commit()
+        self._committer.commit()
 
     def apply_all(self):
+        """Execute all unapplied patches.
+
+        @raises UnknownPatchError: If the patch table has versions for which
+            no patch file actually exists.
+        """
         unknown_patches = self.get_unknown_patch_versions()
         if unknown_patches:
             raise UnknownPatchError(self._store, unknown_patches)
@@ -110,14 +137,17 @@ class PatchApplier(object):
             self.apply(version)
 
     def mark_applied(self, version):
+        """Mark the patch with the given version as applied."""
         self._store.add(Patch(version))
-        transaction.commit()
+        self._committer.commit()
 
     def mark_applied_all(self):
+        """Mark all unapplied patches as applied."""
         for version in self._get_unapplied_versions():
             self.mark_applied(version)
 
     def has_pending_patches(self):
+        """Return C{True} if there are unapplied patches, C{False} if not."""
         for version in self._get_unapplied_versions():
             return True
         return False
@@ -137,18 +167,21 @@ class PatchApplier(object):
         return unknown_patches
 
     def _get_unapplied_versions(self):
+        """Return the versions of all unapplied patches."""
         applied = self._get_applied_patches()
         for version in self._get_patch_versions():
             if version not in applied:
                 yield version
 
     def _get_applied_patches(self):
+        """Return the versions of all applied patches."""
         applied = set()
         for patch in self._store.find(Patch):
             applied.add(patch.version)
         return applied
 
     def _get_patch_versions(self):
+        """Return the versions of all available patches."""
         format = re.compile(r"^patch_(\d+).py$")
 
         filenames = os.listdir(os.path.dirname(self._package.__file__))

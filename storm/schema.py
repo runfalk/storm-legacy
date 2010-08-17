@@ -18,7 +18,26 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-import transaction
+"""Manage database shemas.
+
+The L{Schema} class can be used to create, drop, clean and upgrade database
+schemas.
+
+A database L{Schema} is defined by the series of SQL statements that should be
+used to create, drop and clear the schema, respectively and by a patch module
+used to upgrade it (see also L{PatchApplier}).
+
+For example:
+
+>>> creates = ['CREATE TABLE person (id INTEGER, name TEXT)']
+>>> drops = ['DROP TABLE person']
+>>> deletes = ['DELETE FROM person']
+>>> import patch_module
+>>> Schema(creates, drops, deletes, patch_module)
+
+where patch_module is a Python module containing database patches used to
+upgrade the schema over time.
+"""
 
 from storm.locals import StormError
 from storm.patch import PatchApplier
@@ -39,13 +58,15 @@ class Schema(object):
     _create_patch = "CREATE TABLE patch (version INTEGER NOT NULL PRIMARY KEY)"
     _drop_patch = "DROP TABLE patch"
 
-    def __init__(self, creates, drops, deletes, patch_package):
+    def __init__(self, creates, drops, deletes, patch_package, committer=None):
         self._creates = creates
         self._drops = drops
         self._deletes = deletes
         self._patch_package = patch_package
+        self._committer = committer
 
     def _execute_statements(self, store, statements):
+        """Execute the given statements in the given store."""
         for statement in statements:
             try:
                 store.execute(statement)
@@ -74,14 +95,15 @@ class Schema(object):
         If a schema isn't present a new one will be created.  Unapplied
         patches will be applied to an existing schema.
         """
-        patch_applier = PatchApplier(store, self._patch_package)
+        patch_applier = PatchApplier(store, self._patch_package,
+                                     self._committer)
         try:
             store.execute("SELECT * FROM patch WHERE 1=2")
         except StormError:
             # No schema at all. Create it from the ground.
-            transaction.abort()
+            store.rollback()
             self.create(store)
             patch_applier.mark_applied_all()
-            transaction.commit()
+            store.commit()
         else:
             patch_applier.apply_all()
