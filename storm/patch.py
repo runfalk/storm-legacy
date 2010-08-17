@@ -18,6 +18,20 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+"""Apply database patches.
+
+The L{PatchApplier} class can be used to apply and keep track of a series
+of database patches.
+
+To create a patch series all is needed is to add Python files under a module
+of choice, an name them as 'patch_N.py' where 'N' is the version of the patch
+in the series.
+
+The L{PatchApplier} can be then used to apply to a L{Store} all the available
+patches. After a patch has been applied, its version is recorded in a special
+'patch' table in the given L{Store}, and it won't be applied again.
+"""
+
 import sys
 import os
 import re

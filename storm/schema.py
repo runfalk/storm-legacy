@@ -18,6 +18,27 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+"""Manage database shemas.
+
+The L{Schema} class can be used to create, drop, clean and upgrade database
+schemas.
+
+A database L{Schema} is defined by the series of SQL statements that should be
+used to create, drop and clear the schema, respectively and by a patch module
+used to upgrade it (see also L{PatchApplier}).
+
+For example:
+
+>>> creates = ['CREATE TABLE person (id INTEGER, name TEXT)']
+>>> drops = ['DROP TABLE person']
+>>> deletes = ['DELETE FROM person']
+>>> import patch_module
+>>> Schema(creates, drops, deletes, patch_module)
+
+where patch_module is a Python module containing database patches used to
+upgrade the schema over time.
+"""
+
 from storm.locals import StormError
 from storm.patch import PatchApplier
 
