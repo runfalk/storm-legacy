@@ -24,7 +24,7 @@ import transaction
 from storm.schema import Schema
 
 
-class ZStormCommitter(object):
+class ZCommitter(object):
     """A L{Schema} committer that uses Zope's transaction manager."""
 
     def commit(self):
@@ -35,9 +35,9 @@ class ZStormCommitter(object):
 
 
 class ZSchema(Schema):
-    """Convenience for creating L{Schema}s that use a L{ZStormCommitter}."""
+    """Convenience for creating L{Schema}s that use a L{ZCommitter}."""
 
     def __init__(self, creates, drops, deletes, patch_package):
-        committer = ZStormCommitter()
+        committer = ZCommitter()
         super(ZSchema, self).__init__(creates, drops, deletes, patch_package,
                                       committer)
