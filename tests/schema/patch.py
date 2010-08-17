@@ -23,7 +23,8 @@ import sys
 import os
 
 from storm.locals import StormError, Store, create_database
-from storm.patch import Patch, PatchApplier, UnknownPatchError, BadPatchError
+from storm.schema.patch import (
+    Patch, PatchApplier, UnknownPatchError, BadPatchError)
 from tests.mocker import MockerTestCase
 
 

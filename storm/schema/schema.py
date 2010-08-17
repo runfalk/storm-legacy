@@ -40,10 +40,7 @@ upgrade the schema over time.
 """
 
 from storm.locals import StormError
-from storm.patch import PatchApplier
-
-
-__all__ = ["Schema"]
+from storm.schema.patch import PatchApplier
 
 
 class Schema(object):
