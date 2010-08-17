@@ -97,12 +97,18 @@ class SchemaTest(MockerTestCase):
         return Package(package_dir, name)
 
     def test_create(self):
+        """
+        L{Schema.create} can be used to create the tables of a L{Store}.
+        """
         self.assertRaises(StormError,
                           self.store.execute, "SELECT * FROM person")
         self.schema.create(self.store)
         self.assertEquals(list(self.store.execute("SELECT * FROM person")), [])
 
     def test_drop(self):
+        """
+        L{Schema.drop} can be used to drop the tables of a L{Store}.
+        """
         self.schema.create(self.store)
         self.assertEquals(list(self.store.execute("SELECT * FROM person")), [])
         self.schema.drop(self.store)
@@ -110,6 +116,9 @@ class SchemaTest(MockerTestCase):
                           self.store.execute, "SELECT * FROM person")
 
     def test_delete(self):
+        """
+        L{Schema.delete} can be used to clear the tables of a L{Store}.
+        """
         self.schema.create(self.store)
         self.store.execute("INSERT INTO person (id, name) VALUES (1, 'Jane')")
         self.assertEquals(list(self.store.execute("SELECT * FROM person")),
@@ -118,12 +127,20 @@ class SchemaTest(MockerTestCase):
         self.assertEquals(list(self.store.execute("SELECT * FROM person")), [])
 
     def test_upgrade_creates_schema(self):
+        """
+        L{Schema.upgrade} creates a schema from scratch if no exist, and is
+        effectively equivalent to L{Schema.create} in such case.
+        """
         self.assertRaises(StormError,
                           self.store.execute, "SELECT * FROM person")
         self.schema.upgrade(self.store)
         self.assertEquals(list(self.store.execute("SELECT * FROM person")), [])
 
     def test_upgrade_marks_patches_applied(self):
+        """
+        L{Schema.upgrade} updates the patch table after applying the needed
+        patches.
+        """
         contents = """
 def apply(store):
     store.execute('ALTER TABLE person ADD COLUMN phone TEXT')
@@ -136,6 +153,10 @@ def apply(store):
                           [(1,)])
 
     def test_upgrade_applies_patches(self):
+        """
+        L{Schema.upgrade} executes the needed patches, that typically modify
+        the existing schema.
+        """
         self.schema.create(self.store)
         contents = """
 def apply(store):

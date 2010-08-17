@@ -61,7 +61,7 @@ class Patch(object):
 class PatchApplier(object):
     """Apply to a L{Store} the database patches from a given Python package.
 
-    @param store: The L{Storm} to apply the patches to.
+    @param store: The L{Store} to apply the patches to.
     @param package: The Python package containing the patches. Each patch is
         represented by a file inside the module, whose filename must match
         the format 'patch_N.py', where N is an integer number.
@@ -75,11 +75,23 @@ class PatchApplier(object):
         self._committer = committer
 
     def _module(self, version):
+        """Import the Python module of the patch file with the given version.
+
+        @param: The version of the module patch to import.
+        @return: The imported module.
+        """
         module_name = "patch_%d" % (version,)
         return __import__(self._package.__name__ + "." + module_name,
                           None, None, [''])
 
     def apply(self, version):
+        """Execute the patch with the given version.
+
+        This will call the 'apply' function defined in the patch file with
+        the given version, passing it our L{Store}.
+
+        @param version: The version of the patch to execute.
+        """
         patch = Patch(version)
         self._store.add(patch)
         module = None
@@ -99,6 +111,11 @@ class PatchApplier(object):
         self._committer.commit()
 
     def apply_all(self):
+        """Execute all unapplied patches.
+
+        @raises UnknownPatchError: If the patch table has versions for which
+            no patch file actually exists.
+        """
         unknown_patches = self.get_unknown_patch_versions()
         if unknown_patches:
             raise UnknownPatchError(self._store, unknown_patches)
@@ -106,14 +123,17 @@ class PatchApplier(object):
             self.apply(version)
 
     def mark_applied(self, version):
+        """Mark the patch with the given version as applied."""
         self._store.add(Patch(version))
         self._committer.commit()
 
     def mark_applied_all(self):
+        """Mark all unapplied patches as applied."""
         for version in self._get_unapplied_versions():
             self.mark_applied(version)
 
     def has_pending_patches(self):
+        """Return C{True} if there are unapplied patches, C{False} if not."""
         for version in self._get_unapplied_versions():
             return True
         return False
@@ -133,18 +153,21 @@ class PatchApplier(object):
         return unknown_patches
 
     def _get_unapplied_versions(self):
+        """Return the versions of all unapplied patches."""
         applied = self._get_applied_patches()
         for version in self._get_patch_versions():
             if version not in applied:
                 yield version
 
     def _get_applied_patches(self):
+        """Return the versions of all applied patches."""
         applied = set()
         for patch in self._store.find(Patch):
             applied.add(patch.version)
         return applied
 
     def _get_patch_versions(self):
+        """Return the versions of all available patches."""
         format = re.compile(r"^patch_(\d+).py$")
 
         filenames = os.listdir(os.path.dirname(self._package.__file__))

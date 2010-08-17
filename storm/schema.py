@@ -45,6 +45,7 @@ class Schema(object):
         self._committer = committer
 
     def _execute_statements(self, store, statements):
+        """Execute the given statements in the given store."""
         for statement in statements:
             try:
                 store.execute(statement)

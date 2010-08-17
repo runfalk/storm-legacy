@@ -100,16 +100,6 @@ class MockPatchStore(object):
 
 class PatchTest(MockerTestCase):
 
-    def add_module(self, module_filename, contents):
-        filename = os.path.join(self.pkgdir, module_filename)
-        file = open(filename, "w")
-        file.write(contents)
-        file.close()
-
-    def remove_all_modules(self):
-        for filename in os.listdir(self.pkgdir):
-            os.unlink(os.path.join(self.pkgdir, filename))
-
     def setUp(self):
         super(PatchTest, self).setUp()
 
@@ -172,6 +162,16 @@ class PatchTest(MockerTestCase):
             if name == "mypackage" or name.startswith("mypackage."):
                 del sys.modules[name]
 
+    def add_module(self, module_filename, contents):
+        filename = os.path.join(self.pkgdir, module_filename)
+        file = open(filename, "w")
+        file.write(contents)
+        file.close()
+
+    def remove_all_modules(self):
+        for filename in os.listdir(self.pkgdir):
+            os.unlink(os.path.join(self.pkgdir, filename))
+
     def prepare_for_transaction_check(self):
         self.another_store.execute("DELETE FROM test")
         self.another_store.execute("INSERT INTO test VALUES (1)")
@@ -189,6 +189,9 @@ class PatchTest(MockerTestCase):
                           "Transaction manager wasn't aborted.")
 
     def test_apply(self):
+        """
+        L{PatchApplier.apply} executes the patch with the given version.
+        """
         self.patch_applier.apply(42)
 
         x = getattr(self.mypackage, "patch_42").x
@@ -199,6 +202,9 @@ class PatchTest(MockerTestCase):
         self.assert_transaction_committed()
 
     def test_apply_all(self):
+        """
+        L{PatchApplier.apply_all} executes all unapplied patches.
+        """
         self.patch_applier.apply_all()
 
         self.assertTrue("mypackage.patch_42" in sys.modules)
@@ -213,6 +219,9 @@ class PatchTest(MockerTestCase):
         self.assert_transaction_committed()
 
     def test_apply_exploding_patch(self):
+        """
+        L{PatchApplier.apply} aborts the transaction if the patch fails.
+        """
         self.remove_all_modules()
         self.add_module("patch_666.py", patch_explosion)
         self.assertRaises(StormError, self.patch_applier.apply, 666)
@@ -236,6 +245,10 @@ class PatchTest(MockerTestCase):
                           [666, 667])
 
     def test_mark_applied(self):
+        """
+        L{PatchApplier.mark} marks a patch has applied by inserting a new row
+        in the patch table.
+        """
         self.patch_applier.mark_applied(42)
 
         self.assertFalse("mypackage.patch_42" in sys.modules)
@@ -247,6 +260,9 @@ class PatchTest(MockerTestCase):
         self.assert_transaction_committed()
 
     def test_mark_applied_all(self):
+        """
+        L{PatchApplier.mark_applied_all} marks all pending patches as applied.
+        """
         self.patch_applier.mark_applied_all()
 
         self.assertFalse("mypackage.patch_42" in sys.modules)
@@ -258,20 +274,36 @@ class PatchTest(MockerTestCase):
         self.assert_transaction_committed()
 
     def test_application_order(self):
+        """
+        L{PatchApplier.apply_all} applies the patches in increasing version
+        order.
+        """
         self.patch_applier.apply_all()
         self.assertEquals(self.mypackage.shared_data,
                           [42, 380])
 
     def test_has_pending_patches(self):
+        """
+        L{PatchApplier.has_pending_patches} returns C{True} if there are
+        patches to be applied, C{False} otherwise.
+        """
         self.assertTrue(self.patch_applier.has_pending_patches())
         self.patch_applier.apply_all()
         self.assertFalse(self.patch_applier.has_pending_patches())
 
     def test_abort_if_unknown_patches(self):
+        """
+        L{PatchApplier.mark_applied} raises and error if the patch table
+        contains patches without a matching file in the patch module.
+        """
         self.patch_applier.mark_applied(381)
         self.assertRaises(UnknownPatchError, self.patch_applier.apply_all)
 
     def test_get_unknown_patch_versions(self):
+        """
+        L{PatchApplier.get_unknown_patch_versions} returns the versions of all
+        unapplied patches.
+        """
         patches = [Patch(42), Patch(380), Patch(381)]
         my_store = MockPatchStore("database", patches=patches)
         patch_applier = PatchApplier(my_store, self.mypackage)
@@ -279,12 +311,20 @@ class PatchTest(MockerTestCase):
                          patch_applier.get_unknown_patch_versions())
 
     def test_no_unknown_patch_versions(self):
+        """
+        L{PatchApplier.get_unknown_patch_versions} returns an empty set if
+        no patches are unapplied.
+        """
         patches = [Patch(42), Patch(380)]
         my_store = MockPatchStore("database", patches=patches)
         patch_applier = PatchApplier(my_store, self.mypackage)
         self.assertEqual(set(), patch_applier.get_unknown_patch_versions())
 
     def test_patch_with_incorrect_apply(self):
+        """
+        L{PatchApplier.apply_all} raises an error as soon as one of the patches
+        to be applied fails.
+        """
         self.add_module("patch_999.py", patch_no_args_apply)
         try:
             self.patch_applier.apply_all()
@@ -296,6 +336,10 @@ class PatchTest(MockerTestCase):
             self.fail("BadPatchError not raised")
 
     def test_patch_with_missing_apply(self):
+        """
+        L{PatchApplier.apply_all} raises an error if one of the patches to
+        to be applied has no 'apply' function defined.
+        """
         self.add_module("patch_999.py", patch_missing_apply)
         try:
             self.patch_applier.apply_all()
@@ -307,6 +351,10 @@ class PatchTest(MockerTestCase):
             self.fail("BadPatchError not raised")
 
     def test_patch_with_syntax_error(self):
+        """
+        L{PatchApplier.apply_all} raises an error if one of the patches to
+        to be applied contains a syntax error.
+        """
         self.add_module("patch_999.py", "that's not python")
         try:
             self.patch_applier.apply_all()
@@ -317,6 +365,10 @@ class PatchTest(MockerTestCase):
             self.fail("BadPatchError not raised")
 
     def test_patch_error_includes_traceback(self):
+        """
+        The exception raised by L{PatchApplier.apply_all} when a patch fails
+        include the relevant traceback from the patch.
+        """
         self.add_module("patch_999.py", patch_name_error)
         try:
             self.patch_applier.apply_all()
