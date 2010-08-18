@@ -567,7 +567,8 @@ class PostgresTimeoutTracerTest(TimeoutTracerTestBase):
         try:
             self.connection.execute(statement)
         except TimeoutError, e:
-            self.assertEquals(e.statement, statement)
-            self.assertEquals(e.params, ())
+            self.assertEqual("SQL server cancelled statement", e.message)
+            self.assertEqual(statement, e.statement)
+            self.assertEqual((), e.params)
         else:
             self.fail("TimeoutError not raised")

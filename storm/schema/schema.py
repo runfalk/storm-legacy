@@ -40,10 +40,7 @@ upgrade the schema over time.
 """
 
 from storm.locals import StormError
-from storm.patch import PatchApplier
-
-
-__all__ = ["Schema"]
+from storm.schema.patch import PatchApplier
 
 
 class Schema(object):
@@ -52,8 +49,10 @@ class Schema(object):
     @param creates: A list of C{CREATE TABLE} statements.
     @param drops: A list of C{DROP TABLE} statements.
     @param deletes: A list of C{DELETE FROM} statements.
-    @param patch_package: The Python package containing patch modules to apply,
-        see also L{PatchApplier}.
+    @param patch_package: The Python package containing patch modules to apply.
+    @param committer: Optionally a committer to pass to the L{PatchApplier}.
+
+    @see: L{PatchApplier}.
     """
     _create_patch = "CREATE TABLE patch (version INTEGER NOT NULL PRIMARY KEY)"
     _drop_patch = "DROP TABLE patch"

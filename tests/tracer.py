@@ -6,7 +6,6 @@ from storm.tracer import (trace, install_tracer, get_tracers,
                           DebugTracer, TimeoutTracer, TimeoutError, _tracers)
 from storm.expr import Variable
 
-from tests.mocker import ARGS
 from tests.helper import TestHelper
 
 
@@ -204,6 +203,12 @@ class TimeoutTracerTestBase(TestHelper):
 class TimeoutTracerTest(TimeoutTracerTestBase):
 
     def test_raise_not_implemented(self):
+        """
+        L{TimeoutTracer.connection_raw_execute_error},
+        L{TimeoutTracer.set_statement_timeout} and
+        L{TimeoutTracer.get_remaining_time} must all be implemented by
+        backend-specific subclasses.
+        """
         self.assertRaises(NotImplementedError,
                           self.tracer.connection_raw_execute_error,
                           None, None, None, None, None)
@@ -213,6 +218,10 @@ class TimeoutTracerTest(TimeoutTracerTestBase):
                           self.tracer.get_remaining_time)
 
     def test_raise_timeout_error_when_no_remaining_time(self):
+        """
+        A L{TimeoutError} is raised if there isn't any time left when a
+        statement is executed.
+        """
         tracer_mock = self.mocker.patch(self.tracer)
         tracer_mock.get_remaining_time()
         self.mocker.result(0)
@@ -221,8 +230,9 @@ class TimeoutTracerTest(TimeoutTracerTestBase):
         try:
             self.execute()
         except TimeoutError, e:
-            self.assertEquals(e.statement, self.statement)
-            self.assertEquals(e.params, self.params)
+            self.assertEqual("0 seconds remaining in time budget", e.message)
+            self.assertEqual(self.statement, e.statement)
+            self.assertEqual(self.params, e.params)
         else:
             self.fail("TimeoutError not raised")
 
