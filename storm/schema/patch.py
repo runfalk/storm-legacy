@@ -25,7 +25,9 @@ of database patches.
 
 To create a patch series all is needed is to add Python files under a module
 of choice, an name them as 'patch_N.py' where 'N' is the version of the patch
-in the series.
+in the series. Each patch file must define an C{apply} callable taking a
+L{Store} instance has its only argument. This function will be called when the
+patch gets applied.
 
 The L{PatchApplier} can be then used to apply to a L{Store} all the available
 patches. After a patch has been applied, its version is recorded in a special
@@ -79,6 +81,10 @@ class PatchApplier(object):
     @param package: The Python package containing the patches. Each patch is
         represented by a file inside the module, whose filename must match
         the format 'patch_N.py', where N is an integer number.
+    @param committer: Optionally an object implementing 'commit()' and
+        'rollback()' methods, to be used to commit or rollback the changes
+        after applying a patch. If C{None} is given, the C{store} itself is
+        used.
     """
 
     def __init__(self, store, package, committer=None):
