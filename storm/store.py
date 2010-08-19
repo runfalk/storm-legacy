@@ -371,6 +371,7 @@ class Store(object):
         # to test it without whitebox.
         self._order.clear()
 
+
     def _mark_autoreload(self, obj=None, invalidate=False):
         if obj is None:
             obj_infos = self._iter_alive()
@@ -770,6 +771,7 @@ class Store(object):
 
             variable.checkpoint()
 
+
     def _is_dirty(self, obj_info):
         return obj_info in self._dirty
 
@@ -783,6 +785,7 @@ class Store(object):
 
     def _iter_dirty(self):
         return self._dirty
+
 
     def _add_to_alive(self, obj_info):
         """Add an object to the set of known in-memory objects.
@@ -853,6 +856,7 @@ class Store(object):
                     # This will raise LostObjectError if the object is gone.
                     self._validate_alive(obj_info)
                 self._set_dirty(obj_info)
+
 
     def _enable_lazy_resolving(self, obj_info):
         obj_info.event.hook("resolve-lazy-value", self._resolve_lazy_value)
