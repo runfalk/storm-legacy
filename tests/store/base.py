@@ -4810,8 +4810,10 @@ class StoreTest(object):
         """
         # Disable the cache, which holds strong references.
         self.get_cache(self.store).set_size(0)
+        loaded = []
         class MyFoo(Foo):
             def __storm_loaded__(oself):
+                loaded.append(None)
                 obj_info = get_obj_info(oself)
                 for column in obj_info.variables:
                     self.assertTrue(obj_info.variables[column].is_defined())
@@ -4830,6 +4832,7 @@ class StoreTest(object):
 
         foo = self.store.find(MyFoo, title=u"Title 20").one()
         self.assertEquals(foo.id, 20)
+        self.assertEquals(len(loaded), 2)
 
     def test_defined_variables_not_overridden_on_find(self):
         """
