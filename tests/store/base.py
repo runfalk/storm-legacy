@@ -32,8 +32,7 @@ from storm.properties import Int, Float, RawStr, Unicode, Property, Pickle
 from storm.properties import PropertyPublisherMeta, Decimal
 from storm.variables import PickleVariable
 from storm.expr import (
-    Asc, Desc, Select, LeftJoin, SQL, Count, Sum, Avg, And, Or, Eq, Lower,
-    compile)
+    Asc, Desc, Select, LeftJoin, SQL, Count, Sum, Avg, And, Or, Eq, Lower)
 from storm.variables import Variable, UnicodeVariable, IntVariable
 from storm.info import get_obj_info, ClassAlias
 from storm.exceptions import (
@@ -4802,6 +4801,38 @@ class StoreTest(object):
             obj_info = get_obj_info(foo)
             for column in obj_info.variables:
                 self.assertTrue(obj_info.variables[column].is_defined())
+
+    def test_storm_loaded_after_define(self):
+        """
+        C{__storm_loaded__} is only called once all the variables are correctly
+        defined in the object. If the object is in the alive cache but
+        disappeared, it used to be called without its variables defined.
+        """
+        # Disable the cache, which holds strong references.
+        self.get_cache(self.store).set_size(0)
+        loaded = []
+        class MyFoo(Foo):
+            def __storm_loaded__(oself):
+                loaded.append(None)
+                obj_info = get_obj_info(oself)
+                for column in obj_info.variables:
+                    self.assertTrue(obj_info.variables[column].is_defined())
+
+        foo = self.store.get(MyFoo, 20)
+        obj_info = get_obj_info(foo)
+
+        del foo
+        gc.collect()
+
+        self.assertEquals(obj_info.get_obj(), None)
+
+        # Commit so that all foos are invalidated and variables are
+        # set back to AutoReload.
+        self.store.commit()
+
+        foo = self.store.find(MyFoo, title=u"Title 20").one()
+        self.assertEquals(foo.id, 20)
+        self.assertEquals(len(loaded), 2)
 
     def test_defined_variables_not_overridden_on_find(self):
         """
