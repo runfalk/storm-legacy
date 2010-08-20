@@ -7,6 +7,11 @@ Improvements
    the exception was raised, to help make it easier to reason about
    timeout-related issues (bug #617973).
 
+Bug fixes
+---------
+ - Make storm compatible with psycopg2 2.2 (bug #585704).
+
+
 0.17 (2010-08-05)
 =================
 

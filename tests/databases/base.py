@@ -206,7 +206,7 @@ class DatabaseTest(object):
                                          "VALUES ('Title 30')")
         primary_key = (Column("id", SQLToken("test")),
                        Column("title", SQLToken("test")))
-        primary_variables = (Variable(), Variable("Title 30"))
+        primary_variables = (Variable(), Variable(u"Title 30"))
         expr = result.get_insert_identity(primary_key, primary_variables)
         select = Select(Column("title", SQLToken("test")), expr)
         result = self.connection.execute(select)
