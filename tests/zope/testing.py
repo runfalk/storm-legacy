@@ -23,10 +23,14 @@ import sys
 
 from pysqlite2.dbapi2 import IntegrityError
 
+from tests.helper import TestHelper
+from tests.zope import has_zope, has_testresources
+
 from storm.locals import create_database, Store, Unicode, Int
-from storm.zope.schema import ZSchema
-from storm.zope.testing import ZStormResourceManager
-from tests.mocker import MockerTestCase
+
+if has_zope and has_testresources:
+    from storm.zope.schema import ZSchema
+    from storm.zope.testing import ZStormResourceManager
 
 
 PATCH = """
@@ -35,7 +39,10 @@ def apply(store):
 """
 
 
-class ZStormResourceManagerTest(MockerTestCase):
+class ZStormResourceManagerTest(TestHelper):
+
+    def is_supported(self):
+        return has_zope and has_testresources
 
     def setUp(self):
         super(ZStormResourceManagerTest, self).setUp()
