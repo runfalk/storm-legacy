@@ -927,6 +927,8 @@ class ResultSet(object):
         """
         result_set = object.__new__(self.__class__)
         result_set.__dict__.update(self.__dict__)
+        if self._select is not Undef:
+            result_set._select = copy(self._select)
         return result_set
 
     def config(self, distinct=None, offset=None, limit=None):

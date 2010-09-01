@@ -940,6 +940,21 @@ class StoreTest(object):
     def test_find_count(self):
         self.assertEquals(self.store.find(Foo).count(), 3)
 
+    def test_find_count_after_slice(self):
+        """
+        When we slice a ResultSet obtained after a set operation (like union),
+        we get a fresh select that doesn't modify the limit and offset
+        attribute of the original ResultSet.
+        """
+        result1 = self.store.find(Foo, Foo.id == 10)
+        result2 = self.store.find(Foo, Foo.id == 20)
+        result3 = result1.union(result2)
+        result3.order_by(Foo.id)
+        self.assertEquals(result3.count(), 2)
+
+        result_slice = list(result3[:2])
+        self.assertEquals(result3.count(), 2)
+
     def test_find_count_column(self):
         self.assertEquals(self.store.find(Link).count(Link.foo_id), 6)
 
