@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2006, 2007 Canonical
+# Copyright (c) 2006-2010 Canonical
 #
 # Written by Gustavo Niemeyer <gustavo@niemeyer.net>
 #
@@ -558,12 +558,12 @@ class SQLObjectResultSet(object):
             new code, prefer L{is_empty}.  It's compatible with L{ResultSet}
             which doesn't have a C{__nonzero__} implementation.
         """
-        return self.is_empty()
+        return not self.is_empty()
 
     def is_empty(self):
         """Return C{True} if this result set doesn't contain any results."""
         result_set = self._without_prejoins()._result_set
-        return not result_set.is_empty()
+        return result_set.is_empty()
 
     def count(self):
         result_set = self._without_prejoins()._result_set
