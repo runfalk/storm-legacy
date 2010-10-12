@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2006, 2007 Canonical
+# Copyright (c) 2006-2010 Canonical
 #
 # Written by Gustavo Niemeyer <gustavo@niemeyer.net>
 #
@@ -25,7 +25,6 @@ from storm.database import create_database
 from storm.exceptions import NoneError
 from storm.sqlobject import *
 from storm.store import Store
-from storm.expr import Asc, Like
 from storm.tz import tzutc
 
 from tests.helper import TestHelper
@@ -785,7 +784,7 @@ class SQLObjectTest(TestHelper):
     def test_result_set__nonzero__(self):
         """
         L{SQLObjectResultSet.__nonzero__} returns C{True} if the result set
-        doesn't contain any results.  If it does contain results, C{False} is
+        contains results.  If it contains no results, C{False} is
         returned.
         """
         result = self.Person.select()
@@ -800,9 +799,9 @@ class SQLObjectTest(TestHelper):
         returned.
         """
         result = self.Person.select()
-        self.assertEquals(result.is_empty(), True)
-        result = self.Person.select(self.Person.q.name == "No Person")
         self.assertEquals(result.is_empty(), False)
+        result = self.Person.select(self.Person.q.name == "No Person")
+        self.assertEquals(result.is_empty(), True)
 
     def test_result_set_distinct(self):
         result = self.Person.select("person.name = 'John Joe'",
