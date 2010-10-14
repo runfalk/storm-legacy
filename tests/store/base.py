@@ -5150,6 +5150,24 @@ class StoreTest(object):
                           (30, "Title 10"),
                          ])
 
+    def test_bug_620615(self):
+        # Retrieve an object, fully loaded.
+        foo = self.store.get(Foo, 20)
+
+        # Build and retrieve a result set ahead of time, so that
+        # flushes won't happen when actually loading the object.
+        result = self.store.find(Foo, Foo.id == 20)
+
+        # Now, set an unflushed lazy value on an attribute.
+        foo.title = SQL("'New title'")
+
+        # Finally, get the existing object.
+        foo = result.one()
+
+        # We don't really have to test anything here, since the
+        # explosion happened above, but here it is anyway.
+        self.assertEquals(foo.title, "New title")
+
     def test_expr_values_with_columns(self):
         bar = self.store.get(Bar, 200)
         bar.foo_id = Bar.id+1
