@@ -5150,7 +5150,13 @@ class StoreTest(object):
                           (30, "Title 10"),
                          ])
 
-    def test_bug_620615(self):
+    def test_lazy_value_preserved_with_subsequent_object_initialization(self):
+        """
+        If a lazy value has been modified on an object that is subsequently
+        initialized from the database the lazy value is correctly preserved
+        and the object is initialized properly.  This tests the fix for the
+        problem reported in bug #620615.
+        """
         # Retrieve an object, fully loaded.
         foo = self.store.get(Foo, 20)
 

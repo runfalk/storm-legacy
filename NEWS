@@ -10,7 +10,7 @@ Improvements
 Bug fixes
 ---------
  - Make storm compatible with psycopg2 2.2 (bug #585704).
- - Fix bug #620615, which caused lazy expressions to cause following
+ - Fix bug #620615, which caused lazy expressions to cause subsequent
    loading of objects to explode if unflushed.
 
 
