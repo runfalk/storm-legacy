@@ -5174,6 +5174,28 @@ class StoreTest(object):
         # explosion happened above, but here it is anyway.
         self.assertEquals(foo.title, "New title")
 
+    def test_lazy_value_discarded_on_reload(self):
+        """
+        A counter-test to the above logic, also related to bug #620615. On
+        an explicit reload, the lazy value must be discarded.
+        """
+        # Retrieve an object, fully loaded.
+        foo = self.store.get(Foo, 20)
+
+        # Build and retrieve a result set ahead of time, so that
+        # flushes won't happen when actually loading the object.
+        result = self.store.find(Foo, Foo.id == 20)
+
+        # Now, set an unflushed lazy value on an attribute.
+        foo.title = SQL("'New title'")
+
+        # Give up on this and reload the original object.
+        self.store.reload(foo)
+
+        # We don't really have to test anything here, since the
+        # explosion happened above, but here it is anyway.
+        self.assertEquals(foo.title, "Title 20")
+
     def test_expr_values_with_columns(self):
         bar = self.store.get(Bar, 200)
         bar.foo_id = Bar.id+1
