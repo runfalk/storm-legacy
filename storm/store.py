@@ -314,7 +314,8 @@ class Store(object):
                         default_tables=cls_info.table, limit=1)
         result = self._connection.execute(select)
         values = result.get_one()
-        self._set_values(obj_info, cls_info.columns, result, values)
+        self._set_values(obj_info, cls_info.columns, result, values,
+                         replace_unknown_lazy=True)
         self._set_clean(obj_info)
 
     def autoreload(self, obj=None):
@@ -711,7 +712,8 @@ class Store(object):
             obj_info = get_obj_info(obj)
             obj_info["store"] = self
 
-            self._set_values(obj_info, cls_info.columns, result, values)
+            self._set_values(obj_info, cls_info.columns, result, values,
+                             replace_unknown_lazy=True)
 
             self._add_to_alive(obj_info)
             self._enable_change_notification(obj_info)
@@ -744,26 +746,28 @@ class Store(object):
             func()
 
     def _set_values(self, obj_info, columns, result, values,
-                    keep_defined=False):
+                    keep_defined=False, replace_unknown_lazy=False):
         if values is None:
             raise LostObjectError("Can't obtain values from the database "
                                   "(object got removed?)")
         obj_info.pop("invalidated", None)
         for column, value in zip(columns, values):
             variable = obj_info.variables[column]
+            lazy_value = variable.get_lazy()
+            is_unknown_lazy = not (lazy_value is None or
+                                   lazy_value is AutoReload)
             if keep_defined:
-                if variable.is_defined():
+                if variable.is_defined() or is_unknown_lazy:
                     continue
-                lazy_value = variable.get_lazy()
-                if not (lazy_value is None or lazy_value is AutoReload):
-                    # This should *never* happen, because whenever we get
-                    # to this point it should be after a flush() which
-                    # updated the database with lazy values and then replaced
-                    # them by AutoReload.  Letting this go through means
-                    # we're blindly discarding an unknown lazy value and
-                    # replacing it by the value from the database.
-                    raise RuntimeError("Unexpected situation. "
-                                       "Please contact the developers.")
+            elif is_unknown_lazy and not replace_unknown_lazy:
+                # This should *never* happen, because whenever we get
+                # to this point it should be after a flush() which
+                # updated the database with lazy values and then replaced
+                # them by AutoReload.  Letting this go through means
+                # we're blindly discarding an unknown lazy value and
+                # replacing it by the value from the database.
+                raise RuntimeError("Unexpected situation. "
+                                   "Please contact the developers.")
             if value is None:
                 variable.set(value, from_db=True)
             else:

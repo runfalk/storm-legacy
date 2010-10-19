@@ -21,12 +21,11 @@
 import os
 import sys
 
-from pysqlite2.dbapi2 import IntegrityError
-
 from tests.helper import TestHelper
 from tests.zope import has_zope, has_testresources
 
 from storm.locals import create_database, Store, Unicode, Int
+from storm.exceptions import IntegrityError
 
 if has_zope and has_testresources:
     from storm.zope.schema import ZSchema
