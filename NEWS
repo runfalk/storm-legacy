@@ -1,17 +1,49 @@
-0.18 (2010-XX-XX)
+0.18 (2010-10-21)
 =================
 
 Improvements
 ------------
+ - Include code to manage and migrate database schemas.  See the
+   storm.schema sub-package (bug #250412).
+ - Added a storm.zope.testing.ZStormResourceManager class to manage a
+   set of stores registered with ZStorm (bug #618704).  It can be used
+   roughly like this::
+
+    from testresources import ResourcedTestCase
+    from storm.zope.testing import ZStormResourceManager
+    from storm.schema import Schema
+
+    name = "test"
+    uri = "sqlite:"
+    schema = Schema(...)
+    manager = ZStormResourceManager({name: (uri, schema)})
+
+    class MyTest(ResourcedTestCase):
+
+        resources = [("zstorm", manager)]
+
+        def test_stuff(self):
+            store = self.zstorm.get("test")
+            store.execute(...)
+
  - When a TimeoutError is raised it includes a description about why
    the exception was raised, to help make it easier to reason about
    timeout-related issues (bug #617973).
+ - Improved the IResultSet interface to document the rationale of why some
+   attributes are not included (bug #659883).
 
 Bug fixes
 ---------
  - Make storm compatible with psycopg2 2.2 (bug #585704).
  - Fix bug #620615, which caused lazy expressions to cause subsequent
    loading of objects to explode if unflushed.
+ - Fix bug #620508, which caused slicing a ResultSet to break subsequent
+   count() calls.
+ - Fix bug #659708, correcting the behavior of the sqlobject is_empty
+   and __nonzero__ methods.
+ - Fix bug #619017, which caused __storm_loaded__ to be called without
+   its object's variables defined if the object were in the alive cache but
+   disappeared.
 
 
 0.17 (2010-08-05)
