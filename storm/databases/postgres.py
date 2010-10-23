@@ -377,5 +377,5 @@ class PostgresTimeoutTracer(TimeoutTracer):
         # psycopg2.extensions.QueryCanceledError in the future.
         if (isinstance(error, DatabaseError) and
             "statement timeout" in str(error)):
-            raise TimeoutError("SQL server cancelled statement", statement,
-                               params)
+            raise TimeoutError(
+                statement, params, "SQL server cancelled statement")

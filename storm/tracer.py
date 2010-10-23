@@ -63,8 +63,8 @@ class TimeoutTracer(object):
         remaining_time = self.get_remaining_time()
         if remaining_time <= 0:
             raise TimeoutError(
-                "%d seconds remaining in time budget" % remaining_time,
-                statement, params)
+                statement, params,
+                "%d seconds remaining in time budget" % remaining_time)
 
         last_remaining_time = getattr(connection,
                                       "_timeout_tracer_remaining_time", 0)

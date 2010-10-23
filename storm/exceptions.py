@@ -120,13 +120,16 @@ class DisconnectionError(OperationalError):
 class TimeoutError(StormError):
     """Raised by timeout tracers when remining time is over."""
 
-    def __init__(self, message, statement, params):
-        self.message = message
+    def __init__(self, statement, params, message=None):
         self.statement = statement
         self.params = params
+        self.message = message
 
     def __str__(self):
-        return "%r, %r, %r" % (self.message, self.statement, self.params)
+	return ', '.join(
+            [repr(element) for element in
+             (self.message, self.statement, self.params)
+             if element is not None])
 
 
 class ConnectionBlockedError(StormError):
