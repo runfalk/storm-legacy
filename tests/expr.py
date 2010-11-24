@@ -1380,6 +1380,13 @@ class CompileTest(TestHelper):
     def test_count_distinct_all(self):
         self.assertRaises(ValueError, Count, distinct=True)
 
+    def test_cast(self):
+        expr = Cast(Func1(), "TEXT")
+        state = State()
+        statement = compile(expr, state)
+        self.assertEquals(statement, "CAST(func1() AS TEXT)")
+        self.assertEquals(state.parameters, [])
+
     def test_max(self):
         expr = Max(Func1())
         state = State()

@@ -1286,6 +1286,23 @@ class Coalesce(NamedFunc):
     name = "COALESCE"
 
 
+class Cast(FuncExpr):
+    __slots__ = ("column", "type")
+    name = "CAST"
+
+    def __init__(self, column, type):
+        self.column = column
+        self.type = type
+
+
+@compile.when(Cast)
+def compile_cast(compile, cast, state):
+    state.push("context", EXPR)
+    column = compile(cast.column, state)
+    state.pop()
+    return "CAST(%s AS %s)" % (column, cast.type)
+
+
 # --------------------------------------------------------------------
 # Prefix and suffix expressions
 
