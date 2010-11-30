@@ -1287,10 +1287,13 @@ class Coalesce(NamedFunc):
 
 
 class Cast(FuncExpr):
+    """A representation of "CAST" clauses. e.g., CAST(bar AS TEXT).
+    """
     __slots__ = ("column", "type")
     name = "CAST"
 
     def __init__(self, column, type):
+        """Create a cast of C{column} as C{type}."""
         self.column = column
         self.type = type
 
