@@ -3,7 +3,8 @@
 
 Improvements
 ------------
-(none so far)
+ - A new Cast expressions compiles an input and the type to cast it to
+   into a call the CAST function (bug #681121).
 
 Bug fixes
 ---------

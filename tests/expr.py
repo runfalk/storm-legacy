@@ -1380,6 +1380,17 @@ class CompileTest(TestHelper):
     def test_count_distinct_all(self):
         self.assertRaises(ValueError, Count, distinct=True)
 
+    def test_cast(self):
+        """
+        The L{Cast} expression renders a C{CAST} function call with a
+        user-defined input value and the type to cast it to.
+        """
+        expr = Cast(Func1(), "TEXT")
+        state = State()
+        statement = compile(expr, state)
+        self.assertEquals(statement, "CAST(func1() AS TEXT)")
+        self.assertEquals(state.parameters, [])
+
     def test_max(self):
         expr = Max(Func1())
         state = State()
