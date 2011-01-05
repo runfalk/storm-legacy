@@ -5366,12 +5366,13 @@ class StoreTest(object):
         self.store.invalidate(foo)
         self.assertRaises(LostObjectError, setattr, foo, "title", u"Title 40")
 
-    def test_invalidate_and_get_returns_autoreloaded(self):
+    def test_invalidated_objects_reloaded_by_get(self):
         foo = self.store.get(Foo, 20)
         self.store.invalidate(foo)
         foo = self.store.get(Foo, 20)
-        self.assertEquals(get_obj_info(foo).variables[Foo.title].get_lazy(),
-                          AutoReload)
+        title_variable = get_obj_info(foo).variables[Foo.title]
+        self.assertEquals(title_variable.get_lazy(), None)
+        self.assertEquals(title_variable.get(), u"Title 20")
         self.assertEquals(foo.title, "Title 20")
 
     def test_invalidated_hook(self):

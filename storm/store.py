@@ -167,12 +167,7 @@ class Store(object):
 
         primary_values = tuple(var.get(to_db=True) for var in primary_vars)
         obj_info = self._alive.get((cls_info.cls, primary_values))
-        if obj_info is not None:
-            if obj_info.get("invalidated"):
-                try:
-                    self._validate_alive(obj_info)
-                except LostObjectError:
-                    return None
+        if obj_info is not None and not obj_info.get("invalidated"):
             return self._get_object(obj_info)
 
         where = compare_columns(cls_info.primary_key, primary_vars)
