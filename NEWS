@@ -8,7 +8,10 @@ Improvements
 
 Bug fixes
 ---------
-(none so far)
+ - When retrieving and using an object with Store.get(), Storm will no
+   longer issue two queries when there is a live invalidated object
+   (bug #697513).
+
 
 
 0.18 (2010-10-25)
