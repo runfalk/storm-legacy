@@ -1286,6 +1286,11 @@ class Coalesce(NamedFunc):
     name = "COALESCE"
 
 
+class Row(NamedFunc):
+    __slots__ = ()
+    name = "ROW"
+
+
 class Cast(FuncExpr):
     """A representation of C{CAST} clauses. e.g., C{CAST(bar AS TEXT)}."""
     __slots__ = ("column", "type")
