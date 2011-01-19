@@ -11,7 +11,9 @@ Bug fixes
  - When retrieving and using an object with Store.get(), Storm will no
    longer issue two queries when there is a live invalidated object
    (bug #697513).
-
+ - When a datetime object is returned by the database driver,
+   DateVariable failed to detect and convert it to a date() object
+   (bug #391601).
 
 
 0.18 (2010-10-25)
