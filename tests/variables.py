@@ -554,6 +554,7 @@ class DateVariableTest(TestHelper):
         date_str = "1977-05-04"
         date_uni = unicode(date_str)
         date_obj = date(1977, 5, 4)
+        datetime_obj = datetime(1977, 5, 4, 0, 0, 0)
 
         variable = DateVariable()
 
@@ -562,6 +563,8 @@ class DateVariableTest(TestHelper):
         variable.set(date_uni, from_db=True)
         self.assertEquals(variable.get(), date_obj)
         variable.set(date_obj, from_db=True)
+        self.assertEquals(variable.get(), date_obj)
+        variable.set(datetime_obj, from_db=True)
         self.assertEquals(variable.get(), date_obj)
 
         self.assertRaises(TypeError, variable.set, 0, from_db=True)

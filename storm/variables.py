@@ -436,6 +436,8 @@ class DateVariable(Variable):
         if from_db:
             if value is None:
                 return None
+            if isinstance(value, datetime):
+                return value.date()
             if isinstance(value, date):
                 return value
             if not isinstance(value, (str, unicode)):
