@@ -91,6 +91,8 @@ class PostgresStoreTest(TestHelper, StoreTest):
         connection.execute("CREATE TABLE foovalue "
                            "(id SERIAL PRIMARY KEY, foo_id INTEGER,"
                            " value1 INTEGER, value2 INTEGER)")
+        connection.execute("CREATE TABLE unique_id "
+                           "(id UUID PRIMARY KEY)")
         connection.commit()
 
     def drop_tables(self):

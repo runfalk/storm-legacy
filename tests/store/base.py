@@ -24,11 +24,13 @@ from cStringIO import StringIO
 import decimal
 import gc
 import operator
+from uuid import uuid4
 import weakref
 
 from storm.references import Reference, ReferenceSet, Proxy
 from storm.database import Result
-from storm.properties import Int, Float, RawStr, Unicode, Property, Pickle
+from storm.properties import (
+    Int, Float, RawStr, Unicode, Property, Pickle, UUID)
 from storm.properties import PropertyPublisherMeta, Decimal
 from storm.variables import PickleVariable
 from storm.expr import (
@@ -58,6 +60,12 @@ class Bar(object):
     title = Unicode()
     foo_id = Int()
     foo = Reference(foo_id, Foo.id)
+
+class UniqueID(object):
+    __storm_table__ = "unique_id"
+    id = UUID(primary=True)
+    def __init__(self, id):
+        self.id = id
 
 class Blob(object):
     __storm_table__ = "bin"
@@ -259,7 +267,7 @@ class StoreTest(object):
 
     def drop_tables(self):
         for table in ["foo", "bar", "bin", "link", "money", "selfref",
-                      "foovalue"]:
+                      "foovalue", "unique_id"]:
             try:
                 self.connection.execute("DROP TABLE %s" % table)
                 self.connection.commit()
@@ -1782,6 +1790,10 @@ class StoreTest(object):
         self.store.flush()
         self.assertEquals(type(foo.id), int)
         self.assertEquals(foo.title, u"Default Title")
+
+    def test_add_uuid(self):
+        unique_id = self.store.add(UniqueID(uuid4()))
+        self.assertEqual(unique_id, self.store.find(UniqueID).one())
 
     def test_remove_commit(self):
         foo = self.store.get(Foo, 20)

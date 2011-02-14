@@ -20,6 +20,7 @@
 #
 from datetime import date, time, timedelta
 import os
+from uuid import uuid4
 
 from storm.databases.postgres import (
     Postgres, compile, currval, Returning, PostgresTimeoutTracer)
@@ -27,7 +28,7 @@ from storm.database import create_database
 from storm.exceptions import InterfaceError, ProgrammingError
 from storm.variables import DateTimeVariable, RawStrVariable
 from storm.variables import ListVariable, IntVariable, Variable
-from storm.properties import Int
+from storm.properties import Int, UUID
 from storm.expr import (Union, Select, Insert, Alias, SQLRaw, State,
                         Sequence, Like, Column, COLUMN)
 from storm.tracer import install_tracer, TimeoutError
@@ -35,6 +36,7 @@ from storm.tracer import install_tracer, TimeoutError
 # We need the info to register the 'type' compiler.  In normal
 # circumstances this is naturally imported.
 import storm.info
+from storm.info import get_cls_info
 
 from tests.databases.base import (
     DatabaseTest, DatabaseDisconnectionTest, UnsupportedDatabaseTest)
@@ -66,10 +68,13 @@ class PostgresTest(DatabaseTest, TestHelper):
         self.connection.execute("CREATE TABLE insert_returning_test "
                                 "(id1 INTEGER DEFAULT 123, "
                                 " id2 INTEGER DEFAULT 456)")
+        self.connection.execute("CREATE TABLE uuid_test"
+                                "(id UUID PRIMARY KEY)")
 
     def drop_tables(self):
         super(PostgresTest, self).drop_tables()
-        for table in ["like_case_insensitive_test", "insert_returning_test"]:
+        for table in ["like_case_insensitive_test", "insert_returning_test",
+                      "uuid_test"]:
             try:
                 self.connection.execute("DROP TABLE %s" % table)
                 self.connection.commit()
