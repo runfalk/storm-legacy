@@ -591,8 +591,6 @@ class MutableValueVariable(Variable):
 class EncodedValueVariable(MutableValueVariable):
 
     __slots__ = ()
-    _dumps = None
-    _loads = None
 
     def parse_set(self, value, from_db):
         if from_db:
