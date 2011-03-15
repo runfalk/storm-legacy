@@ -39,28 +39,28 @@ class IResultSet(Interface):
 
     The rationale behind the exposed attributes is:
 
-    1. Model code constructs a L{ResultSet} and returns a security proxied
-       object to the view code.
+        1. Model code constructs a L{ResultSet} and returns a security proxied
+           object to the view code.
 
-    2. View code treats the L{ResultSet} as an immutable sequence/iterable and
-       presents the data to the user.
+        2. View code treats the L{ResultSet} as an immutable sequence/iterable
+           and presents the data to the user.
 
     Therefore several attributes of L{ResultSet} are not included here:
 
-    - Both C{set()} and C{remove()} can be used to modify the contained
-      objects, which will bypass the security proxies on those objects.
+        - Both C{set()} and C{remove()} can be used to modify the contained
+          objects, which will bypass the security proxies on those objects.
 
-    - C{get_select_expr()} will return a L{Select} object, which has no
-      security declarations (and it isn't clear that any would be desirable).
+        - C{get_select_expr()} will return a L{Select} object, which has no
+          security declarations (and it isn't clear that any would be
+          desirable).
 
-    - C{find()}, C{group_by()} and C{having()} are really used to configure
-      result sets, so are mostly intended for use on the model side.
+        - C{find()}, C{group_by()} and C{having()} are really used to configure
+          result sets, so are mostly intended for use on the model side.
 
-    - There may be an argument for exposing C{difference()}, C{intersection()}
-      and C{union()} as a way for view code to combine multiple results, but
-      it isn't clear how often it makes sense to do this on the view side
-      rather than model side.
-
+        - There may be an argument for exposing C{difference()},
+          C{intersection()} and C{union()} as a way for view code to combine
+          multiple results, but it isn't clear how often it makes sense to do
+          this on the view side rather than model side.
     """
 
     def copy():

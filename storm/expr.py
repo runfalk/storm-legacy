@@ -79,10 +79,10 @@ class Compile(object):
 
         Use this as:
 
-        @compile.when(TypeA, TypeB)
-        def compile_type_a_or_b(compile, expr, state):
-            ...
-            return "THE COMPILED SQL STATEMENT"
+            >>> @compile.when(TypeA, TypeB)
+            >>> def compile_type_a_or_b(compile, expr, state):
+            >>>     ...
+            >>>     return "THE COMPILED SQL STATEMENT"
         """
         return _when(self, types)
 
