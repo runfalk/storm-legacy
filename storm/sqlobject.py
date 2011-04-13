@@ -552,7 +552,7 @@ class SQLObjectResultSet(object):
         return item in result_set
 
     def __nonzero__(self):
-        """Return C{True} if this result set doesn't contain any results.
+        """Return C{True} if this result set contains any results.
 
         @note: This method is provided for compatibility with SQL Object.  For
             new code, prefer L{is_empty}.  It's compatible with L{ResultSet}

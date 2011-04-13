@@ -164,9 +164,14 @@ class ISQLObjectResultSet(Interface):
        """Return the number of items in the result set."""
 
     def __nonzero__():
-       """Boolean emulation."""
+        """Return C{True} if this result set contains any results.
 
-    def __contains__():
+        @note: This method is provided for compatibility with SQL Object.  For
+            new code, prefer L{is_empty}.  It's compatible with L{ResultSet}
+            which doesn't have a C{__nonzero__} implementation.
+        """
+
+    def __contains__(item):
        """Support C{if FooObject in Foo.select(query)}."""
 
     def intersect(otherSelect, intersectAll=False, orderBy=None):
@@ -176,6 +181,9 @@ class ISQLObjectResultSet(Interface):
         @param intersectAll: whether to use INTERSECT ALL behaviour
         @param orderBy: the order the result set should use.
         """
+
+    def is_empty():
+        """Return C{True} if this result set doesn't contain any results."""
 
     def prejoin(prejoins):
        """Return a new L{SelectResults} with the list of attributes prejoined.
