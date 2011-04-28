@@ -56,9 +56,10 @@ class ZStormResourceManagerTest(TestHelper):
         create = ["CREATE TABLE test (foo TEXT UNIQUE, bar INT)"]
         drop = ["DROP TABLE test"]
         delete = ["DELETE FROM test"]
-        schema = ZSchema(create, drop, delete, patch_package)
         uri = "sqlite:///%s" % self.makeFile()
-        self.resource = ZStormResourceManager({"test": (uri, schema)})
+        schema = ZSchema(create, drop, delete, patch_package)
+        self.databases = [{"name": "test", "uri": uri, "schema": schema}]
+        self.resource = ZStormResourceManager(self.databases)
         self.store = Store(create_database(uri))
 
     def tearDown(self):
@@ -135,3 +136,39 @@ class ZStormResourceManagerTest(TestHelper):
         store.commit()
         self.resource.clean(zstorm)
         self.assertEqual([], list(self.store.execute("SELECT * FROM test")))
+
+    def test_schema_uri(self):
+        """
+        It's possible to specify an alternate URI for applying the schema
+        and cleaning up tables after a test.
+        """
+        schema_uri = "sqlite:///%s" % self.makeFile()
+        self.databases[0]["schema-uri"] = schema_uri
+        zstorm = self.resource.make([])
+        store = zstorm.get("test")
+        schema_store = Store(create_database(schema_uri))
+
+        # The schema was applied using the alternate schema URI
+        statement = "SELECT name FROM sqlite_master WHERE name='patch'"
+        self.assertEqual([], list(store.execute(statement)))
+        self.assertEqual([("patch",)], list(schema_store.execute(statement)))
+
+        # The cleanup is performed with the alternate schema URI
+        store.commit()
+        schema_store.execute("INSERT INTO test (foo) VALUES ('data')")
+        schema_store.commit()
+        self.resource.clean(zstorm)
+        self.assertEqual([], list(schema_store.execute("SELECT * FROM test")))
+
+    def test_deprecated_database_format(self):
+        """
+        L{ZStormResourceManager.clean} cleans the database tables from the data
+        created by the tests.
+        """
+        import patch_package
+        uri = "sqlite:///%s" % self.makeFile()
+        schema = ZSchema([], [], [], patch_package)
+        resource = ZStormResourceManager({"test": (uri, schema)})
+        zstorm = resource.make([])
+        store = zstorm.get("test")
+        self.assertIsNot(None, store)

@@ -32,17 +32,21 @@ class ZStormResourceManager(TestResourceManager):
     in the provided L{ZStore} resource. Then the C{make} and C{clean} methods
     make sure that such L{Store}s are properly setup and cleaned for each test.
 
-    @param databases: A C{dict} with the form C{name: (uri, schema)}, where
-        'name' is the name of the store to be registered in the L{ZStorm}
-        resource, 'uri' is the database URI needed to create the store and
-        'schema' is the L{Schema} for the tables in the store.
+    @param databases: A C{list} of C{dict}s holding the following keys:
+        - 'name', the name of the store to be registered.
+        - 'uri', the database URI to use to create the store.
+        - 'schema', the L{Schema} for the tables in the store.
+        - 'schema-uri', optionally an alternate URI to use for applying the
+          schema, if not given it defaults to 'uri'.
     """
 
     def __init__(self, databases):
         super(ZStormResourceManager, self).__init__()
         self._databases = databases
         self._zstorm = None
+        self._schema_zstorm = None
         self._commits = {}
+        self._schemas = {}
 
     def make(self, dependencies):
         """Create a L{ZStorm} resource to be used by tests.
@@ -51,17 +55,37 @@ class ZStormResourceManager(TestResourceManager):
             this resource manager.
         """
         if self._zstorm is None:
+
             zstorm = ZStorm()
-            provideUtility(zstorm)
-            for name, (uri, schema) in self._databases.iteritems():
+            schema_zstorm = ZStorm()
+            databases = self._databases
+
+            # Adapt the old databases format to the new one, for backward
+            # compatibility. This should be eventually dropped.
+            if isinstance(databases, dict):
+                databases = [{"name": name, "uri": uri, "schema": schema}
+                             for name, (uri, schema) in databases.iteritems()]
+
+            for database in databases:
+                name = database["name"]
+                uri = database["uri"]
+                schema = database["schema"]
+                schema_uri = database.get("schema-uri", uri)
+                self._schemas[name] = schema
                 zstorm.set_default_uri(name, uri)
+                schema_zstorm.set_default_uri(name, schema_uri)
                 store = zstorm.get(name)
                 self._set_commit_proxy(store)
-                schema.upgrade(store)
+                schema_store = schema_zstorm.get(name)
+                schema.upgrade(schema_store)
                 # Clean up tables here to ensure that the first test run starts
                 # with an empty db
-                schema.delete(store)
+                schema.delete(schema_store)
+
+            provideUtility(zstorm)
             self._zstorm = zstorm
+            self._schema_zstorm = schema_zstorm
+
         return self._zstorm
 
     def _set_commit_proxy(self, store):
@@ -91,6 +115,7 @@ class ZStormResourceManager(TestResourceManager):
         # Clean up tables after each test if a commit was made
         for name, store in self._zstorm.iterstores():
             if store in self._commits:
-                _, schema = self._databases[name]
-                schema.delete(store)
+                schema_store = self._schema_zstorm.get(name)
+                schema = self._schemas[name]
+                schema.delete(schema_store)
         self._commits = {}
