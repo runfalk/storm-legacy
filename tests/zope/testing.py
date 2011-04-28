@@ -162,8 +162,8 @@ class ZStormResourceManagerTest(TestHelper):
 
     def test_deprecated_database_format(self):
         """
-        L{ZStormResourceManager.clean} cleans the database tables from the data
-        created by the tests.
+        The old deprecated format of the 'database' constructor parameter is
+        still supported.
         """
         import patch_package
         uri = "sqlite:///%s" % self.makeFile()
