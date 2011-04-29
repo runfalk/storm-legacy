@@ -109,7 +109,6 @@ class ZStormResourceManagerTest(TestHelper):
         L{ZStormResourceManager.clean} tries to flush the stores to make sure
         that they are all in a consistent state.
         """
-
         class Test(object):
             __storm_table__ = "test"
             foo = Unicode()
@@ -136,6 +135,31 @@ class ZStormResourceManagerTest(TestHelper):
         store.commit()
         self.resource.clean(zstorm)
         self.assertEqual([], list(self.store.execute("SELECT * FROM test")))
+
+    def test_wb_clean_clears_alive_cache_before_abort(self):
+        """
+        L{ZStormResourceManager.clean} clears the alive cache before
+        aborting the transaction.
+        """
+        class Test(object):
+            __storm_table__ = "test"
+            bar = Int(primary=True)
+
+            def __init__(self, bar):
+                self.bar = bar
+
+        zstorm = self.resource.make([])
+        store = zstorm.get("test")
+        store.add(Test(1))
+        store.add(Test(2))
+        real_invalidate = store.invalidate
+
+        def invalidate_proxy():
+            self.assertEqual(0, len(store._alive.values()))
+            real_invalidate()
+        store.invalidate = invalidate_proxy
+
+        self.resource.clean(zstorm)
 
     def test_schema_uri(self):
         """

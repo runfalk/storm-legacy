@@ -109,6 +109,10 @@ class ZStormResourceManager(TestResourceManager):
             for name, store in self._zstorm.iterstores():
                 # Ensure that the store is in a consistent state
                 store.flush()
+                # Clear the alive cache *before* abort is called,
+                # to prevent a useless loop in Store.invalidate
+                # over the alive objects
+                store._alive.clear()
         finally:
             transaction.abort()
 
