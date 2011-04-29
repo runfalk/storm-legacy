@@ -136,6 +136,18 @@ class ZStormResourceManagerTest(TestHelper):
         self.resource.clean(zstorm)
         self.assertEqual([], list(self.store.execute("SELECT * FROM test")))
 
+    def test_clean_with_force_delete(self):
+        """
+        If L{ZStormResourceManager.force_delete} is C{True}, L{Schema.delete}
+        is always invoked upon test cleanup.
+        """
+        zstorm = self.resource.make([])
+        self.store.execute("INSERT INTO test (foo, bar) VALUES ('data', 123)")
+        self.store.commit()
+        self.resource.force_delete = True
+        self.resource.clean(zstorm)
+        self.assertEqual([], list(self.store.execute("SELECT * FROM test")))
+
     def test_wb_clean_clears_alive_cache_before_abort(self):
         """
         L{ZStormResourceManager.clean} clears the alive cache before

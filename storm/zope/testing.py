@@ -38,7 +38,12 @@ class ZStormResourceManager(TestResourceManager):
         - 'schema', the L{Schema} for the tables in the store.
         - 'schema-uri', optionally an alternate URI to use for applying the
           schema, if not given it defaults to 'uri'.
+
+    @ivar force_delete: If C{True} for running L{Schema.delete} on a L{Store}
+        even if no commit was performed by the test. Useful when running a test
+        in a subprocess that might commit behind our back.
     """
+    force_delete = False
 
     def __init__(self, databases):
         super(ZStormResourceManager, self).__init__()
@@ -118,7 +123,7 @@ class ZStormResourceManager(TestResourceManager):
 
         # Clean up tables after each test if a commit was made
         for name, store in self._zstorm.iterstores():
-            if store in self._commits:
+            if self.force_delete or store in self._commits:
                 schema_store = self._schema_zstorm.get(name)
                 schema = self._schemas[name]
                 schema.delete(schema_store)
