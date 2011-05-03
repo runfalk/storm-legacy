@@ -56,9 +56,10 @@ class ZStormResourceManagerTest(TestHelper):
         create = ["CREATE TABLE test (foo TEXT UNIQUE, bar INT)"]
         drop = ["DROP TABLE test"]
         delete = ["DELETE FROM test"]
-        schema = ZSchema(create, drop, delete, patch_package)
         uri = "sqlite:///%s" % self.makeFile()
-        self.resource = ZStormResourceManager({"test": (uri, schema)})
+        schema = ZSchema(create, drop, delete, patch_package)
+        self.databases = [{"name": "test", "uri": uri, "schema": schema}]
+        self.resource = ZStormResourceManager(self.databases)
         self.store = Store(create_database(uri))
 
     def tearDown(self):
@@ -108,7 +109,6 @@ class ZStormResourceManagerTest(TestHelper):
         L{ZStormResourceManager.clean} tries to flush the stores to make sure
         that they are all in a consistent state.
         """
-
         class Test(object):
             __storm_table__ = "test"
             foo = Unicode()
@@ -135,3 +135,76 @@ class ZStormResourceManagerTest(TestHelper):
         store.commit()
         self.resource.clean(zstorm)
         self.assertEqual([], list(self.store.execute("SELECT * FROM test")))
+
+    def test_clean_with_force_delete(self):
+        """
+        If L{ZStormResourceManager.force_delete} is C{True}, L{Schema.delete}
+        is always invoked upon test cleanup.
+        """
+        zstorm = self.resource.make([])
+        self.store.execute("INSERT INTO test (foo, bar) VALUES ('data', 123)")
+        self.store.commit()
+        self.resource.force_delete = True
+        self.resource.clean(zstorm)
+        self.assertEqual([], list(self.store.execute("SELECT * FROM test")))
+
+    def test_wb_clean_clears_alive_cache_before_abort(self):
+        """
+        L{ZStormResourceManager.clean} clears the alive cache before
+        aborting the transaction.
+        """
+        class Test(object):
+            __storm_table__ = "test"
+            bar = Int(primary=True)
+
+            def __init__(self, bar):
+                self.bar = bar
+
+        zstorm = self.resource.make([])
+        store = zstorm.get("test")
+        store.add(Test(1))
+        store.add(Test(2))
+        real_invalidate = store.invalidate
+
+        def invalidate_proxy():
+            self.assertEqual(0, len(store._alive.values()))
+            real_invalidate()
+        store.invalidate = invalidate_proxy
+
+        self.resource.clean(zstorm)
+
+    def test_schema_uri(self):
+        """
+        It's possible to specify an alternate URI for applying the schema
+        and cleaning up tables after a test.
+        """
+        schema_uri = "sqlite:///%s" % self.makeFile()
+        self.databases[0]["schema-uri"] = schema_uri
+        zstorm = self.resource.make([])
+        store = zstorm.get("test")
+        schema_store = Store(create_database(schema_uri))
+
+        # The schema was applied using the alternate schema URI
+        statement = "SELECT name FROM sqlite_master WHERE name='patch'"
+        self.assertEqual([], list(store.execute(statement)))
+        self.assertEqual([("patch",)], list(schema_store.execute(statement)))
+
+        # The cleanup is performed with the alternate schema URI
+        store.commit()
+        schema_store.execute("INSERT INTO test (foo) VALUES ('data')")
+        schema_store.commit()
+        self.resource.clean(zstorm)
+        self.assertEqual([], list(schema_store.execute("SELECT * FROM test")))
+
+    def test_deprecated_database_format(self):
+        """
+        The old deprecated format of the 'database' constructor parameter is
+        still supported.
+        """
+        import patch_package
+        uri = "sqlite:///%s" % self.makeFile()
+        schema = ZSchema([], [], [], patch_package)
+        resource = ZStormResourceManager({"test": (uri, schema)})
+        zstorm = resource.make([])
+        store = zstorm.get("test")
+        self.assertIsNot(None, store)
