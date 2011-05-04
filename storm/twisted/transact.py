@@ -26,6 +26,8 @@ class Transactor(object):
     @ivar retries: Maximum number of retries upon retriable exceptions. The
         default is to retry a function up to 2 times upon possibly transient
         or spurious errors like L{IntegrityError} and L{DisconnectionError}.
+
+    @see: C{twisted.python.threadpool.ThreadPool}
     """
     retries = 2
 
@@ -93,6 +95,31 @@ def transact(method):
 
     @param method: The method to decorate.
     @return: A decorated method.
+
+    @note: The return value of the decorated method should *not* contain
+        any reference to Storm objects, because they were retrieved in
+        a different thread and cannot be used outside it.
+
+    Example:
+
+    from twisted.python.threadpool import ThreadPool
+    from storm.twisted.transact import Transactor, transact
+
+    class Foo(object):
+
+        def __init__(self, transactor):
+            self.transactor = transactor
+
+        @transact
+        def bar(self):
+            # code that uses Storm
+
+    threadpool = ThreadPool(0, 10)
+    threadpool.start()
+    transactor = Transactor(threadpool)
+    foo = Foo(transactor)
+    deferred = foo.bar()
+    deferred.addCallback(...)
     """
 
     @wraps(method)
