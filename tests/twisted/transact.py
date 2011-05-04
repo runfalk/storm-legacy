@@ -1,14 +1,14 @@
 import time
 import random
-import transaction
-
-from twisted.trial.unittest import TestCase
 
 from tests.helper import TestHelper
 from tests.zope import has_zope
 from tests.twisted import (has_twisted, has_psycopg)
 
 if has_zope and has_twisted:
+    import transaction
+
+    from twisted.trial.unittest import TestCase
     from zope.component import getUtility
 
     from storm.zope.interfaces import IZStorm
@@ -16,6 +16,10 @@ if has_zope and has_twisted:
 
     from storm.twisted.transact import Transactor, transact
     from storm.twisted.testing import FakeThreadPool
+else:
+    # We can't use trial's TestCase as base
+    TestCase = TestHelper
+    TestHelper = object
 
 if has_psycopg:
     from psycopg2.extensions import TransactionRollbackError

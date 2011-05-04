@@ -9,7 +9,6 @@ from zope.component import getUtility
 from storm.zope.interfaces import IZStorm
 from storm.exceptions import IntegrityError, DisconnectionError
 
-from twisted.internet import reactor
 from twisted.internet.threads import deferToThreadPool
 
 
@@ -55,6 +54,9 @@ class Transactor(object):
         @param kwargs: Keyword arguments to pass to C{function}.
         @return: A C{Deferred} that will fire after the function has been run.
         """
+        # Inline the reactor import here for sake of safeness, in case a
+        # custom reactor needs to be installed (XXX Do we really need this?)
+        from twisted.internet import reactor
         return deferToThreadPool(
             reactor, self._threadpool, self._wrap, function, *args, **kwargs)
 
