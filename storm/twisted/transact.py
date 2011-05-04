@@ -14,16 +14,18 @@ from twisted.internet.threads import deferToThreadPool
 
 
 class Transactor(object):
-    """Wrap code that needs to interact with the database.
+    """Run in a thread code that needs to interact with the database.
 
-    This wrapper make sure that code interacting with the database is run
+    This class makes sure that code interacting with the database is run
     in a separate thread and that the associated transaction is aborted or
     committed in the same thread.
 
     @param threadpool: The C{ThreadPool} to get threads from.
     @param _transaction: The C{TransactionManager} to use, for test cases only.
 
-    @ivar retries: Maximum number of retries upon retriable exceptions.
+    @ivar retries: Maximum number of retries upon retriable exceptions. The
+        default is to retry a function up to 2 times upon possibly transient
+        or spurious errors like L{IntegrityError} and L{DisconnectionError}.
     """
     retries = 2
 
@@ -42,7 +44,7 @@ class Transactor(object):
     def run(self, function, *args, **kwargs):
         """Run C{function} in a thread.
 
-        The function is run in a thread the L{TransactionWrapper}, which
+        The function is run in a thread by a function wrapper, which
         commits the transaction if the function runs successfully. If it
         raises an exception the transaction is aborted.
 
