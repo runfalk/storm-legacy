@@ -5,6 +5,22 @@ Improvements
 ------------
  - A new Cast expressions compiles an input and the type to cast it to
    into a call the CAST function (bug #681121).
+ - The storm.zope.testing.ZStormResourceManager now supports applying database
+   schemas using a custom URI, typically for connecting to the database using a
+   different user with greater privileges than the user running the tests. Note
+   that the format of the 'databases' parameter passed to the constructor of
+   the ZStormResourceManager class has changed. So now you have to create your
+   resource manager roughly like this::
+
+    databases = [{"name": "test",
+                  "uri": "postgres://user@host/db",
+                  "schema": Schema(...),
+                  "schema-uri: "postgres://schema_user@host/db"}]
+    manager = ZStormResourceManager(databases)
+
+    where the "schema-uri" key is optional and would default to "uri" if
+    not given. The old format of the 'databases' parameter is still supported
+    but deprecated.
 
 Bug fixes
 ---------
