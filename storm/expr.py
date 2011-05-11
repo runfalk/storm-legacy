@@ -658,6 +658,9 @@ def compile_select(compile, select, state):
     tokens = ["SELECT "]
     if select.distinct:
         tokens.append("DISTINCT ")
+        if isinstance(select.distinct, (tuple, list)):
+            tokens.append(
+                "ON (%s) " % compile(select.distinct, state, raw=True))
     state.push("auto_tables", [])
     state.push("context", COLUMN)
     tokens.append(compile(select.columns, state))
