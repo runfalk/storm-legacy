@@ -21,6 +21,9 @@ Improvements
     where the "schema-uri" key is optional and would default to "uri" if
     not given. The old format of the 'databases' parameter is still supported
     but deprecated.
+  - A new storm.twisted.transact module has been added with facilities to
+    integrate Storm with twisted, by running transactions in a separate
+    thread from the main one in order to not block the reactor.
 
 Bug fixes
 ---------
