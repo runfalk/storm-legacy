@@ -657,6 +657,16 @@ class CompileTest(TestHelper):
                           'SELECT DISTINCT column1, column2 FROM "table 1"')
         self.assertEquals(state.parameters, [])
 
+    def test_select_distinct_on(self):
+        expr = Select([column1, column2], Undef, [table1],
+                      distinct=[column2, column1])
+        state = State()
+        statement = compile(expr, state)
+        self.assertEquals(statement,
+                          'SELECT DISTINCT ON (column2, column1) '
+                          'column1, column2 FROM "table 1"')
+        self.assertEquals(state.parameters, [])
+
     def test_select_where(self):
         expr = Select([column1, Func1()],
                       Func1(),

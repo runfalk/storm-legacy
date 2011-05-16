@@ -656,10 +656,13 @@ class Select(Expr):
 @compile.when(Select)
 def compile_select(compile, select, state):
     tokens = ["SELECT "]
-    if select.distinct:
-        tokens.append("DISTINCT ")
     state.push("auto_tables", [])
     state.push("context", COLUMN)
+    if select.distinct:
+        tokens.append("DISTINCT ")
+        if isinstance(select.distinct, (tuple, list)):
+            tokens.append(
+                "ON (%s) " % compile(select.distinct, state, raw=True))
     tokens.append(compile(select.columns, state))
     tables_pos = len(tokens)
     parameters_pos = len(state.parameters)
