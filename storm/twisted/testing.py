@@ -42,7 +42,7 @@ class FakeTransactor(object):
     def _wrap(self, function, *args, **kwargs):
         try:
             result = function(*args, **kwargs)
-            if hasattr(result, "__storm_table__"):
+            if getattr(result, "__storm_table__", None) is not None:
                 raise RuntimeError("Attempted to return a Storm object from a "
                                    "transaction")
         except:
