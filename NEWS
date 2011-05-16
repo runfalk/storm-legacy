@@ -21,6 +21,8 @@ Improvements
     where the "schema-uri" key is optional and would default to "uri" if
     not given. The old format of the 'databases' parameter is still supported
     but deprecated.
+ - ResultSet.config's "distinct" argument now also accepts a tuple of
+   columns, which will be turned into a DISTINCT ON clause.
 
 Bug fixes
 ---------
