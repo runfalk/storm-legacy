@@ -291,7 +291,8 @@ class PostgresConnection(Connection):
                 "no connection to the server" in msg or
                 "connection not open" in msg or
                 "connection already closed" in msg or
-                "losed the connection unexpectedly" in msg)
+                "losed the connection unexpectedly" in msg or
+                "could not receive data from server" in msg)
 
 
 class Postgres(Database):
