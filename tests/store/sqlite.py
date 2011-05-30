@@ -63,6 +63,8 @@ class SQLiteStoreTest(TestHelper, StoreTest):
         connection.execute("CREATE TABLE foovalue "
                            "(id INTEGER PRIMARY KEY, foo_id INTEGER,"
                            " value1 INTEGER, value2 INTEGER)")
+        connection.execute("CREATE TABLE unique_id "
+                           "(id VARCHAR PRIMARY KEY)")
         connection.commit()
 
     def drop_tables(self):

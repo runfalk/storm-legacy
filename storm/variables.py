@@ -509,7 +509,7 @@ class UUIDVariable(Variable):
 
     def parse_get(self, value, to_db):
         if to_db:
-            return str(value)
+            return unicode(value)
         return value
 
 

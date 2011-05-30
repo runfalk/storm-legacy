@@ -74,7 +74,11 @@ class MySQLStoreTest(TestHelper, StoreTest):
         connection.execute("CREATE TABLE foovalue "
                            "(id INT PRIMARY KEY AUTO_INCREMENT,"
                            " foo_id INTEGER,"
-                           " value1 INTEGER, value2 INTEGER)")
+                           " value1 INTEGER, value2 INTEGER) "
+                           "ENGINE=InnoDB")
+        connection.execute("CREATE TABLE unique_id "
+                           "(id VARCHAR(36) PRIMARY KEY) "
+                           "ENGINE=InnoDB")
         connection.commit()
 
 
