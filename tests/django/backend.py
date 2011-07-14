@@ -1,4 +1,4 @@
-#
+
 # Copyright (c) 2008 Canonical
 #
 # Written by James Henstridge <jamesh@canonical.com>
@@ -32,7 +32,28 @@ else:
     from storm.django import stores
     from storm.zope.zstorm import global_zstorm, StoreDataManager
 
+from storm.exceptions import DisconnectionError
+
 from tests.helper import TestHelper
+from tests.databases.base import DatabaseDisconnectionMixin
+
+
+def make_wrapper():
+    from storm.django.backend import base
+    if django.VERSION >= (1, 1):
+        wrapper = base.DatabaseWrapper({
+                'DATABASE_HOST': settings.DATABASE_HOST,
+                'DATABASE_NAME': settings.DATABASE_NAME,
+                'DATABASE_OPTIONS': settings.DATABASE_OPTIONS,
+                'DATABASE_PASSWORD': settings.DATABASE_PASSWORD,
+                'DATABASE_PORT': settings.DATABASE_PORT,
+                'DATABASE_USER': settings.DATABASE_USER,
+                'TIME_ZONE': settings.TIME_ZONE,
+                'OPTIONS': {},
+                })
+    else:
+        wrapper = base.DatabaseWrapper(**settings.DATABASE_OPTIONS)
+    return wrapper
 
 
 class DjangoBackendTests(object):
@@ -76,24 +97,8 @@ class DjangoBackendTests(object):
     def drop_tables(self):
         raise NotImplementedError
 
-    def make_wrapper(self):
-        from storm.django.backend import base
-        if django.VERSION >= (1, 1):
-            wrapper = base.DatabaseWrapper({
-                    'DATABASE_HOST': settings.DATABASE_HOST,
-                    'DATABASE_NAME': settings.DATABASE_NAME,
-                    'DATABASE_OPTIONS': settings.DATABASE_OPTIONS,
-                    'DATABASE_PASSWORD': settings.DATABASE_PASSWORD,
-                    'DATABASE_PORT': settings.DATABASE_PORT,
-                    'DATABASE_USER': settings.DATABASE_USER,
-                    'TIME_ZONE': settings.TIME_ZONE,
-                    })
-        else:
-            wrapper = base.DatabaseWrapper(**settings.DATABASE_OPTIONS)
-        return wrapper
-
     def test_create_wrapper(self):
-        wrapper = self.make_wrapper()
+        wrapper = make_wrapper()
         self.assertTrue(isinstance(wrapper, self.get_wrapper_class()))
 
         # The wrapper uses the same database connection as the store.
@@ -113,13 +118,13 @@ class DjangoBackendTests(object):
                         "%r should be joined to the transaction" % store)
 
     def test_using_wrapper_joins_transaction(self):
-        wrapper = self.make_wrapper()
+        wrapper = make_wrapper()
         cursor = wrapper.cursor()
         cursor.execute("SELECT 1")
         self.assertInTransaction(stores.get_store("django"))
 
     def test_commit(self):
-        wrapper = self.make_wrapper()
+        wrapper = make_wrapper()
         cursor = wrapper.cursor()
         cursor.execute("INSERT INTO django_test (title) VALUES ('foo')")
         wrapper._commit()
@@ -131,7 +136,7 @@ class DjangoBackendTests(object):
         self.assertEqual(result[0][0], "foo")
 
     def test_rollback(self):
-        wrapper = self.make_wrapper()
+        wrapper = make_wrapper()
         cursor = wrapper.cursor()
         cursor.execute("INSERT INTO django_test (title) VALUES ('foo')")
         wrapper._rollback()
@@ -140,6 +145,44 @@ class DjangoBackendTests(object):
         cursor.execute("SELECT title FROM django_test")
         result = cursor.fetchall()
         self.assertEqual(len(result), 0)
+
+
+class DjangoBackendDisconnectionTests(DatabaseDisconnectionMixin):
+
+    def setUp(self):
+        super(DjangoBackendDisconnectionTests, self).setUp()
+        settings.configure(STORM_STORES={})
+
+        settings.DATABASE_ENGINE = "storm.django.backend"
+        settings.DATABASE_NAME = "django"
+        settings.STORM_STORES["django"] = str(self.proxy_uri)
+        stores.have_configured_stores = False
+
+    def tearDown(self):
+        transaction.abort()
+        if django.VERSION >= (1, 1):
+            settings._wrapped = None
+        else:
+            settings._target = None
+        global_zstorm._reset()
+        stores.have_configured_stores = False
+        transaction.manager.free(transaction.get())
+        super(DjangoBackendDisconnectionTests, self).tearDown()
+
+    def test_disconnect(self):
+        from django.db.utils import DatabaseError as DjangoDatabaseError
+        wrapper = make_wrapper()
+        cursor = wrapper.cursor()
+        cursor.execute("SELECT 'about to reset connection'")
+        wrapper._rollback()
+        self.proxy.restart()
+        cursor = wrapper.cursor()
+        self.assertRaises((DjangoDatabaseError, DisconnectionError),
+                          cursor.execute, "SELECT 1")
+        wrapper._rollback()
+
+        cursor = wrapper.cursor()
+        cursor.execute("SELECT 1")
 
 
 class PostgresDjangoBackendTests(DjangoBackendTests, TestHelper):
@@ -184,3 +227,18 @@ class MySQLDjangoBackendTests(DjangoBackendTests, TestHelper):
         store = stores.get_store("django")
         store.execute("DROP TABLE django_test")
         transaction.commit()
+
+class PostgresDjangoBackendDisconnectionTests(
+    DjangoBackendDisconnectionTests, TestHelper):
+
+    environment_variable = "STORM_POSTGRES_URI"
+    host_environment_variable = "STORM_POSTGRES_HOST_URI"
+    default_port = 5432
+
+
+class MySQLDjangoBackendDisconnectionTests(
+    DjangoBackendDisconnectionTests, TestHelper):
+
+    environment_variable = "STORM_MYSQL_URI"
+    host_environment_variable = "STORM_MYSQL_HOST_URI"
+    default_port = 3306
