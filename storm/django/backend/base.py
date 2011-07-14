@@ -69,14 +69,24 @@ class StormCursorWrapper(object):
         """Fetch all rows from the result."""
         return self._check_disconnect(self._cursor.fetchall)
 
-    def fetchmany(self):
+    def fetchmany(self, *args):
         """Fetch multiple rows from the result."""
-        return self._check_disconnect(self._cursor.fetchmany)
+        return self._check_disconnect(self._cursor.fetchmany, *args)
+
+    @property
+    def description(self):
+        """Fetch the description of the result."""
+        return self._check_disconnect(getattr, self._cursor, "description")
 
     @property
     def rowcount(self):
         """Fetch the number of rows in the result."""
         return self._check_disconnect(getattr, self._cursor, "rowcount")
+
+    @property
+    def query(self):
+        """Fetch the last executed query."""
+        return self._check_disconnect(getattr, self._cursor, "query")
 
 
 PostgresStormDatabaseWrapper = None
