@@ -149,6 +149,11 @@ class DjangoBackendTests(object):
 
 class DjangoBackendDisconnectionTests(DatabaseDisconnectionMixin):
 
+    def is_supported(self):
+        if not have_django_and_transaction:
+            return False
+        return DatabaseDisconnectionMixin.is_supported(self)
+
     def setUp(self):
         super(DjangoBackendDisconnectionTests, self).setUp()
         settings.configure(STORM_STORES={})
@@ -170,7 +175,7 @@ class DjangoBackendDisconnectionTests(DatabaseDisconnectionMixin):
         super(DjangoBackendDisconnectionTests, self).tearDown()
 
     def test_disconnect(self):
-        from django.db.utils import DatabaseError as DjangoDatabaseError
+        from django.db import DatabaseError as DjangoDatabaseError
         wrapper = make_wrapper()
         cursor = wrapper.cursor()
         cursor.execute("SELECT 'about to reset connection'")
