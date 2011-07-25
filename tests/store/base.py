@@ -5882,7 +5882,7 @@ class StoreTest(object):
             try:
                 self.assertEquals(myfoo.title, title)
             except AssertionError, e:
-                raise AssertionError(str(e) +
+                raise AssertionError(unicode(e, 'replace') +
                     " (ensure your database was created with CREATE DATABASE"
                     " ... CHARACTER SET utf8)")
 

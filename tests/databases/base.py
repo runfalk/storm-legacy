@@ -493,21 +493,21 @@ class UnsupportedDatabaseTest(object):
             sys.modules.update(dbapi_modules)
 
 
-class DatabaseDisconnectionTest(object):
+class DatabaseDisconnectionMixin(object):
 
     environment_variable = ""
     host_environment_variable = ""
     default_port = None
 
     def setUp(self):
-        super(DatabaseDisconnectionTest, self).setUp()
+        super(DatabaseDisconnectionMixin, self).setUp()
         self.create_database_and_proxy()
         self.create_connection()
 
     def tearDown(self):
         self.drop_database()
         self.proxy.close()
-        super(DatabaseDisconnectionTest, self).tearDown()
+        super(DatabaseDisconnectionMixin, self).tearDown()
 
     def is_supported(self):
         return bool(self.get_uri())
@@ -546,6 +546,7 @@ class DatabaseDisconnectionTest(object):
         uri = self.get_uri()
         self.proxy = ProxyTCPServer((uri.host, uri.port))
         uri.host, uri.port = self.proxy.server_address
+        self.proxy_uri = uri
         self.database = create_database(uri)
 
     def create_connection(self):
@@ -553,6 +554,8 @@ class DatabaseDisconnectionTest(object):
 
     def drop_database(self):
         pass
+
+class DatabaseDisconnectionTest(DatabaseDisconnectionMixin):
 
     def test_proxy_works(self):
         """Ensure that we can talk to the database through the proxy."""
