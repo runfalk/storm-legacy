@@ -28,7 +28,7 @@ from uuid import uuid4
 import weakref
 
 from storm.references import Reference, ReferenceSet, Proxy
-from storm.database import Result
+from storm.database import Result, STATE_DISCONNECTED
 from storm.properties import (
     Int, Float, RawStr, Unicode, Property, Pickle, UUID)
 from storm.properties import PropertyPublisherMeta, Decimal
@@ -40,7 +40,7 @@ from storm.info import get_obj_info, ClassAlias
 from storm.exceptions import (
     ClosedError, ConnectionBlockedError, FeatureError, LostObjectError,
     NoStoreError, NotFlushedError, NotOneError, OrderLoopError, UnorderedError,
-    WrongStoreError)
+    WrongStoreError, DisconnectionError)
 from storm.cache import Cache
 from storm.store import AutoReload, EmptyResultSet, Store, ResultSet
 from storm.tracer import debug
@@ -5956,6 +5956,20 @@ class StoreTest(object):
             calls.append(owner)
         self.store._event.hook("register-transaction", register_transaction)
         self.store.execute("SELECT 1")
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0], self.store)
+
+    def test_wb_event_before_check_connection(self):
+        """
+        The register-transaction event is emitted before checking the state of
+        the connection.
+        """
+        calls = []
+        def register_transaction(owner):
+            calls.append(owner)
+        self.store._event.hook("register-transaction", register_transaction)
+        self.store._connection._state = STATE_DISCONNECTED
+        self.assertRaises(DisconnectionError, self.store.execute, "SELECT 1")
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0], self.store)
 

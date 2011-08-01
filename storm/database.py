@@ -224,9 +224,9 @@ class Connection(object):
             raise ClosedError("Connection is closed")
         if self._blocked:
             raise ConnectionBlockedError("Access to connection is blocked")
-        self._ensure_connected()
         if self._event:
             self._event.emit("register-transaction")
+        self._ensure_connected()
         if isinstance(statement, Expr):
             if params is not None:
                 raise ValueError("Can't pass parameters with expressions")
