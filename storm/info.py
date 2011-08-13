@@ -22,7 +22,7 @@ from weakref import ref, WeakKeyDictionary
 
 from storm.exceptions import ClassInfoError
 from storm.expr import Expr, FromExpr, Column, Desc, TABLE
-from storm.expr import SQLToken, CompileError, compile
+from storm.expr import SQLToken, CompileError, compile, Table
 from storm.event import EventSystem
 from storm import Undef, has_cextensions
 
@@ -67,6 +67,7 @@ class ClassInfo(dict):
         self.table = getattr(cls, "__storm_table__", None)
         if self.table is None:
             raise ClassInfoError("%s.__storm_table__ missing" % repr(cls))
+        self.table = Table(self.table)
 
         self.cls = cls
 

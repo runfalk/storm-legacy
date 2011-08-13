@@ -800,7 +800,8 @@ class Column(ComparableExpr):
     @ivar variable_factory: Factory producing C{Variable} instances typed
         according to this column.
     """
-    __slots__ = ("name", "table", "primary", "variable_factory")
+    __slots__ = ("name", "table", "primary", "variable_factory",
+                 "compile_cache")
 
     def __init__(self, name=Undef, table=Undef, primary=False,
                  variable_factory=None):
@@ -808,6 +809,7 @@ class Column(ComparableExpr):
         self.table = table
         self.primary = int(primary)
         self.variable_factory = variable_factory or Variable
+        self.compile_cache = None
 
 @compile.when(Column)
 def compile_column(compile, column, state):
@@ -819,11 +821,15 @@ def compile_column(compile, column, state):
             alias = state.aliases.get(column)
             if alias is not None:
                 return compile(alias.name, state, token=True)
-        return compile(column.name, state, token=True)
+        if column.compile_cache is None:
+            column.compile_cache = compile(column.name, state, token=True)
+        return column.compile_cache
     state.push("context", COLUMN_PREFIX)
     table = compile(column.table, state, token=True)
     state.pop()
-    return "%s.%s" % (table, compile(column.name, state, token=True))
+    if column.compile_cache is None:
+        column.compile_cache = compile(column.name, state, token=True)
+    return "%s.%s" % (table, column.compile_cache)
 
 @compile_python.when(Column)
 def compile_python_column(compile, column, state):
@@ -870,14 +876,17 @@ class FromExpr(Expr):
 
 
 class Table(FromExpr):
-    __slots__ = ("name",)
+    __slots__ = ("name", "compile_cache")
 
     def __init__(self, name):
         self.name = name
+        self.compile_cache = None
 
 @compile.when(Table)
 def compile_table(compile, table, state):
-    return compile(table.name, state, token=True)
+    if table.compile_cache is None:
+        table.compile_cache = compile(table.name, state, token=True)
+    return table.compile_cache
 
 
 class JoinExpr(FromExpr):
