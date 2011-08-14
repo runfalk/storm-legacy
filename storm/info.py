@@ -18,11 +18,11 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from weakref import ref, WeakKeyDictionary
+from weakref import ref
 
 from storm.exceptions import ClassInfoError
-from storm.expr import Expr, FromExpr, Column, Desc, TABLE
-from storm.expr import SQLToken, CompileError, compile, Table
+from storm.expr import Column, Desc, TABLE
+from storm.expr import compile, Table
 from storm.event import EventSystem
 from storm import Undef, has_cextensions
 
@@ -40,8 +40,10 @@ def get_obj_info(obj):
         obj_info = ObjectInfo(obj)
         return obj.__dict__.setdefault("__storm_object_info__", obj_info)
 
+
 def set_obj_info(obj, obj_info):
     obj.__dict__["__storm_object_info__"] = obj_info
+
 
 def get_cls_info(cls):
     if "__storm_class_info__" in cls.__dict__:
@@ -50,6 +52,7 @@ def get_cls_info(cls):
     else:
         cls.__storm_class_info__ = ClassInfo(cls)
         return cls.__storm_class_info__
+
 
 class ClassInfo(dict):
     """Persistent storm-related information of a class.
@@ -67,19 +70,17 @@ class ClassInfo(dict):
         self.table = getattr(cls, "__storm_table__", None)
         if self.table is None:
             raise ClassInfoError("%s.__storm_table__ missing" % repr(cls))
-        self.table = Table(self.table)
 
         self.cls = cls
 
         if isinstance(self.table, basestring):
-            self.table = SQLToken(self.table)
+            self.table = Table(self.table)
 
         pairs = []
         for attr in dir(cls):
             column = getattr(cls, attr, None)
             if isinstance(column, Column):
                 pairs.append((attr, column))
-
 
         pairs.sort()
 
@@ -122,7 +123,6 @@ class ClassInfo(dict):
         self.primary_key_pos = tuple(id_positions[id(column)]
                                      for column in self.primary_key)
 
-
         __order__ = getattr(cls, "__storm_order__", None)
         if __order__ is None:
             self.default_order = Undef
@@ -152,7 +152,7 @@ class ObjectInfo(dict):
     __hash__ = object.__hash__
 
     # For get_obj_info(), an ObjectInfo is its own obj_info.
-    __storm_object_info__ = property(lambda self:self)
+    __storm_object_info__ = property(lambda self: self)
 
     def __init__(self, obj):
         # FASTPATH This method is part of the fast path.  Be careful when
@@ -172,7 +172,7 @@ class ObjectInfo(dict):
                 column.variable_factory(column=column,
                                         event=event,
                                         validator_object_factory=self.get_obj)
- 
+
         self.primary_vars = tuple(variables[column]
                                   for column in self.cls_info.primary_key)
 
@@ -198,7 +198,6 @@ class ObjectInfo(dict):
 
 if has_cextensions:
     from storm.cextensions import ObjectInfo, get_obj_info
-
 
 
 class ClassAlias(object):
@@ -230,8 +229,7 @@ class ClassAlias(object):
                 cls._storm_alias_cache = {}
             elif name in cache:
                 return cache[name]
-        cls_info = get_cls_info(cls)
-        alias_cls = type(cls.__name__+"Alias", (self_cls,),
+        alias_cls = type(cls.__name__ + "Alias", (self_cls,),
                          {"__storm_table__": name})
         alias_cls.__bases__ = (cls, self_cls)
         alias_cls_info = get_cls_info(alias_cls)
