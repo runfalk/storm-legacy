@@ -20,9 +20,10 @@
 #
 import transaction
 from testresources import TestResourceManager
-from zope.component import provideUtility
+from zope.component import provideUtility, getUtility
 
 from storm.zope.zstorm import ZStorm
+from storm.zope.interfaces import IZStorm
 
 
 class ZStormResourceManager(TestResourceManager):
@@ -90,6 +91,11 @@ class ZStormResourceManager(TestResourceManager):
             provideUtility(zstorm)
             self._zstorm = zstorm
             self._schema_zstorm = schema_zstorm
+
+        elif getUtility(IZStorm) is not self._zstorm:
+            # This probably means that the test code has overwritten our
+            # utility, let's re-register it.
+            provideUtility(self._zstorm)
 
         return self._zstorm
 

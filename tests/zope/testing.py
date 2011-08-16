@@ -28,6 +28,9 @@ from storm.locals import create_database, Store, Unicode, Int
 from storm.exceptions import IntegrityError
 
 if has_zope and has_testresources:
+    from zope.component import provideUtility, getUtility
+    from storm.zope.zstorm import ZStorm
+    from storm.zope.interfaces import IZStorm
     from storm.zope.schema import ZSchema
     from storm.zope.testing import ZStormResourceManager
 
@@ -103,6 +106,16 @@ class ZStormResourceManagerTest(TestHelper):
         zstorm = self.resource.make([])
         store = zstorm.get("test")
         self.assertEqual([], list(store.execute("SELECT foo FROM test")))
+
+    def test_make_zstorm_overwritten(self):
+        """
+        L{ZStormResourceManager.make} registers its own ZStorm again if a test
+        has registered a new ZStorm utility overwriting the resource one.
+        """
+        zstorm = self.resource.make([])
+        provideUtility(ZStorm())
+        self.resource.make([])
+        self.assertIs(zstorm, getUtility(IZStorm))
 
     def test_clean_flush(self):
         """
