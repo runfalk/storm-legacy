@@ -21,13 +21,13 @@
 from datetime import datetime, date, time, timedelta
 from decimal import Decimal
 import cPickle as pickle
-import json
 import re
 try:
     import uuid
 except ImportError:
     uuid = None
 
+from storm.compat import json
 from storm.exceptions import NoneError
 from storm import Undef, has_cextensions
 
@@ -624,6 +624,13 @@ class PickleVariable(EncodedValueVariable):
 
 
 class JSONVariable(EncodedValueVariable):
+
+    __slots__ = ()
+
+    def __init__(self, *args, **kwargs):
+        assert json is not None, (
+            "Neither the json nor the simplejson module was found.")
+        super(JSONVariable, self).__init__(*args, **kwargs)
 
     def _loads(self, value):
         return json.loads(value)

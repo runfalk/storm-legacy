@@ -22,13 +22,13 @@ from datetime import datetime, date, time, timedelta
 from decimal import Decimal
 import cPickle as pickle
 import gc
-import json
 import weakref
 try:
     import uuid
 except ImportError:
     uuid = None
 
+from storm.compat import json
 from storm.exceptions import NoneError
 from storm.variables import *
 from storm.event import EventSystem
@@ -901,6 +901,9 @@ class JSONVariableTest(EncodedValueVariableTestMixin, TestHelper):
 
     encoding = json
     variable_type = JSONVariable
+
+    def is_supported(self):
+        return json is not None
 
 
 class ListVariableTest(TestHelper):

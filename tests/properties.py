@@ -26,6 +26,7 @@ try:
 except ImportError:
     uuid = None
 
+from storm.compat import json
 from storm.exceptions import NoneError, PropertyPathError
 from storm.properties import PropertyPublisherMeta
 from storm.properties import *
@@ -694,6 +695,10 @@ class PropertyKindsTest(TestHelper):
         self.assertEquals(changes, [(self.variable1, None, ["a"], False)])
 
     def test_json(self):
+        # Skip test if json support is not available.
+        if json is None:
+            return
+
         self.setup(JSON, default_factory=dict, allow_none=False)
 
         self.assertTrue(isinstance(self.column1, Column))
@@ -716,6 +721,10 @@ class PropertyKindsTest(TestHelper):
         self.assertEquals(self.obj.prop1, ["a"])
 
     def test_json_events(self):
+        # Skip test if json support is not available.
+        if json is None:
+            return
+
         self.setup(JSON, default_factory=list, allow_none=False)
 
         changes = []
