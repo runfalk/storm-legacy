@@ -21,6 +21,7 @@
 from datetime import datetime, date, time, timedelta
 from decimal import Decimal
 import cPickle as pickle
+import json
 import re
 try:
     import uuid
@@ -48,6 +49,7 @@ __all__ = [
     "EnumVariable",
     "UUIDVariable",
     "PickleVariable",
+    "JSONVariable",
     "ListVariable",
 ]
 
@@ -566,7 +568,7 @@ class MutableValueVariable(Variable):
         if (self._checkpoint_state is not Undef and
             self.get_state() != self._checkpoint_state):
             self.event.emit("changed", self, None, self._value, False)
-    
+
     def _detect_changes_and_stop(self, obj_info):
         self._detect_changes(obj_info)
         if self._event_system is not None:
@@ -586,29 +588,48 @@ class MutableValueVariable(Variable):
         super(MutableValueVariable, self).set(value, from_db)
 
 
-class PickleVariable(MutableValueVariable):
+class EncodedValueVariable(MutableValueVariable):
+
     __slots__ = ()
 
     def parse_set(self, value, from_db):
         if from_db:
             if isinstance(value, buffer):
                 value = str(value)
-            return pickle.loads(value)
+            return self._loads(value)
         else:
             return value
 
     def parse_get(self, value, to_db):
         if to_db:
-            return pickle.dumps(value, -1)
+            return self._dumps(value)
         else:
             return value
 
     def get_state(self):
-        return (self._lazy_value, pickle.dumps(self._value, -1))
+        return (self._lazy_value, self._dumps(self._value))
 
     def set_state(self, state):
         self._lazy_value = state[0]
-        self._value = pickle.loads(state[1])
+        self._value = self._loads(state[1])
+
+
+class PickleVariable(EncodedValueVariable):
+
+    def _loads(self, value):
+        return pickle.loads(value)
+
+    def _dumps(self, value):
+        return pickle.dumps(value, -1)
+
+
+class JSONVariable(EncodedValueVariable):
+
+    def _loads(self, value):
+        return json.loads(value)
+
+    def _dumps(self, value):
+        return json.dumps(value)
 
 
 class ListVariable(MutableValueVariable):

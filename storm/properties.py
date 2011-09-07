@@ -29,14 +29,14 @@ from storm.variables import (
     Variable, VariableFactory, BoolVariable, IntVariable, FloatVariable,
     DecimalVariable, RawStrVariable, UnicodeVariable, DateTimeVariable,
     DateVariable, TimeVariable, TimeDeltaVariable, UUIDVariable,
-    PickleVariable, ListVariable, EnumVariable)
+    PickleVariable, JSONVariable, ListVariable, EnumVariable)
 
 
 
 __all__ = ["Property", "SimpleProperty",
            "Bool", "Int", "Float", "Decimal", "RawStr", "Unicode",
            "DateTime", "Date", "Time", "TimeDelta", "UUID", "Enum",
-           "Pickle", "List", "PropertyRegistry"]
+           "Pickle", "JSON", "List", "PropertyRegistry"]
 
 
 class Property(object):
@@ -171,6 +171,9 @@ class UUID(SimpleProperty):
 
 class Pickle(SimpleProperty):
     variable_class = PickleVariable
+
+class JSON(SimpleProperty):
+    variable_class = JSONVariable
 
 
 class List(SimpleProperty):

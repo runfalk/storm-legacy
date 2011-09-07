@@ -693,6 +693,59 @@ class PropertyKindsTest(TestHelper):
         del self.obj
         self.assertEquals(changes, [(self.variable1, None, ["a"], False)])
 
+    def test_json(self):
+        self.setup(JSON, default_factory=dict, allow_none=False)
+
+        self.assertTrue(isinstance(self.column1, Column))
+        self.assertTrue(isinstance(self.column2, Column))
+        self.assertEquals(self.column1.name, "column1")
+        self.assertEquals(self.column1.table, self.SubClass)
+        self.assertEquals(self.column2.name, "prop2")
+        self.assertEquals(self.column2.table, self.SubClass)
+        self.assertTrue(isinstance(self.variable1, JSONVariable))
+        self.assertTrue(isinstance(self.variable2, JSONVariable))
+
+        self.assertEquals(self.obj.prop1, {})
+        self.assertRaises(NoneError, setattr, self.obj, "prop1", None)
+        self.obj.prop2 = None
+        self.assertEquals(self.obj.prop2, None)
+
+        self.obj.prop1 = []
+        self.assertEquals(self.obj.prop1, [])
+        self.obj.prop1.append("a")
+        self.assertEquals(self.obj.prop1, ["a"])
+
+    def test_json_events(self):
+        self.setup(JSON, default_factory=list, allow_none=False)
+
+        changes = []
+        def changed(owner, variable, old_value, new_value, fromdb):
+            changes.append((variable, old_value, new_value, fromdb))
+
+        # Can't checkpoint Undef.
+        self.obj.prop2 = []
+
+        self.obj_info.checkpoint()
+        self.obj_info.event.emit("start-tracking-changes", self.obj_info.event)
+        self.obj_info.event.hook("changed", changed)
+
+        self.assertEquals(self.obj.prop1, [])
+        self.assertEquals(changes, [])
+        self.obj.prop1.append("a")
+        self.assertEquals(changes, [])
+
+        # Check "flush" event. Notice that the other variable wasn't
+        # listed, since it wasn't changed.
+        self.obj_info.event.emit("flush")
+        self.assertEquals(changes, [(self.variable1, None, ["a"], False)])
+
+        del changes[:]
+
+        # Check "object-deleted" event. Notice that the other variable
+        # wasn't listed again, since it wasn't changed.
+        del self.obj
+        self.assertEquals(changes, [(self.variable1, None, ["a"], False)])
+
     def test_list(self):
         self.setup(List, default_factory=list, allow_none=False)
 

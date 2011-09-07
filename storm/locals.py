@@ -18,9 +18,9 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from storm.properties import Bool, Int, Float, RawStr, Chars, Unicode, Pickle
+from storm.properties import Bool, Int, Float, RawStr, Chars, Unicode
 from storm.properties import List, Decimal, DateTime, Date, Time, Enum, UUID
-from storm.properties import TimeDelta
+from storm.properties import TimeDelta, Pickle, JSON
 from storm.references import Reference, ReferenceSet, Proxy
 from storm.database import create_database
 from storm.exceptions import StormError
