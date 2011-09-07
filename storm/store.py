@@ -935,8 +935,9 @@ class ResultSet(object):
     def config(self, distinct=None, offset=None, limit=None):
         """Configure this result object in-place. All parameters are optional.
 
-        @param distinct: Boolean enabling/disabling usage of the DISTINCT
-            keyword in the query made.
+        @param distinct: If True, enables usage of the DISTINCT keyword in
+            the query. If a tuple or list of columns, inserts a DISTINCT ON
+            (only supported by PostgreSQL).
         @param offset: Offset where results will start to be retrieved
             from the result set.
         @param limit: Limit the number of objects retrieved from the
