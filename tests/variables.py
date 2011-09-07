@@ -28,6 +28,7 @@ try:
 except ImportError:
     uuid = None
 
+from storm.compat import json
 from storm.exceptions import NoneError
 from storm.variables import *
 from storm.event import EventSystem
@@ -825,13 +826,16 @@ class UUIDVariableTest(TestHelper):
         self.assertEquals(variable.get(), value)
 
 
-class PickleVariableTest(TestHelper):
+class EncodedValueVariableTestMixin(object):
+
+    encoding = None
+    variable_type = None
 
     def test_get_set(self):
         d = {"a": 1}
-        d_dump = pickle.dumps(d, -1)
+        d_dump = self.encoding.dumps(d, -1)
 
-        variable = PickleVariable()
+        variable = self.variable_type()
 
         variable.set(d)
         self.assertEquals(variable.get(), d)
@@ -853,7 +857,7 @@ class PickleVariableTest(TestHelper):
     def test_pickle_events(self):
         event = EventSystem(marker)
 
-        variable = PickleVariable(event=event, value_factory=list)
+        variable = self.variable_type(event=event, value_factory=list)
 
         changes = []
         def changed(owner, variable, old_value, new_value, fromdb):
@@ -885,6 +889,21 @@ class PickleVariableTest(TestHelper):
 
         event.emit("object-deleted")
         self.assertEquals(changes, [(variable, None, ["a"], False)])
+
+
+class PickleVariableTest(EncodedValueVariableTestMixin, TestHelper):
+
+    encoding = pickle
+    variable_type = PickleVariable
+
+
+class JSONVariableTest(EncodedValueVariableTestMixin, TestHelper):
+
+    encoding = json
+    variable_type = JSONVariable
+
+    def is_supported(self):
+        return json is not None
 
 
 class ListVariableTest(TestHelper):
