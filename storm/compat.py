@@ -19,9 +19,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-__all__ = [
-    "json",
-    ]
+__all__ = ["json"]
+
 
 try:
     import json
