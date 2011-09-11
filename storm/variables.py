@@ -636,7 +636,11 @@ class JSONVariable(EncodedValueVariable):
         return json.loads(value)
 
     def _dumps(self, value):
-        return json.dumps(value)
+        dump = json.dumps(value, ensure_ascii=False)
+        # The standard library's json.dumps() does not always return unicode.
+        if not isinstance(dump, unicode):
+            dump = dump.decode("utf-8")
+        return dump
 
 
 class ListVariable(MutableValueVariable):

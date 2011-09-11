@@ -905,6 +905,11 @@ class JSONVariableTest(EncodedValueVariableTestMixin, TestHelper):
     def is_supported(self):
         return json is not None
 
+    def test_unicode_to_db(self):
+        variable = self.variable_type()
+        variable.set({u"a": 1})
+        self.assertIsInstance(variable.get(to_db=True), unicode)
+
 
 class ListVariableTest(TestHelper):
 
