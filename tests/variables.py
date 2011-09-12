@@ -906,11 +906,15 @@ class JSONVariableTest(EncodedValueVariableTestMixin, TestHelper):
         return json is not None
 
     def test_unicode_from_db(self):
+        # JSONVariable._loads() works around unicode/str handling issues in
+        # simplejson/json.
         variable = self.variable_type()
         variable.set('"abc"', from_db=True)
         self.assertIsInstance(variable.get(to_db=False), unicode)
 
     def test_unicode_to_db(self):
+        # JSONVariable._dumps() works around unicode/str handling issues in
+        # simplejson/json.
         variable = self.variable_type()
         variable.set({u"a": 1})
         self.assertIsInstance(variable.get(to_db=True), unicode)
