@@ -26,7 +26,8 @@ supported in modules in L{storm.databases}.
 """
 
 from storm.expr import Expr, State, compile
-from storm.tracer import trace
+# Circular import: imported at the end of the module.
+# from storm.tracer import trace
 from storm.variables import Variable
 from storm.exceptions import (
     ClosedError, ConnectionBlockedError, DatabaseError, DisconnectionError,
@@ -458,3 +459,6 @@ def create_database(uri):
                             None, None, [""])
         factory = module.create_from_uri
     return factory(uri)
+
+# Deal with circular import.        
+from storm.tracer import trace

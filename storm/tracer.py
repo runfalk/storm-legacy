@@ -1,6 +1,10 @@
 from datetime import datetime
+import re
 import sys
+import threading
 
+# Circular import: imported at the end of the module.
+# from storm.database import convert_param_marks
 from storm.exceptions import TimeoutError
 from storm.expr import Variable
 
@@ -104,6 +108,87 @@ class TimeoutTracer(object):
                                   % self.__class__.__name__)
 
 
+class BaseStatementTracer(object):
+    """Storm tracer base class that does query interpolation."""
+
+    def connection_raw_execute(self, connection, raw_cursor,
+                               statement, params):
+        statement_to_log = statement
+        if params:
+            # There are some bind parameters so we want to insert them into
+            # the sql statement so we can log the statement.
+            query_params = list(connection.to_database(params))
+            # We need to ensure % symbols used for LIKE statements etc are
+            # properly quoted or else the string format operation will fail.
+            quoted_statement = re.sub(
+                    "%%%", "%%%%", re.sub("%([^s])", r"%%\1", statement))
+            quoted_statement = convert_param_marks(
+                quoted_statement, connection.param_mark, "%s")
+            # We need to massage the query parameters a little to deal with
+            # string parameters which represent encoded binary data.
+            render_params = []
+            for param in query_params:
+                if isinstance(param, unicode):
+                    render_params.append(repr(param.encode('utf8')))
+                else:
+                    render_params.append(repr(param))
+            statement_to_log = quoted_statement % tuple(render_params)
+        self._expanded_raw_execute(connection, raw_cursor, statement_to_log)
+
+    def _expanded_raw_execute(self, connection, raw_cursor, statement):
+        """Called by connection_raw_execute after parameter substitution."""
+        raise NotImplementedError(self._expanded_raw_execute)
+
+
+class TimelineTracer(BaseStatementTracer):
+    """Storm tracer class to insert executed statements into a L{Timeline}.
+
+    For more information on timelines see the module at
+    http://pypi.python.org/pypi/timeline.
+    
+    The timeline to use is obtained via a threading.local lookup -
+    self.threadinfo.timeline. If TimelineTracer is being used in a thread
+    pooling environment, you should set this to the timeline you wish to
+    accumulate actions against before making queries.
+    """
+
+    def __init__(self, prefix='SQL-'):
+        """Create a TimelineTracer.
+
+        @param prefix: A prefix to give the connection name when starting an
+            action. Connection names are found by trying a getattr for 'name'
+            on the connection object. If no name has been assigned, '<unknown>'
+            is used instead.
+        """
+        super(TimelineTracer, self).__init__()
+        self.threadinfo = threading.local()
+        self.prefix = prefix
+
+    def _expanded_raw_execute(self, connection, raw_cursor, statement):
+        timeline = getattr(self.threadinfo, 'timeline', None)
+        if timeline is None:
+            return
+        connection_name = getattr(connection, 'name', '<unknown>')
+        action = timeline.start(self.prefix + connection_name, statement)
+        self.threadinfo.action = action
+
+    def connection_raw_execute_success(self, connection, raw_cursor,
+                                       statement, params):
+                                       
+        # action may be None if the tracer was installed after the statement
+        # was submitted.
+        action = getattr(self.threadinfo, 'action', None)
+        if action is not None:
+            action.finish()
+
+    def connection_raw_execute_error(self, connection, raw_cursor,
+                                     statement, params, error):
+        # Since we are just logging durations, we execute the same
+        # hook code for errors as successes.
+        self.connection_raw_execute_success(
+            connection, raw_cursor, statement, params)
+
+
 _tracers = []
 
 def trace(name, *args, **kwargs):
@@ -130,3 +215,6 @@ def debug(flag, stream=None):
     remove_tracer_type(DebugTracer)
     if flag:
         install_tracer(DebugTracer(stream=stream))
+
+# Deal with circular import.        
+from storm.database import convert_param_marks
