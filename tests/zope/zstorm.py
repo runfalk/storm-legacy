@@ -266,7 +266,7 @@ class ZStormTest(TestHelper):
 class ZStormUtilityTest(TestHelper):
 
     def is_supported(self):
-        return has_zope_component
+        return has_transaction and has_zope_component
 
     def test_utility(self):
         provideUtility(ZStorm())
