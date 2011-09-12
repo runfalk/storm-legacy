@@ -345,11 +345,13 @@ class BaseStatementTracerTest(TestCase):
             self._raw_connection = None
 
     def test_no_params(self):
+        """With no parameters the statement is passed through verbatim."""
         tracer = self.LoggingBaseStatementTracer()
         tracer.connection_raw_execute('foo', 'bar', 'baz ? %s', ())
         self.assertEqual([('foo', 'bar', 'baz ? %s')], tracer.calls)
 
     def test_params_substituted_single_string(self):
+        """String parameters are formatted as a single quoted string."""
         tracer = self.LoggingBaseStatementTracer()
         conn = self.StubConnection()
         var1 = MockVariable(u'VAR1')
@@ -360,6 +362,7 @@ class BaseStatementTracerTest(TestCase):
             tracer.calls)
 
     def test_int_variable_as_int(self):
+        """Int parameters are formatted as an int literal."""
         tracer = self.LoggingBaseStatementTracer()
         conn = self.StubConnection()
         var1 = MockVariable(1)
@@ -370,6 +373,7 @@ class BaseStatementTracerTest(TestCase):
             tracer.calls)
 
     def test_like_clause_preserved(self):
+        """% operators in LIKE statements are preserved."""
         tracer = self.LoggingBaseStatementTracer()
         conn = self.StubConnection()
         var1 = MockVariable(u'substring')
@@ -389,6 +393,7 @@ class TimelineTracerTest(TestHelper):
         return timeline is not None
 
     def test_separate_tracers_own_state(self):
+        """"Check that multiple TimelineTracer's could be used at once."""
         tracer1 = TimelineTracer()
         tracer2 = TimelineTracer()
         tracer1.threadinfo.timeline = 'foo'
@@ -411,12 +416,14 @@ class TimelineTracerTest(TestHelper):
         self.assertNotEqual(None, action.duration)
 
     def test_finds_timeline_from_threadinfo(self):
+        """tracer.threadinfo.timeline is writable as part of the API."""
         tracer = TimelineTracer()
         tracer.threadinfo.timeline = timeline.Timeline()
         tracer._expanded_raw_execute('conn', 'cursor', 'statement')
         self.assertEqual(1, len(tracer.threadinfo.timeline.actions))
 
     def test_action_details_are_statement(self):
+        """The detail in the timeline action is the formatted SQL statement."""
         tracer = TimelineTracer()
         tracer.threadinfo.timeline = timeline.Timeline()
         tracer._expanded_raw_execute('conn', 'cursor', 'statement')
@@ -438,6 +445,7 @@ class TimelineTracerTest(TestHelper):
             'bar-Foo', tracer.threadinfo.timeline.actions[-1].category)
 
     def test_unnamed_connection(self):
+        """A connection with no name has <unknown> put in as a placeholder."""
         tracer = TimelineTracer(prefix='bar-')
         tracer.threadinfo.timeline = timeline.Timeline()
         tracer._expanded_raw_execute('conn', 'cursor', 'statement')
@@ -445,6 +453,7 @@ class TimelineTracerTest(TestHelper):
             'bar-<unknown>', tracer.threadinfo.timeline.actions[-1].category)
 
     def test_default_prefix(self):
+        """By default the prefix "SQL-" is added to the action's category."""
         tracer = TimelineTracer()
         tracer.threadinfo.timeline = timeline.Timeline()
         tracer._expanded_raw_execute('conn', 'cursor', 'statement')
