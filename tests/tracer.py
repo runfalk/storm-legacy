@@ -1,9 +1,12 @@
 import datetime
 import sys
+from unittest import TestCase
 
 from storm.tracer import (trace, install_tracer, get_tracers,
                           remove_tracer_type, remove_all_tracers, debug,
-                          DebugTracer, TimeoutTracer, TimeoutError, _tracers)
+                          BaseStatementTracer, DebugTracer, TimeoutTracer,
+                          TimeoutError, _tracers)
+from storm.database import Connection
 from storm.expr import Variable
 
 from tests.helper import TestHelper
@@ -79,7 +82,7 @@ class MockVariable(Variable):
     def __init__(self, value):
         self._value = value
 
-    def get(self):
+    def get(self, to_db=False):
         return self._value
 
 
@@ -319,3 +322,56 @@ class TimeoutTracerTest(TimeoutTracerTestBase):
 
         self.execute()
         self.execute()
+
+
+class BaseStatementTracerTest(TestCase):
+
+    class LoggingBaseStatementTracer(BaseStatementTracer):
+        def _expanded_raw_execute(self, connection, raw_cursor, statement):
+            self.__dict__.setdefault('calls', []).append(
+                (connection, raw_cursor, statement))
+
+    class StubConnection(Connection):
+
+        def __init__(self):
+            self._database = None
+            self._event = None
+            self._raw_connection = None
+
+    def test_no_params(self):
+        tracer = self.LoggingBaseStatementTracer()
+        tracer.connection_raw_execute('foo', 'bar', 'baz ? %s', ())
+        self.assertEqual([('foo', 'bar', 'baz ? %s')], tracer.calls)
+
+    def test_params_substituted_single_string(self):
+        tracer = self.LoggingBaseStatementTracer()
+        conn = self.StubConnection()
+        var1 = MockVariable(u'VAR1')
+        tracer.connection_raw_execute(
+            conn, 'cursor', 'SELECT * FROM person where name = ?', [var1])
+        self.assertEqual(
+            [(conn, 'cursor', "SELECT * FROM person where name = 'VAR1'")],
+            tracer.calls)
+
+    def test_int_variable_as_int(self):
+        tracer = self.LoggingBaseStatementTracer()
+        conn = self.StubConnection()
+        var1 = MockVariable(1)
+        tracer.connection_raw_execute(
+            conn, 'cursor', "SELECT * FROM person where id = ?", [var1])
+        self.assertEqual(
+            [(conn, 'cursor', "SELECT * FROM person where id = 1")],
+            tracer.calls)
+
+    def test_like_clause_preserved(self):
+        tracer = self.LoggingBaseStatementTracer()
+        conn = self.StubConnection()
+        var1 = MockVariable(u'substring')
+        tracer.connection_raw_execute(
+            conn, 'cursor',
+            "SELECT * FROM person WHERE name LIKE '%%' || ? || '-suffix%%'",
+            [var1])
+        self.assertEqual(
+            [(conn, 'cursor', "SELECT * FROM person WHERE name "
+                              "LIKE '%%' || 'substring' || '-suffix%%'")],
+            tracer.calls)

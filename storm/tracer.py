@@ -1,6 +1,9 @@
 from datetime import datetime
+import re
 import sys
 
+# Circular import: imported at the end of the module.
+# from storm.database import convert_param_marks
 from storm.exceptions import TimeoutError
 from storm.expr import Variable
 
@@ -104,6 +107,38 @@ class TimeoutTracer(object):
                                   % self.__class__.__name__)
 
 
+class BaseStatementTracer:
+    """Storm tracer base class that does query interpolation."""
+
+    def connection_raw_execute(self, connection, raw_cursor,
+                               statement, params):
+        statement_to_log = statement
+        if params:
+            # There are some bind parameters so we want to insert them into
+            # the sql statement so we can log the statement.
+            query_params = list(connection.to_database(params))
+            # We need to ensure % symbols used for LIKE statements etc are
+            # properly quoted or else the string format operation will fail.
+            quoted_statement = re.sub(
+                    "%%%", "%%%%", re.sub("%([^s])", r"%%\1", statement))
+            quoted_statement = convert_param_marks(
+                quoted_statement, connection.param_mark, "%s")
+            # We need to massage the query parameters a little to deal with
+            # string parameters which represent encoded binary data.
+            render_params = []
+            for param in query_params:
+                if isinstance(param, unicode):
+                    render_params.append(repr(param.encode('utf8')))
+                else:
+                    render_params.append(repr(param))
+            statement_to_log = quoted_statement % tuple(render_params)
+        self._expanded_raw_execute(connection, raw_cursor, statement_to_log)
+
+    def _expanded_raw_execute(self, connection, raw_cursor, statement):
+        """Called by connection_raw_execute after parameter substitution."""
+        raise NotImplementedError(self._expanded_raw_execute)
+
+
 _tracers = []
 
 def trace(name, *args, **kwargs):
@@ -130,3 +165,6 @@ def debug(flag, stream=None):
     remove_tracer_type(DebugTracer)
     if flag:
         install_tracer(DebugTracer(stream=stream))
+
+# Deal with circular import.        
+from storm.database import convert_param_marks
