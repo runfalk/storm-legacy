@@ -1,6 +1,7 @@
 from datetime import datetime
 import re
 import sys
+import threading
 
 # Circular import: imported at the end of the module.
 # from storm.database import convert_param_marks
@@ -107,7 +108,7 @@ class TimeoutTracer(object):
                                   % self.__class__.__name__)
 
 
-class BaseStatementTracer:
+class BaseStatementTracer(object):
     """Storm tracer base class that does query interpolation."""
 
     def connection_raw_execute(self, connection, raw_cursor,
@@ -137,6 +138,55 @@ class BaseStatementTracer:
     def _expanded_raw_execute(self, connection, raw_cursor, statement):
         """Called by connection_raw_execute after parameter substitution."""
         raise NotImplementedError(self._expanded_raw_execute)
+
+
+class TimelineTracer(BaseStatementTracer):
+    """Storm tracer class to insert executed statements into a L{Timeline}.
+
+    For more information on timelines see the module at
+    http://pypi.python.org/pypi/timeline.
+    
+    The timeline to use is obtained via a threading.local lookup -
+    self.threadinfo.timeline. If TimelineTracer is being used in a thread
+    pooling environment, you should set this to the timeline you wish to
+    accumulate actions against before making queries.
+    """
+
+    def __init__(self, prefix='SQL-'):
+        """Create a TimelineTracer.
+
+        @param prefix: A prefix to give the connection name when starting an
+            action. Connection names are found by trying a getattr for 'name'
+            on the connection object. If no name has been assigned, '<unknown>'
+            is used instead.
+        """
+        super(TimelineTracer, self).__init__()
+        self.threadinfo = threading.local()
+        self.prefix = prefix
+
+    def _expanded_raw_execute(self, connection, raw_cursor, statement):
+        timeline = getattr(self.threadinfo, 'timeline', None)
+        if timeline is None:
+            return
+        connection_name = getattr(connection, 'name', '<unknown>')
+        action = timeline.start(self.prefix + connection_name, statement)
+        self.threadinfo.action = action
+
+    def connection_raw_execute_success(self, connection, raw_cursor,
+                                       statement, params):
+                                       
+        # action may be None if the tracer was installed after the statement
+        # was submitted.
+        action = getattr(self.threadinfo, 'action', None)
+        if action is not None:
+            action.finish()
+
+    def connection_raw_execute_error(self, connection, raw_cursor,
+                                     statement, params, error):
+        # Since we are just logging durations, we execute the same
+        # hook code for errors as successes.
+        self.connection_raw_execute_success(
+            connection, raw_cursor, statement, params)
 
 
 _tracers = []

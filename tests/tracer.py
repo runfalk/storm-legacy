@@ -2,10 +2,16 @@ import datetime
 import sys
 from unittest import TestCase
 
+try:
+    # Optional dependency, if missing TimelineTracer tests are skipped.
+    import timeline
+except ImportError:
+    timeline = None
+
 from storm.tracer import (trace, install_tracer, get_tracers,
                           remove_tracer_type, remove_all_tracers, debug,
                           BaseStatementTracer, DebugTracer, TimeoutTracer,
-                          TimeoutError, _tracers)
+                          TimelineTracer, TimeoutError, _tracers)
 from storm.database import Connection
 from storm.expr import Variable
 
@@ -375,3 +381,72 @@ class BaseStatementTracerTest(TestCase):
             [(conn, 'cursor', "SELECT * FROM person WHERE name "
                               "LIKE '%%' || 'substring' || '-suffix%%'")],
             tracer.calls)
+
+
+class TimelineTracerTest(TestHelper):
+
+    def is_supported(self):
+        return timeline is not None
+
+    def test_separate_tracers_own_state(self):
+        tracer1 = TimelineTracer()
+        tracer2 = TimelineTracer()
+        tracer1.threadinfo.timeline = 'foo'
+        self.assertEqual(None, getattr(tracer2.threadinfo, 'timeline', None))
+
+    def test_error_finishes_action(self):
+        tracer = TimelineTracer()
+        action = timeline.Timeline().start('foo', 'bar')
+        tracer.threadinfo.action = action
+        tracer.connection_raw_execute_error(
+            'conn', 'cursor', 'statement', 'params', 'error')
+        self.assertNotEqual(None, action.duration)
+
+    def test_success_finishes_action(self):
+        tracer = TimelineTracer()
+        action = timeline.Timeline().start('foo', 'bar')
+        tracer.threadinfo.action = action
+        tracer.connection_raw_execute_success(
+            'conn', 'cursor', 'statement', 'params')
+        self.assertNotEqual(None, action.duration)
+
+    def test_finds_timeline_from_threadinfo(self):
+        tracer = TimelineTracer()
+        tracer.threadinfo.timeline = timeline.Timeline()
+        tracer._expanded_raw_execute('conn', 'cursor', 'statement')
+        self.assertEqual(1, len(tracer.threadinfo.timeline.actions))
+
+    def test_action_details_are_statement(self):
+        tracer = TimelineTracer()
+        tracer.threadinfo.timeline = timeline.Timeline()
+        tracer._expanded_raw_execute('conn', 'cursor', 'statement')
+        self.assertEqual(
+            'statement', tracer.threadinfo.timeline.actions[-1].detail)
+
+    def test_category_from_prefix_and_connection_name(self):
+        class StubConnection(Connection):
+
+            def __init__(self):
+                self._database = None
+                self._event = None
+                self._raw_connection = None
+                self.name = 'Foo'
+        tracer = TimelineTracer(prefix='bar-')
+        tracer.threadinfo.timeline = timeline.Timeline()
+        tracer._expanded_raw_execute(StubConnection(), 'cursor', 'statement')
+        self.assertEqual(
+            'bar-Foo', tracer.threadinfo.timeline.actions[-1].category)
+
+    def test_unnamed_connection(self):
+        tracer = TimelineTracer(prefix='bar-')
+        tracer.threadinfo.timeline = timeline.Timeline()
+        tracer._expanded_raw_execute('conn', 'cursor', 'statement')
+        self.assertEqual(
+            'bar-<unknown>', tracer.threadinfo.timeline.actions[-1].category)
+
+    def test_default_prefix(self):
+        tracer = TimelineTracer()
+        tracer.threadinfo.timeline = timeline.Timeline()
+        tracer._expanded_raw_execute('conn', 'cursor', 'statement')
+        self.assertEqual(
+            'SQL-<unknown>', tracer.threadinfo.timeline.actions[-1].category)
