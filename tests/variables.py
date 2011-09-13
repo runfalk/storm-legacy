@@ -916,7 +916,7 @@ class JSONVariableTest(EncodedValueVariableTestMixin, TestHelper):
         # simplejson/json.
         variable = self.variable_type()
         variable.set({u"a": 1})
-        self.assertIsInstance(variable.get(to_db=True), unicode)
+        self.assertTrue(isinstance(variable.get(to_db=True), unicode))
 
 
 class ListVariableTest(TestHelper):
