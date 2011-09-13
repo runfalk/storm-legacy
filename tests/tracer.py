@@ -350,6 +350,17 @@ class BaseStatementTracerTest(TestCase):
         tracer.connection_raw_execute('foo', 'bar', 'baz ? %s', ())
         self.assertEqual([('foo', 'bar', 'baz ? %s')], tracer.calls)
 
+    def test_params_substituted_pyformat(self):
+        tracer = self.LoggingBaseStatementTracer()
+        conn = self.StubConnection()
+        conn.param_mark = '%s'
+        var1 = MockVariable(u'VAR1')
+        tracer.connection_raw_execute(
+            conn, 'cursor', 'SELECT * FROM person where name = %s', [var1])
+        self.assertEqual(
+            [(conn, 'cursor', "SELECT * FROM person where name = 'VAR1'")],
+            tracer.calls)
+
     def test_params_substituted_single_string(self):
         """String parameters are formatted as a single quoted string."""
         tracer = self.LoggingBaseStatementTracer()
@@ -359,6 +370,19 @@ class BaseStatementTracerTest(TestCase):
             conn, 'cursor', 'SELECT * FROM person where name = ?', [var1])
         self.assertEqual(
             [(conn, 'cursor', "SELECT * FROM person where name = 'VAR1'")],
+            tracer.calls)
+
+    def test_qmark_percent_s_literal_preserved(self):
+        """With ? parameters %s in the statement can be kept intact."""
+        tracer = self.LoggingBaseStatementTracer()
+        conn = self.StubConnection()
+        var1 = MockVariable(1)
+        tracer.connection_raw_execute(
+            conn, 'cursor',
+            "SELECT * FROM person where id > ? AND name LIKE '%s'", [var1])
+        self.assertEqual(
+            [(conn, 'cursor',
+              "SELECT * FROM person where id > 1 AND name LIKE '%s'")],
             tracer.calls)
 
     def test_int_variable_as_int(self):
@@ -386,21 +410,37 @@ class BaseStatementTracerTest(TestCase):
                               "LIKE '%%' || 'substring' || '-suffix%%'")],
             tracer.calls)
 
+    def test_unformattable_statements_are_handled(self):
+        tracer = self.LoggingBaseStatementTracer()
+        conn = self.StubConnection()
+        var1 = MockVariable(u'substring')
+        tracer.connection_raw_execute(
+            conn, 'cursor', "%s %s",
+            [var1])
+        self.assertEqual(
+            [(conn, 'cursor',
+              "Unformattable query: '%s %s' with params [u'substring'].")],
+            tracer.calls)
+
 
 class TimelineTracerTest(TestHelper):
 
     def is_supported(self):
         return timeline is not None
 
+    def factory(self):
+        self.timeline = timeline.Timeline()
+        return self.timeline
+
     def test_separate_tracers_own_state(self):
         """"Check that multiple TimelineTracer's could be used at once."""
-        tracer1 = TimelineTracer()
-        tracer2 = TimelineTracer()
-        tracer1.threadinfo.timeline = 'foo'
-        self.assertEqual(None, getattr(tracer2.threadinfo, 'timeline', None))
+        tracer1 = TimelineTracer(self.factory)
+        tracer2 = TimelineTracer(self.factory)
+        tracer1.threadinfo.action = 'foo'
+        self.assertEqual(None, getattr(tracer2.threadinfo, 'action', None))
 
     def test_error_finishes_action(self):
-        tracer = TimelineTracer()
+        tracer = TimelineTracer(self.factory)
         action = timeline.Timeline().start('foo', 'bar')
         tracer.threadinfo.action = action
         tracer.connection_raw_execute_error(
@@ -408,27 +448,25 @@ class TimelineTracerTest(TestHelper):
         self.assertNotEqual(None, action.duration)
 
     def test_success_finishes_action(self):
-        tracer = TimelineTracer()
+        tracer = TimelineTracer(self.factory)
         action = timeline.Timeline().start('foo', 'bar')
         tracer.threadinfo.action = action
         tracer.connection_raw_execute_success(
             'conn', 'cursor', 'statement', 'params')
         self.assertNotEqual(None, action.duration)
 
-    def test_finds_timeline_from_threadinfo(self):
-        """tracer.threadinfo.timeline is writable as part of the API."""
-        tracer = TimelineTracer()
-        tracer.threadinfo.timeline = timeline.Timeline()
+    def test_finds_timeline_from_factory(self):
+        factory_result = timeline.Timeline()
+        factory = lambda:factory_result
+        tracer = TimelineTracer(lambda:factory_result)
         tracer._expanded_raw_execute('conn', 'cursor', 'statement')
-        self.assertEqual(1, len(tracer.threadinfo.timeline.actions))
+        self.assertEqual(1, len(factory_result.actions))
 
     def test_action_details_are_statement(self):
         """The detail in the timeline action is the formatted SQL statement."""
-        tracer = TimelineTracer()
-        tracer.threadinfo.timeline = timeline.Timeline()
+        tracer = TimelineTracer(self.factory)
         tracer._expanded_raw_execute('conn', 'cursor', 'statement')
-        self.assertEqual(
-            'statement', tracer.threadinfo.timeline.actions[-1].detail)
+        self.assertEqual('statement', self.timeline.actions[-1].detail)
 
     def test_category_from_prefix_and_connection_name(self):
         class StubConnection(Connection):
@@ -438,24 +476,18 @@ class TimelineTracerTest(TestHelper):
                 self._event = None
                 self._raw_connection = None
                 self.name = 'Foo'
-        tracer = TimelineTracer(prefix='bar-')
-        tracer.threadinfo.timeline = timeline.Timeline()
+        tracer = TimelineTracer(self.factory, prefix='bar-')
         tracer._expanded_raw_execute(StubConnection(), 'cursor', 'statement')
-        self.assertEqual(
-            'bar-Foo', tracer.threadinfo.timeline.actions[-1].category)
+        self.assertEqual('bar-Foo', self.timeline.actions[-1].category)
 
     def test_unnamed_connection(self):
         """A connection with no name has <unknown> put in as a placeholder."""
-        tracer = TimelineTracer(prefix='bar-')
-        tracer.threadinfo.timeline = timeline.Timeline()
+        tracer = TimelineTracer(self.factory, prefix='bar-')
         tracer._expanded_raw_execute('conn', 'cursor', 'statement')
-        self.assertEqual(
-            'bar-<unknown>', tracer.threadinfo.timeline.actions[-1].category)
+        self.assertEqual('bar-<unknown>', self.timeline.actions[-1].category)
 
     def test_default_prefix(self):
         """By default the prefix "SQL-" is added to the action's category."""
-        tracer = TimelineTracer()
-        tracer.threadinfo.timeline = timeline.Timeline()
+        tracer = TimelineTracer(self.factory)
         tracer._expanded_raw_execute('conn', 'cursor', 'statement')
-        self.assertEqual(
-            'SQL-<unknown>', tracer.threadinfo.timeline.actions[-1].category)
+        self.assertEqual('SQL-<unknown>', self.timeline.actions[-1].category)

@@ -118,12 +118,20 @@ class BaseStatementTracer(object):
             # There are some bind parameters so we want to insert them into
             # the sql statement so we can log the statement.
             query_params = list(connection.to_database(params))
-            # We need to ensure % symbols used for LIKE statements etc are
-            # properly quoted or else the string format operation will fail.
-            quoted_statement = re.sub(
+            if connection.param_mark == '%s':
+                # Double the %'s in the string so that python string formatting
+                # can restore them to the correct number. Note that %s needs to
+                # be preserved as that is where we are substituting values in.
+                quoted_statement = re.sub(
                     "%%%", "%%%%", re.sub("%([^s])", r"%%\1", statement))
-            quoted_statement = convert_param_marks(
-                quoted_statement, connection.param_mark, "%s")
+            else:
+                # Double all the %'s in the statement so that python string
+                # formatting can restore them to the correct number. Any %s in
+                # the string should be preserved because the param_mark is not
+                # %s.
+                quoted_statement = re.sub("%", "%%", statement)
+                quoted_statement = convert_param_marks(
+                    quoted_statement, connection.param_mark, "%s")
             # We need to massage the query parameters a little to deal with
             # string parameters which represent encoded binary data.
             render_params = []
@@ -132,7 +140,12 @@ class BaseStatementTracer(object):
                     render_params.append(repr(param.encode('utf8')))
                 else:
                     render_params.append(repr(param))
-            statement_to_log = quoted_statement % tuple(render_params)
+            try:
+                statement_to_log = quoted_statement % tuple(render_params)
+            except TypeError:
+                statement_to_log = \
+                    "Unformattable query: %r with params %r." % (
+                    statement, query_params)
         self._expanded_raw_execute(connection, raw_cursor, statement_to_log)
 
     def _expanded_raw_execute(self, connection, raw_cursor, statement):
@@ -146,26 +159,29 @@ class TimelineTracer(BaseStatementTracer):
     For more information on timelines see the module at
     http://pypi.python.org/pypi/timeline.
     
-    The timeline to use is obtained via a threading.local lookup -
-    self.threadinfo.timeline. If TimelineTracer is being used in a thread
-    pooling environment, you should set this to the timeline you wish to
-    accumulate actions against before making queries.
+    The timeline to use is obtained by calling the timeline_factory supplied to
+    the constructor. This simple function takes no parameters and returns a
+    timeline to use. If it returns None, the tracer is bypassed.
     """
 
-    def __init__(self, prefix='SQL-'):
+    def __init__(self, timeline_factory, prefix='SQL-'):
         """Create a TimelineTracer.
 
+        @param timeline_factory: A factory function to produce the timeline to
+            record a query against.
         @param prefix: A prefix to give the connection name when starting an
             action. Connection names are found by trying a getattr for 'name'
             on the connection object. If no name has been assigned, '<unknown>'
             is used instead.
         """
         super(TimelineTracer, self).__init__()
-        self.threadinfo = threading.local()
+        self.timeline_factory = timeline_factory
         self.prefix = prefix
+        # Stores the action in progress in a given thread.
+        self.threadinfo = threading.local()
 
     def _expanded_raw_execute(self, connection, raw_cursor, statement):
-        timeline = getattr(self.threadinfo, 'timeline', None)
+        timeline = self.timeline_factory()
         if timeline is None:
             return
         connection_name = getattr(connection, 'name', '<unknown>')
