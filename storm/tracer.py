@@ -121,7 +121,7 @@ class BaseStatementTracer(object):
             if connection.param_mark == '%s':
                 # Double the %'s in the string so that python string formatting
                 # can restore them to the correct number. Note that %s needs to
-                # be preserved as that is where we are substiting values in.
+                # be preserved as that is where we are substituting values in.
                 quoted_statement = re.sub(
                     "%%%", "%%%%", re.sub("%([^s])", r"%%\1", statement))
             else:
@@ -167,7 +167,7 @@ class TimelineTracer(BaseStatementTracer):
     def __init__(self, timeline_factory, prefix='SQL-'):
         """Create a TimelineTracer.
 
-        #param timeline_factory: A factory function to produce the timeline to
+        @param timeline_factory: A factory function to produce the timeline to
             record a query against.
         @param prefix: A prefix to give the connection name when starting an
             action. Connection names are found by trying a getattr for 'name'

@@ -350,6 +350,17 @@ class BaseStatementTracerTest(TestCase):
         tracer.connection_raw_execute('foo', 'bar', 'baz ? %s', ())
         self.assertEqual([('foo', 'bar', 'baz ? %s')], tracer.calls)
 
+    def test_params_substituted_pyformat(self):
+        tracer = self.LoggingBaseStatementTracer()
+        conn = self.StubConnection()
+        conn.param_mark = '%s'
+        var1 = MockVariable(u'VAR1')
+        tracer.connection_raw_execute(
+            conn, 'cursor', 'SELECT * FROM person where name = %s', [var1])
+        self.assertEqual(
+            [(conn, 'cursor', "SELECT * FROM person where name = 'VAR1'")],
+            tracer.calls)
+
     def test_params_substituted_single_string(self):
         """String parameters are formatted as a single quoted string."""
         tracer = self.LoggingBaseStatementTracer()
