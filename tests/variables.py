@@ -833,7 +833,7 @@ class EncodedValueVariableTestMixin(object):
 
     def test_get_set(self):
         d = {"a": 1}
-        d_dump = self.encoding.dumps(d, -1)
+        d_dump = self.encode(d)
 
         variable = self.variable_type()
 
@@ -893,24 +893,23 @@ class EncodedValueVariableTestMixin(object):
 
 class PickleVariableTest(EncodedValueVariableTestMixin, TestHelper):
 
-    encoding = pickle
+    encode = staticmethod(lambda data: pickle.dumps(data, -1))
     variable_type = PickleVariable
 
 
 class JSONVariableTest(EncodedValueVariableTestMixin, TestHelper):
 
-    encoding = json
+    encode = staticmethod(lambda data: json.dumps(data).decode("utf-8"))
     variable_type = JSONVariable
 
     def is_supported(self):
         return json is not None
 
-    def test_unicode_from_db(self):
-        # JSONVariable._loads() works around unicode/str handling issues in
-        # simplejson/json.
+    def test_unicode_from_db_required(self):
+        # JSONVariable._loads() complains loudly if it does not receive a
+        # unicode string because it has no way of knowing its encoding.
         variable = self.variable_type()
-        variable.set('"abc"', from_db=True)
-        self.assertIsInstance(variable.get(to_db=False), unicode)
+        self.assertRaises(AssertionError, variable.set, '"abc"', from_db=True)
 
     def test_unicode_to_db(self):
         # JSONVariable._dumps() works around unicode/str handling issues in

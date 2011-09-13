@@ -633,11 +633,8 @@ class JSONVariable(EncodedValueVariable):
         super(JSONVariable, self).__init__(*args, **kwargs)
 
     def _loads(self, value):
-        # simplejson.loads() does not always return unicode strings when the
-        # input is not unicode. There are many simplejson bugs about this, see
-        # http://code.google.com/p/simplejson/issues/detail?id=40 for one.
-        if not isinstance(value, unicode):
-            value = value.decode("utf-8")
+        assert isinstance(value, unicode), (
+            "Cannot safely assume encoding of byte string %r." % value)
         return json.loads(value)
 
     def _dumps(self, value):
