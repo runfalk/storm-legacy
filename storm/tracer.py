@@ -159,26 +159,29 @@ class TimelineTracer(BaseStatementTracer):
     For more information on timelines see the module at
     http://pypi.python.org/pypi/timeline.
     
-    The timeline to use is obtained via a threading.local lookup -
-    self.threadinfo.timeline. If TimelineTracer is being used in a thread
-    pooling environment, you should set this to the timeline you wish to
-    accumulate actions against before making queries.
+    The timeline to use is obtained by calling the timeline_factory supplied to
+    the constructor. This simple function takes no parameters and returns a
+    timeline to use. If it returns None, the tracer is bypassed.
     """
 
-    def __init__(self, prefix='SQL-'):
+    def __init__(self, timeline_factory, prefix='SQL-'):
         """Create a TimelineTracer.
 
+        #param timeline_factory: A factory function to produce the timeline to
+            record a query against.
         @param prefix: A prefix to give the connection name when starting an
             action. Connection names are found by trying a getattr for 'name'
             on the connection object. If no name has been assigned, '<unknown>'
             is used instead.
         """
         super(TimelineTracer, self).__init__()
-        self.threadinfo = threading.local()
+        self.timeline_factory = timeline_factory
         self.prefix = prefix
+        # Stores the action in progress in a given thread.
+        self.threadinfo = threading.local()
 
     def _expanded_raw_execute(self, connection, raw_cursor, statement):
-        timeline = getattr(self.threadinfo, 'timeline', None)
+        timeline = self.timeline_factory()
         if timeline is None:
             return
         connection_name = getattr(connection, 'name', '<unknown>')
