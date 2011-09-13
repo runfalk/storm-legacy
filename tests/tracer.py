@@ -399,6 +399,18 @@ class BaseStatementTracerTest(TestCase):
                               "LIKE '%%' || 'substring' || '-suffix%%'")],
             tracer.calls)
 
+    def test_unformattable_statements_are_handled(self):
+        tracer = self.LoggingBaseStatementTracer()
+        conn = self.StubConnection()
+        var1 = MockVariable(u'substring')
+        tracer.connection_raw_execute(
+            conn, 'cursor', "%s %s",
+            [var1])
+        self.assertEqual(
+            [(conn, 'cursor',
+              "Unformattable query: '%s %s' with params [u'substring'].")],
+            tracer.calls)
+
 
 class TimelineTracerTest(TestHelper):
 

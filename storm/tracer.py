@@ -140,7 +140,12 @@ class BaseStatementTracer(object):
                     render_params.append(repr(param.encode('utf8')))
                 else:
                     render_params.append(repr(param))
-            statement_to_log = quoted_statement % tuple(render_params)
+            try:
+                statement_to_log = quoted_statement % tuple(render_params)
+            except TypeError:
+                statement_to_log = \
+                    "Unformattable query: %r with params %r." % (
+                    statement, query_params)
         self._expanded_raw_execute(connection, raw_cursor, statement_to_log)
 
     def _expanded_raw_execute(self, connection, raw_cursor, statement):
