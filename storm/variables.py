@@ -633,10 +633,22 @@ class JSONVariable(EncodedValueVariable):
         super(JSONVariable, self).__init__(*args, **kwargs)
 
     def _loads(self, value):
+        if not isinstance(value, unicode):
+            raise TypeError(
+                "Cannot safely assume encoding of byte string %r." % value)
         return json.loads(value)
 
     def _dumps(self, value):
-        return json.dumps(value)
+        # http://www.ietf.org/rfc/rfc4627.txt states that JSON is text-based
+        # and so we treat it as such here. In other words, this method returns
+        # unicode and never str.
+        dump = json.dumps(value, ensure_ascii=False)
+        if not isinstance(dump, unicode):
+            # json.dumps() does not always return unicode. See
+            # http://code.google.com/p/simplejson/issues/detail?id=40 for one
+            # of many discussions of str/unicode handling in simplejson.
+            dump = dump.decode("utf-8")
+        return dump
 
 
 class ListVariable(MutableValueVariable):
