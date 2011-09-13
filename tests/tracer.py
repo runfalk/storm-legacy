@@ -361,6 +361,19 @@ class BaseStatementTracerTest(TestCase):
             [(conn, 'cursor', "SELECT * FROM person where name = 'VAR1'")],
             tracer.calls)
 
+    def test_qmark_percent_s_literal_preserved(self):
+        """With ? parameters %s in the statement can be kept intact."""
+        tracer = self.LoggingBaseStatementTracer()
+        conn = self.StubConnection()
+        var1 = MockVariable(1)
+        tracer.connection_raw_execute(
+            conn, 'cursor',
+            "SELECT * FROM person where id > ? AND name LIKE '%s'", [var1])
+        self.assertEqual(
+            [(conn, 'cursor',
+              "SELECT * FROM person where id > 1 AND name LIKE '%s'")],
+            tracer.calls)
+
     def test_int_variable_as_int(self):
         """Int parameters are formatted as an int literal."""
         tracer = self.LoggingBaseStatementTracer()

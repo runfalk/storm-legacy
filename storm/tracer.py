@@ -118,12 +118,20 @@ class BaseStatementTracer(object):
             # There are some bind parameters so we want to insert them into
             # the sql statement so we can log the statement.
             query_params = list(connection.to_database(params))
-            # We need to ensure % symbols used for LIKE statements etc are
-            # properly quoted or else the string format operation will fail.
-            quoted_statement = re.sub(
+            if connection.param_mark == '%s':
+                # Double the %'s in the string so that python string formatting
+                # can restore them to the correct number. Note that %s needs to
+                # be preserved as that is where we are substiting values in.
+                quoted_statement = re.sub(
                     "%%%", "%%%%", re.sub("%([^s])", r"%%\1", statement))
-            quoted_statement = convert_param_marks(
-                quoted_statement, connection.param_mark, "%s")
+            else:
+                # Double all the %'s in the statement so that python string
+                # formatting can restore them to the correct number. Any %s in
+                # the string should be preserved because the param_mark is not
+                # %s.
+                quoted_statement = re.sub("%", "%%", statement)
+                quoted_statement = convert_param_marks(
+                    quoted_statement, connection.param_mark, "%s")
             # We need to massage the query parameters a little to deal with
             # string parameters which represent encoded binary data.
             render_params = []
