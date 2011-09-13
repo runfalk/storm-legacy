@@ -909,7 +909,7 @@ class JSONVariableTest(EncodedValueVariableTestMixin, TestHelper):
         # JSONVariable._loads() complains loudly if it does not receive a
         # unicode string because it has no way of knowing its encoding.
         variable = self.variable_type()
-        self.assertRaises(AssertionError, variable.set, '"abc"', from_db=True)
+        self.assertRaises(TypeError, variable.set, '"abc"', from_db=True)
 
     def test_unicode_to_db(self):
         # JSONVariable._dumps() works around unicode/str handling issues in
