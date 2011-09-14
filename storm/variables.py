@@ -27,6 +27,7 @@ try:
 except ImportError:
     uuid = None
 
+from storm.compat import json
 from storm.exceptions import NoneError
 from storm import Undef, has_cextensions
 
@@ -48,6 +49,7 @@ __all__ = [
     "EnumVariable",
     "UUIDVariable",
     "PickleVariable",
+    "JSONVariable",
     "ListVariable",
 ]
 
@@ -436,6 +438,8 @@ class DateVariable(Variable):
         if from_db:
             if value is None:
                 return None
+            if isinstance(value, datetime):
+                return value.date()
             if isinstance(value, date):
                 return value
             if not isinstance(value, (str, unicode)):
@@ -507,7 +511,7 @@ class UUIDVariable(Variable):
 
     def parse_get(self, value, to_db):
         if to_db:
-            return str(value)
+            return unicode(value)
         return value
 
 
@@ -564,7 +568,7 @@ class MutableValueVariable(Variable):
         if (self._checkpoint_state is not Undef and
             self.get_state() != self._checkpoint_state):
             self.event.emit("changed", self, None, self._value, False)
-    
+
     def _detect_changes_and_stop(self, obj_info):
         self._detect_changes(obj_info)
         if self._event_system is not None:
@@ -584,29 +588,67 @@ class MutableValueVariable(Variable):
         super(MutableValueVariable, self).set(value, from_db)
 
 
-class PickleVariable(MutableValueVariable):
+class EncodedValueVariable(MutableValueVariable):
+
     __slots__ = ()
 
     def parse_set(self, value, from_db):
         if from_db:
             if isinstance(value, buffer):
                 value = str(value)
-            return pickle.loads(value)
+            return self._loads(value)
         else:
             return value
 
     def parse_get(self, value, to_db):
         if to_db:
-            return pickle.dumps(value, -1)
+            return self._dumps(value)
         else:
             return value
 
     def get_state(self):
-        return (self._lazy_value, pickle.dumps(self._value, -1))
+        return (self._lazy_value, self._dumps(self._value))
 
     def set_state(self, state):
         self._lazy_value = state[0]
-        self._value = pickle.loads(state[1])
+        self._value = self._loads(state[1])
+
+
+class PickleVariable(EncodedValueVariable):
+
+    def _loads(self, value):
+        return pickle.loads(value)
+
+    def _dumps(self, value):
+        return pickle.dumps(value, -1)
+
+
+class JSONVariable(EncodedValueVariable):
+
+    __slots__ = ()
+
+    def __init__(self, *args, **kwargs):
+        assert json is not None, (
+            "Neither the json nor the simplejson module was found.")
+        super(JSONVariable, self).__init__(*args, **kwargs)
+
+    def _loads(self, value):
+        if not isinstance(value, unicode):
+            raise TypeError(
+                "Cannot safely assume encoding of byte string %r." % value)
+        return json.loads(value)
+
+    def _dumps(self, value):
+        # http://www.ietf.org/rfc/rfc4627.txt states that JSON is text-based
+        # and so we treat it as such here. In other words, this method returns
+        # unicode and never str.
+        dump = json.dumps(value, ensure_ascii=False)
+        if not isinstance(dump, unicode):
+            # json.dumps() does not always return unicode. See
+            # http://code.google.com/p/simplejson/issues/detail?id=40 for one
+            # of many discussions of str/unicode handling in simplejson.
+            dump = dump.decode("utf-8")
+        return dump
 
 
 class ListVariable(MutableValueVariable):

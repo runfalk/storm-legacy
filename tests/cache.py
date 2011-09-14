@@ -69,8 +69,9 @@ class BaseCacheTest(TestHelper):
         cache.add(obj_info2)
         cache.add(obj_info2)
         cache.add(obj_info1)
-        self.assertEquals([hash(obj_info) for obj_info in cache.get_cached()],
-                          [hash(obj_info1), hash(obj_info2)])
+        self.assertEquals(sorted([hash(obj_info)
+                                  for obj_info in cache.get_cached()]),
+                          sorted([hash(obj_info1), hash(obj_info2)]))
 
     def test_remove(self):
         cache = self.Cache(5)

@@ -135,6 +135,7 @@ class ExprTest(TestHelper):
         expr = Column()
         self.assertEquals(expr.name, Undef)
         self.assertEquals(expr.table, Undef)
+        self.assertIdentical(expr.compile_cache, None)
 
         # Test for identity. We don't want False there.
         self.assertTrue(expr.primary is 0)
@@ -657,6 +658,16 @@ class CompileTest(TestHelper):
                           'SELECT DISTINCT column1, column2 FROM "table 1"')
         self.assertEquals(state.parameters, [])
 
+    def test_select_distinct_on(self):
+        expr = Select([column1, column2], Undef, [table1],
+                      distinct=[column2, column1])
+        state = State()
+        statement = compile(expr, state)
+        self.assertEquals(statement,
+                          'SELECT DISTINCT ON (column2, column1) '
+                          'column1, column2 FROM "table 1"')
+        self.assertEquals(state.parameters, [])
+
     def test_select_where(self):
         expr = Select([column1, Func1()],
                       Func1(),
@@ -997,13 +1008,16 @@ class CompileTest(TestHelper):
         statement = compile(expr, state)
         self.assertEquals(statement, "column1")
         self.assertEquals(state.parameters, [])
+        self.assertEquals(expr.compile_cache, "column1")
 
     def test_column_table(self):
-        expr = Select(Column(column1, Func1()))
+        column = Column(column1, Func1())
+        expr = Select(column)
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, "SELECT func1().column1 FROM func1()")
         self.assertEquals(state.parameters, [])
+        self.assertEquals(column.compile_cache, "column1")
 
     def test_column_contexts(self):
         table, = track_contexts(1)
@@ -1574,10 +1588,12 @@ class CompileTest(TestHelper):
 
     def test_table(self):
         expr = Table(table1)
+        self.assertIdentical(expr.compile_cache, None)
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, '"table 1"')
         self.assertEquals(state.parameters, [])
+        self.assertEquals(expr.compile_cache, '"table 1"')
 
     def test_alias(self):
         expr = Alias(Table(table1), "name")

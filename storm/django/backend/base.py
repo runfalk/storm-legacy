@@ -18,6 +18,7 @@ class StormDatabaseWrapperMixin(object):
     def _get_connection(self):
         if self._store is None:
             self._store = get_store(settings.DATABASE_NAME)
+        self._store._connection._ensure_connected()
         return self._store._connection._raw_connection
 
     def _set_connection(self, connection):
@@ -26,10 +27,14 @@ class StormDatabaseWrapperMixin(object):
 
     connection = property(_get_connection, _set_connection)
 
+    def _valid_connection(self):
+        # Storm handles the connection liveness checks.
+        return True
+
     def _cursor(self, *args):
         cursor = super(StormDatabaseWrapperMixin, self)._cursor(*args)
         self._store._event.emit("register-transaction")
-        return cursor
+        return StormCursorWrapper(self._store, cursor)
 
     def _commit(self):
         #print "commit"
@@ -43,6 +48,45 @@ class StormDatabaseWrapperMixin(object):
         # As we are borrowing Storm's connection, we shouldn't close
         # it behind Storm's back.
         self._store = None
+
+
+class StormCursorWrapper(object):
+    """A cursor wrapper that checks for disconnection errors."""
+
+    def __init__(self, store, cursor):
+        self._check_disconnect = store._connection._check_disconnect
+        self._cursor = cursor
+
+    def execute(self, statement, *args):
+        """Execute an SQL statement."""
+        return self._check_disconnect(self._cursor.execute, statement, *args)
+
+    def fetchone(self):
+        """Fetch one row from the result."""
+        return self._check_disconnect(self._cursor.fetchone)
+
+    def fetchall(self):
+        """Fetch all rows from the result."""
+        return self._check_disconnect(self._cursor.fetchall)
+
+    def fetchmany(self, *args):
+        """Fetch multiple rows from the result."""
+        return self._check_disconnect(self._cursor.fetchmany, *args)
+
+    @property
+    def description(self):
+        """Fetch the description of the result."""
+        return self._check_disconnect(getattr, self._cursor, "description")
+
+    @property
+    def rowcount(self):
+        """Fetch the number of rows in the result."""
+        return self._check_disconnect(getattr, self._cursor, "rowcount")
+
+    @property
+    def query(self):
+        """Fetch the last executed query."""
+        return self._check_disconnect(getattr, self._cursor, "query")
 
 
 PostgresStormDatabaseWrapper = None

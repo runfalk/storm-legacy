@@ -5,13 +5,57 @@ Improvements
 ------------
  - A new Cast expressions compiles an input and the type to cast it to
    into a call the CAST function (bug #681121).
+ - The storm.zope.testing.ZStormResourceManager now supports applying database
+   schemas using a custom URI, typically for connecting to the database using a
+   different user with greater privileges than the user running the tests. Note
+   that the format of the 'databases' parameter passed to the constructor of
+   the ZStormResourceManager class has changed. So now you have to create your
+   resource manager roughly like this::
+
+    databases = [{"name": "test",
+                  "uri": "postgres://user@host/db",
+                  "schema": Schema(...),
+                  "schema-uri: "postgres://schema_user@host/db"}]
+    manager = ZStormResourceManager(databases)
+
+   where the "schema-uri" key is optional and would default to "uri" if
+   not given. The old format of the 'databases' parameter is still supported
+   but deprecated.
+ - A new storm.twisted.transact module has been added with facilities to
+   integrate Storm with twisted, by running transactions in a separate
+   thread from the main one in order to not block the reactor.
+ - ResultSet.config's "distinct" argument now also accepts a tuple of
+   columns, which will be turned into a DISTINCT ON clause.
+ - Provide wrapped cursor objects in the Django integration
+   layer. Catch some disconnection errors that might otherwise be
+   missed, leading to broken connections.
+ - A new JSON property is available. It's similar to the existing
+   Pickle property, except that it serializes data as JSON, and must
+   back onto a text column rather than a byte column.
+ - Cache the compilation of columns and tables (bug #826170).
+ - Add two new tracers extracted from the Launchpad codebase.
+   BaseStatementTracer provides statements with parameters substituted
+   to its subclasses. TimelineTracer records queries in a timeline
+   (useful for OOPS reports).
 
 Bug fixes
 ---------
  - When retrieving and using an object with Store.get(), Storm will no
    longer issue two queries when there is a live invalidated object
    (bug #697513).
-
+ - When a datetime object is returned by the database driver,
+   DateVariable failed to detect and convert it to a date() object
+   (bug #391601).
+ - The ISQLObjectResultSet declares an is_empty method, which matches
+   the existing implementation. This makes it possible to call the
+   method in security proxied environments (bug #759384).
+ - The UUIDVariable correctly converts inputs to unicode before
+   sending them to the database. This makes the UUID property usable
+   (bug #691752).
+ - Move the firing of the register-transaction event in
+   Connection.execute before the connection checking, to make sure
+   that the store gets registered properly for future rollbacks (bug
+   #819282).
 
 
 0.18 (2010-10-25)

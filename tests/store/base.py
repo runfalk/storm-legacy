@@ -24,11 +24,13 @@ from cStringIO import StringIO
 import decimal
 import gc
 import operator
+from uuid import uuid4
 import weakref
 
 from storm.references import Reference, ReferenceSet, Proxy
-from storm.database import Result
-from storm.properties import Int, Float, RawStr, Unicode, Property, Pickle
+from storm.database import Result, STATE_DISCONNECTED
+from storm.properties import (
+    Int, Float, RawStr, Unicode, Property, Pickle, UUID)
 from storm.properties import PropertyPublisherMeta, Decimal
 from storm.variables import PickleVariable
 from storm.expr import (
@@ -38,7 +40,7 @@ from storm.info import get_obj_info, ClassAlias
 from storm.exceptions import (
     ClosedError, ConnectionBlockedError, FeatureError, LostObjectError,
     NoStoreError, NotFlushedError, NotOneError, OrderLoopError, UnorderedError,
-    WrongStoreError)
+    WrongStoreError, DisconnectionError)
 from storm.cache import Cache
 from storm.store import AutoReload, EmptyResultSet, Store, ResultSet
 from storm.tracer import debug
@@ -58,6 +60,12 @@ class Bar(object):
     title = Unicode()
     foo_id = Int()
     foo = Reference(foo_id, Foo.id)
+
+class UniqueID(object):
+    __storm_table__ = "unique_id"
+    id = UUID(primary=True)
+    def __init__(self, id):
+        self.id = id
 
 class Blob(object):
     __storm_table__ = "bin"
@@ -259,7 +267,7 @@ class StoreTest(object):
 
     def drop_tables(self):
         for table in ["foo", "bar", "bin", "link", "money", "selfref",
-                      "foovalue"]:
+                      "foovalue", "unique_id"]:
             try:
                 self.connection.execute("DROP TABLE %s" % table)
                 self.connection.commit()
@@ -1782,6 +1790,10 @@ class StoreTest(object):
         self.store.flush()
         self.assertEquals(type(foo.id), int)
         self.assertEquals(foo.title, u"Default Title")
+
+    def test_add_uuid(self):
+        unique_id = self.store.add(UniqueID(uuid4()))
+        self.assertEqual(unique_id, self.store.find(UniqueID).one())
 
     def test_remove_commit(self):
         foo = self.store.get(Foo, 20)
@@ -5870,7 +5882,7 @@ class StoreTest(object):
             try:
                 self.assertEquals(myfoo.title, title)
             except AssertionError, e:
-                raise AssertionError(str(e) +
+                raise AssertionError(unicode(e, 'replace') +
                     " (ensure your database was created with CREATE DATABASE"
                     " ... CHARACTER SET utf8)")
 
@@ -5944,6 +5956,20 @@ class StoreTest(object):
             calls.append(owner)
         self.store._event.hook("register-transaction", register_transaction)
         self.store.execute("SELECT 1")
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0], self.store)
+
+    def test_wb_event_before_check_connection(self):
+        """
+        The register-transaction event is emitted before checking the state of
+        the connection.
+        """
+        calls = []
+        def register_transaction(owner):
+            calls.append(owner)
+        self.store._event.hook("register-transaction", register_transaction)
+        self.store._connection._state = STATE_DISCONNECTED
+        self.assertRaises(DisconnectionError, self.store.execute, "SELECT 1")
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0], self.store)
 

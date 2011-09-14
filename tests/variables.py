@@ -28,6 +28,7 @@ try:
 except ImportError:
     uuid = None
 
+from storm.compat import json
 from storm.exceptions import NoneError
 from storm.variables import *
 from storm.event import EventSystem
@@ -554,6 +555,7 @@ class DateVariableTest(TestHelper):
         date_str = "1977-05-04"
         date_uni = unicode(date_str)
         date_obj = date(1977, 5, 4)
+        datetime_obj = datetime(1977, 5, 4, 0, 0, 0)
 
         variable = DateVariable()
 
@@ -562,6 +564,8 @@ class DateVariableTest(TestHelper):
         variable.set(date_uni, from_db=True)
         self.assertEquals(variable.get(), date_obj)
         variable.set(date_obj, from_db=True)
+        self.assertEquals(variable.get(), date_obj)
+        variable.set(datetime_obj, from_db=True)
         self.assertEquals(variable.get(), date_obj)
 
         self.assertRaises(TypeError, variable.set, 0, from_db=True)
@@ -822,13 +826,16 @@ class UUIDVariableTest(TestHelper):
         self.assertEquals(variable.get(), value)
 
 
-class PickleVariableTest(TestHelper):
+class EncodedValueVariableTestMixin(object):
+
+    encoding = None
+    variable_type = None
 
     def test_get_set(self):
         d = {"a": 1}
-        d_dump = pickle.dumps(d, -1)
+        d_dump = self.encode(d)
 
-        variable = PickleVariable()
+        variable = self.variable_type()
 
         variable.set(d)
         self.assertEquals(variable.get(), d)
@@ -850,7 +857,7 @@ class PickleVariableTest(TestHelper):
     def test_pickle_events(self):
         event = EventSystem(marker)
 
-        variable = PickleVariable(event=event, value_factory=list)
+        variable = self.variable_type(event=event, value_factory=list)
 
         changes = []
         def changed(owner, variable, old_value, new_value, fromdb):
@@ -882,6 +889,34 @@ class PickleVariableTest(TestHelper):
 
         event.emit("object-deleted")
         self.assertEquals(changes, [(variable, None, ["a"], False)])
+
+
+class PickleVariableTest(EncodedValueVariableTestMixin, TestHelper):
+
+    encode = staticmethod(lambda data: pickle.dumps(data, -1))
+    variable_type = PickleVariable
+
+
+class JSONVariableTest(EncodedValueVariableTestMixin, TestHelper):
+
+    encode = staticmethod(lambda data: json.dumps(data).decode("utf-8"))
+    variable_type = JSONVariable
+
+    def is_supported(self):
+        return json is not None
+
+    def test_unicode_from_db_required(self):
+        # JSONVariable._loads() complains loudly if it does not receive a
+        # unicode string because it has no way of knowing its encoding.
+        variable = self.variable_type()
+        self.assertRaises(TypeError, variable.set, '"abc"', from_db=True)
+
+    def test_unicode_to_db(self):
+        # JSONVariable._dumps() works around unicode/str handling issues in
+        # simplejson/json.
+        variable = self.variable_type()
+        variable.set({u"a": 1})
+        self.assertTrue(isinstance(variable.get(to_db=True), unicode))
 
 
 class ListVariableTest(TestHelper):
