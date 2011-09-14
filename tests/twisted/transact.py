@@ -2,10 +2,10 @@ import time
 import random
 
 from tests.helper import TestHelper
-from tests.zope import has_zope
+from tests.zope import has_transaction, has_zope_component
 from tests.twisted import (has_twisted, has_psycopg)
 
-if has_zope and has_twisted:
+if has_transaction and has_zope_component and has_twisted:
     import transaction
 
     from twisted.trial.unittest import TestCase
@@ -28,7 +28,7 @@ if has_psycopg:
 class TransactorTest(TestCase, TestHelper):
 
     def is_supported(self):
-        return has_zope and has_twisted
+        return has_transaction and has_zope_component and has_twisted
 
     def setUp(self):
         TestCase.setUp(self)

@@ -68,8 +68,11 @@ def find_tests(testpaths=()):
                 if relpath == os.path.join("tests", "zope", "README.txt"):
                     # Special case the inclusion of the Zope-dependent
                     # ZStorm doctest.
-                    from tests.zope import has_zope
-                    load_test = has_zope
+                    import tests.zope as ztest
+                    load_test = (
+                        ztest.has_transaction and
+                        ztest.has_zope_component and
+                        ztest.has_zope_security)
                 if load_test:
                     parent_path = os.path.dirname(relpath).replace(
                         os.path.sep, ".")

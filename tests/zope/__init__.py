@@ -20,8 +20,8 @@
 
 __all__ = [
     'has_transaction',
-    'has_zope',
     'has_zope_component',
+    'has_zope_security',
     'has_testresources',
     ]
 
@@ -40,10 +40,15 @@ else:
     has_zope_component = True
 
 try:
+    import zope.security
+except ImportError:
+    has_zope_security = False
+else:
+    has_zope_security = True
+
+try:
     import testresources
 except ImportError:
     has_testresources = False
 else:
     has_testresources = True
-
-has_zope = has_transaction and has_zope_component

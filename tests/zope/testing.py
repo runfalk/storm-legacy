@@ -22,12 +22,12 @@ import os
 import sys
 
 from tests.helper import TestHelper
-from tests.zope import has_zope, has_testresources
+from tests.zope import has_transaction, has_zope_component, has_testresources
 
 from storm.locals import create_database, Store, Unicode, Int
 from storm.exceptions import IntegrityError
 
-if has_zope and has_testresources:
+if has_transaction and has_zope_component and has_testresources:
     from zope.component import provideUtility, getUtility
     from storm.zope.zstorm import ZStorm
     from storm.zope.interfaces import IZStorm
@@ -44,7 +44,7 @@ def apply(store):
 class ZStormResourceManagerTest(TestHelper):
 
     def is_supported(self):
-        return has_zope and has_testresources
+        return has_transaction and has_zope_component and has_testresources
 
     def setUp(self):
         super(ZStormResourceManagerTest, self).setUp()
