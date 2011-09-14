@@ -1032,6 +1032,11 @@ class CompileTest(TestHelper):
         self.assertEquals(statement,
                           'SELECT "table 1"."name 1" FROM "table 1"')
 
+    def test_row(self):
+        expr = Row(column1, column2)
+        statement = compile(expr)
+        self.assertEquals(statement, "ROW(column1, column2)")
+
     def test_variable(self):
         expr = Variable("value")
         state = State()
