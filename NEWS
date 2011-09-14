@@ -37,6 +37,7 @@ Improvements
    BaseStatementTracer provides statements with parameters substituted
    to its subclasses. TimelineTracer records queries in a timeline
    (useful for OOPS reports).
+ - New ROW constructor (bug #698344).
 
 Bug fixes
 ---------
