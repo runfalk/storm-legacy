@@ -801,7 +801,7 @@ class Column(ComparableExpr):
         according to this column.
     """
     __slots__ = ("name", "table", "primary", "variable_factory",
-                 "compile_cache")
+                 "compile_cache", "compile_id")
 
     def __init__(self, name=Undef, table=Undef, primary=False,
                  variable_factory=None):
@@ -810,6 +810,7 @@ class Column(ComparableExpr):
         self.primary = int(primary)
         self.variable_factory = variable_factory or Variable
         self.compile_cache = None
+        self.compile_id = None
 
 @compile.when(Column)
 def compile_column(compile, column, state):
@@ -821,14 +822,16 @@ def compile_column(compile, column, state):
             alias = state.aliases.get(column)
             if alias is not None:
                 return compile(alias.name, state, token=True)
-        if column.compile_cache is None:
+        if column.compile_id != id(compile):
             column.compile_cache = compile(column.name, state, token=True)
+            column.compile_id = id(compile)
         return column.compile_cache
     state.push("context", COLUMN_PREFIX)
     table = compile(column.table, state, token=True)
     state.pop()
-    if column.compile_cache is None:
+    if column.compile_id != id(compile):
         column.compile_cache = compile(column.name, state, token=True)
+        column.compile_id = id(compile)
     return "%s.%s" % (table, column.compile_cache)
 
 @compile_python.when(Column)
@@ -876,16 +879,19 @@ class FromExpr(Expr):
 
 
 class Table(FromExpr):
-    __slots__ = ("name", "compile_cache")
+    __slots__ = ("name", "compile_cache", "compile_id")
 
     def __init__(self, name):
         self.name = name
         self.compile_cache = None
+        self.compile_id = None
+
 
 @compile.when(Table)
 def compile_table(compile, table, state):
-    if table.compile_cache is None:
+    if table.compile_id != id(compile):
         table.compile_cache = compile(table.name, state, token=True)
+        table.compile_id = id(compile)
     return table.compile_cache
 
 
