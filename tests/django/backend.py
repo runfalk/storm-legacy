@@ -176,15 +176,14 @@ class DjangoBackendDisconnectionTests(DatabaseDisconnectionMixin):
         super(DjangoBackendDisconnectionTests, self).tearDown()
 
     def test_wb_disconnect(self):
-        from django.db import DatabaseError as DjangoDatabaseError
         wrapper = make_wrapper()
         store = global_zstorm.get("django")
         cursor = wrapper.cursor()
         cursor.execute("SELECT 'about to reset connection'")
         wrapper._rollback()
-        self.proxy.restart()
         cursor = wrapper.cursor()
-        self.assertRaises((DjangoDatabaseError, DisconnectionError),
+        self.proxy.restart()
+        self.assertRaises(DisconnectionError,
                           cursor.execute, "SELECT 1")
         self.assertEqual(store._connection._state, STATE_DISCONNECTED)
         wrapper._rollback()

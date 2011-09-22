@@ -54,8 +54,13 @@ class StormCursorWrapper(object):
     """A cursor wrapper that checks for disconnection errors."""
 
     def __init__(self, store, cursor):
-        self._check_disconnect = store._connection._check_disconnect
+        self._connection = store._connection
         self._cursor = cursor
+
+    def _check_disconnect(self, *args, **kwargs):
+        from django.db.utils import DatabaseError as DjangoDatabaseError
+        kwargs['extra_disconnection_errors'] = DjangoDatabaseError
+        return self._connection._check_disconnect(*args, **kwargs)
 
     def execute(self, statement, *args):
         """Execute an SQL statement."""

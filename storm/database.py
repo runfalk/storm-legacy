@@ -369,7 +369,7 @@ class Connection(object):
             'extra_disconnection_errors', ())
         try:
             return function(*args, **kwargs)
-        except Error, exc:
+        except Exception, exc:
             if self.is_disconnection_error(exc, extra_disconnection_errors):
                 self._state = STATE_DISCONNECTED
                 self._raw_connection = None
