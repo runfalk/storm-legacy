@@ -276,9 +276,9 @@ class PostgresConnection(Connection):
             else:
                 yield param
 
-    def is_disconnection_error(self, exc):
+    def is_disconnection_error(self, exc, extra_disconnection_errors=()):
         if not isinstance(exc, (InterfaceError, OperationalError,
-                                ProgrammingError)):
+                                ProgrammingError, extra_disconnection_errors)):
             return False
 
         # XXX: 2007-09-17 jamesh
