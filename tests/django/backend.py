@@ -32,7 +32,7 @@ else:
     from storm.django import stores
     from storm.zope.zstorm import global_zstorm, StoreDataManager
 
-from storm.database import STATE_DISCONNECTED, STATE_RECONNECT
+import storm.database
 from storm.exceptions import DisconnectionError
 
 from tests.helper import TestHelper
@@ -183,12 +183,13 @@ class DjangoBackendDisconnectionTests(DatabaseDisconnectionMixin):
         wrapper._rollback()
         cursor = wrapper.cursor()
         self.proxy.restart()
-        self.assertRaises(DisconnectionError,
-                          cursor.execute, "SELECT 1")
-        self.assertEqual(store._connection._state, STATE_DISCONNECTED)
+        self.assertRaises(DisconnectionError, cursor.execute, "SELECT 1")
+        self.assertEqual(
+            store._connection._state, storm.database.STATE_DISCONNECTED)
         wrapper._rollback()
 
-        self.assertEqual(store._connection._state, STATE_RECONNECT)
+        self.assertEqual(
+            store._connection._state, storm.database.STATE_RECONNECT)
         cursor = wrapper.cursor()
         cursor.execute("SELECT 1")
 

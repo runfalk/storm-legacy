@@ -58,7 +58,7 @@ class StormCursorWrapper(object):
         self._cursor = cursor
 
     def _check_disconnect(self, *args, **kwargs):
-        from django.db.utils import DatabaseError as DjangoDatabaseError
+        from django.db import DatabaseError as DjangoDatabaseError
         kwargs['extra_disconnection_errors'] = DjangoDatabaseError
         return self._connection._check_disconnect(*args, **kwargs)
 
