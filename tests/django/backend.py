@@ -147,6 +147,19 @@ class DjangoBackendTests(object):
         result = cursor.fetchall()
         self.assertEqual(len(result), 0)
 
+    def test_register_transaction(self):
+        wrapper = make_wrapper()
+        store = global_zstorm.get("django")
+        # Watch for register-transaction calls.
+        calls = []
+        def register_transaction(owner):
+            calls.append(owner)
+        store._event.hook("register-transaction", register_transaction)
+
+        cursor = wrapper.cursor()
+        cursor.execute("SELECT 1")
+        self.assertNotEqual(calls, [])
+
 
 class DjangoBackendDisconnectionTests(DatabaseDisconnectionMixin):
 
@@ -196,10 +209,10 @@ class DjangoBackendDisconnectionTests(DatabaseDisconnectionMixin):
     def test_wb_transaction_registration(self):
         wrapper = make_wrapper()
         store = global_zstorm.get("django")
-        # Watch for transaction registrations.
-        registrations = []
+        # Watch for register-transaction calls.
+        calls = []
         def register_transaction(owner):
-            registrations.append(owner)
+            calls.append(owner)
         store._event.hook("register-transaction", register_transaction)
 
         # Simulate a disconnection, and put the connection into a
@@ -211,12 +224,12 @@ class DjangoBackendDisconnectionTests(DatabaseDisconnectionMixin):
         self.assertRaises(DisconnectionError, wrapper.cursor)
         # The connection is in the disconnected state, and has been
         # registered with any listening transaction manager.
-        self.assertNotEqual(registrations, [])
+        self.assertNotEqual(calls, [])
         self.assertEqual(
             store._connection._state, storm.database.STATE_DISCONNECTED)
 
         wrapper._rollback()
-        del registrations[:]
+        del calls[:]
 
         # Now reconnect:
         self.proxy.start()
@@ -224,7 +237,7 @@ class DjangoBackendDisconnectionTests(DatabaseDisconnectionMixin):
         cursor.execute("SELECT 1")
         # The connection is up, and has been registered with any
         # listening transaction manager.
-        self.assertNotEqual(registrations, [])
+        self.assertNotEqual(calls, [])
         self.assertEqual(
             store._connection._state, storm.database.STATE_CONNECTED)
 

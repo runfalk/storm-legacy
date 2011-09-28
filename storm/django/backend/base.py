@@ -36,7 +36,6 @@ class StormDatabaseWrapperMixin(object):
 
     def _cursor(self, *args):
         cursor = super(StormDatabaseWrapperMixin, self)._cursor(*args)
-        self._store._event.emit("register-transaction")
         return StormCursorWrapper(self._store, cursor)
 
     def _commit(self):
