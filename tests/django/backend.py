@@ -193,6 +193,41 @@ class DjangoBackendDisconnectionTests(DatabaseDisconnectionMixin):
         cursor = wrapper.cursor()
         cursor.execute("SELECT 1")
 
+    def test_wb_transaction_registration(self):
+        wrapper = make_wrapper()
+        store = global_zstorm.get("django")
+        # Watch for transaction registrations.
+        registrations = []
+        def register_transaction(owner):
+            registrations.append(owner)
+        store._event.hook("register-transaction", register_transaction)
+
+        # Simulate a disconnection, and put the connection into a
+        # state where it would attempt to reconnect.
+        store._connection._raw_connection = None
+        store._connection._state = storm.database.STATE_RECONNECT
+        self.proxy.stop()
+
+        self.assertRaises(DisconnectionError, wrapper.cursor)
+        # The connection is in the disconnected state, and has been
+        # registered with any listening transaction manager.
+        self.assertEqual(len(registrations), 1)
+        self.assertEqual(
+            store._connection._state, storm.database.STATE_DISCONNECTED)
+
+        wrapper._rollback()
+        del registrations[:]
+
+        # Now reconnect:
+        self.proxy.start()
+        cursor = wrapper.cursor()
+        cursor.execute("SELECT 1")
+        # The connection is up, and has been registered with any
+        # listening transaction manager.
+        self.assertEqual(len(registrations), 1)
+        self.assertEqual(
+            store._connection._state, storm.database.STATE_CONNECTED)
+
 
 class PostgresDjangoBackendTests(DjangoBackendTests, TestHelper):
 
