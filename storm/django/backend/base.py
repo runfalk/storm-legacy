@@ -18,6 +18,9 @@ class StormDatabaseWrapperMixin(object):
     def _get_connection(self):
         if self._store is None:
             self._store = get_store(settings.DATABASE_NAME)
+        # Make sure that the store is registered with the transaction
+        # manager: we don't know what the connection will be used for.
+        self._store._event.emit("register-transaction")
         self._store._connection._ensure_connected()
         return self._store._connection._raw_connection
 

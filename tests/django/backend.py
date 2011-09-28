@@ -211,7 +211,7 @@ class DjangoBackendDisconnectionTests(DatabaseDisconnectionMixin):
         self.assertRaises(DisconnectionError, wrapper.cursor)
         # The connection is in the disconnected state, and has been
         # registered with any listening transaction manager.
-        self.assertEqual(len(registrations), 1)
+        self.assertNotEqual(registrations, [])
         self.assertEqual(
             store._connection._state, storm.database.STATE_DISCONNECTED)
 
@@ -224,7 +224,7 @@ class DjangoBackendDisconnectionTests(DatabaseDisconnectionMixin):
         cursor.execute("SELECT 1")
         # The connection is up, and has been registered with any
         # listening transaction manager.
-        self.assertEqual(len(registrations), 1)
+        self.assertNotEqual(registrations, [])
         self.assertEqual(
             store._connection._state, storm.database.STATE_CONNECTED)
 
