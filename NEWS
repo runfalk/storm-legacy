@@ -1,4 +1,4 @@
-0.19 (unreleased)
+0.19 (2011-10-03)
 =================
 
 Improvements
@@ -20,24 +20,25 @@ Improvements
 
    where the "schema-uri" key is optional and would default to "uri" if
    not given. The old format of the 'databases' parameter is still supported
-   but deprecated.
+   but deprecated. (bug #772258)
  - A new storm.twisted.transact module has been added with facilities to
    integrate Storm with twisted, by running transactions in a separate
-   thread from the main one in order to not block the reactor.
+   thread from the main one in order to not block the reactor. (bug #777047)
  - ResultSet.config's "distinct" argument now also accepts a tuple of
    columns, which will be turned into a DISTINCT ON clause.
  - Provide wrapped cursor objects in the Django integration
    layer. Catch some disconnection errors that might otherwise be
-   missed, leading to broken connections.
+   missed, leading to broken connections. (bug #816049)
  - A new JSON property is available. It's similar to the existing
    Pickle property, except that it serializes data as JSON, and must
-   back onto a text column rather than a byte column.
- - Cache the compilation of columns and tables (bug #826170).
+   back onto a text column rather than a byte column. (bug #726799, #846867)
+ - Cache the compilation of columns and tables (bug #826170, #848925).
  - Add two new tracers extracted from the Launchpad codebase.
    BaseStatementTracer provides statements with parameters substituted
    to its subclasses. TimelineTracer records queries in a timeline
    (useful for OOPS reports).
  - New ROW constructor (bug #698344).
+ - Add support for Postgres DISTINCT ON queries. (bug #374777)
 
 Bug fixes
 ---------
@@ -57,6 +58,9 @@ Bug fixes
    Connection.execute before the connection checking, to make sure
    that the store gets registered properly for future rollbacks (bug
    #819282).
+ - Skip tests/zope/README.txt when zope.security is not found. (bug #848848)
+ - Fix the handling of disconnection errors in the storm.django bridge. (bug
+   #854787)
 
 
 0.18 (2010-10-25)
