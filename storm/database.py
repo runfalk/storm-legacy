@@ -353,7 +353,7 @@ class Connection(object):
             else:
                 self._state = STATE_CONNECTED
 
-    def is_disconnection_error(self, exc):
+    def is_disconnection_error(self, exc, extra_disconnection_errors=()):
         """Check whether an exception represents a database disconnection.
 
         This should be overridden by backends to detect whichever
@@ -363,10 +363,14 @@ class Connection(object):
 
     def _check_disconnect(self, function, *args, **kwargs):
         """Run the given function, checking for database disconnections."""
+        # Allow the caller to specify additional exception types that
+        # should be treated as possible disconnection errors.
+        extra_disconnection_errors = kwargs.pop(
+            'extra_disconnection_errors', ())
         try:
             return function(*args, **kwargs)
-        except Error, exc:
-            if self.is_disconnection_error(exc):
+        except Exception, exc:
+            if self.is_disconnection_error(exc, extra_disconnection_errors):
                 self._state = STATE_DISCONNECTED
                 self._raw_connection = None
                 raise DisconnectionError(str(exc))

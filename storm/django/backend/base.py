@@ -18,6 +18,9 @@ class StormDatabaseWrapperMixin(object):
     def _get_connection(self):
         if self._store is None:
             self._store = get_store(settings.DATABASE_NAME)
+        # Make sure that the store is registered with the transaction
+        # manager: we don't know what the connection will be used for.
+        self._store._event.emit("register-transaction")
         self._store._connection._ensure_connected()
         return self._store._connection._raw_connection
 
@@ -33,7 +36,6 @@ class StormDatabaseWrapperMixin(object):
 
     def _cursor(self, *args):
         cursor = super(StormDatabaseWrapperMixin, self)._cursor(*args)
-        self._store._event.emit("register-transaction")
         return StormCursorWrapper(self._store, cursor)
 
     def _commit(self):
@@ -54,8 +56,13 @@ class StormCursorWrapper(object):
     """A cursor wrapper that checks for disconnection errors."""
 
     def __init__(self, store, cursor):
-        self._check_disconnect = store._connection._check_disconnect
+        self._connection = store._connection
         self._cursor = cursor
+
+    def _check_disconnect(self, *args, **kwargs):
+        from django.db import DatabaseError as DjangoDatabaseError
+        kwargs['extra_disconnection_errors'] = DjangoDatabaseError
+        return self._connection._check_disconnect(*args, **kwargs)
 
     def execute(self, statement, *args):
         """Execute an SQL statement."""

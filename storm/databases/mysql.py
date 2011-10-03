@@ -114,9 +114,10 @@ class MySQLConnection(Connection):
             else:
                 yield param
 
-    def is_disconnection_error(self, exc):
+    def is_disconnection_error(self, exc, extra_disconnection_errors=()):
         # http://dev.mysql.com/doc/refman/5.0/en/gone-away.html
-        return (isinstance(exc, OperationalError) and
+        return (isinstance(exc, (OperationalError,
+                                 extra_disconnection_errors)) and
                 exc.args[0] in (2006, 2013)) # (SERVER_GONE_ERROR, SERVER_LOST)
 
 

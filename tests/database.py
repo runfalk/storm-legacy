@@ -236,7 +236,8 @@ class ConnectionTest(TestHelper):
 
         install_tracer(tracer_mock)
         self.connection.is_disconnection_error = (
-            lambda exc: 'connection closed' in str(exc))
+            lambda exc, extra_disconnection_errors=():
+                'connection closed' in str(exc))
 
         self.assertRaises(DisconnectionError,
                           self.connection.execute, "something")
@@ -251,7 +252,8 @@ class ConnectionTest(TestHelper):
 
         install_tracer(tracer_mock)
         self.connection.is_disconnection_error = (
-            lambda exc: 'connection closed' in str(exc))
+            lambda exc, extra_disconnection_errors=():
+                'connection closed' in str(exc))
 
         self.assertRaises(DisconnectionError,
                           self.connection.execute, "something")
@@ -270,7 +272,8 @@ class ConnectionTest(TestHelper):
 
         install_tracer(tracer_mock)
         self.connection.is_disconnection_error = (
-            lambda exc: 'connection closed' in str(exc))
+            lambda exc, extra_disconnection_errors=():
+                'connection closed' in str(exc))
 
         self.assertRaises(DisconnectionError,
                           self.connection.execute, "something")
@@ -356,7 +359,8 @@ class ConnectionTest(TestHelper):
         class FakeException(DatabaseError):
             """A fake database exception that indicates a disconnection."""
         self.connection.is_disconnection_error = (
-            lambda exc: isinstance(exc, FakeException))
+            lambda exc, extra_disconnection_errors=():
+                isinstance(exc, FakeException))
 
         self.assertEqual(self.connection._state,
                          storm.database.STATE_CONNECTED)
@@ -368,6 +372,32 @@ class ConnectionTest(TestHelper):
         self.assertEqual(self.connection._state,
                          storm.database.STATE_DISCONNECTED)
         self.assertEqual(self.connection._raw_connection, None)
+
+    def test_wb_check_disconnection_extra_errors(self):
+        """Ensure that _check_disconnect() can check for additional
+        exceptions."""
+        class FakeException(DatabaseError):
+            """A fake database exception that indicates a disconnection."""
+        self.connection.is_disconnection_error = (
+            lambda exc, extra_disconnection_errors=():
+                isinstance(exc, extra_disconnection_errors))
+
+        self.assertEqual(self.connection._state,
+                         storm.database.STATE_CONNECTED)
+        # Error is converted to DisconnectionError:
+        def raise_exception():
+            raise FakeException
+        # Exception passes through as normal.
+        self.assertRaises(FakeException,
+                          self.connection._check_disconnect, raise_exception)
+        self.assertEqual(self.connection._state,
+                         storm.database.STATE_CONNECTED)
+        # Exception treated as a disconnection when keyword argument passed.
+        self.assertRaises(DisconnectionError,
+                          self.connection._check_disconnect, raise_exception,
+                          extra_disconnection_errors=FakeException)
+        self.assertEqual(self.connection._state,
+                         storm.database.STATE_DISCONNECTED)
 
     def test_wb_rollback_clears_disconnected_connection(self):
         """Check that rollback clears the DISCONNECTED state."""
