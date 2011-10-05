@@ -28,7 +28,7 @@ class FakeTransactor(object):
     C{__storm_table__} property a C{RuntimeError} is raised because Storm
     objects cannot be used outside the thread in which they were created.
 
-    @see L{Transactor}.
+    @seealso: L{Transactor}.
     """
 
     def __init__(self, _transaction=None):
