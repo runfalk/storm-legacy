@@ -42,6 +42,10 @@ from tests.expr import column1, column2, column3, elem1, table1, TrackContext
 from tests.tracer import TimeoutTracerTestBase
 from tests.helper import TestHelper
 
+from fixtures import TestWithFixtures, EnvironmentVariableFixture
+from pgbouncer.fixture import PGBouncerFixture
+import psycopg2
+
 
 class PostgresTest(DatabaseTest, TestHelper):
 
@@ -540,6 +544,109 @@ class PostgresDisconnectionTest(DatabaseDisconnectionTest, TestHelper):
             self.connection.rollback()
         except Exception, exc:
             self.fail('Exception should have been swallowed: %s' % repr(exc))
+
+
+class PostgresDisconnectionTestWithoutProxy(TestWithFixtures, TestHelper):
+
+    def is_supported(self):
+        return bool(os.environ.get("STORM_POSTGRES_URI"))
+
+    def setUp(self):
+        super(PostgresDisconnectionTestWithoutProxy, self).setUp()
+        self.database = create_database(os.environ["STORM_POSTGRES_URI"])
+
+    def test_oneiric_thing_1(self):
+        connection = self.database.connect()
+
+        other_connection = self.database.connect()
+        other_connection.execute(
+            "SELECT pg_terminate_backend(procpid)"
+            "  FROM pg_stat_activity"
+            " WHERE datname = current_database()"
+            "   AND procpid != pg_backend_pid()")
+        other_connection.close()
+
+        try:
+            connection.execute("SELECT current_database()")
+        except Exception, error:
+            self.assertTrue(
+                connection.is_disconnection_error(error))
+        else:
+            self.fail("No exception raised.")
+
+
+class PostgresDisconnectionTestWithPGBouncer(TestWithFixtures, TestHelper):
+
+    def is_supported(self):
+        return bool(os.environ.get("STORM_POSTGRES_URI"))
+
+    def setUp(self):
+        super(PostgresDisconnectionTestWithPGBouncer, self).setUp()
+        self.database = create_database(os.environ["STORM_POSTGRES_URI"])
+
+        fixture = PGBouncerFixture()
+        fixture.databases["storm_test"] = (
+            "dbname=storm_test port=5432 host=localhost")
+        fixture.users[os.environ['USER']] = "trusted"
+        fixture.admin_users = [os.environ['USER']]
+        self.pgbouncer = self.useFixture(fixture)
+
+        self.useFixture(
+            # For TCP connections.
+            EnvironmentVariableFixture('PGPORT', str(fixture.port)))
+        self.useFixture(
+            # For domain socket connections.
+            EnvironmentVariableFixture('PGHOST', "/tmp"))
+
+    def test_oneiric_thing_1(self):
+        connection = self.database.connect()
+
+        other_connection = self.database.connect()
+        other_connection.execute(
+            "SELECT pg_terminate_backend(procpid)"
+            "  FROM pg_stat_activity"
+            " WHERE datname = current_database()"
+            "   AND procpid != pg_backend_pid()")
+        other_connection.close()
+
+        try:
+            connection.execute("SELECT current_database()")
+        except Exception, error:
+            self.assertTrue(
+                connection.is_disconnection_error(error))
+        else:
+            self.fail("No exception raised.")
+
+    def test_oneiric_thing_2(self):
+        connection = self.database.connect()
+
+        self.pgbouncer.stop()
+
+        try:
+            connection.execute("SELECT current_database()")
+        except Exception, error:
+            self.assertTrue(
+                connection.is_disconnection_error(error))
+        else:
+            self.fail("No exception raised.")
+
+    def test_oneiric_thing_3(self):
+        connection = self.database.connect()
+
+        pgbouncer_connection = psycopg2.connect("dbname=pgbouncer")
+        cursor = pgbouncer_connection.cursor()
+        cursor.execute("shutdown")
+        cursor.fetchall()
+        cursor.close()
+        pgbouncer_connection.close()
+
+        try:
+            connection.execute("SELECT current_database()")
+        except Exception, error:
+            self.assertTrue(
+                connection.is_disconnection_error(error))
+        else:
+            self.fail("No exception raised.")
 
 
 class PostgresTimeoutTracerTest(TimeoutTracerTestBase):
