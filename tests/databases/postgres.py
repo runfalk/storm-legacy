@@ -35,16 +35,21 @@ from storm.tracer import install_tracer, TimeoutError
 # We need the info to register the 'type' compiler.  In normal
 # circumstances this is naturally imported.
 import storm.info
+storm  # Silence lint.
 
+from tests import has_fixtures
 from tests.databases.base import (
     DatabaseTest, DatabaseDisconnectionTest, UnsupportedDatabaseTest)
 from tests.expr import column1, column2, column3, elem1, table1, TrackContext
 from tests.tracer import TimeoutTracerTestBase
 from tests.helper import TestHelper
 
-from fixtures import TestWithFixtures, EnvironmentVariableFixture
-from pgbouncer.fixture import PGBouncerFixture
-import psycopg2
+try:
+    import pgbouncer
+except ImportError:
+    has_pgbouncer = False
+else:
+    has_pgbouncer = True
 
 
 class PostgresTest(DatabaseTest, TestHelper):
@@ -546,7 +551,9 @@ class PostgresDisconnectionTest(DatabaseDisconnectionTest, TestHelper):
             self.fail('Exception should have been swallowed: %s' % repr(exc))
 
 
-class PostgresDisconnectionTestWithoutProxy(TestWithFixtures, TestHelper):
+class PostgresDisconnectionTestWithoutProxy(TestHelper):
+    # DatabaseDisconnectionTest uses a socket proxy to simulate broken
+    # connections. This class tests some other causes of disconnection.
 
     def is_supported(self):
         return bool(os.environ.get("STORM_POSTGRES_URI"))
@@ -555,7 +562,9 @@ class PostgresDisconnectionTestWithoutProxy(TestWithFixtures, TestHelper):
         super(PostgresDisconnectionTestWithoutProxy, self).setUp()
         self.database = create_database(os.environ["STORM_POSTGRES_URI"])
 
-    def test_oneiric_thing_1(self):
+    def test_terminated_backend(self):
+        # The error raised when trying to use a connection that has been
+        # terminated at the server is considered a disconnection error.
         connection = self.database.connect()
 
         other_connection = self.database.connect()
@@ -575,22 +584,36 @@ class PostgresDisconnectionTestWithoutProxy(TestWithFixtures, TestHelper):
             self.fail("No exception raised.")
 
 
-class PostgresDisconnectionTestWithPGBouncer(TestWithFixtures, TestHelper):
+if has_fixtures:
+    import fixtures
+    MaybeTestWithFixtures = fixtures.TestWithFixtures
+else:
+    # A lie, but is_supported takes care of it later.
+    MaybeTestWithFixtures = object
+
+
+class PostgresDisconnectionTestWithPGBouncer(MaybeTestWithFixtures,
+                                             TestHelper):
+    # Connecting via pgbouncer <http://pgfoundry.org/projects/pgbouncer>
+    # introduces new possible causes of disconnections.
 
     def is_supported(self):
-        return bool(os.environ.get("STORM_POSTGRES_URI"))
+        return (
+            has_fixtures and has_pgbouncer and
+            bool(os.environ.get("STORM_POSTGRES_URI")))
 
     def setUp(self):
         super(PostgresDisconnectionTestWithPGBouncer, self).setUp()
         self.database = create_database(os.environ["STORM_POSTGRES_URI"])
-
-        fixture = PGBouncerFixture()
+        # Create a pgbouncer fixture.
+        fixture = pgbouncer.fixture.PGBouncerFixture()
         fixture.databases["storm_test"] = (
             "dbname=storm_test port=5432 host=localhost")
         fixture.users[os.environ['USER']] = "trusted"
         fixture.admin_users = [os.environ['USER']]
         self.pgbouncer = self.useFixture(fixture)
 
+        from fixtures import EnvironmentVariableFixture
         self.useFixture(
             # For TCP connections.
             EnvironmentVariableFixture('PGPORT', str(fixture.port)))
@@ -598,7 +621,10 @@ class PostgresDisconnectionTestWithPGBouncer(TestWithFixtures, TestHelper):
             # For domain socket connections.
             EnvironmentVariableFixture('PGHOST', "/tmp"))
 
-    def test_oneiric_thing_1(self):
+    def test_terminated_backend(self):
+        # The error raised when trying to use a connection through pgbouncer
+        # that has been terminated at the server is considered a disconnection
+        # error.
         connection = self.database.connect()
 
         other_connection = self.database.connect()
@@ -617,28 +643,13 @@ class PostgresDisconnectionTestWithPGBouncer(TestWithFixtures, TestHelper):
         else:
             self.fail("No exception raised.")
 
-    def test_oneiric_thing_2(self):
+    def test_pgbouncer_stopped(self):
+        # The error raised from a connection that is no longer connected
+        # because pgbouncer has been immediately shutdown (via SIGTERM; see
+        # man 1 pgbouncer) is considered a disconnection error.
         connection = self.database.connect()
 
         self.pgbouncer.stop()
-
-        try:
-            connection.execute("SELECT current_database()")
-        except Exception, error:
-            self.assertTrue(
-                connection.is_disconnection_error(error))
-        else:
-            self.fail("No exception raised.")
-
-    def test_oneiric_thing_3(self):
-        connection = self.database.connect()
-
-        pgbouncer_connection = psycopg2.connect("dbname=pgbouncer")
-        cursor = pgbouncer_connection.cursor()
-        cursor.execute("shutdown")
-        cursor.fetchall()
-        cursor.close()
-        pgbouncer_connection.close()
 
         try:
             connection.execute("SELECT current_database()")
