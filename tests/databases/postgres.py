@@ -22,7 +22,7 @@ from datetime import date, time, timedelta
 import os
 
 from storm.databases.postgres import (
-    Postgres, compile, currval, Returning, PostgresTimeoutTracer)
+    Postgres, compile, currval, Returning, PostgresTimeoutTracer, make_dsn)
 from storm.database import create_database
 from storm.exceptions import InterfaceError, ProgrammingError
 from storm.variables import DateTimeVariable, RawStrVariable
@@ -31,6 +31,7 @@ from storm.properties import Int
 from storm.expr import (Union, Select, Insert, Alias, SQLRaw, State,
                         Sequence, Like, Column, COLUMN)
 from storm.tracer import install_tracer, TimeoutError
+from storm.uri import URI
 
 # We need the info to register the 'type' compiler.  In normal
 # circumstances this is naturally imported.
@@ -578,8 +579,8 @@ class PostgresDisconnectionTestWithoutProxy(TestHelper):
         try:
             connection.execute("SELECT current_database()")
         except Exception, error:
-            self.assertTrue(
-                connection.is_disconnection_error(error))
+            if not connection.is_disconnection_error(error):
+                raise
         else:
             self.fail("No exception raised.")
 
@@ -600,26 +601,23 @@ class PostgresDisconnectionTestWithPGBouncer(MaybeTestWithFixtures,
     def is_supported(self):
         return (
             has_fixtures and has_pgbouncer and
-            bool(os.environ.get("STORM_POSTGRES_URI")))
+            bool(os.environ.get("STORM_POSTGRES_HOST_URI")))
 
     def setUp(self):
         super(PostgresDisconnectionTestWithPGBouncer, self).setUp()
-        self.database = create_database(os.environ["STORM_POSTGRES_URI"])
+        database_uri = URI(os.environ["STORM_POSTGRES_HOST_URI"])
+        database_dsn = make_dsn(database_uri)
         # Create a pgbouncer fixture.
-        fixture = pgbouncer.fixture.PGBouncerFixture()
-        fixture.databases["storm_test"] = (
-            "dbname=storm_test port=5432 host=localhost")
-        fixture.users[os.environ['USER']] = "trusted"
-        fixture.admin_users = [os.environ['USER']]
-        self.pgbouncer = self.useFixture(fixture)
-
-        from fixtures import EnvironmentVariableFixture
-        self.useFixture(
-            # For TCP connections.
-            EnvironmentVariableFixture('PGPORT', str(fixture.port)))
-        self.useFixture(
-            # For domain socket connections.
-            EnvironmentVariableFixture('PGHOST', "/tmp"))
+        self.pgbouncer = pgbouncer.fixture.PGBouncerFixture()
+        self.pgbouncer.databases["storm_test"] = database_dsn
+        self.pgbouncer.users[os.environ['USER']] = "trusted"
+        self.pgbouncer.admin_users = [os.environ['USER']]
+        self.useFixture(self.pgbouncer)
+        # Create a Database that uses pgbouncer.
+        pgbouncer_uri = database_uri.copy()
+        pgbouncer_uri.host = self.pgbouncer.host
+        pgbouncer_uri.port = self.pgbouncer.port
+        self.database = create_database(pgbouncer_uri)
 
     def test_terminated_backend(self):
         # The error raised when trying to use a connection through pgbouncer
@@ -638,8 +636,8 @@ class PostgresDisconnectionTestWithPGBouncer(MaybeTestWithFixtures,
         try:
             connection.execute("SELECT current_database()")
         except Exception, error:
-            self.assertTrue(
-                connection.is_disconnection_error(error))
+            if not connection.is_disconnection_error(error):
+                raise
         else:
             self.fail("No exception raised.")
 
@@ -654,8 +652,8 @@ class PostgresDisconnectionTestWithPGBouncer(MaybeTestWithFixtures,
         try:
             connection.execute("SELECT current_database()")
         except Exception, error:
-            self.assertTrue(
-                connection.is_disconnection_error(error))
+            if not connection.is_disconnection_error(error):
+                raise
         else:
             self.fail("No exception raised.")
 
