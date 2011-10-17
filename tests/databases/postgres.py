@@ -28,6 +28,7 @@ from storm.exceptions import InterfaceError, ProgrammingError
 from storm.variables import DateTimeVariable, RawStrVariable
 from storm.variables import ListVariable, IntVariable, Variable
 from storm.properties import Int
+from storm.exceptions import DisconnectionError
 from storm.expr import (Union, Select, Insert, Alias, SQLRaw, State,
                         Sequence, Like, Column, COLUMN)
 from storm.tracer import install_tracer, TimeoutError
@@ -584,13 +585,9 @@ class PostgresDisconnectionTestWithoutProxy(TestHelper):
         # terminated at the server is considered a disconnection error.
         connection = self.database.connect()
         terminate_all_backends(self.database)
-        try:
-            connection.execute("SELECT current_database()")
-        except Exception, error:
-            if not connection.is_disconnection_error(error):
-                raise
-        else:
-            self.fail("No exception raised.")
+        self.assertRaises(
+            DisconnectionError, connection.execute,
+            "SELECT current_database()")
 
 
 class PostgresDisconnectionTestWithPGBouncerBase(object):
@@ -625,13 +622,9 @@ class PostgresDisconnectionTestWithPGBouncerBase(object):
         # error.
         connection = self.database.connect()
         terminate_all_backends(self.database)
-        try:
-            connection.execute("SELECT current_database()")
-        except Exception, error:
-            if not connection.is_disconnection_error(error):
-                raise
-        else:
-            self.fail("No exception raised.")
+        self.assertRaises(
+            DisconnectionError, connection.execute,
+            "SELECT current_database()")
 
     def test_pgbouncer_stopped(self):
         # The error raised from a connection that is no longer connected
@@ -639,13 +632,9 @@ class PostgresDisconnectionTestWithPGBouncerBase(object):
         # man 1 pgbouncer) is considered a disconnection error.
         connection = self.database.connect()
         self.pgbouncer.stop()
-        try:
-            connection.execute("SELECT current_database()")
-        except Exception, error:
-            if not connection.is_disconnection_error(error):
-                raise
-        else:
-            self.fail("No exception raised.")
+        self.assertRaises(
+            DisconnectionError, connection.execute,
+            "SELECT current_database()")
 
 
 if has_fixtures:
