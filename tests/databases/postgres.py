@@ -595,14 +595,15 @@ class PostgresDisconnectionTestWithPGBouncerBase(object):
             bool(os.environ.get("STORM_POSTGRES_HOST_URI")))
 
     def setUp(self):
-        super(PostgresDisconnectionTestWithPGBouncer, self).setUp()
+        super(PostgresDisconnectionTestWithPGBouncerBase, self).setUp()
         database_uri = URI(os.environ["STORM_POSTGRES_HOST_URI"])
+        database_user = database_uri.username or os.environ['USER']
         database_dsn = make_dsn(database_uri)
         # Create a pgbouncer fixture.
         self.pgbouncer = pgbouncer.fixture.PGBouncerFixture()
-        self.pgbouncer.databases["storm_test"] = database_dsn
-        self.pgbouncer.users[os.environ['USER']] = "trusted"
-        self.pgbouncer.admin_users = [os.environ['USER']]
+        self.pgbouncer.databases[database_uri.database] = database_dsn
+        self.pgbouncer.users[database_user] = "trusted"
+        self.pgbouncer.admin_users = [database_user]
         self.useFixture(self.pgbouncer)
         # Create a Database that uses pgbouncer.
         pgbouncer_uri = database_uri.copy()
