@@ -585,16 +585,7 @@ class PostgresDisconnectionTestWithoutProxy(TestHelper):
             self.fail("No exception raised.")
 
 
-if has_fixtures:
-    import fixtures
-    MaybeTestWithFixtures = fixtures.TestWithFixtures
-else:
-    # A lie, but is_supported takes care of it later.
-    MaybeTestWithFixtures = object
-
-
-class PostgresDisconnectionTestWithPGBouncer(MaybeTestWithFixtures,
-                                             TestHelper):
+class PostgresDisconnectionTestWithPGBouncerBase(object):
     # Connecting via pgbouncer <http://pgfoundry.org/projects/pgbouncer>
     # introduces new possible causes of disconnections.
 
@@ -656,6 +647,14 @@ class PostgresDisconnectionTestWithPGBouncer(MaybeTestWithFixtures,
                 raise
         else:
             self.fail("No exception raised.")
+
+
+if has_fixtures:
+    # Upgrade to full test case class with fixtures.
+    from fixtures import TestWithFixtures
+    class PostgresDisconnectionTestWithPGBouncer(
+        PostgresDisconnectionTestWithPGBouncerBase,
+        TestWithFixtures, TestHelper): pass
 
 
 class PostgresTimeoutTracerTest(TimeoutTracerTestBase):
