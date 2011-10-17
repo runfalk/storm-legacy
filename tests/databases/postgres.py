@@ -53,6 +53,22 @@ else:
     has_pgbouncer = True
 
 
+def terminate_other_backends(connection):
+    """Terminate all connections to the database except the one given."""
+    connection.execute(
+        "SELECT pg_terminate_backend(procpid)"
+        "  FROM pg_stat_activity"
+        " WHERE datname = current_database()"
+        "   AND procpid != pg_backend_pid()")
+
+
+def terminate_all_backends(database):
+    """Terminate all connections to the given database."""
+    connection = database.connect()
+    terminate_other_backends(connection)
+    connection.close()
+
+
 class PostgresTest(DatabaseTest, TestHelper):
 
     def is_supported(self):
@@ -567,15 +583,7 @@ class PostgresDisconnectionTestWithoutProxy(TestHelper):
         # The error raised when trying to use a connection that has been
         # terminated at the server is considered a disconnection error.
         connection = self.database.connect()
-
-        other_connection = self.database.connect()
-        other_connection.execute(
-            "SELECT pg_terminate_backend(procpid)"
-            "  FROM pg_stat_activity"
-            " WHERE datname = current_database()"
-            "   AND procpid != pg_backend_pid()")
-        other_connection.close()
-
+        terminate_all_backends(self.database)
         try:
             connection.execute("SELECT current_database()")
         except Exception, error:
@@ -616,15 +624,7 @@ class PostgresDisconnectionTestWithPGBouncerBase(object):
         # that has been terminated at the server is considered a disconnection
         # error.
         connection = self.database.connect()
-
-        other_connection = self.database.connect()
-        other_connection.execute(
-            "SELECT pg_terminate_backend(procpid)"
-            "  FROM pg_stat_activity"
-            " WHERE datname = current_database()"
-            "   AND procpid != pg_backend_pid()")
-        other_connection.close()
-
+        terminate_all_backends(self.database)
         try:
             connection.execute("SELECT current_database()")
         except Exception, error:
@@ -638,9 +638,7 @@ class PostgresDisconnectionTestWithPGBouncerBase(object):
         # because pgbouncer has been immediately shutdown (via SIGTERM; see
         # man 1 pgbouncer) is considered a disconnection error.
         connection = self.database.connect()
-
         self.pgbouncer.stop()
-
         try:
             connection.execute("SELECT current_database()")
         except Exception, error:
