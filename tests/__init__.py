@@ -25,8 +25,8 @@ __all__ = [
 
 try:
     import fixtures
+    fixtures  # Silence lint.
 except ImportError:
     has_fixtures = False
 else:
     has_fixtures = True
-    fixtures  # Silence lint.
