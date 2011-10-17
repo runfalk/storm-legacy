@@ -569,16 +569,18 @@ class PostgresDisconnectionTest(DatabaseDisconnectionTest, TestHelper):
             self.fail('Exception should have been swallowed: %s' % repr(exc))
 
 
-class PostgresDisconnectionTestWithoutProxy(TestHelper):
+class PostgresDisconnectionTestWithoutProxyBase(object):
     # DatabaseDisconnectionTest uses a socket proxy to simulate broken
     # connections. This class tests some other causes of disconnection.
 
+    database_uri = None
+
     def is_supported(self):
-        return bool(os.environ.get("STORM_POSTGRES_URI"))
+        return bool(self.database_uri)
 
     def setUp(self):
-        super(PostgresDisconnectionTestWithoutProxy, self).setUp()
-        self.database = create_database(os.environ["STORM_POSTGRES_URI"])
+        super(PostgresDisconnectionTestWithoutProxyBase, self).setUp()
+        self.database = create_database(self.database_uri)
 
     def test_terminated_backend(self):
         # The error raised when trying to use a connection that has been
@@ -588,6 +590,20 @@ class PostgresDisconnectionTestWithoutProxy(TestHelper):
         self.assertRaises(
             DisconnectionError, connection.execute,
             "SELECT current_database()")
+
+
+class PostgresDisconnectionTestWithoutProxyUnixSockets(
+    PostgresDisconnectionTestWithoutProxyBase, TestHelper):
+    """Disconnection tests using Unix sockets."""
+
+    database_uri = os.environ.get("STORM_POSTGRES_URI")
+
+
+class PostgresDisconnectionTestWithoutProxyTCPSockets(
+    PostgresDisconnectionTestWithoutProxyBase, TestHelper):
+    """Disconnection tests using TCP sockets."""
+
+    database_uri = os.environ.get("STORM_POSTGRES_HOST_URI")
 
 
 class PostgresDisconnectionTestWithPGBouncerBase(object):
