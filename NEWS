@@ -7,6 +7,7 @@ Improvements
 Bug fixes
 ---------
 
+- When a SQLObjectResultSet object was sliced with slice.start and slice.end both zero (sqlobject[0:0]), the full, unsliced resultset was returned (bug #872086).
 
 0.19 (2011-10-03)
 =================
