@@ -110,6 +110,13 @@ server, but makes life easier on a development machine.  You may be
 asked to enter a password multiple times.  Leave it blank in each
 case.
 
+If you want to run some of the PostgreSQL disconnection tests, you
+will need to install additional dependencies:
+
+ $ sudo apt-get install python-fixtures pgbouncer
+ $ bzr branch lp:python-pgbouncer
+ $ ln -s python-pgbouncer/pgbouncer .  # Or add to PYTHONPATH.
+
 Setting up database users and access security
 ---------------------------------------------
 
