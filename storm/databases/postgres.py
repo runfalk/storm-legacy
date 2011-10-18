@@ -217,6 +217,19 @@ class PostgresResult(Result):
         return And(*equals)
 
 
+pg_connection_failure_codes = frozenset([
+    '08006',  # CONNECTION FAILURE
+    '08001',  # SQLCLIENT UNABLE TO ESTABLISH SQLCONNECTION
+    '08004',  # SQLSERVER REJECTED ESTABLISHMENT OF SQLCONNECTION
+    '53300',  # TOO MANY CONNECTIONS
+    '57000',  # OPERATOR INTERVENTION
+    '57014',  # QUERY CANCELED
+    '57P01',  # ADMIN SHUTDOWN
+    '57P02',  # CRASH SHUTDOWN
+    '57P03',  # CANNOT CONNECT NOW
+    ])
+
+
 class PostgresConnection(Connection):
 
     result_factory = PostgresResult
@@ -282,7 +295,7 @@ class PostgresConnection(Connection):
         # locale settings. Fall through if pgcode is not available.
         if isinstance(exc, Error):
             pgcode = getattr(exc, "pgcode", None)
-            if pgcode == "57P01":  # ADMIN_SHUTDOWN
+            if pgcode in pg_connection_failure_codes:
                 return True
 
         disconnection_errors = (
