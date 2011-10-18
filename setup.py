@@ -5,7 +5,7 @@ import re
 import ez_setup
 ez_setup.use_setuptools()
 
-from setuptools import setup, Extension
+from setuptools import setup, Extension, find_packages
 
 
 if os.path.isfile("MANIFEST"):
@@ -17,16 +17,6 @@ BUILD_CEXTENSIONS = True
 
 VERSION = re.search('version = "([^"]+)"',
                     open("storm/__init__.py").read()).group(1)
-
-
-def find_packages():
-    # implement a simple find_packages so we don't have to depend on
-    # setuptools
-    packages = []
-    for directory, subdirectories, files in os.walk("storm"):
-        if '__init__.py' in files:
-            packages.append(directory.replace(os.sep, '.'))
-    return packages
 
 
 setup(
