@@ -3,9 +3,13 @@ import os
 import re
 
 try:
-    from setuptools import setup, Extension
+    import setuptools
+    setup = setuptools.setup
+    Extension = setuptools.Extension
 except ImportError:
-    from distutils.core import setup, Extension
+    import distutils.core
+    setup = distutils.core.setup
+    Extension = distutils.core.Extension
 
 
 if os.path.isfile("MANIFEST"):
@@ -32,7 +36,9 @@ def find_packages():
 setup(
     name="storm",
     version=VERSION,
-    description="Storm is an object-relational mapper (ORM) for Python developed at Canonical.",
+    description=(
+        "Storm is an object-relational mapper (ORM) for Python "
+        "developed at Canonical."),
     author="Gustavo Niemeyer",
     author_email="gustavo@niemeyer.net",
     maintainer="Storm Developers",
@@ -47,7 +53,8 @@ setup(
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
-        "License :: OSI Approved :: GNU Library or Lesser General Public License (LGPL)",
+        ("License :: OSI Approved :: GNU Library or "
+         "Lesser General Public License (LGPL)"),
         "Programming Language :: Python",
         "Topic :: Database",
         "Topic :: Database :: Front-Ends",
