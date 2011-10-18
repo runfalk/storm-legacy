@@ -39,9 +39,10 @@ clean:
 	rm -rf debian/files
 	rm -rf debian/python-storm
 	rm -rf debian/python-storm.*
+	rm -rf *.egg
+	rm -rf _trial_temp
 	find . -name "*.so" -type f -exec rm -f {} \;
 	find . -name "*.pyc" -type f -exec rm -f {} \;
 	find . -name "*~" -type f -exec rm -f {} \;
-	rm -rf *.egg
 
 .PHONY: all build check clean develop doc release
