@@ -39,5 +39,6 @@ clean:
 	find . -name "*.so" -type f -exec rm -f {} \;
 	find . -name "*.pyc" -type f -exec rm -f {} \;
 	find . -name "*~" -type f -exec rm -f {} \;
+	rm -rf *.egg
 
-.PHONY: all build test
+.PHONY: all build check clean doc release
