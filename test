@@ -19,6 +19,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+import glob
 import optparse
 import unittest
 import doctest
@@ -28,15 +29,10 @@ import os
 import tests
 
 
-def parse_sys_argv():
-    """Extract any arguments not starting with '-' from sys.argv."""
-    testpaths = []
-    for i in range(len(sys.argv)-1,0,-1):
-        arg = sys.argv[i]
-        if not arg.startswith("-"):
-            testpaths.append(arg)
-            del sys.argv[i]
-    return testpaths
+def add_eggs_to_path():
+    here = os.path.dirname(__file__)
+    egg_paths = glob.glob(os.path.join(here, "*.egg"))
+    sys.path[:0] = map(os.path.abspath, egg_paths)
 
 
 def test_with_runner(runner):
@@ -49,6 +45,10 @@ def test_with_runner(runner):
 
     if opts.verbose:
         runner.verbosity = 2
+
+    # python setup.py test [--dry-run] puts $package.egg directories in the
+    # top directory, so we add them to sys.path here for convenience.
+    add_eggs_to_path()
 
     suite = tests.find_tests(args)
     result = runner.run(suite)
