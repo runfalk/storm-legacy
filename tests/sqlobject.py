@@ -767,6 +767,24 @@ class SQLObjectTest(TestHelper):
         self.assertEquals(len(list(sliced_result)), 0)
         self.assertEquals(sliced_result.count(), 0)
 
+    def test_result_set_count_sliced_none(self):
+        result = self.Person.select()
+        sliced_result = result[None:None]
+        self.assertEquals(len(list(sliced_result)), 2)
+        self.assertEquals(sliced_result.count(), 2)
+
+    def test_result_set_count_sliced_start_none(self):
+        result = self.Person.select()
+        sliced_result = result[None:3]
+        self.assertEquals(len(list(sliced_result)), 2)
+        self.assertEquals(sliced_result.count(), 2)
+
+    def test_result_set_count_sliced_end_none(self):
+        result = self.Person.select()
+        sliced_result = result[1:None]
+        self.assertEquals(len(list(sliced_result)), 1)
+        self.assertEquals(sliced_result.count(), 1)
+
     def test_result_set_count_distinct(self):
         result = self.Person.select(
             "person.id = phone.person_id",
