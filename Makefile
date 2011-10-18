@@ -44,4 +44,4 @@ clean:
 	find . -name "*~" -type f -exec rm -f {} \;
 	rm -rf *.egg
 
-.PHONY: all build check clean doc release
+.PHONY: all build check clean develop doc release
