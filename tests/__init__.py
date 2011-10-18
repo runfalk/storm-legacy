@@ -20,8 +20,13 @@
 #
 
 __all__ = [
+    'find_tests',
     'has_fixtures',
     ]
+
+import doctest
+import os
+import unittest
 
 try:
     import fixtures
@@ -30,3 +35,62 @@ except ImportError:
     has_fixtures = False
 else:
     has_fixtures = True
+
+
+def find_tests(testpaths=()):
+    """Find all test paths, or test paths contained in the provided sequence.
+
+    @param testpaths: If provided, only tests in the given sequence will
+                      be considered.  If not provided, all tests are
+                      considered.
+    @return: a test suite containing the requested tests.
+    """
+    suite = unittest.TestSuite()
+    topdir = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), os.pardir))
+    testdir = os.path.dirname(__file__)
+    testpaths = set(testpaths)
+    for root, dirnames, filenames in os.walk(testdir):
+        for filename in filenames:
+            filepath = os.path.join(root, filename)
+            relpath = filepath[len(topdir)+1:]
+
+            if (filename == "__init__.py" or filename.endswith(".pyc") or
+                relpath == os.path.join("tests", "conftest.py")):
+                # Skip non-tests.
+                continue
+
+            if testpaths:
+                # Skip any tests not in testpaths.
+                for testpath in testpaths:
+                    if relpath.startswith(testpath):
+                        break
+                else:
+                    continue
+
+            if filename.endswith(".py"):
+                modpath = relpath.replace(os.path.sep, ".")[:-3]
+                module = __import__(modpath, None, None, [""])
+                suite.addTest(
+                    unittest.defaultTestLoader.loadTestsFromModule(module))
+            elif filename.endswith(".txt"):
+                load_test = True
+                if relpath == os.path.join("tests", "zope", "README.txt"):
+                    # Special case the inclusion of the Zope-dependent
+                    # ZStorm doctest.
+                    import tests.zope as ztest
+                    load_test = (
+                        ztest.has_transaction and
+                        ztest.has_zope_component and
+                        ztest.has_zope_security)
+                if load_test:
+                    parent_path = os.path.dirname(relpath).replace(
+                        os.path.sep, ".")
+                    parent_module = __import__(parent_path, None, None, [""])
+                    suite.addTest(doctest.DocFileSuite(
+                            os.path.basename(relpath),
+                            module_relative=True,
+                            package=parent_module,
+                            optionflags=doctest.ELLIPSIS))
+
+    return suite

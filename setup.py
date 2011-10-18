@@ -47,8 +47,6 @@ setup(
     url="https://storm.canonical.com",
     download_url="https://launchpad.net/storm/+download",
     packages=find_packages(),
-    zip_safe=False,
-    include_package_data=True,
     package_data={"": ["*.zcml"]},
     classifiers=[
         "Development Status :: 5 - Production/Stable",
@@ -61,5 +59,13 @@ setup(
         "Topic :: Software Development :: Libraries :: Python Modules",
     ],
     ext_modules=(BUILD_CEXTENSIONS and
-                 [Extension("storm.cextensions", ["storm/cextensions.c"])])
-)
+                 [Extension("storm.cextensions", ["storm/cextensions.c"])]),
+    # Options specific to setuptools.
+    include_package_data=True,
+    zip_safe=False,
+    test_suite = "tests.find_tests",
+    tests_require=[
+        "fixtures >= 0.3.5",
+        "pgbouncer >= 0.0.5",
+        ],
+    )
