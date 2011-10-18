@@ -18,8 +18,8 @@ all: build
 build:
 	$(PYTHON) setup.py build_ext -i
 
-check: build
-	# Run the tests once with C extensions and once without them.
+check:
+	@# Run the tests once with C extensions and once without them.
 	$(TEST_COMMAND) && STORM_CEXTENSIONS=0 $(TEST_COMMAND)
 
 doc:
