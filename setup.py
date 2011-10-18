@@ -60,12 +60,27 @@ setup(
     ],
     ext_modules=(BUILD_CEXTENSIONS and
                  [Extension("storm.cextensions", ["storm/cextensions.c"])]),
-    # Options specific to setuptools.
+    # The following options are specific to setuptools but ignored (with a
+    # warning) by distutils.
     include_package_data=True,
     zip_safe=False,
     test_suite = "tests.find_tests",
     tests_require=[
+        # Versions based on Lucid, where packaged.
+        "django >= 1.1.1",
         "fixtures >= 0.3.5",
+        # pgbouncer (the Python module) is not yet packaged in Ubuntu.
         "pgbouncer >= 0.0.5",
+        "psycopg2 >= 2.0.13",
+        "testresources >= 0.2.4",
+        "transaction >= 1.0.0",
+        "twisted >= 10.0.0",
+        "zope.component >= 3.8.0",
+        # zope.component 3.11.0 requires a version of zope.interface that no
+        # version of Ubuntu yet packages. The following rule exists for the
+        # sake of convenience rather than necessity, for the situation where
+        # zope.interface is installed via a package but zope.component is not.
+        "zope.component < 3.11.0",
+        "zope.security >= 3.7.2",
         ],
     )

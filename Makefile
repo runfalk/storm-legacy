@@ -1,7 +1,7 @@
 PYTHON ?= python
 PYDOCTOR ?= pydoctor
 
-TEST_COMMAND = $(PYTHON) test
+TEST_COMMAND = $(PYTHON) setup.py test
 
 STORM_POSTGRES_URI = postgres:storm_test
 STORM_POSTGRES_HOST_URI = postgres://localhost/storm_test
