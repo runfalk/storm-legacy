@@ -2,14 +2,10 @@
 import os
 import re
 
-try:
-    import setuptools
-    setup = setuptools.setup
-    Extension = setuptools.Extension
-except ImportError:
-    import distutils.core
-    setup = distutils.core.setup
-    Extension = distutils.core.Extension
+import ez_setup
+ez_setup.use_setuptools()
+
+from setuptools import setup, Extension
 
 
 if os.path.isfile("MANIFEST"):

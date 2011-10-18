@@ -98,8 +98,10 @@ In order to run the test suite, and exercise all supported backends,
 you will need to install MySQL and PostgreSQL, along with the
 related Python database drivers:
 
- $ sudo apt-get install python-mysqldb python-psycopg2 mysql-server \
-                        postgresql build-essential
+ $ sudo apt-get install \
+       python-mysqldb mysql-server \
+       postgresql pgbouncer \
+       build-essential
 
 These will take a few minutes to download (its a bit under 200MB all
 together).  Once the download is complete, a screen called
@@ -110,26 +112,24 @@ server, but makes life easier on a development machine.  You may be
 asked to enter a password multiple times.  Leave it blank in each
 case.
 
-Some of the PostgreSQL disconnection tests use pgbouncer
-<http://pgfoundry.org/projects/pgbouncer>. If you wish to run these
-you will need to install some additional dependencies:
+The Python dependencies for running tests can mostly be installed with
+apt-get:
 
-- pgbouncer and python-fixtures:
+  $ apt-get install \
+        python-django python-fixtures python-psycopg2 \
+        python-testresources python-transaction python-twisted \
+        python-zope.component python-zope.security
 
-  $ sudo apt-get install pgbouncer python-fixtures
+Two modules - pgbouncer and timeline - are not yet packaged in
+Ubuntu. These can be installed from PyPI:
 
-- The pgbouncer Python module. This is not yet packaged for Ubuntu,
-  but it is on PyPI <http://pypi.python.org/pypi/pgbouncer>. If you
-  have setuptools (apt-get install python-setuptools) you can install
-  it from PyPI and run the test suite with:
+  http://pypi.python.org/pypi/pgbouncer
+  http://pypi.python.org/pypi/timeline
 
-  $ python setup.py test
-
-  Alternatively, use easy_install or pip.
-
-- If python-fixtures is not available as a package (it's not available
-  in Lucid for example) the test command above will obtain it from
-  PyPI automatically.
+However, if you only want to run the whole test suite you can use
+`make check`. This will ensure that all dependencies are available,
+downloading from PyPI as appropriate, before running the tests. Bear
+in mind that you must still first perform the database setup below.
 
 Setting up database users and access security
 ---------------------------------------------
