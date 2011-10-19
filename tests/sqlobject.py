@@ -775,9 +775,9 @@ class SQLObjectTest(TestHelper):
 
     def test_result_set_count_sliced_start_none(self):
         result = self.Person.select()
-        sliced_result = result[None:3]
-        self.assertEquals(len(list(sliced_result)), 2)
-        self.assertEquals(sliced_result.count(), 2)
+        sliced_result = result[None:1]
+        self.assertEquals(len(list(sliced_result)), 1)
+        self.assertEquals(sliced_result.count(), 1)
 
     def test_result_set_count_sliced_end_none(self):
         result = self.Person.select()
