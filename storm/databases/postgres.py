@@ -47,7 +47,7 @@ from storm.variables import Variable, ListVariable
 from storm.database import Database, Connection, Result
 from storm.exceptions import (
     install_exceptions, DatabaseError, DatabaseModuleError, InterfaceError,
-    OperationalError, ProgrammingError, TimeoutError, Error)
+    OperationalError, ProgrammingError, TimeoutError)
 from storm.tracer import TimeoutTracer
 
 
@@ -217,19 +217,6 @@ class PostgresResult(Result):
         return And(*equals)
 
 
-pg_connection_failure_codes = frozenset([
-    '08006',  # CONNECTION FAILURE
-    '08001',  # SQLCLIENT UNABLE TO ESTABLISH SQLCONNECTION
-    '08004',  # SQLSERVER REJECTED ESTABLISHMENT OF SQLCONNECTION
-    '53300',  # TOO MANY CONNECTIONS
-    '57000',  # OPERATOR INTERVENTION
-    '57014',  # QUERY CANCELED
-    '57P01',  # ADMIN SHUTDOWN
-    '57P02',  # CRASH SHUTDOWN
-    '57P03',  # CANNOT CONNECT NOW
-    ])
-
-
 class PostgresConnection(Connection):
 
     result_factory = PostgresResult
@@ -290,35 +277,22 @@ class PostgresConnection(Connection):
                 yield param
 
     def is_disconnection_error(self, exc, extra_disconnection_errors=()):
-        # Attempt to use pgcode to determine the nature of the error. This is
-        # more reliable than string matching because it is not affected by
-        # locale settings. Fall through if pgcode is not available.
-        if isinstance(exc, Error):
-            pgcode = getattr(exc, "pgcode", None)
-            if pgcode in pg_connection_failure_codes:
-                return True
-
-        disconnection_errors = (
-            InterfaceError, OperationalError, ProgrammingError,
-            extra_disconnection_errors)
-
-        if isinstance(exc, disconnection_errors):
-            msg = str(exc)
-            return (
-                "connection already closed" in msg or
-                "connection not open" in msg or
-                "could not connect to server" in msg or
-                "could not receive data from server" in msg or
-                "losed the connection unexpectedly" in msg or
-                "no connection to the server" in msg or
-                "terminating connection due to administrator" in msg)
-        elif isinstance(exc, DatabaseError):
-            msg = str(exc)
-            return (
-                "EOF detected" in msg or
-                "server closed the connection unexpectedly" in msg)
-        else:
+        if not isinstance(exc, (InterfaceError, OperationalError,
+                                ProgrammingError, extra_disconnection_errors)):
             return False
+
+        # XXX: 2007-09-17 jamesh
+        # The last message is for the benefit of old versions of
+        # psycopg2 (prior to 2.0.7) which have a bug related to
+        # stripping the error severity from the message.
+        msg = str(exc)
+        return ("server closed the connection unexpectedly" in msg or
+                "could not connect to server" in msg or
+                "no connection to the server" in msg or
+                "connection not open" in msg or
+                "connection already closed" in msg or
+                "losed the connection unexpectedly" in msg or
+                "could not receive data from server" in msg)
 
 
 class Postgres(Database):

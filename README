@@ -100,8 +100,7 @@ related Python database drivers:
 
  $ sudo apt-get install \
        python-mysqldb mysql-server \
-       postgresql pgbouncer \
-       build-essential
+       postgresql build-essential
 
 These will take a few minutes to download (its a bit under 200MB all
 together).  Once the download is complete, a screen called
@@ -116,15 +115,9 @@ The Python dependencies for running tests can mostly be installed with
 apt-get:
 
  $ apt-get install \
-       python-django python-fixtures python-psycopg2 \
-       python-testresources python-transaction python-twisted \
-       python-zope.component python-zope.security
-
-Two modules - pgbouncer and timeline - are not yet packaged in
-Ubuntu. These can be installed from PyPI:
-
-  http://pypi.python.org/pypi/pgbouncer
-  http://pypi.python.org/pypi/timeline
+       python-django python-psycopg2 python-testresources \
+       python-transaction python-twisted python-zope.component \
+       python-zope.security
 
 Alternatively, dependencies can be downloaded as eggs into the current
 directory with:
