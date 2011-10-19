@@ -21,11 +21,20 @@
 
 __all__ = [
     'find_tests',
+    'has_fixtures',
     ]
 
 import doctest
 import os
 import unittest
+
+try:
+    import fixtures
+    fixtures  # Silence lint.
+except ImportError:
+    has_fixtures = False
+else:
+    has_fixtures = True
 
 
 def find_tests(testpaths=()):

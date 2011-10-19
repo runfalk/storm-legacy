@@ -54,6 +54,9 @@ setup(
     tests_require=[
         # Versions based on Lucid, where packaged.
         "django >= 1.1.1",
+        "fixtures >= 0.3.5",
+        # pgbouncer (the Python module) is not yet packaged in Ubuntu.
+        "pgbouncer >= 0.0.5",
         "psycopg2 >= 2.0.13",
         "testresources >= 0.2.4",
         # timeline is not yet packaged in Ubuntu.
