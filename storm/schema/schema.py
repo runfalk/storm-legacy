@@ -56,6 +56,7 @@ class Schema(object):
     """
     _create_patch = "CREATE TABLE patch (version INTEGER NOT NULL PRIMARY KEY)"
     _drop_patch = "DROP TABLE patch"
+    _autocommit = True
 
     def __init__(self, creates, drops, deletes, patch_package, committer=None):
         self._creates = creates
@@ -72,7 +73,12 @@ class Schema(object):
             except Exception:
                 print "Error running %s" % statement
                 raise
-        store.commit()
+        if self._autocommit:
+            store.commit()
+
+    def autocommit(self, flag):
+        """Control whether to automatically commit schema changes."""
+        self._autocommit = flag
 
     def create(self, store):
         """Run C{CREATE TABLE} SQL statements with C{store}."""
@@ -94,8 +100,12 @@ class Schema(object):
         If a schema isn't present a new one will be created.  Unapplied
         patches will be applied to an existing schema.
         """
-        patch_applier = PatchApplier(store, self._patch_package,
-                                     self._committer)
+        class NoopCommitter(object):
+            commit = lambda _: None
+            rollback = lambda _: None
+
+        committer = self._committer if self._autocommit else NoopCommitter()
+        patch_applier = PatchApplier(store, self._patch_package, committer)
         try:
             store.execute("SELECT * FROM patch WHERE 1=2")
         except StormError:
@@ -103,6 +113,7 @@ class Schema(object):
             store.rollback()
             self.create(store)
             patch_applier.mark_applied_all()
-            store.commit()
+            if self._autocommit:
+                store.commit()
         else:
             patch_applier.apply_all()

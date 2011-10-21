@@ -83,10 +83,15 @@ class ZStormResourceManager(TestResourceManager):
                 store = zstorm.get(name)
                 self._set_commit_proxy(store)
                 schema_store = schema_zstorm.get(name)
+                # Disable schema autocommits, we will commit everything at once
+                schema.autocommit(False)
                 schema.upgrade(schema_store)
                 # Clean up tables here to ensure that the first test run starts
                 # with an empty db
                 schema.delete(schema_store)
+
+            # Commit all schema changes across all stores
+            transaction.commit()
 
             provideUtility(zstorm)
             self._zstorm = zstorm
@@ -128,9 +133,13 @@ class ZStormResourceManager(TestResourceManager):
             transaction.abort()
 
         # Clean up tables after each test if a commit was made
+        needs_commit = False
         for name, store in self._zstorm.iterstores():
             if self.force_delete or store in self._commits:
                 schema_store = self._schema_zstorm.get(name)
                 schema = self._schemas[name]
                 schema.delete(schema_store)
+                needs_commit = True
+        if needs_commit:
+            transaction.commit()
         self._commits = {}
