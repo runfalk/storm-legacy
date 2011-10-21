@@ -5,13 +5,15 @@ from unittest import TestCase
 try:
     # Optional dependency, if missing TimelineTracer tests are skipped.
     import timeline
+    has_timeline = True
 except ImportError:
-    timeline = None
+    has_timeline = False
 
-from storm.tracer import (trace, install_tracer, get_tracers,
+from storm.tracer import (trace, install_tracer, get_tracers, remove_tracer,
                           remove_tracer_type, remove_all_tracers, debug,
                           BaseStatementTracer, DebugTracer, TimeoutTracer,
-                          TimelineTracer, TimeoutError, _tracers)
+                          TimelineTracer, TimeoutError, CaptureTracer,
+                          CaptureLog, capture, _tracers)
 from storm.database import Connection
 from storm.expr import Variable
 
@@ -36,9 +38,22 @@ class TracerTest(TestHelper):
         remove_all_tracers()
         self.assertEquals(get_tracers(), [])
 
+    def test_remove_tracer(self):
+        """The C{remote_tracer} function removes a specific tracer."""
+        tracer1 = object()
+        tracer2 = object()
+        install_tracer(tracer1)
+        install_tracer(tracer2)
+        remove_tracer(tracer1)
+        self.assertEquals(get_tracers(), [tracer2])
+
     def test_remove_tracer_type(self):
-        class C(object): pass
-        class D(C): pass
+        class C(object):
+            pass
+
+        class D(C):
+            pass
+
         c = C()
         d1 = D()
         d2 = D()
@@ -69,9 +84,11 @@ class TracerTest(TestHelper):
 
     def test_trace(self):
         stash = []
+
         class Tracer(object):
             def m1(_, *args, **kwargs):
                 stash.extend(["m1", args, kwargs])
+
             def m2(_, *args, **kwargs):
                 stash.extend(["m2", args, kwargs])
 
@@ -80,7 +97,6 @@ class TracerTest(TestHelper):
         trace("m2")
         trace("m3")
         self.assertEquals(stash, ["m1", (1, 2), {"c": 3}, "m2", (), {}])
-
 
 
 class MockVariable(Variable):
@@ -101,7 +117,7 @@ class DebugTracerTest(TestHelper):
 
         datetime_mock = self.mocker.replace("datetime.datetime")
         datetime_mock.now()
-        self.mocker.result(datetime.datetime(1,2,3,4,5,6,7))
+        self.mocker.result(datetime.datetime(1, 2, 3, 4, 5, 6, 7))
         self.mocker.count(0, 1)
 
         self.variable = MockVariable("PARAM")
@@ -192,7 +208,9 @@ class TimeoutTracerTestBase(TestHelper):
 
         # Some data is kept in the connection, so we use a proxy to
         # allow things we don't care about here to happen.
-        class Connection(object): pass
+        class Connection(object):
+            pass
+
         self.connection = self.mocker.proxy(Connection())
 
     def tearDown(self):
@@ -330,19 +348,20 @@ class TimeoutTracerTest(TimeoutTracerTestBase):
         self.execute()
 
 
+class StubConnection(Connection):
+
+    def __init__(self):
+        self._database = None
+        self._event = None
+        self._raw_connection = None
+
+
 class BaseStatementTracerTest(TestCase):
 
     class LoggingBaseStatementTracer(BaseStatementTracer):
         def _expanded_raw_execute(self, connection, raw_cursor, statement):
             self.__dict__.setdefault('calls', []).append(
                 (connection, raw_cursor, statement))
-
-    class StubConnection(Connection):
-
-        def __init__(self):
-            self._database = None
-            self._event = None
-            self._raw_connection = None
 
     def test_no_params(self):
         """With no parameters the statement is passed through verbatim."""
@@ -352,7 +371,7 @@ class BaseStatementTracerTest(TestCase):
 
     def test_params_substituted_pyformat(self):
         tracer = self.LoggingBaseStatementTracer()
-        conn = self.StubConnection()
+        conn = StubConnection()
         conn.param_mark = '%s'
         var1 = MockVariable(u'VAR1')
         tracer.connection_raw_execute(
@@ -364,7 +383,7 @@ class BaseStatementTracerTest(TestCase):
     def test_params_substituted_single_string(self):
         """String parameters are formatted as a single quoted string."""
         tracer = self.LoggingBaseStatementTracer()
-        conn = self.StubConnection()
+        conn = StubConnection()
         var1 = MockVariable(u'VAR1')
         tracer.connection_raw_execute(
             conn, 'cursor', 'SELECT * FROM person where name = ?', [var1])
@@ -375,7 +394,7 @@ class BaseStatementTracerTest(TestCase):
     def test_qmark_percent_s_literal_preserved(self):
         """With ? parameters %s in the statement can be kept intact."""
         tracer = self.LoggingBaseStatementTracer()
-        conn = self.StubConnection()
+        conn = StubConnection()
         var1 = MockVariable(1)
         tracer.connection_raw_execute(
             conn, 'cursor',
@@ -388,7 +407,7 @@ class BaseStatementTracerTest(TestCase):
     def test_int_variable_as_int(self):
         """Int parameters are formatted as an int literal."""
         tracer = self.LoggingBaseStatementTracer()
-        conn = self.StubConnection()
+        conn = StubConnection()
         var1 = MockVariable(1)
         tracer.connection_raw_execute(
             conn, 'cursor', "SELECT * FROM person where id = ?", [var1])
@@ -399,7 +418,7 @@ class BaseStatementTracerTest(TestCase):
     def test_like_clause_preserved(self):
         """% operators in LIKE statements are preserved."""
         tracer = self.LoggingBaseStatementTracer()
-        conn = self.StubConnection()
+        conn = StubConnection()
         var1 = MockVariable(u'substring')
         tracer.connection_raw_execute(
             conn, 'cursor',
@@ -412,7 +431,7 @@ class BaseStatementTracerTest(TestCase):
 
     def test_unformattable_statements_are_handled(self):
         tracer = self.LoggingBaseStatementTracer()
-        conn = self.StubConnection()
+        conn = StubConnection()
         var1 = MockVariable(u'substring')
         tracer.connection_raw_execute(
             conn, 'cursor', "%s %s",
@@ -426,14 +445,14 @@ class BaseStatementTracerTest(TestCase):
 class TimelineTracerTest(TestHelper):
 
     def is_supported(self):
-        return timeline is not None
+        return has_timeline
 
     def factory(self):
         self.timeline = timeline.Timeline()
         return self.timeline
 
     def test_separate_tracers_own_state(self):
-        """"Check that multiple TimelineTracer's could be used at once."""
+        """Check that multiple TimelineTracer's could be used at once."""
         tracer1 = TimelineTracer(self.factory)
         tracer2 = TimelineTracer(self.factory)
         tracer1.threadinfo.action = 'foo'
@@ -457,8 +476,7 @@ class TimelineTracerTest(TestHelper):
 
     def test_finds_timeline_from_factory(self):
         factory_result = timeline.Timeline()
-        factory = lambda:factory_result
-        tracer = TimelineTracer(lambda:factory_result)
+        tracer = TimelineTracer(lambda: factory_result)
         tracer._expanded_raw_execute('conn', 'cursor', 'statement')
         self.assertEqual(1, len(factory_result.actions))
 
@@ -491,3 +509,116 @@ class TimelineTracerTest(TestHelper):
         tracer = TimelineTracer(self.factory)
         tracer._expanded_raw_execute('conn', 'cursor', 'statement')
         self.assertEqual('SQL-<unknown>', self.timeline.actions[-1].category)
+
+
+class CaptureTracerTest(TestHelper):
+
+    def test_attach_log(self):
+        """A L{CaptureTracer} adds the traced query to the attached log."""
+        tracer = CaptureTracer()
+        log = CaptureLog(tracer)
+        tracer.attach_log(log)
+        conn = StubConnection()
+        conn.param_mark = '%s'
+        var = MockVariable(u"var")
+        tracer.connection_raw_execute(conn, "cursor", "statement %s", [var])
+        self.assertEqual(["statement 'var'"], log.queries())
+
+
+class CaptureLogTest(TestHelper):
+
+    def tearDown(self):
+        super(CaptureLogTest, self).tearDown()
+        del _tracers[:]
+
+    def test_add_query(self):
+        """L{CaptureLog.add_query} adds a new query to the log."""
+        log = CaptureLog(None)
+        log.add_query("foo")
+        log.add_query("bar")
+        self.assertEqual(["foo", "bar"], log.queries())
+        self.assertEqual(2, log.count())
+
+    def test_add_query_with_closed_log(self):
+        """L{CaptureLog.add_query} raises an error if the log is closed."""
+        tracer = object()
+        install_tracer(tracer)
+        log = CaptureLog(tracer)
+        log.close()
+        self.assertRaises(RuntimeError, log.add_query, "foo")
+
+    def test_close(self):
+        """L{CaptureLog.close} stops capturing queries removing the tracer."""
+        tracer = object()
+        install_tracer(tracer)
+        log = CaptureLog(tracer)
+        log.close()
+        self.assertNotIn(tracer, get_tracers())
+
+    def test_twice(self):
+        """L{CaptureLog.close} can't be called twice."""
+        tracer = object()
+        install_tracer(tracer)
+        log = CaptureLog(tracer)
+        log.close()
+        self.assertRaises(RuntimeError, log.close)
+
+
+class CaptureTest(TestHelper):
+
+    def tearDown(self):
+        super(CaptureTest, self).tearDown()
+        del _tracers[:]
+
+    def test_capture(self):
+        """The L{capture} function starts a new capture log."""
+        log = capture()
+        conn = StubConnection()
+        conn.param_mark = '%s'
+        var = MockVariable(u"var")
+        [tracer] = get_tracers()
+        tracer.connection_raw_execute(conn, "cursor", "statement %s", [var])
+        log.close()
+        self.assertEqual([], get_tracers())
+        self.assertEqual(["statement 'var'"], log.queries())
+        self.assertEqual(1, log.count())
+
+    def test_capture_as_context_manager(self):
+        """{CaptureLog}s can be used as context managers."""
+        conn = StubConnection()
+        with capture() as log:
+            [tracer] = get_tracers()
+            tracer.connection_raw_execute(conn, "cursor", "statement", [])
+        self.assertEqual([], get_tracers())
+        self.assertEqual(["statement"], log.queries())
+
+    def test_capture_multiple(self):
+        """L{CaptureLog}s can be used as nested context managers."""
+
+        conn = StubConnection()
+
+        def trace(statement):
+            for tracer in get_tracers():
+                tracer.connection_raw_execute(conn, "cursor", statement, [])
+
+        with capture() as log1:
+            trace("one")
+            with capture() as log2:
+                trace("two")
+            trace("three")
+
+        self.assertEqual([], get_tracers())
+        self.assertEqual(["one", "two", "three"], log1.queries())
+        self.assertEqual(["two"], log2.queries())
+
+    def test_capture_with_exception(self):
+        """L{CaptureLog}s re-raise any error when used as context managers."""
+        errors = []
+        try:
+            with capture() as log:
+                raise RuntimeError("boom")
+        except RuntimeError, error:
+            errors.append(error)
+        [error] = errors
+        self.assertEqual("boom", str(error))
+        self.assertTrue(log.is_closed())

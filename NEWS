@@ -4,6 +4,17 @@
 Improvements
 ------------
 
+- A new storm.tracer.capture function has been added to capture all SQL
+  statements executed by Storm. It (optionally) supports the context manager
+  protocol and can be used as:
+
+    with capture() as log:
+      # Run queries
+    print log.queries()  # Print the queries that have been run
+
+   Or the log.close() method can be called explicitly when not used as context
+   manager.
+
 Bug fixes
 ---------
 

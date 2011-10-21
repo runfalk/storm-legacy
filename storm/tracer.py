@@ -16,7 +16,8 @@ class DebugTracer(object):
             stream = sys.stderr
         self._stream = stream
 
-    def connection_raw_execute(self, connection, raw_cursor, statement, params):
+    def connection_raw_execute(self, connection, raw_cursor, statement,
+                               params):
         time = datetime.now().isoformat()[11:]
         raw_params = []
         for param in params:
@@ -158,7 +159,7 @@ class TimelineTracer(BaseStatementTracer):
 
     For more information on timelines see the module at
     http://pypi.python.org/pypi/timeline.
-    
+
     The timeline to use is obtained by calling the timeline_factory supplied to
     the constructor. This simple function takes no parameters and returns a
     timeline to use. If it returns None, the tracer is bypassed.
@@ -190,7 +191,7 @@ class TimelineTracer(BaseStatementTracer):
 
     def connection_raw_execute_success(self, connection, raw_cursor,
                                        statement, params):
-                                       
+
         # action may be None if the tracer was installed after the statement
         # was submitted.
         action = getattr(self.threadinfo, 'action', None)
@@ -205,7 +206,70 @@ class TimelineTracer(BaseStatementTracer):
             connection, raw_cursor, statement, params)
 
 
+class CaptureTracer(BaseStatementTracer):
+    """Trace SQL statements adding them to a L{CaptureLog}."""
+
+    _log = None
+
+    def attach_log(self, log):
+        """Attach the log to save the statements to."""
+
+        # We might eventually want to support multiple logs and
+        # have detach_log() method to.
+        self._log = log
+
+    def _expanded_raw_execute(self, connection, raw_cursor, statement):
+        """Save the statement to the attached log, if any."""
+        if self._log:
+            self._log.add_query(statement)
+
+
+class CaptureLog(object):
+    """Caputre SQL queries saving them in a log."""
+
+    def __init__(self, tracer):
+        self._queries = []
+        self._tracer = tracer
+        self._closed = False
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.close()
+        return False  # Propagate exceptions
+
+    def add_query(self, query):
+        """Add a query to the log.
+
+        @raises RuntimeError: If the log was already closed.
+        """
+        if self._closed:
+            raise RuntimeError("Can't add queries to closed logs.")
+        self._queries.append(query)
+
+    def queries(self):
+        """Return all captured queries."""
+        return self._queries[:]
+
+    def count(self):
+        """Return the count of captured queries."""
+        return len(self._queries)
+
+    def is_closed(self):
+        """Return a boolean indicating if the log is closed."""
+        return self._closed
+
+    def close(self):
+        """Stop capturing queries."""
+        if self._closed:
+            raise RuntimeError("The capture log was already closed.")
+        self._closed = True
+        remove_tracer(self._tracer)
+
+
 _tracers = []
+
 
 def trace(name, *args, **kwargs):
     for tracer in _tracers:
@@ -213,24 +277,52 @@ def trace(name, *args, **kwargs):
         if attr:
             attr(*args, **kwargs)
 
+
 def install_tracer(tracer):
     _tracers.append(tracer)
+
 
 def get_tracers():
     return _tracers[:]
 
+
 def remove_all_tracers():
     del _tracers[:]
 
+
+def remove_tracer(tracer):
+    _tracers.remove(tracer)
+
+
 def remove_tracer_type(tracer_type):
-    for i in range(len(_tracers)-1, -1, -1):
+    for i in range(len(_tracers) - 1, -1, -1):
         if type(_tracers[i]) is tracer_type:
             del _tracers[i]
+
 
 def debug(flag, stream=None):
     remove_tracer_type(DebugTracer)
     if flag:
         install_tracer(DebugTracer(stream=stream))
 
-# Deal with circular import.        
+
+def capture():
+    """Start capturing SQL statements in a L{CaptureLog}.
+
+    Example:
+
+        with capture() as log:
+            # Run queries
+        print log.queries()  # Print the queries that have been run
+
+    @return: A L{CaptureLog} which will hold a log of all queries executed
+        from this moment on, till it's closed.
+    """
+    tracer = CaptureTracer()
+    log = CaptureLog(tracer)
+    tracer.attach_log(log)
+    install_tracer(tracer)
+    return log
+
+# Deal with circular import.
 from storm.database import convert_param_marks
