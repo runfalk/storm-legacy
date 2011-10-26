@@ -11,7 +11,7 @@ from storm.tracer import CaptureTracer, CaptureLog, get_tracers
 from tests.helper import TestHelper
 
 
-class CaptureFixtureTest(TestHelper, TestWithFixtures):
+class TracerFixtureTest(TestHelper, TestWithFixtures):
 
     def is_supported(self):
         return has_fixtures
