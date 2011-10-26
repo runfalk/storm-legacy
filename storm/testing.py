@@ -23,10 +23,10 @@ from fixtures import Fixture
 from storm.tracer import capture
 
 
-class CaptureFixture(Fixture):
-    """Capture Storm-generated SQL statements in a test."""
+class TracerFixture(Fixture):
+    """Trace and capture Storm-generated SQL statements in a test."""
 
     def setUp(self):
-        super(CaptureFixture, self).setUp()
+        super(TracerFixture, self).setUp()
         self.log = capture()
         self.addCleanup(self.log.close)

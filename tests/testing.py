@@ -4,7 +4,7 @@ try:
 except ImportError:
     has_fixtures = False
 else:
-    from storm.testing import CaptureFixture
+    from storm.testing import TracerFixture
     has_fixtures = True
 
 from storm.tracer import CaptureTracer, CaptureLog, get_tracers
@@ -21,7 +21,7 @@ class CaptureFixtureTest(TestHelper, TestWithFixtures):
         The L{CaptureFixture} provides a catpure log that will be closed
         upon test cleanup.
         """
-        fixture = self.useFixture(CaptureFixture())
+        fixture = self.useFixture(TracerFixture())
         [tracer] = get_tracers()
         self.assertTrue(isinstance(fixture.log, CaptureLog))
         self.assertTrue(isinstance(tracer, CaptureTracer))
