@@ -303,6 +303,12 @@ class PostgresConnection(Connection):
             extra_disconnection_errors)
 
         if isinstance(exc, disconnection_errors):
+            # When the connection is closed by a termination of pgbouncer, a
+            # ProgrammingError is raised. If the raw connection is closed we
+            # assume it's actually a disconnection.
+            if isinstance(exc, ProgrammingError):
+                if self._raw_connection.closed:
+                    return True
             msg = str(exc)
             return (
                 "connection already closed" in msg or
