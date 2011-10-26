@@ -28,5 +28,9 @@ class TracerFixture(Fixture):
 
     def setUp(self):
         super(TracerFixture, self).setUp()
-        self.log = capture()
-        self.addCleanup(self.log.close)
+        self._log = capture()
+        self.addCleanup(self._log.close)
+
+    @property
+    def queries(self):
+        return self._log.queries()

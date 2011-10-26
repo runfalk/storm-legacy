@@ -7,7 +7,8 @@ else:
     from storm.testing import TracerFixture
     has_fixtures = True
 
-from storm.tracer import CaptureTracer, CaptureLog, get_tracers
+from storm.tracer import CaptureTracer, get_tracers
+from tests.tracer import StubConnection
 from tests.helper import TestHelper
 
 
@@ -23,7 +24,10 @@ class TracerFixtureTest(TestHelper, TestWithFixtures):
         """
         fixture = self.useFixture(TracerFixture())
         [tracer] = get_tracers()
-        self.assertTrue(isinstance(fixture.log, CaptureLog))
+        conn = StubConnection()
+        conn.param_mark = '%s'
+        tracer.connection_raw_execute(conn, "cursor", "statement", [])
+        self.assertEqual(["statement"], fixture.queries)
         self.assertTrue(isinstance(tracer, CaptureTracer))
 
         def check():
