@@ -8,6 +8,12 @@ import threading
 from storm.exceptions import TimeoutError
 from storm.expr import Variable
 
+try:
+    Fixture = object
+    from fixtures import Fixture
+except ImportError:
+    pass
+
 
 class DebugTracer(object):
 
@@ -206,66 +212,30 @@ class TimelineTracer(BaseStatementTracer):
             connection, raw_cursor, statement, params)
 
 
-class CaptureTracer(BaseStatementTracer):
-    """Trace SQL statements adding them to a L{CaptureLog}."""
+class CaptureTracer(BaseStatementTracer, Fixture):
+    """Trace SQL statements appending them to a C{list}.
 
-    _log = None
+    Example:
 
-    def attach_log(self, log):
-        """Attach the log to save the statements to."""
+        with CaptureTracer() as tracer:
+            # Run queries
+        print tracer.queries  # Print the queries that have been run
 
-        # We might eventually want to support multiple logs and
-        # have detach_log() method to.
-        self._log = log
+    @note: This class requires the fixtures package to be available.
+    """
 
-    def _expanded_raw_execute(self, connection, raw_cursor, statement):
-        """Save the statement to the attached log, if any."""
-        if self._log:
-            self._log.add_query(statement)
+    def __init__(self):
+        super(CaptureTracer, self).__init__()
+        self.queries = []
 
+    def setUp(self):
+        super(CaptureTracer, self).setUp()
+        install_tracer(self)
+        self.addCleanup(remove_tracer, self)
 
-class CaptureLog(object):
-    """Caputre SQL queries saving them in a log."""
-
-    def __init__(self, tracer):
-        self._queries = []
-        self._tracer = tracer
-        self._closed = False
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, type, value, traceback):
-        self.close()
-        return False  # Propagate exceptions
-
-    def add_query(self, query):
-        """Add a query to the log.
-
-        @raises RuntimeError: If the log was already closed.
-        """
-        if self._closed:
-            raise RuntimeError("Can't add queries to closed logs.")
-        self._queries.append(query)
-
-    def queries(self):
-        """Return all captured queries."""
-        return self._queries[:]
-
-    def count(self):
-        """Return the count of captured queries."""
-        return len(self._queries)
-
-    def is_closed(self):
-        """Return a boolean indicating if the log is closed."""
-        return self._closed
-
-    def close(self):
-        """Stop capturing queries."""
-        if self._closed:
-            raise RuntimeError("The capture log was already closed.")
-        self._closed = True
-        remove_tracer(self._tracer)
+    def _expanded_raw_execute(self, conn, raw_cursor, statement):
+        """Save the statement to the log."""
+        self.queries.append(statement)
 
 
 _tracers = []
@@ -291,7 +261,10 @@ def remove_all_tracers():
 
 
 def remove_tracer(tracer):
-    _tracers.remove(tracer)
+    try:
+        _tracers.remove(tracer)
+    except ValueError:
+        pass  # The tracer is not installed, succeed gracefully
 
 
 def remove_tracer_type(tracer_type):
@@ -304,25 +277,6 @@ def debug(flag, stream=None):
     remove_tracer_type(DebugTracer)
     if flag:
         install_tracer(DebugTracer(stream=stream))
-
-
-def capture():
-    """Start capturing SQL statements in a L{CaptureLog}.
-
-    Example:
-
-        with capture() as log:
-            # Run queries
-        print log.queries()  # Print the queries that have been run
-
-    @return: A L{CaptureLog} which will hold a log of all queries executed
-        from this moment on, till it's closed.
-    """
-    tracer = CaptureTracer()
-    log = CaptureLog(tracer)
-    tracer.attach_log(log)
-    install_tracer(tracer)
-    return log
 
 # Deal with circular import.
 from storm.database import convert_param_marks

@@ -3,6 +3,15 @@ import sys
 from unittest import TestCase
 
 try:
+    # Optional dependency, if missing Fixture tests are skipped.
+    TestWithFixtures = object
+    from fixtures.testcase import TestWithFixtures
+except ImportError:
+    has_fixtures = False
+else:
+    has_fixtures = True
+
+try:
     # Optional dependency, if missing TimelineTracer tests are skipped.
     import timeline
     has_timeline = True
@@ -13,7 +22,7 @@ from storm.tracer import (trace, install_tracer, get_tracers, remove_tracer,
                           remove_tracer_type, remove_all_tracers, debug,
                           BaseStatementTracer, DebugTracer, TimeoutTracer,
                           TimelineTracer, TimeoutError, CaptureTracer,
-                          CaptureLog, capture, _tracers)
+                          _tracers)
 from storm.database import Connection
 from storm.expr import Variable
 
@@ -511,89 +520,44 @@ class TimelineTracerTest(TestHelper):
         self.assertEqual('SQL-<unknown>', self.timeline.actions[-1].category)
 
 
-class CaptureTracerTest(TestHelper):
+class CaptureTracerTest(TestHelper, TestWithFixtures):
 
-    def test_attach_log(self):
-        """A L{CaptureTracer} adds the traced query to the attached log."""
-        tracer = CaptureTracer()
-        log = CaptureLog(tracer)
-        tracer.attach_log(log)
-        conn = StubConnection()
-        conn.param_mark = '%s'
-        var = MockVariable(u"var")
-        tracer.connection_raw_execute(conn, "cursor", "statement %s", [var])
-        self.assertEqual(["statement 'var'"], log.queries())
-
-
-class CaptureLogTest(TestHelper):
+    def is_supported(self):
+        return has_fixtures
 
     def tearDown(self):
-        super(CaptureLogTest, self).tearDown()
-        del _tracers[:]
-
-    def test_add_query(self):
-        """L{CaptureLog.add_query} adds a new query to the log."""
-        log = CaptureLog(None)
-        log.add_query("foo")
-        log.add_query("bar")
-        self.assertEqual(["foo", "bar"], log.queries())
-        self.assertEqual(2, log.count())
-
-    def test_add_query_with_closed_log(self):
-        """L{CaptureLog.add_query} raises an error if the log is closed."""
-        tracer = object()
-        install_tracer(tracer)
-        log = CaptureLog(tracer)
-        log.close()
-        self.assertRaises(RuntimeError, log.add_query, "foo")
-
-    def test_close(self):
-        """L{CaptureLog.close} stops capturing queries removing the tracer."""
-        tracer = object()
-        install_tracer(tracer)
-        log = CaptureLog(tracer)
-        log.close()
-        self.assertNotIn(tracer, get_tracers())
-
-    def test_twice(self):
-        """L{CaptureLog.close} can't be called twice."""
-        tracer = object()
-        install_tracer(tracer)
-        log = CaptureLog(tracer)
-        log.close()
-        self.assertRaises(RuntimeError, log.close)
-
-
-class CaptureTest(TestHelper):
-
-    def tearDown(self):
-        super(CaptureTest, self).tearDown()
+        super(CaptureTracerTest, self).tearDown()
         del _tracers[:]
 
     def test_capture(self):
-        """The L{capture} function starts a new capture log."""
-        log = capture()
+        """
+        Using the L{CaptureTracer} fixture starts capturing queries and stops
+        removes the tracer upon cleanup.
+        """
+        tracer = self.useFixture(CaptureTracer())
+        self.assertEqual([tracer], get_tracers())
         conn = StubConnection()
         conn.param_mark = '%s'
         var = MockVariable(u"var")
-        [tracer] = get_tracers()
-        tracer.connection_raw_execute(conn, "cursor", "statement %s", [var])
-        log.close()
-        self.assertEqual([], get_tracers())
-        self.assertEqual(["statement 'var'"], log.queries())
-        self.assertEqual(1, log.count())
+        tracer.connection_raw_execute(conn, "cursor", "select %s", [var])
+        self.assertEqual(["select 'var'"], tracer.queries)
+
+        def check():
+            self.assertEqual([], get_tracers())
+
+        self.addCleanup(check)
 
     def test_capture_as_context_manager(self):
-        """{CaptureLog}s can be used as context managers."""
+        """{CaptureTracer}s can be used as context managers."""
         conn = StubConnection()
-        with capture() as log:
-            [tracer] = get_tracers()
-            tracer.connection_raw_execute(conn, "cursor", "statement", [])
+        with CaptureTracer() as tracer:
+            self.assertEqual([tracer], get_tracers())
+            tracer.connection_raw_execute(conn, "cursor", "select", [])
         self.assertEqual([], get_tracers())
-        self.assertEqual(["statement"], log.queries())
+        self.assertEqual(["select"], tracer.queries)
 
     def test_capture_multiple(self):
-        """L{CaptureLog}s can be used as nested context managers."""
+        """L{CaptureTracer}s can be used as nested context managers."""
 
         conn = StubConnection()
 
@@ -601,24 +565,26 @@ class CaptureTest(TestHelper):
             for tracer in get_tracers():
                 tracer.connection_raw_execute(conn, "cursor", statement, [])
 
-        with capture() as log1:
+        with CaptureTracer() as tracer1:
             trace("one")
-            with capture() as log2:
+            with CaptureTracer() as tracer2:
                 trace("two")
             trace("three")
 
         self.assertEqual([], get_tracers())
-        self.assertEqual(["one", "two", "three"], log1.queries())
-        self.assertEqual(["two"], log2.queries())
+        self.assertEqual(["one", "two", "three"], tracer1.queries)
+        self.assertEqual(["two"], tracer2.queries)
 
     def test_capture_with_exception(self):
-        """L{CaptureLog}s re-raise any error when used as context managers."""
+        """
+        L{CaptureTracer}s re-raise any error when used as context managers.
+        """
         errors = []
         try:
-            with capture() as log:
+            with CaptureTracer():
                 raise RuntimeError("boom")
         except RuntimeError, error:
             errors.append(error)
         [error] = errors
         self.assertEqual("boom", str(error))
-        self.assertTrue(log.is_closed())
+        self.assertEqual([], get_tracers())
