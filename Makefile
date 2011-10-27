@@ -23,7 +23,16 @@ develop:
 
 check:
 	@ # Run the tests once with C extensions and once without them.
-	$(TEST_COMMAND) && STORM_CEXTENSIONS=0 $(TEST_COMMAND)
+	STORM_CEXTENSIONS=0 $(TEST_COMMAND)
+	STORM_CEXTENSIONS=1 $(TEST_COMMAND)
+
+check-with-trial: develop
+	STORM_TEST_RUNNER=trial STORM_CEXTENSIONS=0 $(PYTHON) test
+	STORM_TEST_RUNNER=trial STORM_CEXTENSIONS=1 $(PYTHON) test
+
+check-with-unittest: develop
+	STORM_TEST_RUNNER=unittest STORM_CEXTENSIONS=0 $(PYTHON) test
+	STORM_TEST_RUNNER=unittest STORM_CEXTENSIONS=1 $(PYTHON) test
 
 doc:
 	$(PYDOCTOR) --make-html --html-output apidoc --add-package storm
