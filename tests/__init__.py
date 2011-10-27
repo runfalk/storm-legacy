@@ -22,6 +22,7 @@
 __all__ = [
     'find_tests',
     'has_fixtures',
+    'has_subunit',
     ]
 
 import doctest
@@ -35,6 +36,15 @@ except ImportError:
     has_fixtures = False
 else:
     has_fixtures = True
+
+
+try:
+    import subunit
+    subunit  # Silence lint.
+except ImportError:
+    has_subunit = False
+else:
+    has_subunit = True
 
 
 def find_tests(testpaths=()):

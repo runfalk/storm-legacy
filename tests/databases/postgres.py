@@ -39,7 +39,7 @@ from storm.uri import URI
 import storm.info
 storm  # Silence lint.
 
-from tests import has_fixtures
+from tests import has_fixtures, has_subunit
 from tests.databases.base import (
     DatabaseTest, DatabaseDisconnectionTest, UnsupportedDatabaseTest)
 from tests.expr import column1, column2, column3, elem1, table1, TrackContext
@@ -592,15 +592,28 @@ class PostgresDisconnectionTestWithoutProxyBase(object):
             "SELECT current_database()")
 
 
+if has_subunit:
+    # Some of the following tests are prone to segfaults, presumably in
+    # _psycopg.so. Run them in a subprocess if possible.
+    from subunit import IsolatedTestCase
+    class MisbehavingTestCase(IsolatedTestCase, TestHelper):
+        pass
+else:
+    # If we can't run them in a subprocess we still want to create tests, but
+    # prevent them from running, so that the skip is reported
+    class MisbehavingTestCase(TestHelper):
+        def is_supported(self):
+            return False
+
+
 class PostgresDisconnectionTestWithoutProxyUnixSockets(
-    PostgresDisconnectionTestWithoutProxyBase, TestHelper):
+    PostgresDisconnectionTestWithoutProxyBase, MisbehavingTestCase):
     """Disconnection tests using Unix sockets."""
 
     database_uri = os.environ.get("STORM_POSTGRES_URI")
 
-
 class PostgresDisconnectionTestWithoutProxyTCPSockets(
-    PostgresDisconnectionTestWithoutProxyBase, TestHelper):
+    PostgresDisconnectionTestWithoutProxyBase, MisbehavingTestCase):
     """Disconnection tests using TCP sockets."""
 
     database_uri = os.environ.get("STORM_POSTGRES_HOST_URI")
