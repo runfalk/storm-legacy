@@ -56,6 +56,12 @@ class TracerTest(TestHelper):
         remove_tracer(tracer1)
         self.assertEquals(get_tracers(), [tracer2])
 
+    def test_remove_tracer_with_not_installed_tracer(self):
+        """C{remote_tracer} exits gracefully if the tracer is not installed."""
+        tracer = object()
+        remove_tracer(tracer)
+        self.assertEquals(get_tracers(), [])
+
     def test_remove_tracer_type(self):
         class C(object):
             pass
