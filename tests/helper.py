@@ -19,7 +19,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 from cStringIO import StringIO
-import unittest
 import tempfile
 import logging
 import shutil
@@ -71,7 +70,7 @@ class TestHelper(mocker.MockerTestCase):
                 result.startTest(self)
                 result.addSkip(self, "Test not supported")
             return
-        unittest.TestCase.run(self, result)
+        super(TestHelper, self).run(result)
 
     def assertVariablesEqual(self, checked, expected):
         self.assertEquals(len(checked), len(expected))
