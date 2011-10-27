@@ -298,8 +298,8 @@ class PostgresConnection(Connection):
                 return True
 
         disconnection_errors = (
-            InterfaceError, OperationalError, ProgrammingError,
-            extra_disconnection_errors)
+            DatabaseError, InterfaceError, OperationalError,
+            ProgrammingError, extra_disconnection_errors)
 
         if isinstance(exc, disconnection_errors):
             # When the connection is closed by a termination of pgbouncer, a
@@ -310,20 +310,17 @@ class PostgresConnection(Connection):
                     return True
             msg = str(exc)
             return (
+                "EOF detected" in msg or
                 "connection already closed" in msg or
                 "connection not open" in msg or
                 "could not connect to server" in msg or
                 "could not receive data from server" in msg or
                 "losed the connection unexpectedly" in msg or
                 "no connection to the server" in msg or
+                "server closed the connection unexpectedly" in msg or
                 "terminating connection due to administrator" in msg)
-        elif isinstance(exc, DatabaseError):
-            msg = str(exc)
-            return (
-                "EOF detected" in msg or
-                "server closed the connection unexpectedly" in msg)
-        else:
-            return False
+
+        return False
 
 
 class Postgres(Database):
