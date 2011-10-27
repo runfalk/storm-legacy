@@ -22,7 +22,6 @@
 import glob
 import optparse
 import unittest
-import doctest
 import sys
 import os
 
