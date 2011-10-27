@@ -208,4 +208,10 @@ compatibility layer is used).
   >>> ISQLObjectResultSet.implementedBy(SQLObjectResultSet)
   True
 
+
+The End
+-------
+
+  >>> zstorm._reset()
+
 # vim:ts=4:sw=4:et
