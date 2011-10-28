@@ -2,14 +2,14 @@ import datetime
 import sys
 from unittest import TestCase
 
-try:
-    # Optional dependency, if missing Fixture tests are skipped.
-    TestWithFixtures = object
-    from fixtures.testcase import TestWithFixtures
-except ImportError:
-    has_fixtures = False
+from tests import has_fixtures
+
+# Optional dependency. If missing, Fixture tests are skipped.
+if has_fixtures:
+    import fixtures.testcase
+    TestWithFixtures = fixtures.testcase.TestWithFixtures
 else:
-    has_fixtures = True
+    TestWithFixtures = object
 
 try:
     # Optional dependency, if missing TimelineTracer tests are skipped.
