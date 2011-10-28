@@ -59,6 +59,7 @@ setup(
         "pgbouncer >= 0.0.7",
         "psycopg2 >= 2.0.13",
         "testresources >= 0.2.4",
+        "testtools >= 0.9.8",
         # timeline is not yet packaged in Ubuntu.
         "timeline >= 0.0.2",
         "transaction >= 1.0.0",
