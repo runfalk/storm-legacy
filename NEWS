@@ -14,10 +14,21 @@ Improvements
 
   You will need the python-fixtures package in order to use this feature.
 
+- Setuptools <http://pypi.python.org/pypi/setuptools> is now required
+  to run setup.py. This makes it much easier to install the majority
+  of the dependencies required to run the test suite in its entirety.
+
+- Disconnection errors arising from PostgreSQL are now more reliably
+  detected, especially with regard to recent libpq updates in Ubuntu.
+  There are also disconnection tests that simulate sudden termination
+  of pgbouncer <http://pgfoundry.org/projects/pgbouncer/>.
+
 Bug fixes
 ---------
 
-- When a SQLObjectResultSet object was sliced with slice.start and slice.end both zero (sqlobject[0:0]), the full, unsliced resultset was returned (bug #872086).
+- When a SQLObjectResultSet object was sliced with slice.start and
+  slice.end both zero (sqlobject[0:0]), the full, unsliced resultset
+  was returned (bug #872086).
 
 0.19 (2011-10-03)
 =================

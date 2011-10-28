@@ -98,8 +98,10 @@ In order to run the test suite, and exercise all supported backends,
 you will need to install MySQL and PostgreSQL, along with the
 related Python database drivers:
 
- $ sudo apt-get install python-mysqldb python-psycopg2 mysql-server \
-                        postgresql build-essential
+ $ sudo apt-get install \
+       python-mysqldb mysql-server \
+       postgresql pgbouncer \
+       build-essential
 
 These will take a few minutes to download (its a bit under 200MB all
 together).  Once the download is complete, a screen called
@@ -109,6 +111,28 @@ continue.  This is not a recommended setting for a production
 server, but makes life easier on a development machine.  You may be
 asked to enter a password multiple times.  Leave it blank in each
 case.
+
+The Python dependencies for running tests can mostly be installed with
+apt-get:
+
+ $ apt-get install \
+       python-django python-fixtures python-psycopg2 \
+       python-testresources python-transaction python-twisted \
+       python-zope.component python-zope.security
+
+Two modules - pgbouncer and timeline - are not yet packaged in
+Ubuntu. These can be installed from PyPI:
+
+  http://pypi.python.org/pypi/pgbouncer
+  http://pypi.python.org/pypi/timeline
+
+Alternatively, dependencies can be downloaded as eggs into the current
+directory with:
+
+ $ make develop
+
+This ensures that all dependencies are available, downloading from
+PyPI as appropriate.
 
 Setting up database users and access security
 ---------------------------------------------

@@ -11,3 +11,6 @@ debian/python-storm.prerm.debhelper
 debian/python-storm.substvars
 apidoc
 _trial_temp
+*.egg
+TAGS
+tags
