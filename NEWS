@@ -4,9 +4,20 @@
 Improvements
 ------------
 
+- A new CaptureTracer has been added to storm.tracer, for capturing all SQL
+  statements executed by Storm. It can be used like this:
+
+    with CaptureTracer() as tracer:
+      # Run queries
+      pass
+    print tracer.queries  # Print all queries run in the context manager block
+
+  You will need the python-fixtures package in order to use this feature.
+
 Bug fixes
 ---------
 
+- When a SQLObjectResultSet object was sliced with slice.start and slice.end both zero (sqlobject[0:0]), the full, unsliced resultset was returned (bug #872086).
 
 0.19 (2011-10-03)
 =================
