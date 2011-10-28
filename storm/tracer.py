@@ -8,6 +8,12 @@ import threading
 from storm.exceptions import TimeoutError
 from storm.expr import Variable
 
+try:
+    Fixture = object
+    from fixtures import Fixture
+except ImportError:
+    pass
+
 
 class DebugTracer(object):
 
@@ -16,7 +22,8 @@ class DebugTracer(object):
             stream = sys.stderr
         self._stream = stream
 
-    def connection_raw_execute(self, connection, raw_cursor, statement, params):
+    def connection_raw_execute(self, connection, raw_cursor, statement,
+                               params):
         time = datetime.now().isoformat()[11:]
         raw_params = []
         for param in params:
@@ -158,7 +165,7 @@ class TimelineTracer(BaseStatementTracer):
 
     For more information on timelines see the module at
     http://pypi.python.org/pypi/timeline.
-    
+
     The timeline to use is obtained by calling the timeline_factory supplied to
     the constructor. This simple function takes no parameters and returns a
     timeline to use. If it returns None, the tracer is bypassed.
@@ -190,7 +197,7 @@ class TimelineTracer(BaseStatementTracer):
 
     def connection_raw_execute_success(self, connection, raw_cursor,
                                        statement, params):
-                                       
+
         # action may be None if the tracer was installed after the statement
         # was submitted.
         action = getattr(self.threadinfo, 'action', None)
@@ -205,7 +212,34 @@ class TimelineTracer(BaseStatementTracer):
             connection, raw_cursor, statement, params)
 
 
+class CaptureTracer(BaseStatementTracer, Fixture):
+    """Trace SQL statements appending them to a C{list}.
+
+    Example:
+
+        with CaptureTracer() as tracer:
+            # Run queries
+        print tracer.queries  # Print the queries that have been run
+
+    @note: This class requires the fixtures package to be available.
+    """
+
+    def __init__(self):
+        super(CaptureTracer, self).__init__()
+        self.queries = []
+
+    def setUp(self):
+        super(CaptureTracer, self).setUp()
+        install_tracer(self)
+        self.addCleanup(remove_tracer, self)
+
+    def _expanded_raw_execute(self, conn, raw_cursor, statement):
+        """Save the statement to the log."""
+        self.queries.append(statement)
+
+
 _tracers = []
+
 
 def trace(name, *args, **kwargs):
     for tracer in _tracers:
@@ -213,24 +247,36 @@ def trace(name, *args, **kwargs):
         if attr:
             attr(*args, **kwargs)
 
+
 def install_tracer(tracer):
     _tracers.append(tracer)
+
 
 def get_tracers():
     return _tracers[:]
 
+
 def remove_all_tracers():
     del _tracers[:]
 
+
+def remove_tracer(tracer):
+    try:
+        _tracers.remove(tracer)
+    except ValueError:
+        pass  # The tracer is not installed, succeed gracefully
+
+
 def remove_tracer_type(tracer_type):
-    for i in range(len(_tracers)-1, -1, -1):
+    for i in range(len(_tracers) - 1, -1, -1):
         if type(_tracers[i]) is tracer_type:
             del _tracers[i]
+
 
 def debug(flag, stream=None):
     remove_tracer_type(DebugTracer)
     if flag:
         install_tracer(DebugTracer(stream=stream))
 
-# Deal with circular import.        
+# Deal with circular import.
 from storm.database import convert_param_marks

@@ -4,6 +4,16 @@
 Improvements
 ------------
 
+- A new CaptureTracer has been added to storm.tracer, for capturing all SQL
+  statements executed by Storm. It can be used like this:
+
+    with CaptureTracer() as tracer:
+      # Run queries
+      pass
+    print tracer.queries  # Print all queries run in the context manager block
+
+  You will need the python-fixtures package in order to use this feature.
+
 Bug fixes
 ---------
 
