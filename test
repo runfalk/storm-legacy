@@ -26,8 +26,6 @@ import doctest
 import sys
 import os
 
-import tests
-
 
 def add_eggs_to_path():
     here = os.path.dirname(__file__)
@@ -50,7 +48,8 @@ def test_with_runner(runner):
     # top directory, so we add them to sys.path here for convenience.
     add_eggs_to_path()
 
-    suite = tests.find_tests(args)
+    from tests import find_tests
+    suite = find_tests(args)
     result = runner.run(suite)
     return not result.wasSuccessful()
 
