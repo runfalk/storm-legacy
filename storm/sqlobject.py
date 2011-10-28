@@ -525,9 +525,6 @@ class SQLObjectResultSet(object):
 
     def __getitem__(self, index):
         if isinstance(index, slice):
-            if not index.start and not index.stop:
-                return self
-
             if index.start and index.start < 0 or (
                 index.stop and index.stop < 0):
                 L = list(self)
