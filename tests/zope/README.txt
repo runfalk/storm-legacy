@@ -212,6 +212,7 @@ compatibility layer is used).
 The End
 -------
 
+  >>> transaction.abort()
   >>> zstorm._reset()
 
 # vim:ts=4:sw=4:et
