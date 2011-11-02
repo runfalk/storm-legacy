@@ -39,7 +39,11 @@ class TestHelper(mocker.MockerTestCase):
 
     helpers = []
 
+    def is_supported(self):
+        return True
+
     def setUp(self):
+        super(TestHelper, self).setUp()
         self._helper_instances = []
         for helper_factory in self.helpers:
             helper = helper_factory()
@@ -49,6 +53,7 @@ class TestHelper(mocker.MockerTestCase):
     def tearDown(self):
         for helper in reversed(self._helper_instances):
             helper.tear_down(self)
+        super(TestHelper, self).tearDown()
 
     def _has_run_this(self, attr):
         return getattr(getattr(self, attr, None), "run_this", False)
@@ -64,8 +69,7 @@ class TestHelper(mocker.MockerTestCase):
                 if not self._has_run_this(method_name):
                     return
                 break
-        is_supported = getattr(self, "is_supported", None)
-        if is_supported is not None and not is_supported():
+        if not self.is_supported():
             if hasattr(result, "addSkip"):
                 result.startTest(self)
                 result.addSkip(self, "Test not supported")

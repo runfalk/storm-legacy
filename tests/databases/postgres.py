@@ -576,7 +576,8 @@ class PostgresDisconnectionTestWithoutProxyBase(object):
     database_uri = None
 
     def is_supported(self):
-        return bool(self.database_uri)
+        return bool(self.database_uri) and super(
+            PostgresDisconnectionTestWithoutProxyBase, self).is_supported()
 
     def setUp(self):
         super(PostgresDisconnectionTestWithoutProxyBase, self).setUp()
@@ -607,13 +608,13 @@ else:
 
 
 class PostgresDisconnectionTestWithoutProxyUnixSockets(
-    MisbehavingTestCase, PostgresDisconnectionTestWithoutProxyBase):
+    PostgresDisconnectionTestWithoutProxyBase, MisbehavingTestCase):
     """Disconnection tests using Unix sockets."""
 
     database_uri = os.environ.get("STORM_POSTGRES_URI")
 
 class PostgresDisconnectionTestWithoutProxyTCPSockets(
-    MisbehavingTestCase, PostgresDisconnectionTestWithoutProxyBase):
+    PostgresDisconnectionTestWithoutProxyBase, MisbehavingTestCase):
     """Disconnection tests using TCP sockets."""
 
     database_uri = os.environ.get("STORM_POSTGRES_HOST_URI")
