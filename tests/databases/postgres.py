@@ -596,7 +596,7 @@ if has_subunit:
     # Some of the following tests are prone to segfaults, presumably in
     # _psycopg.so. Run them in a subprocess if possible.
     from subunit import IsolatedTestCase
-    class MisbehavingTestCase(IsolatedTestCase, TestHelper):
+    class MisbehavingTestCase(TestHelper, IsolatedTestCase):
         pass
 else:
     # If we can't run them in a subprocess we still want to create tests, but
@@ -607,13 +607,13 @@ else:
 
 
 class PostgresDisconnectionTestWithoutProxyUnixSockets(
-    PostgresDisconnectionTestWithoutProxyBase, MisbehavingTestCase):
+    MisbehavingTestCase, PostgresDisconnectionTestWithoutProxyBase):
     """Disconnection tests using Unix sockets."""
 
     database_uri = os.environ.get("STORM_POSTGRES_URI")
 
 class PostgresDisconnectionTestWithoutProxyTCPSockets(
-    PostgresDisconnectionTestWithoutProxyBase, MisbehavingTestCase):
+    MisbehavingTestCase, PostgresDisconnectionTestWithoutProxyBase):
     """Disconnection tests using TCP sockets."""
 
     database_uri = os.environ.get("STORM_POSTGRES_HOST_URI")
