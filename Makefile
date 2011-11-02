@@ -30,10 +30,6 @@ check-with-trial: develop
 	STORM_TEST_RUNNER=trial STORM_CEXTENSIONS=0 $(PYTHON) test
 	STORM_TEST_RUNNER=trial STORM_CEXTENSIONS=1 $(PYTHON) test
 
-check-with-unittest: develop
-	STORM_TEST_RUNNER=unittest STORM_CEXTENSIONS=0 $(PYTHON) test
-	STORM_TEST_RUNNER=unittest STORM_CEXTENSIONS=1 $(PYTHON) test
-
 doc:
 	$(PYDOCTOR) --make-html --html-output apidoc --add-package storm
 
