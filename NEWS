@@ -30,6 +30,22 @@ Bug fixes
   slice.end both zero (sqlobject[0:0]), the full, unsliced resultset
   was returned (bug #872086).
 
+- Fixes some test failures around Django disconnections from
+  PostgreSQL stores.
+
+- Some of the proxy-less disconnection tests were causing segfaults,
+  so they're now run in a subprocess via subunit's IsolatedTestCase,
+  when it's available.
+
+- Fix a few non-uses of super() in TestHelper.
+
+- Abort the transaction and reset ZStorm at the end of
+  tests/zope/README.txt.
+
+- Fix the ./test script to not import tests until after local eggs
+  have been added to sys.path. This ensures that all possible features
+  are available to the tests.
+
 0.19 (2011-10-03)
 =================
 
