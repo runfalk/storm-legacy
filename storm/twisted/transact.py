@@ -26,7 +26,7 @@ class Transactor(object):
         default is to retry a function up to 2 times upon possibly transient
         or spurious errors like L{IntegrityError} and L{DisconnectionError}.
 
-    @seealso: C{twisted.python.threadpool.ThreadPool}
+    @see: C{twisted.python.threadpool.ThreadPool}
     """
     retries = 2
 
@@ -95,36 +95,33 @@ class Transactor(object):
 def transact(method):
     """Decorate L{method} so that it is invoked via L{Transactor.run}.
 
+    Example::
+
+        from twisted.python.threadpool import ThreadPool
+        from storm.twisted.transact import Transactor, transact
+
+        class Foo(object):
+
+            def __init__(self, transactor):
+                self.transactor = transactor
+
+            @transact
+            def bar(self):
+                # code that uses Storm
+
+        threadpool = ThreadPool(0, 10)
+        threadpool.start()
+        transactor = Transactor(threadpool)
+        foo = Foo(transactor)
+        deferred = foo.bar()
+        deferred.addCallback(...)
+
     @param method: The method to decorate.
     @return: A decorated method.
+
     @note: The return value of the decorated method should *not* contain
         any reference to Storm objects, because they were retrieved in
         a different thread and cannot be used outside it.
-    """
-
-    # Please tell me why epydoc chokes on combining the preceding and
-    # following docstrings!  LP: #868418
-    """
-    Example:
-
-    from twisted.python.threadpool import ThreadPool
-    from storm.twisted.transact import Transactor, transact
-
-    class Foo(object):
-
-        def __init__(self, transactor):
-            self.transactor = transactor
-
-        @transact
-        def bar(self):
-            # code that uses Storm
-
-    threadpool = ThreadPool(0, 10)
-    threadpool.start()
-    transactor = Transactor(threadpool)
-    foo = Foo(transactor)
-    deferred = foo.bar()
-    deferred.addCallback(...)
     """
 
     @wraps(method)
