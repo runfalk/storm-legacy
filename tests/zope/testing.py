@@ -29,7 +29,7 @@ from storm.exceptions import IntegrityError
 
 if has_transaction and has_zope_component and has_testresources:
     from zope.component import provideUtility, getUtility
-    from storm.zope.zstorm import ZStorm
+    from storm.zope.zstorm import ZStorm, global_zstorm
     from storm.zope.interfaces import IZStorm
     from storm.zope.schema import ZSchema
     from storm.zope.testing import ZStormResourceManager
@@ -221,3 +221,12 @@ class ZStormResourceManagerTest(TestHelper):
         zstorm = resource.make([])
         store = zstorm.get("test")
         self.assertIsNot(None, store)
+
+    def test_use_global_zstorm(self):
+        """
+        If the C{use_global_zstorm} attribute is C{True} then the global
+        L{ZStorm} will be used.
+        """
+        self.resource.use_global_zstorm = True
+        zstorm = self.resource.make([])
+        self.assertIs(global_zstorm, zstorm)
