@@ -41,6 +41,7 @@ class TransactorTest(TestCase, TestHelper):
         the transaction and returns a deferred firing the function result.
         """
         self.mocker.order()
+        self.expect(self.transaction.begin())
         self.expect(self.function(1, arg=2)).result(3)
         self.expect(self.transaction.commit())
         self.mocker.replay()
@@ -54,6 +55,7 @@ class TransactorTest(TestCase, TestHelper):
         aborts the transaction and re-raises the same error.
         """
         self.mocker.order()
+        self.expect(self.transaction.begin())
         self.expect(self.function()).throw(ZeroDivisionError())
         self.expect(self.transaction.abort())
         self.mocker.replay()
@@ -73,6 +75,7 @@ class TransactorTest(TestCase, TestHelper):
         store1 = self.mocker.mock()
         store2 = self.mocker.mock()
         gu = self.mocker.replace(getUtility)
+        self.expect(self.transaction.begin())
         self.expect(self.function()).throw(DisconnectionError())
         self.expect(gu(IZStorm)).result(zstorm)
         self.expect(zstorm.iterstores()).result(iter((("store1", store1),
@@ -98,6 +101,7 @@ class TransactorTest(TestCase, TestHelper):
         store2 = self.mocker.mock()
         gu = self.mocker.replace(getUtility)
         self.mocker.order()
+        self.expect(self.transaction.begin())
         self.expect(self.function()).throw(DisconnectionError())
         self.expect(gu(IZStorm)).result(zstorm)
         self.expect(zstorm.iterstores()).result(iter((("store1", store1),
@@ -117,6 +121,7 @@ class TransactorTest(TestCase, TestHelper):
         the commit exception.
         """
         self.mocker.order()
+        self.expect(self.transaction.begin())
         self.expect(self.function())
         self.expect(self.transaction.commit()).throw(ZeroDivisionError())
         self.expect(self.transaction.abort())
@@ -139,6 +144,7 @@ class TransactorTest(TestCase, TestHelper):
         ensuring that the decorated function is called via L{Transactor.run}.
         """
         self.mocker.order()
+        self.expect(self.transaction.begin())
         self.expect(self.transaction.commit())
         self.mocker.replay()
 
@@ -163,16 +169,19 @@ class TransactorTest(TestCase, TestHelper):
         self.transactor.uniform = self.mocker.mock()
         self.mocker.order()
 
+        self.expect(self.transaction.begin())
         self.expect(self.function()).throw(IntegrityError())
         self.expect(self.transaction.abort())
         self.expect(self.transactor.uniform(1, 2 ** 1)).result(1)
         self.expect(self.transactor.sleep(1))
 
+        self.expect(self.transaction.begin())
         self.expect(self.function()).throw(IntegrityError())
         self.expect(self.transaction.abort())
         self.expect(self.transactor.uniform(1, 2 ** 2)).result(2)
         self.expect(self.transactor.sleep(2))
 
+        self.expect(self.transaction.begin())
         self.expect(self.function()).throw(IntegrityError())
         self.expect(self.transaction.abort())
         self.mocker.replay()
@@ -194,16 +203,19 @@ class TransactorTest(TestCase, TestHelper):
         self.transactor.uniform = self.mocker.mock()
         self.mocker.order()
 
+        self.expect(self.transaction.begin())
         self.expect(self.function()).throw(TransactionRollbackError())
         self.expect(self.transaction.abort())
         self.expect(self.transactor.uniform(1, 2 ** 1)).result(1)
         self.expect(self.transactor.sleep(1))
 
+        self.expect(self.transaction.begin())
         self.expect(self.function()).throw(TransactionRollbackError())
         self.expect(self.transaction.abort())
         self.expect(self.transactor.uniform(1, 2 ** 2)).result(2)
         self.expect(self.transactor.sleep(2))
 
+        self.expect(self.transaction.begin())
         self.expect(self.function()).throw(TransactionRollbackError())
         self.expect(self.transaction.abort())
         self.mocker.replay()
@@ -224,6 +236,7 @@ class TransactorTest(TestCase, TestHelper):
         self.transactor.uniform = self.mocker.mock()
         self.mocker.order()
 
+        self.expect(self.transaction.begin())
         self.expect(self.function()).throw(DisconnectionError())
         self.expect(gu(IZStorm)).result(zstorm)
         self.expect(zstorm.iterstores()).result(iter(()))
@@ -231,6 +244,7 @@ class TransactorTest(TestCase, TestHelper):
         self.expect(self.transactor.uniform(1, 2 ** 1)).result(1)
         self.expect(self.transactor.sleep(1))
 
+        self.expect(self.transaction.begin())
         self.expect(self.function()).throw(DisconnectionError())
         self.expect(gu(IZStorm)).result(zstorm)
         self.expect(zstorm.iterstores()).result(iter(()))
@@ -238,6 +252,7 @@ class TransactorTest(TestCase, TestHelper):
         self.expect(self.transactor.uniform(1, 2 ** 2)).result(2)
         self.expect(self.transactor.sleep(2))
 
+        self.expect(self.transaction.begin())
         self.expect(self.function()).throw(DisconnectionError())
         self.expect(gu(IZStorm)).result(zstorm)
         self.expect(zstorm.iterstores()).result(iter(()))
@@ -258,18 +273,21 @@ class TransactorTest(TestCase, TestHelper):
         self.transactor.uniform = self.mocker.mock()
         self.mocker.order()
 
+        self.expect(self.transaction.begin())
         self.expect(self.function())
         self.expect(self.transaction.commit()).throw(IntegrityError())
         self.expect(self.transaction.abort())
         self.expect(self.transactor.uniform(1, 2 ** 1)).result(1)
         self.expect(self.transactor.sleep(1))
 
+        self.expect(self.transaction.begin())
         self.expect(self.function())
         self.expect(self.transaction.commit()).throw(IntegrityError())
         self.expect(self.transaction.abort())
         self.expect(self.transactor.uniform(1, 2 ** 2)).result(2)
         self.expect(self.transactor.sleep(2))
 
+        self.expect(self.transaction.begin())
         self.expect(self.function())
         self.expect(self.transaction.commit()).throw(IntegrityError())
         self.expect(self.transaction.abort())
@@ -295,12 +313,14 @@ class TransactorTest(TestCase, TestHelper):
         self.transactor.uniform = self.mocker.mock()
         self.mocker.order()
 
+        self.expect(self.transaction.begin())
         self.expect(self.function(1, a=2))
         self.expect(self.transaction.commit()).throw(IntegrityError())
         self.expect(self.transaction.abort())
         self.expect(self.transactor.uniform(1, 2 ** 1)).result(1)
         self.expect(self.transactor.sleep(1))
 
+        self.expect(self.transaction.begin())
         self.expect(self.function(1, a=2))
         self.expect(self.transaction.commit())
         self.mocker.replay()
