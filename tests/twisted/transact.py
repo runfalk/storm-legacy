@@ -302,28 +302,17 @@ class TransactorTest(TestCase, TestHelper):
         self.expect(self.transactor.sleep(1))
 
         self.expect(self.function(1, a=2))
-        self.expect(self.transaction.commit()).throw(IntegrityError())
-        self.expect(self.transaction.abort())
-        self.expect(self.transactor.uniform(1, 2 ** 2)).result(2)
-        self.expect(self.transactor.sleep(2))
-
-        self.expect(self.function(1, a=2))
         self.expect(self.transaction.commit())
         self.mocker.replay()
 
         deferred = self.transactor.run(self.function, 1, a=2)
 
         def check(_):
-            [context1, context2] = calls
+            [context] = calls
 
-            self.assertEqual(self.function, context1.function)
-            self.assertEqual((1,), context1.args)
-            self.assertEqual({"a": 2}, context1.kwargs)
-            self.assertEqual(1, context1.retry)
-
-            self.assertEqual(self.function, context2.function)
-            self.assertEqual((1,), context2.args)
-            self.assertEqual({"a": 2}, context2.kwargs)
-            self.assertEqual(2, context2.retry)
+            self.assertEqual(self.function, context.function)
+            self.assertEqual((1,), context.args)
+            self.assertEqual({"a": 2}, context.kwargs)
+            self.assertEqual(1, context.retry)
 
         return deferred.addCallback(check)
