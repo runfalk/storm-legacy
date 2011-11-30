@@ -3,6 +3,8 @@ import transaction
 from twisted.python.failure import Failure
 from twisted.internet.defer import execute
 
+from storm.twisted.transact import Transactor
+
 
 class FakeThreadPool(object):
     """
@@ -21,7 +23,7 @@ class FakeThreadPool(object):
         onResult(success, result)
 
 
-class FakeTransactor(object):
+class FakeTransactor(Transactor):
     """
     A fake C{Transactor} wrapper that runs the given function in the main
     thread and performs basic checks on its return value.  If it has a
@@ -30,6 +32,10 @@ class FakeTransactor(object):
 
     @seealso: L{Transactor}.
     """
+    retries = 0
+    on_retry = None
+
+    sleep = lambda *args, **kwargs: None
 
     def __init__(self, _transaction=None):
         if _transaction is None:
@@ -37,21 +43,11 @@ class FakeTransactor(object):
         self._transaction = _transaction
 
     def run(self, function, *args, **kwargs):
-        return execute(self._wrap, function, *args, **kwargs)
+        deferred = execute(self._wrap, function, *args, **kwargs)
+        return deferred.addCallback(self._check_result)
 
-    def _wrap(self, function, *args, **kwargs):
-        try:
-            result = function(*args, **kwargs)
-            if getattr(result, "__storm_table__", None) is not None:
-                raise RuntimeError("Attempted to return a Storm object from a "
-                                   "transaction")
-        except:
-            self._transaction.abort()
-            raise
-        else:
-            try:
-                self._transaction.commit()
-            except:
-                self._transaction.abort()
-                raise
-            return result
+    def _check_result(self, result):
+        if getattr(result, "__storm_table__", None) is not None:
+            raise RuntimeError("Attempted to return a Storm object from a "
+                               "transaction")
+        return result

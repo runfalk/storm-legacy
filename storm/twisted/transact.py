@@ -12,6 +12,14 @@ from storm.exceptions import IntegrityError, DisconnectionError
 from twisted.internet.threads import deferToThreadPool
 
 
+RETRIABLE_ERRORS = (DisconnectionError, IntegrityError)
+try:
+    from psycopg2.extensions import TransactionRollbackError
+    RETRIABLE_ERRORS = RETRIABLE_ERRORS + (TransactionRollbackError,)
+except ImportError:
+    pass
+
+
 class Transactor(object):
     """Run in a thread code that needs to interact with the database.
 
@@ -25,22 +33,23 @@ class Transactor(object):
     @ivar retries: Maximum number of retries upon retriable exceptions. The
         default is to retry a function up to 2 times upon possibly transient
         or spurious errors like L{IntegrityError} and L{DisconnectionError}.
+    @ivar on_retry: If not C{None}, a callable that will be called before
+        retrying to run a function, and passed a L{RetryContext} instance with
+        the details about the retry.
 
     @see: C{twisted.python.threadpool.ThreadPool}
     """
     retries = 2
+    on_retry = None
+
+    sleep = time.sleep
+    uniform = random.uniform
 
     def __init__(self, threadpool, _transaction=None):
         self._threadpool = threadpool
         if _transaction is None:
             _transaction = transaction
         self._transaction = _transaction
-        self._retriable_errors = (DisconnectionError, IntegrityError)
-        try:
-            from psycopg2.extensions import TransactionRollbackError
-            self._retriable_errors += (TransactionRollbackError,)
-        except ImportError:
-            pass
 
     def run(self, function, *args, **kwargs):
         """Run C{function} in a thread.
@@ -66,7 +75,7 @@ class Transactor(object):
             try:
                 result = function(*args, **kwargs)
                 self._transaction.commit()
-            except self._retriable_errors, error:
+            except RETRIABLE_ERRORS, error:
                 if isinstance(error, DisconnectionError):
                     # If we got a disconnection, calling rollback may not be
                     # enough because psycopg2 doesn't necessarily use the
@@ -81,7 +90,10 @@ class Transactor(object):
                 self._transaction.abort()
                 if retries < self.retries:
                     retries += 1
-                    time.sleep(random.uniform(1, 2 ** retries))
+                    if self.on_retry is not None:
+                        context = RetryContext(function, args, kwargs, retries)
+                        self.on_retry(context)
+                    self.sleep(self.uniform(1, 2 ** retries))
                     continue
                 else:
                     raise
@@ -90,6 +102,23 @@ class Transactor(object):
                 raise
             else:
                 return result
+
+
+class RetryContext(object):
+    """Hold details about a function that is going to be retried.
+
+    @ivar function: The function that is going to be retried.
+    @ivar args: The positional arguments passed to the function.
+    @ivar kwargs: The keyword arguments passed to the function.
+    @ivar retry: The sequential number of the retry that is going to be
+        performed.
+    """
+
+    def __init__(self, function, args, kwargs, retry):
+        self.function = function
+        self.args = args
+        self.kwargs = kwargs
+        self.retry = retry
 
 
 def transact(method):
