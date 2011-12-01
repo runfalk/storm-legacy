@@ -72,7 +72,6 @@ class Transactor(object):
     def _wrap(self, function, *args, **kwargs):
         retries = 0
         while True:
-            self._transaction.begin()
             try:
                 result = function(*args, **kwargs)
                 self._transaction.commit()
