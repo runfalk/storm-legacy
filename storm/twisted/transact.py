@@ -91,7 +91,8 @@ class Transactor(object):
                 if retries < self.retries:
                     retries += 1
                     if self.on_retry is not None:
-                        context = RetryContext(function, args, kwargs, retries)
+                        context = RetryContext(function, args, kwargs, retries,
+                                               error)
                         self.on_retry(context)
                     self.sleep(self.uniform(1, 2 ** retries))
                     continue
@@ -112,13 +113,15 @@ class RetryContext(object):
     @ivar kwargs: The keyword arguments passed to the function.
     @ivar retry: The sequential number of the retry that is going to be
         performed.
+    @ivar error: The Exception instance that caused a retry to be scheduled.
     """
 
-    def __init__(self, function, args, kwargs, retry):
+    def __init__(self, function, args, kwargs, retry, error):
         self.function = function
         self.args = args
         self.kwargs = kwargs
         self.retry = retry
+        self.error = error
 
 
 def transact(method):

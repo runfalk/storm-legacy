@@ -296,7 +296,8 @@ class TransactorTest(TestCase, TestHelper):
         self.mocker.order()
 
         self.expect(self.function(1, a=2))
-        self.expect(self.transaction.commit()).throw(IntegrityError())
+        error = IntegrityError()
+        self.expect(self.transaction.commit()).throw(error)
         self.expect(self.transaction.abort())
         self.expect(self.transactor.uniform(1, 2 ** 1)).result(1)
         self.expect(self.transactor.sleep(1))
@@ -314,5 +315,7 @@ class TransactorTest(TestCase, TestHelper):
             self.assertEqual((1,), context.args)
             self.assertEqual({"a": 2}, context.kwargs)
             self.assertEqual(1, context.retry)
+            self.assertEqual(1, context.retry)
+            self.assertIs(error, context.error)
 
         return deferred.addCallback(check)
