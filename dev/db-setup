@@ -1,18 +1,27 @@
 #!/bin/bash -eu
 
-echo " * Fixing localhost access to postgres, restarting service"
-sudo sed -i.bak -r 's/(host.*127\.0\.0\.1.*)\s+\w+$/\1 ident/' /etc/postgresql/*/main/pg_hba.conf
-sudo sed -i.bak -r 's/(host.*::1\/128.*)\s+\w+$/\1 ident/' /etc/postgresql/*/main/pg_hba.conf
-sudo /etc/init.d/postgresql-8.* restart
+PGCONF=/etc/postgresql/*/main/pg_hba.conf
+PGINIT=/etc/init.d/postgresql-8.*
+MYSQL_PRIVS="GRANT ALL PRIVILEGES ON *.* TO '$USER'@'localhost' IDENTIFIED BY '' WITH GRANT OPTION;"
 
-echo " * Create postgres superuser ($USER)"
+echo " * Fixing localhost access to postgres, restarting service"
+sudo sed -i.bak -r 's/(host.*127\.0\.0\.1.*)\s+\w+$/\1 ident/' $PGCONF
+sudo sed -i.bak -r 's/(host.*::1\/128.*)\s+\w+$/\1 ident/' $PGCONF
+sudo $PGINIT restart
+
+echo " * Create postgres superuser ($USER - will fail if existing)"
 # If this fails, we will get errors later, so don't fail.
 sudo -u postgres createuser --superuser $USER || /bin/true
 
 echo " * Granting all mysql privs to $USER"
-mysql -u root -e "GRANT ALL PRIVILEGES ON *.* TO '$USER'@'localhost' IDENTIFIED BY '' WITH GRANT OPTION;"
+mysql -u root -e "$MYSQL_PRIVS"
 
-echo " * Create Test Fixtures"
-createdb storm_test
+echo " * Create Postgres Test Fixtures (will fail if existing)"
+createdb storm_test || /bin/true
+
+echo " * Testing Postgres Access"
+pg_dump storm_test > /dev/null
+
+echo " * All Done."
 
 
