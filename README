@@ -85,6 +85,17 @@ Public Version 2.1 License is in /usr/share/common-licenses/LGPL-2.1
 Developing Storm
 ================
 
+SHORT VERSION:  If you are running ubuntu, or probably debian, the
+following should work.  If not, and for reference, the long version
+is below.
+
+ $ dev/ubuntu-deps
+ $ make develop
+ $ dev/db-setup
+ $ make check
+
+LONG VERSION:
+
 The following instructions describe the procedure for setting up a
 development environment and running the test suite.
 
