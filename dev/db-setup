@@ -10,7 +10,7 @@ echo " * Create postgres superuser ($USER)"
 sudo -u postgres createuser --superuser $USER || /bin/true
 
 echo " * Granting all mysql privs to $USER"
-mysql -u root "GRANT ALL PRIVILEGES ON *.* TO '$USER'@'localhost' IDENTIFIED BY '' WITH GRANT OPTION;"
+mysql -u root -e "GRANT ALL PRIVILEGES ON *.* TO '$USER'@'localhost' IDENTIFIED BY '' WITH GRANT OPTION;"
 
 echo " * Create Test Fixtures"
 createdb storm_test
