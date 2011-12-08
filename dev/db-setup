@@ -16,11 +16,13 @@ sudo -u postgres createuser --superuser $USER || /bin/true
 echo " * Granting all mysql privs to $USER"
 mysql -u root -e "$MYSQL_PRIVS"
 
-echo " * Create Postgres Test Fixtures (will fail if existing)"
+echo " * Create DB Test Fixtures (will fail if existing)"
 createdb storm_test || /bin/true
+mysql -u ubuntu -e "CREATE DATABASE storm_test CHARACTER SET utf8;" || /bin/true
 
-echo " * Testing Postgres Access"
+echo " * Testing DB Access for user:$USER"
 pg_dump storm_test > /dev/null
+mysqldump storm_test > /dev/null
 
 echo " * All Done."
 
