@@ -1,0 +1,24 @@
+#!/bin/bash -eu
+
+function apt_get() {
+    DEBIAN_FRONTEND=noninteractive sudo apt-get \
+        -y -o Dpkg::Options::='--force-confold' $*
+}
+
+apt_get install --no-install-recommends \
+    python-mysqldb \
+    mysql-server \
+    postgresql \
+    pgbouncer \
+    build-essential \
+    python-django \
+    python-fixtures \
+    python-psycopg2 \
+    python-testresources \
+    python-transaction \
+    python-twisted \
+    python-zope.component \
+    python-zope.security
+
+
+echo " * All Done!"

@@ -1,0 +1,9 @@
+#!/bin/bash -eu
+
+# Postgres
+echo "* Fixing localhost access to postgres"
+sed -i.bak -r 's/(host.*127\.0\.0\.1.*)\s+\w+$/\1 ident/' /etc/postgresql/*/main/pg_hba.conf
+sed -i.bak -r 's/(host::1/128.*)\s+\w+$/\1 ident/' /etc/postgresql/*/main/pg_hba.conf
+
+
+
