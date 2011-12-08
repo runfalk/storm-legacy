@@ -1,9 +1,17 @@
 #!/bin/bash -eu
 
-# Postgres
-echo "* Fixing localhost access to postgres"
+echo "* Fixing localhost access to postgres, restarting service"
 sed -i.bak -r 's/(host.*127\.0\.0\.1.*)\s+\w+$/\1 ident/' /etc/postgresql/*/main/pg_hba.conf
 sed -i.bak -r 's/(host::1/128.*)\s+\w+$/\1 ident/' /etc/postgresql/*/main/pg_hba.conf
+sudo /etc/init.d/postgresql-8.* restart
 
+echo "* Create postgres superuser ($USER)"
+sudo -u postgres createuser --superuser $USER
+
+echo "* Granting all mysql privs to $USER"
+mysql -u root "GRANT ALL PRIVILEGES ON *.* TO '$USER'@'localhost' IDENTIFIED BY '' WITH GRANT OPTION;"
+
+echo "* Create Test Fixtures"
+createdb storm_test
 
 
