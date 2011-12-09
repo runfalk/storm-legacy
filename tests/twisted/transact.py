@@ -1,6 +1,7 @@
+from tests import has_psycopg
 from tests.helper import TestHelper
 from tests.zope import has_transaction, has_zope_component
-from tests.twisted import (has_twisted, has_psycopg)
+from tests.twisted import has_twisted
 
 if has_transaction and has_zope_component and has_twisted:
     import transaction
