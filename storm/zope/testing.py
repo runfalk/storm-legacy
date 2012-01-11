@@ -22,7 +22,7 @@ import transaction
 from testresources import TestResourceManager
 from zope.component import provideUtility, getUtility
 
-from storm.zope.zstorm import ZStorm
+from storm.zope.zstorm import ZStorm, global_zstorm
 from storm.zope.interfaces import IZStorm
 
 
@@ -43,8 +43,12 @@ class ZStormResourceManager(TestResourceManager):
     @ivar force_delete: If C{True} for running L{Schema.delete} on a L{Store}
         even if no commit was performed by the test. Useful when running a test
         in a subprocess that might commit behind our back.
+    @ivar use_global_zstorm: If C{True} then the C{global_zstorm} object from
+        C{storm.zope.zstorm} will be used, instead of creating a new one. This
+        is useful for code loading the zcml directives of C{storm.zope}.
     """
     force_delete = False
+    use_global_zstorm = False
 
     def __init__(self, databases):
         super(ZStormResourceManager, self).__init__()
@@ -62,7 +66,10 @@ class ZStormResourceManager(TestResourceManager):
         """
         if self._zstorm is None:
 
-            zstorm = ZStorm()
+            if self.use_global_zstorm:
+                zstorm = global_zstorm
+            else:
+                zstorm = ZStorm()
             schema_zstorm = ZStorm()
             databases = self._databases
 

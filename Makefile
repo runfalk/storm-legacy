@@ -1,7 +1,7 @@
 PYTHON ?= python
 PYDOCTOR ?= pydoctor
 
-TEST_COMMAND = $(PYTHON) test
+TEST_COMMAND = $(PYTHON) setup.py test
 
 STORM_POSTGRES_URI = postgres:storm_test
 STORM_POSTGRES_HOST_URI = postgres://localhost/storm_test
@@ -18,9 +18,17 @@ all: build
 build:
 	$(PYTHON) setup.py build_ext -i
 
-check: build
-	# Run the tests once with C extensions and once without them.
-	$(TEST_COMMAND) && STORM_CEXTENSIONS=0 $(TEST_COMMAND)
+develop:
+	$(TEST_COMMAND) --quiet --dry-run
+
+check:
+	@ # Run the tests once with C extensions and once without them.
+	STORM_CEXTENSIONS=0 $(TEST_COMMAND)
+	STORM_CEXTENSIONS=1 $(TEST_COMMAND)
+
+check-with-trial: develop
+	STORM_TEST_RUNNER=trial STORM_CEXTENSIONS=0 $(PYTHON) test
+	STORM_TEST_RUNNER=trial STORM_CEXTENSIONS=1 $(PYTHON) test
 
 doc:
 	$(PYDOCTOR) --make-html --html-output apidoc --add-package storm
@@ -36,8 +44,10 @@ clean:
 	rm -rf debian/files
 	rm -rf debian/python-storm
 	rm -rf debian/python-storm.*
+	rm -rf *.egg
+	rm -rf _trial_temp
 	find . -name "*.so" -type f -exec rm -f {} \;
 	find . -name "*.pyc" -type f -exec rm -f {} \;
 	find . -name "*~" -type f -exec rm -f {} \;
 
-.PHONY: all build test
+.PHONY: all build check clean develop doc release

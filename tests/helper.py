@@ -19,7 +19,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 from cStringIO import StringIO
-import unittest
 import tempfile
 import logging
 import shutil
@@ -28,19 +27,18 @@ import sys
 from tests import mocker
 
 
-__all__ = ["TestHelper", "MakePath", "LogKeeper", "run_this"]
-
-
-def run_this(method):
-    method.run_this = True
-    return method
+__all__ = ["TestHelper", "MakePath", "LogKeeper"]
 
 
 class TestHelper(mocker.MockerTestCase):
 
     helpers = []
 
+    def is_supported(self):
+        return True
+
     def setUp(self):
+        super(TestHelper, self).setUp()
         self._helper_instances = []
         for helper_factory in self.helpers:
             helper = helper_factory()
@@ -50,28 +48,32 @@ class TestHelper(mocker.MockerTestCase):
     def tearDown(self):
         for helper in reversed(self._helper_instances):
             helper.tear_down(self)
+        super(TestHelper, self).tearDown()
 
-    def _has_run_this(self, attr):
-        return getattr(getattr(self, attr, None), "run_this", False)
+    @property
+    def _testMethod(self):
+        try:
+            name = self._testMethodName
+        except AttributeError:
+            # On Python < 2.5
+            name = self._TestCase__testMethodName
+        return getattr(self, name)
 
     def run(self, result=None):
-        for attr in dir(self):
-            if self._has_run_this(attr):
-                try:
-                    method_name = self._testMethodName
-                except AttributeError:
-                    # On Python < 2.5
-                    method_name = self._TestCase__testMethodName
-                if not self._has_run_this(method_name):
-                    return
-                break
-        is_supported = getattr(self, "is_supported", None)
-        if is_supported is not None and not is_supported():
+        # Skip if is_supported() does not return True.
+        if not self.is_supported():
             if hasattr(result, "addSkip"):
                 result.startTest(self)
                 result.addSkip(self, "Test not supported")
             return
-        unittest.TestCase.run(self, result)
+        # Skip if the test method has a non-None skip attribute.
+        skip = getattr(self._testMethod, "skip", None)
+        if skip is not None:
+            if hasattr(result, "addSkip"):
+                result.startTest(self)
+                result.addSkip(self, skip)
+            return
+        super(TestHelper, self).run(result)
 
     def assertVariablesEqual(self, checked, expected):
         self.assertEquals(len(checked), len(expected))

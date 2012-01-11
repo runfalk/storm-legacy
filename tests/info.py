@@ -27,7 +27,7 @@ from storm.variables import Variable
 from storm.expr import Undef, Select, compile
 from storm.info import *
 
-from tests.helper import TestHelper, run_this
+from tests.helper import TestHelper
 
 
 class Wrapper(object):

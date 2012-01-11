@@ -1,0 +1,29 @@
+#!/bin/bash -eu
+
+PGCONF=/etc/postgresql/*/main/pg_hba.conf
+PGINIT=/etc/init.d/postgresql*
+MYSQL_PRIVS="GRANT ALL PRIVILEGES ON *.* TO '$USER'@'localhost' IDENTIFIED BY '' WITH GRANT OPTION;"
+
+echo " * Fixing localhost access to postgres, restarting service"
+sudo sed -i.bak -r 's/(host.*127\.0\.0\.1.*)\s+\w+$/\1 trust/' $PGCONF
+sudo sed -i.bak -r 's/(host.*::1\/128.*)\s+\w+$/\1 trust/' $PGCONF
+sudo $PGINIT restart
+
+echo " * Create postgres superuser ($USER - will fail if existing)"
+# If this fails, we will get errors later, so don't fail.
+sudo -u postgres createuser --superuser $USER || /bin/true
+
+echo " * Granting all mysql privs to $USER"
+mysql -u root -e "$MYSQL_PRIVS"
+
+echo " * Create DB Test Fixtures (will fail if existing)"
+createdb storm_test || /bin/true
+mysql -u ubuntu -e "CREATE DATABASE storm_test CHARACTER SET utf8;" || /bin/true
+
+echo " * Testing DB Access for user:$USER"
+pg_dump storm_test > /dev/null
+mysqldump -u ubuntu storm_test > /dev/null
+
+echo " * All Done."
+
+

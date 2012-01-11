@@ -26,11 +26,11 @@ from tests.zope import has_transaction, has_zope_component, has_testresources
 
 from storm.locals import create_database, Store, Unicode, Int
 from storm.exceptions import IntegrityError
-from storm.tracer import capture
+from storm.tracer import CaptureTracer
 
 if has_transaction and has_zope_component and has_testresources:
     from zope.component import provideUtility, getUtility
-    from storm.zope.zstorm import ZStorm
+    from storm.zope.zstorm import ZStorm, global_zstorm
     from storm.zope.interfaces import IZStorm
     from storm.zope.schema import ZSchema
     from storm.zope.testing import ZStormResourceManager
@@ -126,10 +126,10 @@ class ZStormResourceManagerTest(TestHelper):
             store.execute("INSERT INTO test (foo) VALUES ('data')")
             store.commit()
 
-        with capture() as log:
+        with CaptureTracer() as tracer:
             zstorm = self.resource.make([])
 
-        self.assertEqual(["COMMIT", "COMMIT"], log.queries()[-2:])
+        self.assertEqual(["COMMIT", "COMMIT"], tracer.queries[-2:])
         store1 = zstorm.get("test2")
         store2 = zstorm.get("test2")
         self.assertEqual([], list(store1.execute("SELECT foo FROM test")))
@@ -249,3 +249,12 @@ class ZStormResourceManagerTest(TestHelper):
         zstorm = resource.make([])
         store = zstorm.get("test")
         self.assertIsNot(None, store)
+
+    def test_use_global_zstorm(self):
+        """
+        If the C{use_global_zstorm} attribute is C{True} then the global
+        L{ZStorm} will be used.
+        """
+        self.resource.use_global_zstorm = True
+        zstorm = self.resource.make([])
+        self.assertIs(global_zstorm, zstorm)

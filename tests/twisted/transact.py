@@ -1,9 +1,7 @@
-import time
-import random
-
+from tests import has_psycopg
 from tests.helper import TestHelper
 from tests.zope import has_transaction, has_zope_component
-from tests.twisted import (has_twisted, has_psycopg)
+from tests.twisted import has_twisted
 
 if has_transaction and has_zope_component and has_twisted:
     import transaction
@@ -162,19 +160,19 @@ class TransactorTest(TestCase, TestHelper):
         will be retried another two times before letting the exception bubble
         up.
         """
-        sleep = self.mocker.replace(time.sleep)
-        uniform = self.mocker.replace(random).uniform
+        self.transactor.sleep = self.mocker.mock()
+        self.transactor.uniform = self.mocker.mock()
         self.mocker.order()
 
         self.expect(self.function()).throw(IntegrityError())
         self.expect(self.transaction.abort())
-        self.expect(uniform(1, 2 ** 1)).result(1)
-        self.expect(sleep(1))
+        self.expect(self.transactor.uniform(1, 2 ** 1)).result(1)
+        self.expect(self.transactor.sleep(1))
 
         self.expect(self.function()).throw(IntegrityError())
         self.expect(self.transaction.abort())
-        self.expect(uniform(1, 2 ** 2)).result(2)
-        self.expect(sleep(2))
+        self.expect(self.transactor.uniform(1, 2 ** 2)).result(2)
+        self.expect(self.transactor.sleep(2))
 
         self.expect(self.function()).throw(IntegrityError())
         self.expect(self.transaction.abort())
@@ -193,19 +191,19 @@ class TransactorTest(TestCase, TestHelper):
         if not has_psycopg:
             return
 
-        sleep = self.mocker.replace(time.sleep)
-        uniform = self.mocker.replace(random).uniform
+        self.transactor.sleep = self.mocker.mock()
+        self.transactor.uniform = self.mocker.mock()
         self.mocker.order()
 
         self.expect(self.function()).throw(TransactionRollbackError())
         self.expect(self.transaction.abort())
-        self.expect(uniform(1, 2 ** 1)).result(1)
-        self.expect(sleep(1))
+        self.expect(self.transactor.uniform(1, 2 ** 1)).result(1)
+        self.expect(self.transactor.sleep(1))
 
         self.expect(self.function()).throw(TransactionRollbackError())
         self.expect(self.transaction.abort())
-        self.expect(uniform(1, 2 ** 2)).result(2)
-        self.expect(sleep(2))
+        self.expect(self.transactor.uniform(1, 2 ** 2)).result(2)
+        self.expect(self.transactor.sleep(2))
 
         self.expect(self.function()).throw(TransactionRollbackError())
         self.expect(self.transaction.abort())
@@ -223,23 +221,23 @@ class TransactorTest(TestCase, TestHelper):
         """
         zstorm = self.mocker.mock()
         gu = self.mocker.replace(getUtility)
-        sleep = self.mocker.replace(time.sleep)
-        uniform = self.mocker.replace(random).uniform
+        self.transactor.sleep = self.mocker.mock()
+        self.transactor.uniform = self.mocker.mock()
         self.mocker.order()
 
         self.expect(self.function()).throw(DisconnectionError())
         self.expect(gu(IZStorm)).result(zstorm)
         self.expect(zstorm.iterstores()).result(iter(()))
         self.expect(self.transaction.abort())
-        self.expect(uniform(1, 2 ** 1)).result(1)
-        self.expect(sleep(1))
+        self.expect(self.transactor.uniform(1, 2 ** 1)).result(1)
+        self.expect(self.transactor.sleep(1))
 
         self.expect(self.function()).throw(DisconnectionError())
         self.expect(gu(IZStorm)).result(zstorm)
         self.expect(zstorm.iterstores()).result(iter(()))
         self.expect(self.transaction.abort())
-        self.expect(uniform(1, 2 ** 2)).result(2)
-        self.expect(sleep(2))
+        self.expect(self.transactor.uniform(1, 2 ** 2)).result(2)
+        self.expect(self.transactor.sleep(2))
 
         self.expect(self.function()).throw(DisconnectionError())
         self.expect(gu(IZStorm)).result(zstorm)
@@ -257,21 +255,21 @@ class TransactorTest(TestCase, TestHelper):
         will be retried another two times before letting the exception bubble
         up.
         """
-        sleep = self.mocker.replace(time.sleep)
-        uniform = self.mocker.replace(random).uniform
+        self.transactor.sleep = self.mocker.mock()
+        self.transactor.uniform = self.mocker.mock()
         self.mocker.order()
 
         self.expect(self.function())
         self.expect(self.transaction.commit()).throw(IntegrityError())
         self.expect(self.transaction.abort())
-        self.expect(uniform(1, 2 ** 1)).result(1)
-        self.expect(sleep(1))
+        self.expect(self.transactor.uniform(1, 2 ** 1)).result(1)
+        self.expect(self.transactor.sleep(1))
 
         self.expect(self.function())
         self.expect(self.transaction.commit()).throw(IntegrityError())
         self.expect(self.transaction.abort())
-        self.expect(uniform(1, 2 ** 2)).result(2)
-        self.expect(sleep(2))
+        self.expect(self.transactor.uniform(1, 2 ** 2)).result(2)
+        self.expect(self.transactor.sleep(2))
 
         self.expect(self.function())
         self.expect(self.transaction.commit()).throw(IntegrityError())
@@ -281,3 +279,44 @@ class TransactorTest(TestCase, TestHelper):
         deferred = self.transactor.run(self.function)
         self.assertFailure(deferred, IntegrityError)
         return deferred
+
+    def test_run_with_on_retry_callback(self):
+        """
+        If a retry callback is passed with the C{on_retry} parameter, then
+        it's invoked with the number of retries performed so far.
+        """
+        calls = []
+
+        def on_retry(context):
+            calls.append(context)
+
+        self.transactor.on_retry = on_retry
+
+        self.transactor.sleep = self.mocker.mock()
+        self.transactor.uniform = self.mocker.mock()
+        self.mocker.order()
+
+        self.expect(self.function(1, a=2))
+        error = IntegrityError()
+        self.expect(self.transaction.commit()).throw(error)
+        self.expect(self.transaction.abort())
+        self.expect(self.transactor.uniform(1, 2 ** 1)).result(1)
+        self.expect(self.transactor.sleep(1))
+
+        self.expect(self.function(1, a=2))
+        self.expect(self.transaction.commit())
+        self.mocker.replay()
+
+        deferred = self.transactor.run(self.function, 1, a=2)
+
+        def check(_):
+            [context] = calls
+
+            self.assertEqual(self.function, context.function)
+            self.assertEqual((1,), context.args)
+            self.assertEqual({"a": 2}, context.kwargs)
+            self.assertEqual(1, context.retry)
+            self.assertEqual(1, context.retry)
+            self.assertIs(error, context.error)
+
+        return deferred.addCallback(check)

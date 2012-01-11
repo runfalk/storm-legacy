@@ -4,21 +4,47 @@
 Improvements
 ------------
 
-- A new storm.tracer.capture function has been added to capture all SQL
-  statements executed by Storm. It (optionally) supports the context manager
-  protocol and can be used as:
+- A new CaptureTracer has been added to storm.tracer, for capturing all SQL
+  statements executed by Storm. It can be used like this:
 
-    with capture() as log:
+    with CaptureTracer() as tracer:
       # Run queries
-    print log.queries()  # Print the queries that have been run
+      pass
+    print tracer.queries  # Print all queries run in the context manager block
 
-   Or the log.close() method can be called explicitly when not used as context
-   manager.
+  You will need the python-fixtures package in order to use this feature.
+
+- Setuptools <http://pypi.python.org/pypi/setuptools> is now required
+  to run setup.py. This makes it much easier to install the majority
+  of the dependencies required to run the test suite in its entirety.
+
+- Disconnection errors arising from PostgreSQL are now more reliably
+  detected, especially with regard to recent libpq updates in Ubuntu.
+  There are also disconnection tests that simulate sudden termination
+  of pgbouncer <http://pgfoundry.org/projects/pgbouncer/>.
 
 Bug fixes
 ---------
 
-- When a SQLObjectResultSet object was sliced with slice.start and slice.end both zero (sqlobject[0:0]), the full, unsliced resultset was returned (bug #872086).
+- When a SQLObjectResultSet object was sliced with slice.start and
+  slice.end both zero (sqlobject[0:0]), the full, unsliced resultset
+  was returned (bug #872086).
+
+- Fixes some test failures around Django disconnections from
+  PostgreSQL stores.
+
+- Some of the proxy-less disconnection tests were causing segfaults,
+  so they're now run in a subprocess via subunit's IsolatedTestCase,
+  when it's available.
+
+- Fix a few non-uses of super() in TestHelper.
+
+- Abort the transaction and reset ZStorm at the end of
+  tests/zope/README.txt.
+
+- Fix the ./test script to not import tests until after local eggs
+  have been added to sys.path. This ensures that all possible features
+  are available to the tests.
 
 0.19 (2011-10-03)
 =================
