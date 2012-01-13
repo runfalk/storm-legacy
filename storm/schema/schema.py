@@ -77,7 +77,14 @@ class Schema(object):
             store.commit()
 
     def autocommit(self, flag):
-        """Control whether to automatically commit schema changes."""
+        """Control whether to automatically commit/rollback schema changes.
+
+        The default is C{True}, if set to C{False} it's up to the calling code
+        to handle commits and rollbacks.
+
+        @note: In case of rollback the exception will just be propagated, and
+            no rollback on the store will be performed.
+        """
         self._autocommit = flag
 
     def create(self, store):

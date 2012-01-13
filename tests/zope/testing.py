@@ -130,7 +130,7 @@ class ZStormResourceManagerTest(TestHelper):
             zstorm = self.resource.make([])
 
         self.assertEqual(["COMMIT", "COMMIT"], tracer.queries[-2:])
-        store1 = zstorm.get("test2")
+        store1 = zstorm.get("test1")
         store2 = zstorm.get("test2")
         self.assertEqual([], list(store1.execute("SELECT foo FROM test")))
         self.assertEqual([], list(store2.execute("SELECT foo FROM test")))
