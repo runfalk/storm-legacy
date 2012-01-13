@@ -105,6 +105,16 @@ class SchemaTest(MockerTestCase):
         self.schema.create(self.store)
         self.assertEquals(list(self.store.execute("SELECT * FROM person")), [])
 
+    def test_create_with_autocommit_off(self):
+        """
+        L{Schema.autocommit} can be used to turn automatic commits off.
+        """
+        self.schema.autocommit(False)
+        self.schema.create(self.store)
+        self.store.rollback()
+        self.assertRaises(StormError, self.store.execute,
+                          "SELECT * FROM patch")
+
     def test_drop(self):
         """
         L{Schema.drop} can be used to drop the tables of a L{Store}.
