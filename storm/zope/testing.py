@@ -36,7 +36,8 @@ class ZStormResourceManager(TestResourceManager):
     @param databases: A C{list} of C{dict}s holding the following keys:
         - 'name', the name of the store to be registered.
         - 'uri', the database URI to use to create the store.
-        - 'schema', the L{Schema} for the tables in the store.
+        - 'schema', optionally, the L{Schema} for the tables in the store, if
+          not given no schema will be applied.
         - 'schema-uri', optionally an alternate URI to use for applying the
           schema, if not given it defaults to 'uri'.
 
@@ -82,10 +83,15 @@ class ZStormResourceManager(TestResourceManager):
             for database in databases:
                 name = database["name"]
                 uri = database["uri"]
-                schema = database["schema"]
+                zstorm.set_default_uri(name, uri)
+                schema = database.get("schema")
+                if schema is None:
+                    # The configuration for this database does not include a
+                    # schema definition, so we just setup the store (the user
+                    # code should apply the schema elsewhere, if any)
+                    continue
                 schema_uri = database.get("schema-uri", uri)
                 self._schemas[name] = schema
-                zstorm.set_default_uri(name, uri)
                 schema_zstorm.set_default_uri(name, schema_uri)
                 store = zstorm.get(name)
                 self._set_commit_proxy(store)
