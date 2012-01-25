@@ -310,6 +310,7 @@ class PostgresConnection(Connection):
                     return True
             msg = str(exc)
             return (
+                "SSL SYSCALL error" in msg or
                 "EOF detected" in msg or
                 "connection already closed" in msg or
                 "connection not open" in msg or
