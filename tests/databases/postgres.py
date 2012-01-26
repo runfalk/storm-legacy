@@ -540,6 +540,15 @@ class PostgresTest(DatabaseTest, TestHelper):
         self.assertRaises(ValueError, create_database,
             os.environ["STORM_POSTGRES_URI"] + "?isolation=stuff")
 
+    def test_is_disconnection_error_with_ssl_syscall_error(self):
+        """
+        If the underlying driver raises a ProgrammingError with 'SSL SYSCALL
+        error', we consider the connection dead and mark it as needing
+        reconnection.
+        """
+        exc = ProgrammingError("SSL SYSCALL error: Connection timed out")
+        self.assertTrue(self.connection.is_disconnection_error(exc))
+
 
 class PostgresUnsupportedTest(UnsupportedDatabaseTest, TestHelper):
 
