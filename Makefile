@@ -1,10 +1,11 @@
 PYTHON ?= python
 PYDOCTOR ?= pydoctor
+PGPORT ?= 5432
 
 TEST_COMMAND = $(PYTHON) setup.py test
 
 STORM_POSTGRES_URI = postgres:storm_test
-STORM_POSTGRES_HOST_URI = postgres://localhost/storm_test
+STORM_POSTGRES_HOST_URI = postgres://localhost:$(PGPORT)/storm_test
 STORM_MYSQL_URI = mysql:storm_test
 STORM_MYSQL_HOST_URI = mysql://localhost/storm_test
 
