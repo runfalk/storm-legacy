@@ -23,6 +23,9 @@ Improvements
   There are also disconnection tests that simulate sudden termination
   of pgbouncer <http://pgfoundry.org/projects/pgbouncer/>.
 
+- Insert expressions now support multi-row and subquery INSERT
+  statements.
+
 Bug fixes
 ---------
 
