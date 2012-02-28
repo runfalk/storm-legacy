@@ -51,7 +51,6 @@ marker = Marker()
 class DatabaseTest(object):
 
     supports_microseconds = True
-    supports_tpc = True
 
     def setUp(self):
         super(DatabaseTest, self).setUp()
@@ -102,7 +101,7 @@ class DatabaseTest(object):
 
     def test_create(self):
         self.assertTrue(isinstance(self.database, Database))
-        
+
     def test_connection(self):
         self.assertTrue(isinstance(self.connection, Connection))
 
@@ -132,57 +131,6 @@ class DatabaseTest(object):
         self.connection.commit()
         result = self.connection.execute("SELECT id FROM test WHERE id=30")
         self.assertTrue(result.get_one())
-
-    def test_begin(self):
-        """
-        begin() starts a transaction that can be ended with a two-phase commit.
-        """
-        xid = Xid(0, "foo", "bar")
-        self.connection.begin(xid)
-        self.connection.execute("INSERT INTO test VALUES (30, 'Title 30')")
-        self.connection.prepare()
-        self.connection.commit()
-        self.connection.rollback()
-        result = self.connection.execute("SELECT id FROM test WHERE id=30")
-        self.assertTrue(result.get_one())
-
-    def test_begin_inside_a_two_phase_transaction(self):
-        """
-        begin() can't be used if a two-phase transaction has already started.
-        """
-        xid = Xid(0, "foo", "bar")
-        self.connection.begin(xid)
-        self.assertRaises(ProgrammingError, self.connection.begin, xid)
-
-    def test_begin_after_commit(self):
-        """
-        After a two phase commit, it's possible to start a new transaction.
-        """
-        xid = Xid(0, "foo", "bar")
-        self.connection.begin(xid)
-        self.connection.execute("INSERT INTO test VALUES (30, 'Title 30')")
-        self.connection.commit()
-        self.connection.begin(xid)
-        result = self.connection.execute("SELECT id FROM test WHERE id=30")
-        self.assertTrue(result.get_one())
-
-    def test_begin_after_rollback(self):
-        """
-        After a tpc rollback, it's possible to start a new transaction.
-        """
-        xid = Xid(0, "foo", "bar")
-        self.connection.begin(xid)
-        self.connection.execute("INSERT INTO test VALUES (30, 'Title 30')")
-        self.connection.rollback()
-        self.connection.begin(xid)
-        result = self.connection.execute("SELECT id FROM test WHERE id=30")
-        self.assertFalse(result.get_one())
-
-    def test_prepare_outside_a_two_phase_transaction(self):
-        """
-        prepare() can't be used if a two-phase transaction has not began yet.
-        """
-        self.assertRaises(ProgrammingError, self.connection.prepare)
 
     def test_execute_result(self):
         result = self.connection.execute("SELECT 1")
@@ -373,7 +321,7 @@ class DatabaseTest(object):
         running transaction before the later is committed or aborted.  If
         this isn't the case, the caching made by Storm (or by anything
         that works with data in memory, in fact) becomes a dangerous thing.
- 
+
         For PostgreSQL, isolation level must be SERIALIZABLE.
         For MySQL, isolation level must be REPEATABLE READ (the default),
         and the InnoDB engine must be in use.
@@ -490,8 +438,62 @@ class DatabaseTest(object):
         self.connection.execute("SELECT 1")
 
 
+class TwoPhaseCommitTest(object):
+
+    def test_begin(self):
+        """
+        begin() starts a transaction that can be ended with a two-phase commit.
+        """
+        xid = Xid(0, "foo", "bar")
+        self.connection.begin(xid)
+        self.connection.execute("INSERT INTO test VALUES (30, 'Title 30')")
+        self.connection.prepare()
+        self.connection.commit()
+        self.connection.rollback()
+        result = self.connection.execute("SELECT id FROM test WHERE id=30")
+        self.assertTrue(result.get_one())
+
+    def test_begin_inside_a_two_phase_transaction(self):
+        """
+        begin() can't be used if a two-phase transaction has already started.
+        """
+        xid = Xid(0, "foo", "bar")
+        self.connection.begin(xid)
+        self.assertRaises(ProgrammingError, self.connection.begin, xid)
+
+    def test_begin_after_commit(self):
+        """
+        After a two phase commit, it's possible to start a new transaction.
+        """
+        xid = Xid(0, "foo", "bar")
+        self.connection.begin(xid)
+        self.connection.execute("INSERT INTO test VALUES (30, 'Title 30')")
+        self.connection.commit()
+        self.connection.begin(xid)
+        result = self.connection.execute("SELECT id FROM test WHERE id=30")
+        self.assertTrue(result.get_one())
+
+    def test_begin_after_rollback(self):
+        """
+        After a tpc rollback, it's possible to start a new transaction.
+        """
+        xid = Xid(0, "foo", "bar")
+        self.connection.begin(xid)
+        self.connection.execute("INSERT INTO test VALUES (30, 'Title 30')")
+        self.connection.rollback()
+        self.connection.begin(xid)
+        result = self.connection.execute("SELECT id FROM test WHERE id=30")
+        self.assertFalse(result.get_one())
+
+    def test_prepare_outside_a_two_phase_transaction(self):
+        """
+        prepare() can't be used if a two-phase transaction has not began yet.
+        """
+        self.assertRaises(ProgrammingError, self.connection.prepare)
+
+
 class UnsupportedDatabaseTest(object):
-    
+
     helpers = [MakePath]
 
     dbapi_module_names = []
@@ -607,6 +609,7 @@ class DatabaseDisconnectionMixin(object):
 
     def drop_database(self):
         pass
+
 
 class DatabaseDisconnectionTest(DatabaseDisconnectionMixin):
 
@@ -726,6 +729,9 @@ class DatabaseDisconnectionTest(DatabaseDisconnectionMixin):
         self.assertRaises(DisconnectionError,
                           self.connection.execute, "SELECT 1")
         self.connection.close()
+
+
+class TwoPhaseCommitDisconnectionTest(object):
 
     def test_begin_after_rollback_with_disconnection_error(self):
         """

@@ -41,7 +41,8 @@ storm  # Silence lint.
 
 from tests import has_fixtures, has_psycopg, has_subunit
 from tests.databases.base import (
-    DatabaseTest, DatabaseDisconnectionTest, UnsupportedDatabaseTest)
+    DatabaseTest, DatabaseDisconnectionTest, UnsupportedDatabaseTest,
+    TwoPhaseCommitTest, TwoPhaseCommitDisconnectionTest)
 from tests.expr import column1, column2, column3, elem1, table1, TrackContext
 from tests.tracer import TimeoutTracerTestBase
 from tests.helper import TestHelper
@@ -70,7 +71,7 @@ def terminate_all_backends(database):
     connection.close()
 
 
-class PostgresTest(DatabaseTest, TestHelper):
+class PostgresTest(DatabaseTest, TwoPhaseCommitTest, TestHelper):
 
     def is_supported(self):
         return bool(os.environ.get("STORM_POSTGRES_URI"))
@@ -556,7 +557,8 @@ class PostgresUnsupportedTest(UnsupportedDatabaseTest, TestHelper):
     db_module_name = "postgres"
 
 
-class PostgresDisconnectionTest(DatabaseDisconnectionTest, TestHelper):
+class PostgresDisconnectionTest(DatabaseDisconnectionTest, TwoPhaseCommitDisconnectionTest,
+                                TestHelper):
 
     environment_variable = "STORM_POSTGRES_URI"
     host_environment_variable = "STORM_POSTGRES_HOST_URI"
