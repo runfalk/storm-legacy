@@ -111,6 +111,12 @@ class Store(object):
         """Close the connection."""
         self._connection.close()
 
+    def begin(self, xid):
+        self._connection.begin(xid)
+
+    def prepare(self):
+        self._connection.prepare()
+
     def commit(self):
         """Commit all changes to the database.
 

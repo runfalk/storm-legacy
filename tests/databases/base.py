@@ -32,10 +32,11 @@ from storm.variables import (Variable, PickleVariable, RawStrVariable,
                              DecimalVariable, DateTimeVariable, DateVariable,
                              TimeVariable, TimeDeltaVariable)
 from storm.database import *
+from storm.xid import Xid
 from storm.event import EventSystem
 from storm.exceptions import (
     DatabaseError, DatabaseModuleError, ConnectionBlockedError,
-    DisconnectionError, Error, OperationalError)
+    DisconnectionError, Error, OperationalError, ProgrammingError)
 
 from tests.databases.proxy import ProxyTCPServer
 from tests.helper import MakePath
@@ -50,6 +51,7 @@ marker = Marker()
 class DatabaseTest(object):
 
     supports_microseconds = True
+    supports_tpc = True
 
     def setUp(self):
         super(DatabaseTest, self).setUp()
@@ -130,6 +132,57 @@ class DatabaseTest(object):
         self.connection.commit()
         result = self.connection.execute("SELECT id FROM test WHERE id=30")
         self.assertTrue(result.get_one())
+
+    def test_begin(self):
+        """
+        begin() starts a transaction that can be ended with a two-phase commit.
+        """
+        xid = Xid(0, "foo", "bar")
+        self.connection.begin(xid)
+        self.connection.execute("INSERT INTO test VALUES (30, 'Title 30')")
+        self.connection.prepare()
+        self.connection.commit()
+        self.connection.rollback()
+        result = self.connection.execute("SELECT id FROM test WHERE id=30")
+        self.assertTrue(result.get_one())
+
+    def test_begin_inside_a_two_phase_transaction(self):
+        """
+        begin() can't be used if a two-phase transaction has already started.
+        """
+        xid = Xid(0, "foo", "bar")
+        self.connection.begin(xid)
+        self.assertRaises(ProgrammingError, self.connection.begin, xid)
+
+    def test_begin_after_commit(self):
+        """
+        After a two phase commit, it's possible to start a new transaction.
+        """
+        xid = Xid(0, "foo", "bar")
+        self.connection.begin(xid)
+        self.connection.execute("INSERT INTO test VALUES (30, 'Title 30')")
+        self.connection.commit()
+        self.connection.begin(xid)
+        result = self.connection.execute("SELECT id FROM test WHERE id=30")
+        self.assertTrue(result.get_one())
+
+    def test_begin_after_rollback(self):
+        """
+        After a tpc rollback, it's possible to start a new transaction.
+        """
+        xid = Xid(0, "foo", "bar")
+        self.connection.begin(xid)
+        self.connection.execute("INSERT INTO test VALUES (30, 'Title 30')")
+        self.connection.rollback()
+        self.connection.begin(xid)
+        result = self.connection.execute("SELECT id FROM test WHERE id=30")
+        self.assertFalse(result.get_one())
+
+    def test_prepare_outside_a_two_phase_transaction(self):
+        """
+        prepare() can't be used if a two-phase transaction has not began yet.
+        """
+        self.assertRaises(ProgrammingError, self.connection.prepare)
 
     def test_execute_result(self):
         result = self.connection.execute("SELECT 1")
@@ -673,3 +726,34 @@ class DatabaseDisconnectionTest(DatabaseDisconnectionMixin):
         self.assertRaises(DisconnectionError,
                           self.connection.execute, "SELECT 1")
         self.connection.close()
+
+    def test_begin_after_rollback_with_disconnection_error(self):
+        """
+        If a rollback fails because of a disconnection error, the two-phase
+        transaction should be properly reset.
+        """
+        xid = Xid(0, "foo", "bar")
+        self.connection.begin(xid)
+        self.connection.execute("SELECT 1")
+        self.proxy.stop()
+        self.connection.rollback()
+        self.proxy.start()
+        self.connection.begin(xid)
+        result = self.connection.execute("SELECT 1")
+        self.assertTrue(result.get_one())
+
+    def test_begin_after_with_statement_disconnection_error_and_rollback(self):
+        """
+        The two-phase transaction state is properly reset if a disconnection
+        happens before the rollback.
+        """
+        xid = Xid(0, "foo", "bar")
+        self.connection.begin(xid)
+        self.proxy.close()
+        self.assertRaises(DisconnectionError,
+                          self.connection.execute, "SELECT 1")
+        self.connection.rollback()
+        self.proxy.start()
+        self.connection.begin(xid)
+        result = self.connection.execute("SELECT 1")
+        self.assertTrue(result.get_one())

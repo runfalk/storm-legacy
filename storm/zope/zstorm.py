@@ -27,6 +27,8 @@
 import threading
 import weakref
 
+from random import randint
+
 from zope.interface import implements
 
 import transaction
@@ -39,6 +41,7 @@ except ImportError:
 from storm.zope.interfaces import IZStorm, ZStormError
 from storm.database import create_database
 from storm.store import Store
+from storm.xid import Xid
 
 
 class ZStorm(object):
@@ -68,6 +71,7 @@ class ZStorm(object):
         self._local = threading.local()
         self._default_databases = {}
         self._default_uris = {}
+        self._default_tpcs = {}
 
     def _reset(self):
         for name, store in list(self.iterstores()):
@@ -77,6 +81,7 @@ class ZStorm(object):
         self._databases.clear()
         self._default_databases.clear()
         self._default_uris.clear()
+        self._default_tpcs.clear()
 
     @property
     def _stores(self):
@@ -112,6 +117,10 @@ class ZStorm(object):
         self._default_databases[name] = self._get_database(default_uri)
         self._default_uris[name] = default_uri
 
+    def set_default_tpc(self, name, default_flag):
+        """Set the default two-phase mode for stores with the given C{name}."""
+        self._default_tpcs[name] = default_flag
+
     def create(self, name, uri=None):
         """Create a new store called C{name}.
 
@@ -132,6 +141,7 @@ class ZStorm(object):
 
         store = Store(database)
         store._register_for_txn = True
+        store._tpc = self._default_tpcs.get(name, False)
         store._event.hook(
             "register-transaction", register_store_with_transaction,
             weakref.ref(self))
@@ -215,8 +225,16 @@ def register_store_with_transaction(store, zstorm_ref):
         raise ZStormError("Store not registered with ZStorm, or registered "
                           "with another thread.")
 
+    txn = zstorm.transaction_manager.get()
+    if store._tpc:
+        global_transaction_id = getattr(txn, "__storm_transaction_id__", None)
+        if global_transaction_id is None:
+            global_transaction_id = "_storm_%032x" % randint(0, 2 ** 128)
+            txn.__storm_transaction_id__ = global_transaction_id
+        xid = Xid(0, global_transaction_id, zstorm.get_name(store))
+        store.begin(xid)
     data_manager = StoreDataManager(store, zstorm)
-    zstorm.transaction_manager.get().join(data_manager)
+    txn.join(data_manager)
 
     # Unhook the event handler.  It will be rehooked for the next transaction.
     return False
@@ -231,6 +249,12 @@ class StoreDataManager(object):
         self._store = store
         self._zstorm = zstorm
         self.transaction_manager = zstorm.transaction_manager
+
+    def _hook_register_transaction_event(self):
+        if self._store._register_for_txn:
+            self._store._event.hook(
+                "register-transaction", register_store_with_transaction,
+                weakref.ref(self._zstorm))
 
     def abort(self, txn):
         try:
@@ -251,22 +275,32 @@ class StoreDataManager(object):
         self._store.flush()
 
     def commit(self, txn):
-        try:
-            self._store.commit()
-        finally:
-            if self._store._register_for_txn:
-                self._store._event.hook(
-                    "register-transaction", register_store_with_transaction,
-                    weakref.ref(self._zstorm))
+        if self._store._tpc:
+            self._store.prepare()
+        else:
+            try:
+                self._store.commit()
+            finally:
+                self._hook_register_transaction_event()
 
     def tpc_vote(self, txn):
         pass
 
     def tpc_finish(self, txn):
-        pass
+        if self._store._tpc:
+            try:
+                self._store.commit()
+            except:
+                raise
+            else:
+                self._hook_register_transaction_event()
 
     def tpc_abort(self, txn):
-        pass
+        if self._store._tpc:
+            try:
+                self._store.rollback()
+            finally:
+                self._hook_register_transaction_event()
 
     def sortKey(self):
         return "store_%d" % id(self)

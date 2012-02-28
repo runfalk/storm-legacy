@@ -31,7 +31,7 @@ from storm.expr import Expr, State, compile
 from storm.variables import Variable
 from storm.exceptions import (
     ClosedError, ConnectionBlockedError, DatabaseError, DisconnectionError,
-    Error)
+    Error, ProgrammingError)
 from storm.uri import URI
 import storm
 
@@ -177,6 +177,8 @@ class Connection(object):
 
     _blocked = False
     _closed = False
+    _two_phase_transaction = False  # If True, a two-phase transaction has
+                                    # been started with begin()
     _state = STATE_CONNECTED
 
     def __init__(self, database, event=None):
@@ -249,6 +251,24 @@ class Connection(object):
                 self._raw_connection.close()
                 self._raw_connection = None
 
+    def begin(self, xid):
+        """Begin a two-phase transaction."""
+        if self._two_phase_transaction:
+            raise ProgrammingError("begin cannot be used inside a transaction")
+        self._ensure_connected()
+        raw_xid = self._raw_connection.xid(xid.format_id,
+                                           xid.global_transaction_id,
+                                           xid.branch_qualifier)
+        self._check_disconnect(self._raw_connection.tpc_begin, raw_xid)
+        self._two_phase_transaction = True
+
+    def prepare(self):
+        """Run the prepare phase of a two-phase transaction."""
+        if not self._two_phase_transaction:
+            raise ProgrammingError("prepare must be called inside a two-phase "
+                                   "transaction")
+        self._check_disconnect(self._raw_connection.tpc_prepare)
+
     def commit(self):
         """Commit the connection.
 
@@ -259,20 +279,31 @@ class Connection(object):
 
         """
         self._ensure_connected()
-        self._check_disconnect(self._raw_connection.commit)
+        if self._two_phase_transaction:
+            self._check_disconnect(self._raw_connection.tpc_commit)
+            self._two_phase_transaction = False
+        else:
+            self._check_disconnect(self._raw_connection.commit)
 
     def rollback(self):
         """Rollback the connection."""
         if self._state == STATE_CONNECTED:
             try:
-                self._raw_connection.rollback()
+                if self._two_phase_transaction:
+                    self._raw_connection.tpc_rollback()
+                else:
+                    self._raw_connection.rollback()
             except Error, exc:
                 if self.is_disconnection_error(exc):
                     self._raw_connection = None
                     self._state = STATE_RECONNECT
+                    self._two_phase_transaction = False
                 else:
                     raise
+            else:
+                self._two_phase_transaction = False
         else:
+            self._two_phase_transaction = False
             self._state = STATE_RECONNECT
 
     @staticmethod
