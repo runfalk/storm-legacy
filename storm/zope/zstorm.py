@@ -272,6 +272,13 @@ class StoreDataManager(object):
         # of them will fail.  In such cases, flushing earlier will
         # ensure that both transactions will be rolled back, instead
         # of one committed and one rolled back.
+        #
+        # If TPC support is on, we still want to perform this flush for a
+        # couple of reasons. Firstly the queries flush() runs couldn't
+        # be run after calling prepare(), because the transaction is frozen
+        # waiting for the final commit(), and secondly because if the flush
+        # fails the entire transaction will be aborted with a normal rollback
+        # as opposed to a TPC rollback, that would happen after prepare().
         self._store.flush()
 
     def commit(self, txn):
@@ -291,6 +298,8 @@ class StoreDataManager(object):
             try:
                 self._store.commit()
             except:
+                # We let the exception propagate, as the transaction manager
+                # will then call tcp_abort, and we will register the hook there
                 raise
             else:
                 self._hook_register_transaction_event()
