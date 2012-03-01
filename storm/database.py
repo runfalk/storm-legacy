@@ -279,6 +279,8 @@ class Connection(object):
 
         """
         self._ensure_connected()
+        # Use tpc_commit() if we are in a two-phase transaction, otherwise
+        # just the regular commit()
         if self._two_phase_transaction:
             self._check_disconnect(self._raw_connection.tpc_commit)
             self._two_phase_transaction = False
@@ -289,6 +291,8 @@ class Connection(object):
         """Rollback the connection."""
         if self._state == STATE_CONNECTED:
             try:
+                # Use tpc_rollback() if we are in a two-phase transaction,
+                # otherwise just the regular rollback()
                 if self._two_phase_transaction:
                     self._raw_connection.tpc_rollback()
                 else:

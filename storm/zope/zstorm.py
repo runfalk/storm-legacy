@@ -226,13 +226,17 @@ def register_store_with_transaction(store, zstorm_ref):
                           "with another thread.")
 
     txn = zstorm.transaction_manager.get()
+
     if store._tpc:
         global_transaction_id = getattr(txn, "__storm_transaction_id__", None)
         if global_transaction_id is None:
+            # The the global transaction doesn't have an ID yet, let's create
+            # one in a way that it will be unique
             global_transaction_id = "_storm_%032x" % randint(0, 2 ** 128)
             txn.__storm_transaction_id__ = global_transaction_id
         xid = Xid(0, global_transaction_id, zstorm.get_name(store))
         store.begin(xid)
+
     data_manager = StoreDataManager(store, zstorm)
     txn.join(data_manager)
 

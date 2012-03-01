@@ -112,9 +112,19 @@ class Store(object):
         self._connection.close()
 
     def begin(self, xid):
+        """Start a new two-phase transaction.
+
+        @param xid: A L{Xid} instance holding identification data for the
+            new transaction.
+        """
         self._connection.begin(xid)
 
     def prepare(self):
+        """Prepare a two-phase transaction for the final commit.
+
+        @note: It must be call inside a two-phase transaction started
+            with begin().
+        """
         self._connection.prepare()
 
     def commit(self):
