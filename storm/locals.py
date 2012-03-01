@@ -29,3 +29,4 @@ from storm.expr import Select, Insert, Update, Delete, Join, SQL
 from storm.expr import Like, In, Asc, Desc, And, Or, Min, Max, Count, Not
 from storm.info import ClassAlias
 from storm.base import Storm
+from storm.xid import Xid
