@@ -23,6 +23,9 @@ Improvements
   There are also disconnection tests that simulate sudden termination
   of pgbouncer <http://pgfoundry.org/projects/pgbouncer/>.
 
+- Add support for two-phase commits, using the DB API version 2.0, which
+  for now is only supported by psycopg2.
+
 Bug fixes
 ---------
 
