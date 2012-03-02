@@ -525,9 +525,13 @@ class TwoPhaseCommitTest(object):
         It's possible recover and commit pending transactions that were
         prepared but not committed or rolled back.
         """
+        # Prepare a transaction but leave it uncommitted
         self.connection.begin(Xid(0, "foo", "bar"))
         self.connection.execute("INSERT INTO test VALUES (30, 'Title 30')")
         self.connection.prepare()
+
+        # Setup a new connection and recover the prepared transaction
+        # committing it
         connection2 = self.database.connect()
         self.addCleanup(connection2.close)
         result = connection2.execute("SELECT id FROM test WHERE id=30")
@@ -539,6 +543,8 @@ class TwoPhaseCommitTest(object):
         self.assertEqual("bar", xid.branch_qualifier)
         connection2.commit(xid)
         self.assertEqual([], connection2.recover())
+
+        # Reconnect, changes are be visible
         self.connection.close()
         self.connection = self.database.connect()
         result = self.connection.execute("SELECT id FROM test WHERE id=30")
@@ -549,9 +555,13 @@ class TwoPhaseCommitTest(object):
         It's possible recover and rollback pending transactions that were
         prepared but not committed or rolled back.
         """
+        # Prepare a transaction but leave it uncommitted
         self.connection.begin(Xid(0, "foo", "bar"))
         self.connection.execute("INSERT INTO test VALUES (30, 'Title 30')")
         self.connection.prepare()
+
+        # Setup a new connection and recover the prepared transaction
+        # rolling it back
         connection2 = self.database.connect()
         self.addCleanup(connection2.close)
         [xid] = connection2.recover()
@@ -560,6 +570,8 @@ class TwoPhaseCommitTest(object):
         self.assertEqual("bar", xid.branch_qualifier)
         connection2.rollback(xid)
         self.assertEqual([], connection2.recover())
+
+        # Reconnect, changes were rolled back
         self.connection.close()
         self.connection = self.database.connect()
         result = self.connection.execute("SELECT id FROM test WHERE id=30")
