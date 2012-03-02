@@ -257,9 +257,7 @@ class Connection(object):
         if self._two_phase_transaction:
             raise ProgrammingError("begin cannot be used inside a transaction")
         self._ensure_connected()
-        raw_xid = self._raw_connection.xid(xid.format_id,
-                                           xid.global_transaction_id,
-                                           xid.branch_qualifier)
+        raw_xid = self._raw_xid(xid)
         self._check_disconnect(self._raw_connection.tpc_begin, raw_xid)
         self._two_phase_transaction = True
 
