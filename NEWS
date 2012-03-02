@@ -24,7 +24,7 @@ Improvements
   of pgbouncer <http://pgfoundry.org/projects/pgbouncer/>.
 
 - Add support for two-phase commits, using the DB API version 2.0, which
-  for now is only supported by psycopg2.
+  is only supported by PostgreSQL.
 
 Bug fixes
 ---------

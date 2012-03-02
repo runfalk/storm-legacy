@@ -181,10 +181,27 @@ class ZStormTest(TestHelper):
         self.assertEqual(xid1.global_transaction_id,
                          xid2.global_transaction_id)
 
+    def test_register_store_for_tpc_transaction_uses_unique_global_ids(self):
+        """
+        Each global transaction gets assigned a unique ID.
+        """
+        self.zstorm.set_default_uri("name", "sqlite:")
+        self.zstorm.set_default_tpc("name", True)
+        store = self.zstorm.get("name")
+        xids = []
+        store.begin = lambda xid: xids.append(xid)
+        store.execute("SELECT 1")
+        transaction.abort()
+        store.execute("SELECT 1")
+        transaction.abort()
+        [xid1, xid2] = xids
+        self.assertNotEqual(xid1.global_transaction_id,
+                            xid2.global_transaction_id)
+
     def test_transaction_with_two_phase_commit(self):
         """
-        Two stores in two-phase-commit mode joining the same transaction share
-        the same global transaction ID.
+        If a store is set to use TPC, than the associated data manager will
+        call its prepare() and commit() methods when committing.
         """
         self.zstorm.set_default_uri("name", "sqlite:")
         self.zstorm.set_default_tpc("name", True)

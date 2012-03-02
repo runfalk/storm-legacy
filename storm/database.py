@@ -29,6 +29,7 @@ from storm.expr import Expr, State, compile
 # Circular import: imported at the end of the module.
 # from storm.tracer import trace
 from storm.variables import Variable
+from storm.xid import Xid
 from storm.exceptions import (
     ClosedError, ConnectionBlockedError, DatabaseError, DisconnectionError,
     Error, ProgrammingError)
@@ -269,8 +270,12 @@ class Connection(object):
                                    "transaction")
         self._check_disconnect(self._raw_connection.tpc_prepare)
 
-    def commit(self):
+    def commit(self, xid=None):
         """Commit the connection.
+
+        @param xid: Optionally the L{Xid} of a previously prepared
+             transaction to commit. This form should be called outside
+             of a transaction, and is intended for use in recovery.
 
         @raise ConnectionBlockedError: Raised if access to the connection
             has been blocked with L{block_access}.
@@ -279,21 +284,35 @@ class Connection(object):
 
         """
         self._ensure_connected()
-        # Use tpc_commit() if we are in a two-phase transaction, otherwise
-        # just the regular commit()
-        if self._two_phase_transaction:
+        if xid:
+            raw_xid = self._raw_xid(xid)
+            self._check_disconnect(self._raw_connection.tpc_commit, raw_xid)
+        elif self._two_phase_transaction:
             self._check_disconnect(self._raw_connection.tpc_commit)
             self._two_phase_transaction = False
         else:
             self._check_disconnect(self._raw_connection.commit)
 
-    def rollback(self):
-        """Rollback the connection."""
+    def recover(self):
+        """Return a list of L{Xid}s representing pending transactions."""
+        self._ensure_connected()
+        raw_xids = self._check_disconnect(self._raw_connection.tpc_recover)
+        return [Xid(raw_xid[0], raw_xid[1], raw_xid[2])
+                for raw_xid in raw_xids]
+
+    def rollback(self, xid=None):
+        """Rollback the connection.
+
+        @param xid: Optionally the L{Xid} of a previously prepared
+             transaction to rollback. This form should be called outside
+             of a transaction, and is intended for use in recovery.
+        """
         if self._state == STATE_CONNECTED:
             try:
-                # Use tpc_rollback() if we are in a two-phase transaction,
-                # otherwise just the regular rollback()
-                if self._two_phase_transaction:
+                if xid:
+                    raw_xid = self._raw_xid(xid)
+                    self._raw_connection.tpc_rollback(raw_xid)
+                elif self._two_phase_transaction:
                     self._raw_connection.tpc_rollback()
                 else:
                     self._raw_connection.rollback()
@@ -395,6 +414,12 @@ class Connection(object):
         exception values are used to represent this condition.
         """
         return False
+
+    def _raw_xid(self, xid):
+        """Return a raw xid from the given high-level L{Xid} object."""
+        return self._raw_connection.xid(xid.format_id,
+                                        xid.global_transaction_id,
+                                        xid.branch_qualifier)
 
     def _check_disconnect(self, function, *args, **kwargs):
         """Run the given function, checking for database disconnections."""
