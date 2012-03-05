@@ -160,6 +160,26 @@ class DjangoBackendTests(object):
         cursor.execute("SELECT 1")
         self.assertNotEqual(calls, [])
 
+    def test_abort_transaction_on_failed_commit(self):
+        _transaction = transaction.get()
+        resource1 = self.mocker.mock()
+        self.expect(resource1.prepare).throw(AttributeError).count(0)
+        self.expect(resource1.tpc_begin(_transaction)).throw(DisconnectionError)
+        self.expect(resource1.abort(_transaction)).count(2)
+        self.expect(resource1.sortKey())
+        self.mocker.replay()
+
+        _transaction.join(resource1)
+        wrapper = make_wrapper()
+        cursor = wrapper.cursor()
+        cursor.execute("INSERT INTO django_test (title) VALUES ('foo')")
+        self.assertRaises(DisconnectionError, wrapper._commit)
+
+        # Calling _get_connection on the wrapper after a failed commit should
+        # work fine. Before the fix this would raise a
+        # 'TransactionFailedError'.
+        wrapper._get_connection()
+
 
 class DjangoBackendDisconnectionTests(DatabaseDisconnectionMixin):
 
