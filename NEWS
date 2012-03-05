@@ -46,6 +46,10 @@ Bug fixes
   have been added to sys.path. This ensures that all possible features
   are available to the tests.
 
+- If transaction.commit() fails, call transaction.abort() to rollback
+  everything and leave the transaction in a clean state when using Django's
+  ZopeTransactionMiddleware and DatabaseWrapper.
+
 0.19 (2011-10-03)
 =================
 

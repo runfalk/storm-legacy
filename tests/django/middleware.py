@@ -19,6 +19,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+from storm.exceptions import DisconnectionError
+
 try:
     import django
     import transaction
@@ -173,3 +175,42 @@ class TransactionMiddlewareTests(TestHelper):
         conf.settings.STORM_COMMIT_SAFE_METHODS = False
         zope_middleware = ZopeTransactionMiddleware()
         zope_middleware.process_response(request, response)
+
+    def test_process_response_aborts_transaction_on_failed_commit(self):
+        _transaction = transaction.get()
+        resource1 = self.mocker.mock()
+        self.expect(resource1.prepare).throw(AttributeError).count(0)
+        resource2 = self.mocker.mock()
+        self.expect(resource2.prepare).throw(AttributeError).count(0)
+        leave_transaction_management = self.mocker.replace(
+            "django.db.transaction.leave_transaction_management")
+        is_managed = self.mocker.replace(
+            "django.db.transaction.is_managed")
+        set_clean = self.mocker.replace(
+            "django.db.transaction.set_clean")
+
+        self.expect(is_managed()).result(True).count(1)
+        self.expect(resource1.tpc_begin(_transaction)).throw(DisconnectionError)
+        self.expect(resource1.abort(_transaction)).count(2)
+        # None of these methods should be called
+        self.expect(set_clean()).count(0)
+        self.expect(leave_transaction_management()).count(0)
+        self.mocker.replay()
+
+        _transaction.join(resource1)
+        zope_middleware = ZopeTransactionMiddleware()
+        request = HttpRequest()
+        response = HttpResponse()
+
+        # Processing this response should fail on "commit()" with a
+        # DisconnectionError. The error is saved by
+        # "_saveAndRaiseCommitishError()", and re-raised, so we need to catch
+        # it and abort the transaction.
+        request.method = "POST"
+        self.assertRaises(DisconnectionError, zope_middleware.process_response,
+                          request, response)
+
+        # Now the transaction should have been cleared by "abort()". A resource
+        # joining the transaction manager should not fail with a
+        # "TransactionFailedError".
+        transaction.get().join(resource2)

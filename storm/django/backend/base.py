@@ -40,7 +40,11 @@ class StormDatabaseWrapperMixin(object):
 
     def _commit(self):
         #print "commit"
-        transaction.commit()
+        try:
+            transaction.commit()
+        except Exception:
+            transaction.abort()
+            raise
 
     def _rollback(self):
         #print "rollback"
