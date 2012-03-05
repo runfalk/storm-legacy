@@ -39,7 +39,7 @@ from storm.uri import URI
 import storm.info
 storm  # Silence lint.
 
-from tests import has_fixtures, has_subunit
+from tests import has_fixtures, has_psycopg, has_subunit
 from tests.databases.base import (
     DatabaseTest, DatabaseDisconnectionTest, UnsupportedDatabaseTest)
 from tests.expr import column1, column2, column3, elem1, table1, TrackContext
@@ -540,6 +540,15 @@ class PostgresTest(DatabaseTest, TestHelper):
         self.assertRaises(ValueError, create_database,
             os.environ["STORM_POSTGRES_URI"] + "?isolation=stuff")
 
+    def test_is_disconnection_error_with_ssl_syscall_error(self):
+        """
+        If the underlying driver raises a ProgrammingError with 'SSL SYSCALL
+        error', we consider the connection dead and mark it as needing
+        reconnection.
+        """
+        exc = ProgrammingError("SSL SYSCALL error: Connection timed out")
+        self.assertTrue(self.connection.is_disconnection_error(exc))
+
 
 class PostgresUnsupportedTest(UnsupportedDatabaseTest, TestHelper):
 
@@ -666,6 +675,14 @@ class PostgresDisconnectionTestWithPGBouncerBase(object):
             DisconnectionError, connection.execute,
             "SELECT current_database()")
 
+    if has_psycopg:
+        import psycopg2._psycopg
+        psycopg2_version = psycopg2._psycopg.__version__.split(None, 1)[0]
+        if psycopg2_version in ("2.4", "2.4.1", "2.4.2"):
+            test_pgbouncer_stopped.skip = (
+                "Fails with pyscopg2 %s; see https://bugs.launchpad"
+                ".net/storm/+bug/900702.") % psycopg2_version
+ 
 
 if has_fixtures:
     # Upgrade to full test case class with fixtures.

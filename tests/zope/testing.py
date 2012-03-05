@@ -26,10 +26,11 @@ from tests.zope import has_transaction, has_zope_component, has_testresources
 
 from storm.locals import create_database, Store, Unicode, Int
 from storm.exceptions import IntegrityError
+from storm.tracer import CaptureTracer
 
 if has_transaction and has_zope_component and has_testresources:
     from zope.component import provideUtility, getUtility
-    from storm.zope.zstorm import ZStorm
+    from storm.zope.zstorm import ZStorm, global_zstorm
     from storm.zope.interfaces import IZStorm
     from storm.zope.schema import ZSchema
     from storm.zope.testing import ZStormResourceManager
@@ -106,6 +107,33 @@ class ZStormResourceManagerTest(TestHelper):
         zstorm = self.resource.make([])
         store = zstorm.get("test")
         self.assertEqual([], list(store.execute("SELECT foo FROM test")))
+
+    def test_make_commits_transaction_once(self):
+        """
+        L{ZStormResourceManager.make} commits schema changes only once
+        across all stores, after all patch and delete statements have
+        been executed.
+        """
+        database2 = {"name": "test2",
+                     "uri": "sqlite:///%s" % self.makeFile(),
+                     "schema": self.databases[0]["schema"]}
+        self.databases.append(database2)
+        other_store = Store(create_database(database2["uri"]))
+        for store in [self.store, other_store]:
+            store.execute("CREATE TABLE patch "
+                          "(version INTEGER NOT NULL PRIMARY KEY)")
+            store.execute("CREATE TABLE test (foo TEXT)")
+            store.execute("INSERT INTO test (foo) VALUES ('data')")
+            store.commit()
+
+        with CaptureTracer() as tracer:
+            zstorm = self.resource.make([])
+
+        self.assertEqual(["COMMIT", "COMMIT"], tracer.queries[-2:])
+        store1 = zstorm.get("test")
+        store2 = zstorm.get("test2")
+        self.assertEqual([], list(store1.execute("SELECT foo FROM test")))
+        self.assertEqual([], list(store2.execute("SELECT foo FROM test")))
 
     def test_make_zstorm_overwritten(self):
         """
@@ -209,6 +237,16 @@ class ZStormResourceManagerTest(TestHelper):
         self.resource.clean(zstorm)
         self.assertEqual([], list(schema_store.execute("SELECT * FROM test")))
 
+    def test_no_schema(self):
+        """
+        A particular database may have no schema associated.
+        """
+        self.databases[0]["schema"] = None
+        zstorm = self.resource.make([])
+        store = zstorm.get("test")
+        self.assertEqual([],
+                         list(store.execute("SELECT * FROM sqlite_master")))
+
     def test_deprecated_database_format(self):
         """
         The old deprecated format of the 'database' constructor parameter is
@@ -221,3 +259,12 @@ class ZStormResourceManagerTest(TestHelper):
         zstorm = resource.make([])
         store = zstorm.get("test")
         self.assertIsNot(None, store)
+
+    def test_use_global_zstorm(self):
+        """
+        If the C{use_global_zstorm} attribute is C{True} then the global
+        L{ZStorm} will be used.
+        """
+        self.resource.use_global_zstorm = True
+        zstorm = self.resource.make([])
+        self.assertIs(global_zstorm, zstorm)

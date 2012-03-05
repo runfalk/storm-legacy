@@ -22,7 +22,7 @@ import transaction
 from testresources import TestResourceManager
 from zope.component import provideUtility, getUtility
 
-from storm.zope.zstorm import ZStorm
+from storm.zope.zstorm import ZStorm, global_zstorm
 from storm.zope.interfaces import IZStorm
 
 
@@ -36,15 +36,20 @@ class ZStormResourceManager(TestResourceManager):
     @param databases: A C{list} of C{dict}s holding the following keys:
         - 'name', the name of the store to be registered.
         - 'uri', the database URI to use to create the store.
-        - 'schema', the L{Schema} for the tables in the store.
+        - 'schema', optionally, the L{Schema} for the tables in the store, if
+          not given no schema will be applied.
         - 'schema-uri', optionally an alternate URI to use for applying the
           schema, if not given it defaults to 'uri'.
 
     @ivar force_delete: If C{True} for running L{Schema.delete} on a L{Store}
         even if no commit was performed by the test. Useful when running a test
         in a subprocess that might commit behind our back.
+    @ivar use_global_zstorm: If C{True} then the C{global_zstorm} object from
+        C{storm.zope.zstorm} will be used, instead of creating a new one. This
+        is useful for code loading the zcml directives of C{storm.zope}.
     """
     force_delete = False
+    use_global_zstorm = False
 
     def __init__(self, databases):
         super(ZStormResourceManager, self).__init__()
@@ -62,7 +67,10 @@ class ZStormResourceManager(TestResourceManager):
         """
         if self._zstorm is None:
 
-            zstorm = ZStorm()
+            if self.use_global_zstorm:
+                zstorm = global_zstorm
+            else:
+                zstorm = ZStorm()
             schema_zstorm = ZStorm()
             databases = self._databases
 
@@ -75,18 +83,28 @@ class ZStormResourceManager(TestResourceManager):
             for database in databases:
                 name = database["name"]
                 uri = database["uri"]
-                schema = database["schema"]
+                zstorm.set_default_uri(name, uri)
+                schema = database.get("schema")
+                if schema is None:
+                    # The configuration for this database does not include a
+                    # schema definition, so we just setup the store (the user
+                    # code should apply the schema elsewhere, if any)
+                    continue
                 schema_uri = database.get("schema-uri", uri)
                 self._schemas[name] = schema
-                zstorm.set_default_uri(name, uri)
                 schema_zstorm.set_default_uri(name, schema_uri)
                 store = zstorm.get(name)
                 self._set_commit_proxy(store)
                 schema_store = schema_zstorm.get(name)
+                # Disable schema autocommits, we will commit everything at once
+                schema.autocommit(False)
                 schema.upgrade(schema_store)
                 # Clean up tables here to ensure that the first test run starts
                 # with an empty db
                 schema.delete(schema_store)
+
+            # Commit all schema changes across all stores
+            transaction.commit()
 
             provideUtility(zstorm)
             self._zstorm = zstorm
@@ -128,9 +146,13 @@ class ZStormResourceManager(TestResourceManager):
             transaction.abort()
 
         # Clean up tables after each test if a commit was made
+        needs_commit = False
         for name, store in self._zstorm.iterstores():
             if self.force_delete or store in self._commits:
                 schema_store = self._schema_zstorm.get(name)
                 schema = self._schemas[name]
                 schema.delete(schema_store)
+                needs_commit = True
+        if needs_commit:
+            transaction.commit()
         self._commits = {}

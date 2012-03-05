@@ -22,6 +22,7 @@
 __all__ = [
     'find_tests',
     'has_fixtures',
+    'has_psycopg',
     'has_subunit',
     ]
 
@@ -36,6 +37,15 @@ except ImportError:
     has_fixtures = False
 else:
     has_fixtures = True
+
+
+try:
+    import psycopg2
+    psycopg2  # Silence lint.
+except ImportError:
+    has_psycopg = False
+else:
+    has_psycopg = True
 
 
 try:
