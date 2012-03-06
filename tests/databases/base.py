@@ -440,6 +440,37 @@ class DatabaseTest(object):
 
 class TwoPhaseCommitTest(object):
 
+    def setUp(self):
+        super(TwoPhaseCommitTest, self).setUp()
+        self.create_database()
+        self.create_connection()
+        self.drop_tables()
+        self.create_tables()
+
+    def tearDown(self):
+        self.drop_tables()
+        self.drop_connection()
+        super(TwoPhaseCommitTest, self).tearDown()
+
+    def create_database(self):
+        raise NotImplementedError
+
+    def create_connection(self):
+        self.connection = self.database.connect()
+
+    def create_tables(self):
+        raise NotImplementedError
+
+    def drop_tables(self):
+        try:
+            self.connection.execute("DROP TABLE test")
+            self.connection.commit()
+        except:
+            self.connection.rollback()
+
+    def drop_connection(self):
+        self.connection.close()
+
     def test_begin(self):
         """
         begin() starts a transaction that can be ended with a two-phase commit.

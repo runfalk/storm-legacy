@@ -214,6 +214,29 @@ class ZStormTest(TestHelper):
         transaction.commit()
         self.assertEqual(["begin", "prepare", "commit"], calls)
 
+    def test_transaction_with_single_and_two_phase_commit_stores(self):
+        """
+        When there are both stores in single-phase and two-phase mode, the
+        ones in single-phase mode are committed first. This makes it possible
+        to actually achieve two-phase commit behavior when only one store
+        doesn't support TPC.
+        """
+        self.zstorm.set_default_uri("name1", "sqlite:1")
+        self.zstorm.set_default_uri("name2", "sqlite:2")
+        self.zstorm.set_default_tpc("name1", True)
+        self.zstorm.set_default_tpc("name2", False)
+        store1 = self.zstorm.get("name1")
+        store2 = self.zstorm.get("name2")
+        commits = []
+        store1.begin = lambda xid: None
+        store1.prepare = lambda: None
+        store1.commit = lambda: commits.append("commit1")
+        store2.commit = lambda: commits.append("commit2")
+        store1.execute("SELECT 1")
+        store2.execute("SELECT 1")
+        transaction.commit()
+        self.assertEqual(["commit2", "commit1"], commits)
+
     def _isInTransaction(self, store):
         """Check if a Store is part of the current transaction."""
         for dm in transaction.get()._resources:

@@ -71,7 +71,7 @@ def terminate_all_backends(database):
     connection.close()
 
 
-class PostgresTest(DatabaseTest, TwoPhaseCommitTest, TestHelper):
+class PostgresTest(DatabaseTest, TestHelper):
 
     def is_supported(self):
         return bool(os.environ.get("STORM_POSTGRES_URI"))
@@ -549,6 +549,33 @@ class PostgresTest(DatabaseTest, TwoPhaseCommitTest, TestHelper):
         """
         exc = ProgrammingError("SSL SYSCALL error: Connection timed out")
         self.assertTrue(self.connection.is_disconnection_error(exc))
+
+
+_max_prepared_transactions = None
+
+
+class PostgresTwoPhaseCommitTest(TwoPhaseCommitTest, TestHelper):
+    
+    def is_supported(self):
+        uri = os.environ.get("STORM_POSTGRES_URI")
+        if not uri:
+            return False
+        global _max_prepared_transactions
+        if _max_prepared_transactions is None:
+            database = create_database(uri)
+            connection = database.connect()
+            result = connection.execute("SHOW MAX_PREPARED_TRANSACTIONS")
+            _max_prepared_transactions = int(result.get_one()[0])
+            connection.close()
+        return _max_prepared_transactions > 0
+
+    def create_database(self):
+        self.database = create_database(os.environ["STORM_POSTGRES_URI"])
+
+    def create_tables(self):
+        self.connection.execute("CREATE TABLE test "
+                                "(id SERIAL PRIMARY KEY, title VARCHAR)")
+        self.connection.commit()
 
 
 class PostgresUnsupportedTest(UnsupportedDatabaseTest, TestHelper):

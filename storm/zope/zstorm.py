@@ -32,7 +32,7 @@ from uuid import uuid4
 from zope.interface import implements
 
 import transaction
-from transaction.interfaces import IDataManager, ISynchronizer
+from transaction.interfaces import IDataManager
 try:
     from transaction.interfaces import TransactionFailedError
 except ImportError:
@@ -288,25 +288,19 @@ class StoreDataManager(object):
     def commit(self, txn):
         if self._store._tpc:
             self._store.prepare()
-        else:
-            try:
-                self._store.commit()
-            finally:
-                self._hook_register_transaction_event()
 
     def tpc_vote(self, txn):
         pass
 
     def tpc_finish(self, txn):
-        if self._store._tpc:
-            try:
-                self._store.commit()
-            except:
-                # We let the exception propagate, as the transaction manager
-                # will then call tcp_abort, and we will register the hook there
-                raise
-            else:
-                self._hook_register_transaction_event()
+        try:
+            self._store.commit()
+        except:
+            # We let the exception propagate, as the transaction manager
+            # will then call tcp_abort, and we will register the hook there
+            raise
+        else:
+            self._hook_register_transaction_event()
 
     def tpc_abort(self, txn):
         if self._store._tpc:
@@ -316,7 +310,14 @@ class StoreDataManager(object):
                 self._hook_register_transaction_event()
 
     def sortKey(self):
-        return "store_%d" % id(self)
+        # Stores in TPC mode should be the last to be committed, this makes
+        # it possible to have TPC behavior when there's only a single store
+        # not in TPC mode.
+        if self._store._tpc:
+            prefix = "zz"
+        else:
+            prefix = "aa"
+        return "%s_store_%d" % (prefix, id(self))
 
 
 global_zstorm = ZStorm()
