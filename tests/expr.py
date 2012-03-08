@@ -879,6 +879,30 @@ class CompileTest(TestHelper):
         self.assertEquals(value.context, EXPR)
         self.assertEquals(table.context, TABLE)
 
+    def test_insert_bulk(self):
+        expr = Insert((Column(column1, table1), Column(column2, table1)),
+                      values=[(elem1, elem2), (elem3, elem4)])
+        state = State()
+        statement = compile(expr, state)
+        self.assertEquals(
+            statement,
+            'INSERT INTO "table 1" (column1, column2) '
+            'VALUES (elem1, elem2), (elem3, elem4)')
+        self.assertEquals(state.parameters, [])
+
+    def test_insert_select(self):
+        expr = Insert((Column(column1, table1), Column(column2, table1)),
+                      values=Select(
+                        (Column(column3, table3), Column(column4, table4))))
+        state = State()
+        statement = compile(expr, state)
+        self.assertEquals(
+            statement,
+            'INSERT INTO "table 1" (column1, column2) '
+            'SELECT "table 3".column3, "table 4".column4 '
+            'FROM "table 3", "table 4"')
+        self.assertEquals(state.parameters, [])
+
     def test_update(self):
         expr = Update({column1: elem1, Func1(): Func2()}, table=Func1())
         state = State()

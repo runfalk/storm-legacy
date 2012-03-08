@@ -700,7 +700,8 @@ def compile_select(compile, select, state):
 class Insert(Expr):
     """Expression representing an insert statement.
 
-    @ivar map: Dictionary mapping columns to values.
+    @ivar map: Dictionary mapping columns to values, or a sequence of columns
+        for a bulk insert.
     @ivar table: Table where the row should be inserted.
     @ivar default_table: Table to use if no table is explicitly provided, and
         no tables may be inferred from provided columns.
@@ -710,17 +711,21 @@ class Insert(Expr):
     @ivar primary_variables: Tuple of variables with values for the primary
         key of the table where the row will be inserted.  This is a hint used
         by backends to process the insertion of rows.
+    @ivar values: Expression or sequence of tuples of values for bulk
+        insertion.
     """
     __slots__ = ("map", "table", "default_table", "primary_columns",
-                 "primary_variables")
+                 "primary_variables", "values")
 
     def __init__(self, map, table=Undef, default_table=Undef,
-                 primary_columns=Undef, primary_variables=Undef):
+                 primary_columns=Undef, primary_variables=Undef,
+                 values=Undef):
         self.map = map
         self.table = table
         self.default_table = default_table
         self.primary_columns = primary_columns
         self.primary_variables = primary_variables
+        self.values = values
 
 @compile.when(Insert)
 def compile_insert(compile, insert, state):
@@ -729,10 +734,18 @@ def compile_insert(compile, insert, state):
     state.context = TABLE
     table = build_tables(compile, insert.table, insert.default_table, state)
     state.context = EXPR
-    values = compile(tuple(insert.map.itervalues()), state)
+    values = insert.values
+    if values is Undef:
+        values = [tuple(insert.map.itervalues())]
+    if isinstance(values, Expr):
+        compiled_values = compile(values, state)
+    else:
+        compiled_values = (
+            "VALUES (%s)" %
+            "), (".join(compile(value, state) for value in values))
     state.pop()
-    return "".join(["INSERT INTO ", table, " (", columns,
-                    ") VALUES (", values, ")"])
+    return "".join(
+        ["INSERT INTO ", table, " (", columns, ") ", compiled_values])
 
 
 class Update(Expr):
