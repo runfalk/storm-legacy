@@ -56,23 +56,25 @@ compile = compile.create_child()
 
 
 class Returning(Expr):
-    """Appends the "RETURNING <primary_columns>" suffix to an INSERT.
+    """Appends the "RETURNING <primary_columns>" suffix to an INSERT or UPDATE.
 
     This is only supported in PostgreSQL 8.2+.
     """
 
-    def __init__(self, insert):
-        self.insert = insert
+    def __init__(self, expression, columns=None):
+        self.expression = expression
+        self.columns = columns
 
 @compile.when(Returning)
 def compile_returning(compile, expr, state):
     state.push("context", COLUMN)
-    columns = compile(expr.insert.primary_columns, state)
+    columns = expr.columns or expr.expression.primary_columns
+    columns = compile(columns, state)
     state.pop()
     state.push("precedence", 0)
-    insert = compile(expr.insert, state)
+    expression = compile(expr.expression, state)
     state.pop()
-    return "%s RETURNING %s" % (insert, columns)
+    return "%s RETURNING %s" % (expression, columns)
 
 
 class currval(FuncExpr):
