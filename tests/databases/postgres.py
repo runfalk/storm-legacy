@@ -90,17 +90,13 @@ class PostgresTest(DatabaseTest, TestHelper):
                                 "(id SERIAL PRIMARY KEY, b BYTEA)")
         self.connection.execute("CREATE TABLE like_case_insensitive_test "
                                 "(id SERIAL PRIMARY KEY, description TEXT)")
-        self.connection.execute("CREATE TABLE insert_returning_test "
+        self.connection.execute("CREATE TABLE returning_test "
                                 "(id1 INTEGER DEFAULT 123, "
                                 " id2 INTEGER DEFAULT 456)")
-        self.connection.execute("CREATE TABLE update_returning_test "
-                                "(id1 INTEGER, "
-                                " id2 INTEGER)")
 
     def drop_tables(self):
         super(PostgresTest, self).drop_tables()
-        for table in ["like_case_insensitive_test", "insert_returning_test",
-                      "update_returning_test"]:
+        for table in ["like_case_insensitive_test", "returning_test"]:
             try:
                 self.connection.execute("DROP TABLE %s" % table)
                 self.connection.commit()
@@ -417,8 +413,8 @@ class PostgresTest(DatabaseTest, TestHelper):
         if self.database._version < 80200:
             return # Can't run this test with old PostgreSQL versions.
 
-        column1 = Column("id1", "insert_returning_test")
-        column2 = Column("id2", "insert_returning_test")
+        column1 = Column("id1", "returning_test")
+        column2 = Column("id2", "returning_test")
         variable1 = IntVariable()
         variable2 = IntVariable()
         insert = Insert({}, primary_columns=(column1, column2),
@@ -431,13 +427,13 @@ class PostgresTest(DatabaseTest, TestHelper):
         self.assertEquals(variable1.get(), 123)
         self.assertEquals(variable2.get(), 456)
 
-        result = self.connection.execute("SELECT * FROM insert_returning_test")
+        result = self.connection.execute("SELECT * FROM returning_test")
         self.assertEquals(result.get_one(), (123, 456))
 
     def test_wb_execute_insert_returning_not_used_with_old_postgres(self):
         """Shouldn't try to use RETURNING with PostgreSQL < 8.2."""
-        column1 = Column("id1", "insert_returning_test")
-        column2 = Column("id2", "insert_returning_test")
+        column1 = Column("id1", "returning_test")
+        column2 = Column("id2", "returning_test")
         variable1 = IntVariable()
         variable2 = IntVariable()
         insert = Insert({}, primary_columns=(column1, column2),
@@ -449,28 +445,28 @@ class PostgresTest(DatabaseTest, TestHelper):
         self.assertFalse(variable1.is_defined())
         self.assertFalse(variable2.is_defined())
 
-        result = self.connection.execute("SELECT * FROM insert_returning_test")
+        result = self.connection.execute("SELECT * FROM returning_test")
         self.assertEquals(result.get_one(), (123, 456))
 
     def test_execute_insert_returning_without_columns(self):
         """Without primary_columns, the RETURNING system won't be used."""
-        column1 = Column("id1", "insert_returning_test")
+        column1 = Column("id1", "returning_test")
         variable1 = IntVariable()
         insert = Insert({column1: 123}, primary_variables=(variable1,))
         self.connection.execute(insert)
 
         self.assertFalse(variable1.is_defined())
 
-        result = self.connection.execute("SELECT * FROM insert_returning_test")
+        result = self.connection.execute("SELECT * FROM returning_test")
         self.assertEquals(result.get_one(), (123, 456))
 
     def test_execute_insert_returning_without_variables(self):
         """Without primary_variables, the RETURNING system won't be used."""
-        column1 = Column("id1", "insert_returning_test")
+        column1 = Column("id1", "returning_test")
         insert = Insert({}, primary_columns=(column1,))
         self.connection.execute(insert)
 
-        result = self.connection.execute("SELECT * FROM insert_returning_test")
+        result = self.connection.execute("SELECT * FROM returning_test")
 
         self.assertEquals(result.get_one(), (123, 456))
 
@@ -478,10 +474,10 @@ class PostgresTest(DatabaseTest, TestHelper):
         if self.database._version < 80200:
             return # Can't run this test with old PostgreSQL versions.
 
-        column1 = Column("id1", "update_returning_test")
-        column2 = Column("id2", "update_returning_test")
+        column1 = Column("id1", "returning_test")
+        column2 = Column("id2", "returning_test")
         self.connection.execute(
-            "INSERT INTO update_returning_test VALUES (1, 2)")
+            "INSERT INTO returning_test VALUES (1, 2)")
         update = Update({"id2": 3}, column1 == 1,
                         primary_columns=(column1, column2))
         result = self.connection.execute(Returning(update))
