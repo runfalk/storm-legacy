@@ -881,7 +881,7 @@ class CompileTest(TestHelper):
 
     def test_insert_bulk(self):
         expr = Insert((Column(column1, table1), Column(column2, table1)),
-                      expr=[(elem1, elem2), (elem3, elem4)])
+                      values=[(elem1, elem2), (elem3, elem4)])
         state = State()
         statement = compile(expr, state)
         self.assertEquals(
@@ -892,7 +892,7 @@ class CompileTest(TestHelper):
 
     def test_insert_select(self):
         expr = Insert((Column(column1, table1), Column(column2, table1)),
-                      expr=Select(
+                      values=Select(
                         (Column(column3, table3), Column(column4, table4))))
         state = State()
         statement = compile(expr, state)
