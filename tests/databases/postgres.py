@@ -29,7 +29,7 @@ from storm.variables import DateTimeVariable, RawStrVariable
 from storm.variables import ListVariable, IntVariable, Variable
 from storm.properties import Int
 from storm.exceptions import DisconnectionError
-from storm.expr import (Union, Select, Insert, Alias, SQLRaw, State,
+from storm.expr import (Union, Select, Insert, Update, Alias, SQLRaw, State,
                         Sequence, Like, Column, COLUMN)
 from storm.tracer import install_tracer, TimeoutError
 from storm.uri import URI
@@ -90,13 +90,13 @@ class PostgresTest(DatabaseTest, TestHelper):
                                 "(id SERIAL PRIMARY KEY, b BYTEA)")
         self.connection.execute("CREATE TABLE like_case_insensitive_test "
                                 "(id SERIAL PRIMARY KEY, description TEXT)")
-        self.connection.execute("CREATE TABLE insert_returning_test "
+        self.connection.execute("CREATE TABLE returning_test "
                                 "(id1 INTEGER DEFAULT 123, "
                                 " id2 INTEGER DEFAULT 456)")
 
     def drop_tables(self):
         super(PostgresTest, self).drop_tables()
-        for table in ["like_case_insensitive_test", "insert_returning_test"]:
+        for table in ["like_case_insensitive_test", "returning_test"]:
             try:
                 self.connection.execute("DROP TABLE %s" % table)
                 self.connection.commit()
@@ -389,25 +389,32 @@ class PostgresTest(DatabaseTest, TestHelper):
                           "thetable.thecolumn = "
                           "(SELECT currval('thetable_thecolumn_seq'))")
 
-    def test_returning(self):
-        insert = Insert({column1: elem1}, table1,
-                        primary_columns=(column2, column3))
-        self.assertEquals(compile(Returning(insert)),
-                          'INSERT INTO "table 1" (column1) VALUES (elem1) '
-                          'RETURNING column2, column3')
-
     def test_returning_column_context(self):
         column2 = TrackContext()
         insert = Insert({column1: elem1}, table1, primary_columns=column2)
         compile(Returning(insert))
         self.assertEquals(column2.context, COLUMN)
 
+    def test_returning_update(self):
+        update = Update({column1: elem1}, table=table1,
+                        primary_columns=(column2, column3))
+        self.assertEquals(compile(Returning(update)),
+                          'UPDATE "table 1" SET column1=elem1 '
+                          'RETURNING column2, column3')
+
+    def test_returning_update_with_columns(self):
+        update = Update({column1: elem1}, table=table1,
+                        primary_columns=(column2, column3))
+        self.assertEquals(compile(Returning(update, columns=[column3])),
+                          'UPDATE "table 1" SET column1=elem1 '
+                          'RETURNING column3')
+
     def test_execute_insert_returning(self):
-        if self.database._version < (8, 2):
+        if self.database._version < 80200:
             return # Can't run this test with old PostgreSQL versions.
 
-        column1 = Column("id1", "insert_returning_test")
-        column2 = Column("id2", "insert_returning_test")
+        column1 = Column("id1", "returning_test")
+        column2 = Column("id2", "returning_test")
         variable1 = IntVariable()
         variable2 = IntVariable()
         insert = Insert({}, primary_columns=(column1, column2),
@@ -420,13 +427,13 @@ class PostgresTest(DatabaseTest, TestHelper):
         self.assertEquals(variable1.get(), 123)
         self.assertEquals(variable2.get(), 456)
 
-        result = self.connection.execute("SELECT * FROM insert_returning_test")
+        result = self.connection.execute("SELECT * FROM returning_test")
         self.assertEquals(result.get_one(), (123, 456))
 
     def test_wb_execute_insert_returning_not_used_with_old_postgres(self):
         """Shouldn't try to use RETURNING with PostgreSQL < 8.2."""
-        column1 = Column("id1", "insert_returning_test")
-        column2 = Column("id2", "insert_returning_test")
+        column1 = Column("id1", "returning_test")
+        column2 = Column("id2", "returning_test")
         variable1 = IntVariable()
         variable2 = IntVariable()
         insert = Insert({}, primary_columns=(column1, column2),
@@ -438,30 +445,43 @@ class PostgresTest(DatabaseTest, TestHelper):
         self.assertFalse(variable1.is_defined())
         self.assertFalse(variable2.is_defined())
 
-        result = self.connection.execute("SELECT * FROM insert_returning_test")
+        result = self.connection.execute("SELECT * FROM returning_test")
         self.assertEquals(result.get_one(), (123, 456))
 
     def test_execute_insert_returning_without_columns(self):
         """Without primary_columns, the RETURNING system won't be used."""
-        column1 = Column("id1", "insert_returning_test")
+        column1 = Column("id1", "returning_test")
         variable1 = IntVariable()
         insert = Insert({column1: 123}, primary_variables=(variable1,))
         self.connection.execute(insert)
 
         self.assertFalse(variable1.is_defined())
 
-        result = self.connection.execute("SELECT * FROM insert_returning_test")
+        result = self.connection.execute("SELECT * FROM returning_test")
         self.assertEquals(result.get_one(), (123, 456))
 
     def test_execute_insert_returning_without_variables(self):
         """Without primary_variables, the RETURNING system won't be used."""
-        column1 = Column("id1", "insert_returning_test")
+        column1 = Column("id1", "returning_test")
         insert = Insert({}, primary_columns=(column1,))
         self.connection.execute(insert)
 
-        result = self.connection.execute("SELECT * FROM insert_returning_test")
+        result = self.connection.execute("SELECT * FROM returning_test")
 
         self.assertEquals(result.get_one(), (123, 456))
+
+    def test_execute_update_returning(self):
+        if self.database._version < 80200:
+            return # Can't run this test with old PostgreSQL versions.
+
+        column1 = Column("id1", "returning_test")
+        column2 = Column("id2", "returning_test")
+        self.connection.execute(
+            "INSERT INTO returning_test VALUES (1, 2)")
+        update = Update({"id2": 3}, column1 == 1,
+                        primary_columns=(column1, column2))
+        result = self.connection.execute(Returning(update))
+        self.assertEquals(result.get_one(), (1, 3))
 
     def test_isolation_autocommit(self):
         database = create_database(

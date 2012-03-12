@@ -26,6 +26,10 @@ Improvements
 - Insert expressions now support multi-row and subquery INSERT
   statements.
 
+- Support in the postgres backend to use the RETURNING extension for UPDATE
+  statement, optionally specifying the columns to return.
+  (PostgreSQL >= 8.2 only)
+
 Bug fixes
 ---------
 

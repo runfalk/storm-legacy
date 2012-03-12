@@ -749,13 +749,15 @@ def compile_insert(compile, insert, state):
 
 
 class Update(Expr):
-    __slots__ = ("map", "where", "table", "default_table")
+    __slots__ = ("map", "where", "table", "default_table", "primary_columns")
 
-    def __init__(self, map, where=Undef, table=Undef, default_table=Undef):
+    def __init__(self, map, where=Undef, table=Undef, default_table=Undef,
+                 primary_columns=Undef):
         self.map = map
         self.where = where
         self.table = table
         self.default_table = default_table
+        self.primary_columns = primary_columns
 
 @compile.when(Update)
 def compile_update(compile, update, state):
