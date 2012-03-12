@@ -94,6 +94,20 @@ class ZStormResourceManagerTest(TestHelper):
         store = zstorm.get("test")
         self.assertEqual([], list(store.execute("SELECT bar FROM test")))
 
+    def test_make_upgrade_unknown_patch(self):
+        """
+        L{ZStormResourceManager.make} resets the schema if an unknown patch
+        is found
+        """
+        self.store.execute("CREATE TABLE patch "
+                           "(version INTEGER NOT NULL PRIMARY KEY)")
+        self.store.execute("INSERT INTO patch VALUES (2)")
+        self.store.execute("CREATE TABLE test (foo TEXT, egg BOOL)")
+        self.store.commit()
+        zstorm = self.resource.make([])
+        store = zstorm.get("test")
+        self.assertEqual([], list(store.execute("SELECT foo, bar FROM test")))
+
     def test_make_delete(self):
         """
         L{ZStormResourceManager.make} deletes the data from all tables to make
