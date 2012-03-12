@@ -183,7 +183,7 @@ class PostgresStoreTest(TestHelper, StoreTest):
         Ensure that the currval()-based identity retrieval continues
         to work, even if we're currently running on a 8.2+ database.
         """
-        self.database._version = (8, 1, 9)
+        self.database._version = 80109
         foo1 = self.store.add(Foo())
         self.store.flush()
         foo2 = self.store.add(Foo())

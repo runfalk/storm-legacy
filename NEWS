@@ -23,6 +23,13 @@ Improvements
   There are also disconnection tests that simulate sudden termination
   of pgbouncer <http://pgfoundry.org/projects/pgbouncer/>.
 
+- Insert expressions now support multi-row and subquery INSERT
+  statements.
+
+- Support in the postgres backend to use the RETURNING extension for UPDATE
+  statement, optionally specifying the columns to return.
+  (PostgreSQL >= 8.2 only)
+
 - Add support for two-phase commits, using the DB API version 2.0, which
   is only supported by PostgreSQL.
 
@@ -48,6 +55,10 @@ Bug fixes
 - Fix the ./test script to not import tests until after local eggs
   have been added to sys.path. This ensures that all possible features
   are available to the tests.
+
+- If transaction.commit() fails, call transaction.abort() to rollback
+  everything and leave the transaction in a clean state when using Django's
+  ZopeTransactionMiddleware and DatabaseWrapper.
 
 0.19 (2011-10-03)
 =================

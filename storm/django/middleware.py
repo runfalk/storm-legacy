@@ -74,7 +74,11 @@ class ZopeTransactionMiddleware(object):
         if django_transaction.is_managed():
             if self.commit_safe_methods or (
                 request.method not in ['HEAD', 'GET']):
-                transaction.commit()
+                try:
+                    transaction.commit()
+                except Exception:
+                    transaction.abort()
+                    raise
             else:
                 transaction.abort()
             django_transaction.set_clean()
