@@ -18,11 +18,11 @@ mysql -u root -e "$MYSQL_PRIVS"
 
 echo " * Create DB Test Fixtures (will fail if existing)"
 createdb storm_test || /bin/true
-mysql -u ubuntu -e "CREATE DATABASE storm_test CHARACTER SET utf8;" || /bin/true
+mysql -u $USER -e "CREATE DATABASE storm_test CHARACTER SET utf8;" || /bin/true
 
 echo " * Testing DB Access for user:$USER"
 pg_dump storm_test > /dev/null
-mysqldump -u ubuntu storm_test > /dev/null
+mysqldump -u $USER storm_test > /dev/null
 
 echo " * All Done."
 
