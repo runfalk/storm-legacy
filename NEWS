@@ -4,7 +4,7 @@
 Improvements
 ------------
 
-- A new CaptureTracer has been added to storm.tracer, for capturing all SQL
+- A new CaptureTracer has been added to storm.testing, for capturing all SQL
   statements executed by Storm. It can be used like this:
 
     with CaptureTracer() as tracer:
