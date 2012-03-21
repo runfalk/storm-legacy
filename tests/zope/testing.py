@@ -26,7 +26,7 @@ from tests.zope import has_transaction, has_zope_component, has_testresources
 
 from storm.locals import create_database, Store, Unicode, Int
 from storm.exceptions import IntegrityError
-from storm.tracer import CaptureTracer
+from storm.testing import CaptureTracer
 
 if has_transaction and has_zope_component and has_testresources:
     from zope.component import provideUtility, getUtility
