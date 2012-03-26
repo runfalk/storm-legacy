@@ -1668,6 +1668,14 @@ class CompileTest(TestHelper):
                           "((SELECT elem1) UNION (SELECT elem2)) AS alias")
         self.assertEquals(state.parameters, [])
 
+    def test_distinct(self):
+        """L{Distinct} adds a DISTINCT prefix to the given expression."""
+        distinct = Distinct(Column(elem1))
+        state = State()
+        statement = compile(distinct, state)
+        self.assertEquals(statement, "DISTINCT elem1")
+        self.assertEquals(state.parameters, [])
+
     def test_join(self):
         expr = Join(Func1())
         state = State()

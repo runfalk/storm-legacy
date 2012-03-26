@@ -983,6 +983,21 @@ class NaturalRightJoin(JoinExpr):
 
 
 # --------------------------------------------------------------------
+# Distinct expressions
+
+class Distinct(Expr):
+    """Add the 'DISTINCT' prefix to an expression."""
+    __slots__ = ("expr")
+
+    def __init__(self, expr):
+        self.expr = expr
+
+@compile.when(Distinct)
+def compile_distinct(compile, distinct, state):
+    return "DISTINCT %s" % compile(distinct.expr, state)
+
+
+# --------------------------------------------------------------------
 # Operators
 
 class BinaryOper(BinaryExpr):
