@@ -67,6 +67,7 @@ class ZStormResourceManagerTest(TestHelper):
         self.store = Store(create_database(uri))
 
     def tearDown(self):
+        global_zstorm._reset()
         del sys.modules["patch_package"]
         sys.path.remove(self._package_dir)
         if "patch_1" in sys.modules:
