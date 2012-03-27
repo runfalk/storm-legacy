@@ -30,6 +30,9 @@ Improvements
   statement, optionally specifying the columns to return.
   (PostgreSQL >= 8.2 only)
 
+- Add a new Distinct expression for pre-pending the 'DISTINCT' token to
+  SQL expressions that support it (like columns).
+
 Bug fixes
 ---------
 
