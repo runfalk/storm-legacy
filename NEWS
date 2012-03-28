@@ -4,7 +4,7 @@
 Improvements
 ------------
 
-- A new CaptureTracer has been added to storm.tracer, for capturing all SQL
+- A new CaptureTracer has been added to storm.testing, for capturing all SQL
   statements executed by Storm. It can be used like this:
 
     with CaptureTracer() as tracer:
@@ -29,6 +29,9 @@ Improvements
 - Support in the postgres backend to use the RETURNING extension for UPDATE
   statement, optionally specifying the columns to return.
   (PostgreSQL >= 8.2 only)
+
+- Add a new Distinct expression for pre-pending the 'DISTINCT' token to
+  SQL expressions that support it (like columns).
 
 - Add support for two-phase commits, using the DB API version 2.0, which
   is only supported by PostgreSQL.

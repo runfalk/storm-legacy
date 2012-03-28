@@ -22,6 +22,7 @@ import transaction
 from testresources import TestResourceManager
 from zope.component import provideUtility, getUtility
 
+from storm.schema.patch import UnknownPatchError
 from storm.zope.zstorm import ZStorm, global_zstorm
 from storm.zope.interfaces import IZStorm
 
@@ -98,7 +99,11 @@ class ZStormResourceManager(TestResourceManager):
                 schema_store = schema_zstorm.get(name)
                 # Disable schema autocommits, we will commit everything at once
                 schema.autocommit(False)
-                schema.upgrade(schema_store)
+                try:
+                    schema.upgrade(schema_store)
+                except UnknownPatchError:
+                    schema.drop(schema_store)
+                    schema.create(schema_store)
                 # Clean up tables here to ensure that the first test run starts
                 # with an empty db
                 schema.delete(schema_store)

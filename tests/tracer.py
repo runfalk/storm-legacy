@@ -8,6 +8,7 @@ from tests import has_fixtures
 if has_fixtures:
     import fixtures.testcase
     TestWithFixtures = fixtures.testcase.TestWithFixtures
+    from storm.testing import CaptureTracer
 else:
     TestWithFixtures = object
 
@@ -21,8 +22,7 @@ except ImportError:
 from storm.tracer import (trace, install_tracer, get_tracers, remove_tracer,
                           remove_tracer_type, remove_all_tracers, debug,
                           BaseStatementTracer, DebugTracer, TimeoutTracer,
-                          TimelineTracer, TimeoutError, CaptureTracer,
-                          _tracers)
+                          TimelineTracer, TimeoutError, _tracers)
 from storm.database import Connection
 from storm.expr import Variable
 

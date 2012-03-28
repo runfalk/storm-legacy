@@ -26,7 +26,7 @@ from tests.zope import has_transaction, has_zope_component, has_testresources
 
 from storm.locals import create_database, Store, Unicode, Int
 from storm.exceptions import IntegrityError
-from storm.tracer import CaptureTracer
+from storm.testing import CaptureTracer
 
 if has_transaction and has_zope_component and has_testresources:
     from zope.component import provideUtility, getUtility
@@ -67,6 +67,7 @@ class ZStormResourceManagerTest(TestHelper):
         self.store = Store(create_database(uri))
 
     def tearDown(self):
+        global_zstorm._reset()
         del sys.modules["patch_package"]
         sys.path.remove(self._package_dir)
         if "patch_1" in sys.modules:
@@ -93,6 +94,20 @@ class ZStormResourceManagerTest(TestHelper):
         zstorm = self.resource.make([])
         store = zstorm.get("test")
         self.assertEqual([], list(store.execute("SELECT bar FROM test")))
+
+    def test_make_upgrade_unknown_patch(self):
+        """
+        L{ZStormResourceManager.make} resets the schema if an unknown patch
+        is found
+        """
+        self.store.execute("CREATE TABLE patch "
+                           "(version INTEGER NOT NULL PRIMARY KEY)")
+        self.store.execute("INSERT INTO patch VALUES (2)")
+        self.store.execute("CREATE TABLE test (foo TEXT, egg BOOL)")
+        self.store.commit()
+        zstorm = self.resource.make([])
+        store = zstorm.get("test")
+        self.assertEqual([], list(store.execute("SELECT foo, bar FROM test")))
 
     def test_make_delete(self):
         """
