@@ -106,6 +106,17 @@ class ZStorm(object):
             return self._local.__dict__.setdefault(
                 "name_index", weakref.WeakKeyDictionary())
 
+    @property
+    def _txn_ids(self):
+        """
+        A thread-local weak-key dict used to keep track of transaction IDs.
+        """
+        try:
+            return self._local.txn_ids
+        except AttributeError:
+            txn_ids = weakref.WeakKeyDictionary()
+            return self._local.__dict__.setdefault("txn_ids", txn_ids)
+
     def _get_database(self, uri):
         database = self._databases.get(uri)
         if database is None:
@@ -228,12 +239,12 @@ def register_store_with_transaction(store, zstorm_ref):
     txn = zstorm.transaction_manager.get()
 
     if store._tpc:
-        global_transaction_id = getattr(txn, "__storm_transaction_id__", None)
+        global_transaction_id = zstorm._txn_ids.get(txn)
         if global_transaction_id is None:
             # The the global transaction doesn't have an ID yet, let's create
             # one in a way that it will be unique
             global_transaction_id = "_storm_%s" % str(uuid4())
-            txn.__storm_transaction_id__ = global_transaction_id
+            zstorm._txn_ids[txn] = global_transaction_id
         xid = Xid(0, global_transaction_id, zstorm.get_name(store))
         store.begin(xid)
 
@@ -293,14 +304,11 @@ class StoreDataManager(object):
         pass
 
     def tpc_finish(self, txn):
-        try:
-            self._store.commit()
-        except:
-            # We let the exception propagate, as the transaction manager
-            # will then call tcp_abort, and we will register the hook there
-            raise
-        else:
-            self._hook_register_transaction_event()
+        # If commit raises an exception, we let the exception propagate, as
+        # the transaction manager will then call tcp_abort, and we will
+        # register the hook there
+        self._store.commit()
+        self._hook_register_transaction_event()
 
     def tpc_abort(self, txn):
         if self._store._tpc:

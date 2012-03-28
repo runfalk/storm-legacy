@@ -519,7 +519,7 @@ class TwoPhaseCommitTest(object):
 
     def test_prepare_outside_a_two_phase_transaction(self):
         """
-        prepare() can't be used if a two-phase transaction has not began yet.
+        prepare() can't be used if a two-phase transaction has not begun yet.
         """
         self.assertRaises(ProgrammingError, self.connection.prepare)
 
@@ -553,7 +553,7 @@ class TwoPhaseCommitTest(object):
 
     def test_recover_and_commit(self):
         """
-        It's possible recover and commit pending transactions that were
+        It's possible to recover and commit pending transactions that were
         prepared but not committed or rolled back.
         """
         # Prepare a transaction but leave it uncommitted
@@ -583,7 +583,7 @@ class TwoPhaseCommitTest(object):
 
     def test_recover_and_rollback(self):
         """
-        It's possible recover and rollback pending transactions that were
+        It's possible to recover and rollback pending transactions that were
         prepared but not committed or rolled back.
         """
         # Prepare a transaction but leave it uncommitted
