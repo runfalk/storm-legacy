@@ -553,8 +553,29 @@ class PostgresTest(DatabaseTest, TestHelper):
         connection.rollback()
 
     def test_default_isolation(self):
-        result = self.connection.execute("SHOW TRANSACTION ISOLATION LEVEL")
+        """
+        The default isolation level depends on postgres version. Starting 9.0,
+        SERIALIZABLE is more strict, so we fallback to REPEATABLE READ.
+        """
+        self.database._version = 80400
+        self.database._isolation = None
+        connection = self.database.connect()
+        result = connection.execute("SHOW TRANSACTION ISOLATION LEVEL")
         self.assertEquals(result.get_one()[0], u"serializable")
+        import psycopg2
+        psycopg2_version = psycopg2.__version__.split(None, 1)[0]
+        if psycopg2_version < "2.4":
+            # Not supported, it forces SERIALIZABLE
+            self.database._version = None
+            self.database._isolation = None
+            return
+        self.database._version = 90100
+        self.database._isolation = None
+        connection = self.database.connect()
+        result = connection.execute("SHOW TRANSACTION ISOLATION LEVEL")
+        self.assertEquals(result.get_one()[0], u"repeatable read")
+        self.database._version = None
+        self.database._isolation = None
 
     def test_unknown_serialization(self):
         self.assertRaises(ValueError, create_database,
@@ -696,13 +717,13 @@ class PostgresDisconnectionTestWithPGBouncerBase(object):
             "SELECT current_database()")
 
     if has_psycopg:
-        import psycopg2._psycopg
-        psycopg2_version = psycopg2._psycopg.__version__.split(None, 1)[0]
+        import psycopg2
+        psycopg2_version = psycopg2.__version__.split(None, 1)[0]
         if psycopg2_version in ("2.4", "2.4.1", "2.4.2"):
             test_pgbouncer_stopped.skip = (
                 "Fails with pyscopg2 %s; see https://bugs.launchpad"
                 ".net/storm/+bug/900702.") % psycopg2_version
- 
+
 
 if has_fixtures:
     # Upgrade to full test case class with fixtures.
