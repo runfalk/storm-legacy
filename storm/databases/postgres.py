@@ -338,7 +338,6 @@ class Postgres(Database):
     # 0.  In practice, this means the variable will be 0 or greater
     # than or equal to 80200.
     _version = None
-    _isolation = None
 
     def __init__(self, uri):
         if psycopg2 is dummy:
@@ -346,11 +345,7 @@ class Postgres(Database):
                 "'psycopg2' >= %s not found. Found %s."
                 % (REQUIRED_PSYCOPG2_VERSION, PSYCOPG2_VERSION))
         self._dsn = make_dsn(uri)
-        isolation = uri.options.get("isolation")
-        if not isolation:
-            # The default is dynamic and will be set once we know the server
-            # version.
-            return
+        isolation = uri.options.get("isolation", "repeatable-read")
         isolation_mapping = {
             "autocommit": psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT,
             "serializable": psycopg2.extensions.ISOLATION_LEVEL_SERIALIZABLE,
@@ -381,13 +376,6 @@ class Postgres(Database):
             else:
                 self._version = int(cursor.fetchone()[0])
             raw_connection.rollback()
-
-        if self._isolation is None:
-            if self._version < 90000:
-                isolation = psycopg2.extensions.ISOLATION_LEVEL_SERIALIZABLE
-            else:
-                isolation = psycopg2.extensions.ISOLATION_LEVEL_REPEATABLE_READ
-            self._isolation = isolation
 
         raw_connection.set_client_encoding("UTF8")
         raw_connection.set_isolation_level(self._isolation)
