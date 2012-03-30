@@ -33,6 +33,11 @@ Improvements
 - Add a new Distinct expression for pre-pending the 'DISTINCT' token to
   SQL expressions that support it (like columns).
 
+- Switch to REPEATABLE READ as isolation level for Postgres. If you use
+  psycopg2 < 2.4, it doesn't change anything. For psycopg2 2.4 and newer, it
+  will keep the same behavior on Postgres < 9 as it's equivalent to
+  SERIALIZABLE, but it will be less strict on Postgres >= 9.
+
 Bug fixes
 ---------
 
