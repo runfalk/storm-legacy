@@ -108,6 +108,8 @@ class ZStormResourceManagerTest(TestHelper):
         zstorm = self.resource.make([])
         store = zstorm.get("test")
         self.assertEqual([], list(store.execute("SELECT foo, bar FROM test")))
+        self.assertEqual([(1,)],
+                         list(store.execute("SELECT version FROM patch")))
 
     def test_make_delete(self):
         """

@@ -103,10 +103,12 @@ class ZStormResourceManager(TestResourceManager):
                     schema.upgrade(schema_store)
                 except UnknownPatchError:
                     schema.drop(schema_store)
-                    schema.create(schema_store)
-                # Clean up tables here to ensure that the first test run starts
-                # with an empty db
-                schema.delete(schema_store)
+                    schema_store.commit()
+                    schema.upgrade(schema_store)
+                else:
+                    # Clean up tables here to ensure that the first test run
+                    # starts with an empty db
+                    schema.delete(schema_store)
 
             # Commit all schema changes across all stores
             transaction.commit()
