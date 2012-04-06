@@ -6121,6 +6121,10 @@ class EmptyResultSetTest(object):
         self.assertEquals(self.result.order_by(Foo.title), self.result)
         self.assertEquals(self.empty.order_by(Foo.title), self.empty)
 
+    def test_group_by(self):
+        self.assertEquals(self.result.group_by(Foo.title), self.result)
+        self.assertEquals(self.empty.group_by(Foo.title), self.empty)
+
     def test_remove(self):
         self.assertEquals(self.result.remove(), 0)
         self.assertEquals(self.empty.remove(), 0)
