@@ -66,13 +66,6 @@ class TestHelper(mocker.MockerTestCase):
                 result.startTest(self)
                 result.addSkip(self, "Test not supported")
             return
-        # Skip if the test method has a non-None skip attribute.
-        skip = getattr(self._testMethod, "skip", None)
-        if skip is not None:
-            if hasattr(result, "addSkip"):
-                result.startTest(self)
-                result.addSkip(self, skip)
-            return
         super(TestHelper, self).run(result)
 
     def assertVariablesEqual(self, checked, expected):
