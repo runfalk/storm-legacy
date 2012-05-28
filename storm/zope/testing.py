@@ -81,6 +81,11 @@ class ZStormResourceManager(TestResourceManager):
                 databases = [{"name": name, "uri": uri, "schema": schema}
                              for name, (uri, schema) in databases.iteritems()]
 
+            # Provide the global IZStorm utility before applying patches, so
+            # patch code can get the ztorm object if needed (e.g. looking up
+            # other stores).
+            provideUtility(zstorm)
+
             for database in databases:
                 name = database["name"]
                 uri = database["uri"]
@@ -113,7 +118,6 @@ class ZStormResourceManager(TestResourceManager):
             # Commit all schema changes across all stores
             transaction.commit()
 
-            provideUtility(zstorm)
             self._zstorm = zstorm
             self._schema_zstorm = schema_zstorm
 
