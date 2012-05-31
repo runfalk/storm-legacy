@@ -161,6 +161,13 @@ initialize_globals(void)
     PyObject *module;
 
     if (initialized >= 0) {
+        /* This function should never fail under normal circumstances,
+         * but if it does, raise an error on subsequent calls instead
+         * of segfaulting.  This should make it easier to track down
+         * the cause of such errors.
+         *
+         * https://bugs.launchpad.net/storm/+bug/1006284
+         */
         if (!initialized)
             PyErr_SetString(PyExc_RuntimeError,
                             "initialize_globals() failed the first time "
