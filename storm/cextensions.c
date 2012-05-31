@@ -157,13 +157,24 @@ typedef struct {
 static int
 initialize_globals(void)
 {
-    static int initialized = 0;
+    static int initialized = -1;
     PyObject *module;
 
-    if (initialized)
-        return 1;
-
-    initialized = 1;
+    if (initialized >= 0) {
+        /* This function should never fail under normal circumstances,
+         * but if it does, raise an error on subsequent calls instead
+         * of segfaulting.  This should make it easier to track down
+         * the cause of such errors.
+         *
+         * https://bugs.launchpad.net/storm/+bug/1006284
+         */
+        if (!initialized)
+            PyErr_SetString(PyExc_RuntimeError,
+                            "initialize_globals() failed the first time "
+                            "it was run");
+        return initialized;
+    }
+    initialized = 0;
 
     /* Import objects from storm module */
     module = PyImport_ImportModule("storm");
@@ -241,7 +252,8 @@ initialize_globals(void)
     parenthesis_format = PyUnicode_DecodeASCII("(%s)", 4, "strict");
     default_compile_join = PyUnicode_DecodeASCII(", ", 2, "strict");
 
-    return 1;
+    initialized = 1;
+    return initialized;
 }
 
 
