@@ -48,11 +48,14 @@ def make_app(app):
     timeline_map = threading.local()
     def wrapper(environ, start_response):
         timeline = environ.get('timeline.timeline')
+        # We could clean up timeline_map.timeline after we're done with the
+        # request, but for that we'd have to make assumptions on how to
+        # consume the data from whatever is returned by the inner app, and
+        # that has proven to be impractical (e.g. some wsgi apps will return
+        # a twisted IBodyProducer which is not meant to be consumed here). The
+        # downside of not cleaning up is that a thread will leak a timeline
+        # until the next request comes through, which is probably no big
+        # deal.
         timeline_map.timeline = timeline
-        try:
-            gen = app(environ, start_response)
-            for bytes in gen:
-                yield bytes
-        finally:
-            del timeline_map.timeline
+        return app(environ, start_response)
     return wrapper, functools.partial(getattr, timeline_map, 'timeline', None)

@@ -40,8 +40,6 @@ class TestMakeApp(TestCase):
         timeline = object()
         self.in_request = lambda:self.assertEqual(timeline, find_timeline())
         list(app({'timeline.timeline': timeline}, self.stub_start_response))
-        # Having left the request, no timeline is known:
-        self.assertEqual(None, find_timeline())
 
     def test_find_timeline_set_in_environ_during_generator(self):
         # If a timeline object is known, find_timeline finds it:
@@ -49,29 +47,19 @@ class TestMakeApp(TestCase):
         timeline = object()
         self.in_generator = lambda:self.assertEqual(timeline, find_timeline())
         list(app({'timeline.timeline': timeline}, self.stub_start_response))
-        # Having left the request, no timeline is known:
-        self.assertEqual(None, find_timeline())
 
-    def raiser(self):
-        raise ValueError('foo')
-
-    def test_find_timeline_exception_in_app_still_gets_cleared(self):
-        self.in_request = self.raiser
+    def test_timeline_is_replaced_in_subsequent_request(self):
         app, find_timeline = make_app(self.stub_app)
         timeline = object()
-        self.assertRaises(
-            ValueError, lambda: list(app({'timeline.timeline': timeline},
-            self.stub_start_response)))
-        self.assertEqual(None, find_timeline())
+        self.in_request = lambda:self.assertEqual(timeline, find_timeline())
+        list(app({'timeline.timeline': timeline}, self.stub_start_response))
 
-    def test_find_timeline_exception_in_generator_still_gets_cleared(self):
-        self.in_generator = self.raiser
-        app, find_timeline = make_app(self.stub_app)
-        timeline = object()
-        self.assertRaises(
-            ValueError, lambda: list(app({'timeline.timeline': timeline},
-            self.stub_start_response)))
-        self.assertEqual(None, find_timeline())
+        # Having left the request, the timeline is left behind...
+        self.assertEqual(timeline, find_timeline())
+        # ... but only until the next request comes through.
+        timeline2 = object()
+        self.in_request = lambda:self.assertEqual(timeline2, find_timeline())
+        list(app({'timeline.timeline': timeline2}, self.stub_start_response))
 
     def test_lookups_are_threaded(self):
         # with two threads in a request at once, each only sees their own
