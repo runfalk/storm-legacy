@@ -21,8 +21,8 @@
 
 """Glue to wire a storm timeline tracer up to a WSGI app."""
 
-import functools
 import threading
+import weakref
 
 __all__ = ['make_app']
 
@@ -48,14 +48,18 @@ def make_app(app):
     timeline_map = threading.local()
     def wrapper(environ, start_response):
         timeline = environ.get('timeline.timeline')
+        timeline_map.timeline = None
+        if timeline is not None:
+            timeline_map.timeline = weakref.ref(timeline)
         # We could clean up timeline_map.timeline after we're done with the
-        # request, but for that we'd have to make assumptions on how to
-        # consume the data from whatever is returned by the inner app, and
-        # that has proven to be impractical (e.g. some wsgi apps will return
-        # a twisted IBodyProducer which is not meant to be consumed here). The
-        # downside of not cleaning up is that a thread will leak a timeline
-        # until the next request comes through, which is probably no big
-        # deal.
-        timeline_map.timeline = timeline
+        # request, but for that we'd have to consume all the data from the
+        # underlying app and it wouldn't play well with some non-standard
+        # tricks (e.g. let the reactor consume IBodyProducers asynchronously
+        # when returning large files) that some people may want to do.
         return app(environ, start_response)
-    return wrapper, functools.partial(getattr, timeline_map, 'timeline', None)
+
+    def get_timeline():
+        timeline = getattr(timeline_map, 'timeline', None)
+        if timeline is not None:
+            return timeline()
+    return wrapper, get_timeline
