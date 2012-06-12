@@ -29,9 +29,10 @@ from storm.expr import Expr, State, compile
 # Circular import: imported at the end of the module.
 # from storm.tracer import trace
 from storm.variables import Variable
+from storm.xid import Xid
 from storm.exceptions import (
     ClosedError, ConnectionBlockedError, DatabaseError, DisconnectionError,
-    Error)
+    Error, ProgrammingError)
 from storm.uri import URI
 import storm
 
@@ -177,6 +178,8 @@ class Connection(object):
 
     _blocked = False
     _closed = False
+    _two_phase_transaction = False  # If True, a two-phase transaction has
+                                    # been started with begin()
     _state = STATE_CONNECTED
 
     def __init__(self, database, event=None):
@@ -249,8 +252,28 @@ class Connection(object):
                 self._raw_connection.close()
                 self._raw_connection = None
 
-    def commit(self):
+    def begin(self, xid):
+        """Begin a two-phase transaction."""
+        if self._two_phase_transaction:
+            raise ProgrammingError("begin cannot be used inside a transaction")
+        self._ensure_connected()
+        raw_xid = self._raw_xid(xid)
+        self._check_disconnect(self._raw_connection.tpc_begin, raw_xid)
+        self._two_phase_transaction = True
+
+    def prepare(self):
+        """Run the prepare phase of a two-phase transaction."""
+        if not self._two_phase_transaction:
+            raise ProgrammingError("prepare must be called inside a two-phase "
+                                   "transaction")
+        self._check_disconnect(self._raw_connection.tpc_prepare)
+
+    def commit(self, xid=None):
         """Commit the connection.
+
+        @param xid: Optionally the L{Xid} of a previously prepared
+             transaction to commit. This form should be called outside
+             of a transaction, and is intended for use in recovery.
 
         @raise ConnectionBlockedError: Raised if access to the connection
             has been blocked with L{block_access}.
@@ -259,20 +282,49 @@ class Connection(object):
 
         """
         self._ensure_connected()
-        self._check_disconnect(self._raw_connection.commit)
+        if xid:
+            raw_xid = self._raw_xid(xid)
+            self._check_disconnect(self._raw_connection.tpc_commit, raw_xid)
+        elif self._two_phase_transaction:
+            self._check_disconnect(self._raw_connection.tpc_commit)
+            self._two_phase_transaction = False
+        else:
+            self._check_disconnect(self._raw_connection.commit)
 
-    def rollback(self):
-        """Rollback the connection."""
+    def recover(self):
+        """Return a list of L{Xid}s representing pending transactions."""
+        self._ensure_connected()
+        raw_xids = self._check_disconnect(self._raw_connection.tpc_recover)
+        return [Xid(raw_xid[0], raw_xid[1], raw_xid[2])
+                for raw_xid in raw_xids]
+
+    def rollback(self, xid=None):
+        """Rollback the connection.
+
+        @param xid: Optionally the L{Xid} of a previously prepared
+             transaction to rollback. This form should be called outside
+             of a transaction, and is intended for use in recovery.
+        """
         if self._state == STATE_CONNECTED:
             try:
-                self._raw_connection.rollback()
+                if xid:
+                    raw_xid = self._raw_xid(xid)
+                    self._raw_connection.tpc_rollback(raw_xid)
+                elif self._two_phase_transaction:
+                    self._raw_connection.tpc_rollback()
+                else:
+                    self._raw_connection.rollback()
             except Error, exc:
                 if self.is_disconnection_error(exc):
                     self._raw_connection = None
                     self._state = STATE_RECONNECT
+                    self._two_phase_transaction = False
                 else:
                     raise
+            else:
+                self._two_phase_transaction = False
         else:
+            self._two_phase_transaction = False
             self._state = STATE_RECONNECT
 
     @staticmethod
@@ -360,6 +412,12 @@ class Connection(object):
         exception values are used to represent this condition.
         """
         return False
+
+    def _raw_xid(self, xid):
+        """Return a raw xid from the given high-level L{Xid} object."""
+        return self._raw_connection.xid(xid.format_id,
+                                        xid.global_transaction_id,
+                                        xid.branch_qualifier)
 
     def _check_disconnect(self, function, *args, **kwargs):
         """Run the given function, checking for database disconnections."""

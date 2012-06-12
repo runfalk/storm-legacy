@@ -155,7 +155,15 @@ the following line is present:
  host all all 127.0.0.1/32 trust
 
 This will probably (with PostgresSQL 8.4) entail changing 'md5' to
-'trust'.  Save and close, then restart the server:
+'trust'.
+
+In order to run the two-phase commit tests, you will also need to
+change the max_prepared_transactions value in postgres.conf to
+something like
+
+  max_prepared_transactions = 200
+
+Now save and close, then restart the server:
 
  $ sudo /etc/init.d/postgresql-8.4 restart
 

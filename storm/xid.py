@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2006, 2007 Canonical
+# Copyright (c) 2006, 2012 Canonical
 #
 # Written by Gustavo Niemeyer <gustavo@niemeyer.net>
 #
@@ -18,15 +18,14 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from storm.properties import Bool, Int, Float, RawStr, Chars, Unicode
-from storm.properties import List, Decimal, DateTime, Date, Time, Enum, UUID
-from storm.properties import TimeDelta, Pickle, JSON
-from storm.references import Reference, ReferenceSet, Proxy
-from storm.database import create_database
-from storm.exceptions import StormError
-from storm.store import Store, AutoReload
-from storm.expr import Select, Insert, Update, Delete, Join, SQL
-from storm.expr import Like, In, Asc, Desc, And, Or, Min, Max, Count, Not
-from storm.info import ClassAlias
-from storm.base import Storm
-from storm.xid import Xid
+
+
+class Xid(object):
+    """
+    Represent a transaction identifier compliant with the XA specification.
+    """
+
+    def __init__(self, format_id, global_transaction_id, branch_qualifier):
+        self.format_id = format_id
+        self.global_transaction_id = global_transaction_id
+        self.branch_qualifier = branch_qualifier

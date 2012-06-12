@@ -38,6 +38,10 @@ Improvements
   will keep the same behavior on Postgres < 9 as it's equivalent to
   SERIALIZABLE, but it will be less strict on Postgres >= 9.
 
+- Add support for two-phase commits, using the DB API version 2.0, which
+  is only supported by PostgreSQL.
+
+
 Bug fixes
 ---------
 

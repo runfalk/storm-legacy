@@ -41,7 +41,8 @@ storm  # Silence lint.
 
 from tests import has_fixtures, has_subunit
 from tests.databases.base import (
-    DatabaseTest, DatabaseDisconnectionTest, UnsupportedDatabaseTest)
+    DatabaseTest, DatabaseDisconnectionTest, UnsupportedDatabaseTest,
+    TwoPhaseCommitTest, TwoPhaseCommitDisconnectionTest)
 from tests.expr import column1, column2, column3, elem1, table1, TrackContext
 from tests.tracer import TimeoutTracerTestBase
 from tests.helper import TestHelper
@@ -579,13 +580,41 @@ class PostgresTest(DatabaseTest, TestHelper):
         self.assertTrue(self.connection.is_disconnection_error(exc))
 
 
+_max_prepared_transactions = None
+
+
+class PostgresTwoPhaseCommitTest(TwoPhaseCommitTest, TestHelper):
+    
+    def is_supported(self):
+        uri = os.environ.get("STORM_POSTGRES_URI")
+        if not uri:
+            return False
+        global _max_prepared_transactions
+        if _max_prepared_transactions is None:
+            database = create_database(uri)
+            connection = database.connect()
+            result = connection.execute("SHOW MAX_PREPARED_TRANSACTIONS")
+            _max_prepared_transactions = int(result.get_one()[0])
+            connection.close()
+        return _max_prepared_transactions > 0
+
+    def create_database(self):
+        self.database = create_database(os.environ["STORM_POSTGRES_URI"])
+
+    def create_tables(self):
+        self.connection.execute("CREATE TABLE test "
+                                "(id SERIAL PRIMARY KEY, title VARCHAR)")
+        self.connection.commit()
+
+
 class PostgresUnsupportedTest(UnsupportedDatabaseTest, TestHelper):
 
     dbapi_module_names = ["psycopg2"]
     db_module_name = "postgres"
 
 
-class PostgresDisconnectionTest(DatabaseDisconnectionTest, TestHelper):
+class PostgresDisconnectionTest(DatabaseDisconnectionTest, TwoPhaseCommitDisconnectionTest,
+                                TestHelper):
 
     environment_variable = "STORM_POSTGRES_URI"
     host_environment_variable = "STORM_POSTGRES_HOST_URI"

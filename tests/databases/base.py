@@ -32,10 +32,11 @@ from storm.variables import (Variable, PickleVariable, RawStrVariable,
                              DecimalVariable, DateTimeVariable, DateVariable,
                              TimeVariable, TimeDeltaVariable)
 from storm.database import *
+from storm.xid import Xid
 from storm.event import EventSystem
 from storm.exceptions import (
     DatabaseError, DatabaseModuleError, ConnectionBlockedError,
-    DisconnectionError, Error, OperationalError)
+    DisconnectionError, Error, OperationalError, ProgrammingError)
 
 from tests.databases.proxy import ProxyTCPServer
 from tests.helper import MakePath
@@ -100,7 +101,7 @@ class DatabaseTest(object):
 
     def test_create(self):
         self.assertTrue(isinstance(self.database, Database))
-        
+
     def test_connection(self):
         self.assertTrue(isinstance(self.connection, Connection))
 
@@ -320,7 +321,7 @@ class DatabaseTest(object):
         running transaction before the later is committed or aborted.  If
         this isn't the case, the caching made by Storm (or by anything
         that works with data in memory, in fact) becomes a dangerous thing.
- 
+
         For PostgreSQL, isolation level must be SERIALIZABLE.
         For MySQL, isolation level must be REPEATABLE READ (the default),
         and the InnoDB engine must be in use.
@@ -437,8 +438,179 @@ class DatabaseTest(object):
         self.connection.execute("SELECT 1")
 
 
+class TwoPhaseCommitTest(object):
+
+    def setUp(self):
+        super(TwoPhaseCommitTest, self).setUp()
+        self.create_database()
+        self.create_connection()
+        self.drop_tables()
+        self.create_tables()
+
+    def tearDown(self):
+        self.drop_tables()
+        self.drop_connection()
+        super(TwoPhaseCommitTest, self).tearDown()
+
+    def create_database(self):
+        raise NotImplementedError
+
+    def create_connection(self):
+        self.connection = self.database.connect()
+
+    def create_tables(self):
+        raise NotImplementedError
+
+    def drop_tables(self):
+        try:
+            self.connection.execute("DROP TABLE test")
+            self.connection.commit()
+        except:
+            self.connection.rollback()
+
+    def drop_connection(self):
+        self.connection.close()
+
+    def test_begin(self):
+        """
+        begin() starts a transaction that can be ended with a two-phase commit.
+        """
+        xid = Xid(0, "foo", "bar")
+        self.connection.begin(xid)
+        self.connection.execute("INSERT INTO test VALUES (30, 'Title 30')")
+        self.connection.prepare()
+        self.connection.commit()
+        self.connection.rollback()
+        result = self.connection.execute("SELECT id FROM test WHERE id=30")
+        self.assertTrue(result.get_one())
+
+    def test_begin_inside_a_two_phase_transaction(self):
+        """
+        begin() can't be used if a two-phase transaction has already started.
+        """
+        xid1 = Xid(0, "foo", "bar")
+        self.connection.begin(xid1)
+        xid2 = Xid(1, "egg", "baz")
+        self.assertRaises(ProgrammingError, self.connection.begin, xid2)
+
+    def test_begin_after_commit(self):
+        """
+        After a two phase commit, it's possible to start a new transaction.
+        """
+        xid = Xid(0, "foo", "bar")
+        self.connection.begin(xid)
+        self.connection.execute("INSERT INTO test VALUES (30, 'Title 30')")
+        self.connection.commit()
+        self.connection.begin(xid)
+        result = self.connection.execute("SELECT id FROM test WHERE id=30")
+        self.assertTrue(result.get_one())
+
+    def test_begin_after_rollback(self):
+        """
+        After a tpc rollback, it's possible to start a new transaction.
+        """
+        xid = Xid(0, "foo", "bar")
+        self.connection.begin(xid)
+        self.connection.execute("INSERT INTO test VALUES (30, 'Title 30')")
+        self.connection.rollback()
+        self.connection.begin(xid)
+        result = self.connection.execute("SELECT id FROM test WHERE id=30")
+        self.assertFalse(result.get_one())
+
+    def test_prepare_outside_a_two_phase_transaction(self):
+        """
+        prepare() can't be used if a two-phase transaction has not begun yet.
+        """
+        self.assertRaises(ProgrammingError, self.connection.prepare)
+
+    def test_rollback_after_prepare(self):
+        """
+        Calling rollback() after prepare() actually rolls back the changes.
+        """
+        xid = Xid(0, "foo", "bar")
+        self.connection.begin(xid)
+        self.connection.execute("INSERT INTO test VALUES (30, 'Title 30')")
+        self.connection.prepare()
+        self.connection.rollback()
+        result = self.connection.execute("SELECT id FROM test WHERE id=30")
+        self.assertFalse(result.get_one())
+
+    def test_mixing_standard_and_two_phase_commits(self):
+        """
+        It's possible to mix standard and two phase commits across different
+        transactions.
+        """
+        self.connection.execute("INSERT INTO test VALUES (30, 'Title 30')")
+        self.connection.commit()
+        xid = Xid(0, "foo", "bar")
+        self.connection.begin(xid)
+        self.connection.execute("INSERT INTO test VALUES (40, 'Title 40')")
+        self.connection.prepare()
+        self.connection.commit()
+        result = self.connection.execute("SELECT id FROM test "
+                                         "WHERE id IN (30, 40)")
+        self.assertEqual([(30,), (40,)], result.get_all())
+
+    def test_recover_and_commit(self):
+        """
+        It's possible to recover and commit pending transactions that were
+        prepared but not committed or rolled back.
+        """
+        # Prepare a transaction but leave it uncommitted
+        self.connection.begin(Xid(0, "foo", "bar"))
+        self.connection.execute("INSERT INTO test VALUES (30, 'Title 30')")
+        self.connection.prepare()
+
+        # Setup a new connection and recover the prepared transaction
+        # committing it
+        connection2 = self.database.connect()
+        self.addCleanup(connection2.close)
+        result = connection2.execute("SELECT id FROM test WHERE id=30")
+        connection2.rollback()
+        self.assertFalse(result.get_one())
+        [xid] = connection2.recover()
+        self.assertEqual(0, xid.format_id)
+        self.assertEqual("foo", xid.global_transaction_id)
+        self.assertEqual("bar", xid.branch_qualifier)
+        connection2.commit(xid)
+        self.assertEqual([], connection2.recover())
+
+        # Reconnect, changes are be visible
+        self.connection.close()
+        self.connection = self.database.connect()
+        result = self.connection.execute("SELECT id FROM test WHERE id=30")
+        self.assertTrue(result.get_one())
+
+    def test_recover_and_rollback(self):
+        """
+        It's possible to recover and rollback pending transactions that were
+        prepared but not committed or rolled back.
+        """
+        # Prepare a transaction but leave it uncommitted
+        self.connection.begin(Xid(0, "foo", "bar"))
+        self.connection.execute("INSERT INTO test VALUES (30, 'Title 30')")
+        self.connection.prepare()
+
+        # Setup a new connection and recover the prepared transaction
+        # rolling it back
+        connection2 = self.database.connect()
+        self.addCleanup(connection2.close)
+        [xid] = connection2.recover()
+        self.assertEqual(0, xid.format_id)
+        self.assertEqual("foo", xid.global_transaction_id)
+        self.assertEqual("bar", xid.branch_qualifier)
+        connection2.rollback(xid)
+        self.assertEqual([], connection2.recover())
+
+        # Reconnect, changes were rolled back
+        self.connection.close()
+        self.connection = self.database.connect()
+        result = self.connection.execute("SELECT id FROM test WHERE id=30")
+        self.assertFalse(result.get_one())
+
+
 class UnsupportedDatabaseTest(object):
-    
+
     helpers = [MakePath]
 
     dbapi_module_names = []
@@ -554,6 +726,7 @@ class DatabaseDisconnectionMixin(object):
 
     def drop_database(self):
         pass
+
 
 class DatabaseDisconnectionTest(DatabaseDisconnectionMixin):
 
@@ -673,3 +846,39 @@ class DatabaseDisconnectionTest(DatabaseDisconnectionMixin):
         self.assertRaises(DisconnectionError,
                           self.connection.execute, "SELECT 1")
         self.connection.close()
+
+
+class TwoPhaseCommitDisconnectionTest(object):
+
+    def test_begin_after_rollback_with_disconnection_error(self):
+        """
+        If a rollback fails because of a disconnection error, the two-phase
+        transaction should be properly reset.
+        """
+        xid1 = Xid(0, "foo", "bar")
+        self.connection.begin(xid1)
+        self.connection.execute("SELECT 1")
+        self.proxy.stop()
+        self.connection.rollback()
+        self.proxy.start()
+        xid2 = Xid(0, "egg", "baz")
+        self.connection.begin(xid2)
+        result = self.connection.execute("SELECT 1")
+        self.assertTrue(result.get_one())
+
+    def test_begin_after_with_statement_disconnection_error_and_rollback(self):
+        """
+        The two-phase transaction state is properly reset if a disconnection
+        happens before the rollback.
+        """
+        xid1 = Xid(0, "foo", "bar")
+        self.connection.begin(xid1)
+        self.proxy.close()
+        self.assertRaises(DisconnectionError,
+                          self.connection.execute, "SELECT 1")
+        self.connection.rollback()
+        self.proxy.start()
+        xid2 = Xid(0, "egg", "baz")
+        self.connection.begin(xid2)
+        result = self.connection.execute("SELECT 1")
+        self.assertTrue(result.get_one())

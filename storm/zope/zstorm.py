@@ -27,10 +27,12 @@
 import threading
 import weakref
 
+from uuid import uuid4
+
 from zope.interface import implements
 
 import transaction
-from transaction.interfaces import IDataManager, ISynchronizer
+from transaction.interfaces import IDataManager
 try:
     from transaction.interfaces import TransactionFailedError
 except ImportError:
@@ -39,6 +41,7 @@ except ImportError:
 from storm.zope.interfaces import IZStorm, ZStormError
 from storm.database import create_database
 from storm.store import Store
+from storm.xid import Xid
 
 
 class ZStorm(object):
@@ -68,6 +71,7 @@ class ZStorm(object):
         self._local = threading.local()
         self._default_databases = {}
         self._default_uris = {}
+        self._default_tpcs = {}
 
     def _reset(self):
         for name, store in list(self.iterstores()):
@@ -77,6 +81,7 @@ class ZStorm(object):
         self._databases.clear()
         self._default_databases.clear()
         self._default_uris.clear()
+        self._default_tpcs.clear()
 
     @property
     def _stores(self):
@@ -101,6 +106,17 @@ class ZStorm(object):
             return self._local.__dict__.setdefault(
                 "name_index", weakref.WeakKeyDictionary())
 
+    @property
+    def _txn_ids(self):
+        """
+        A thread-local weak-key dict used to keep track of transaction IDs.
+        """
+        try:
+            return self._local.txn_ids
+        except AttributeError:
+            txn_ids = weakref.WeakKeyDictionary()
+            return self._local.__dict__.setdefault("txn_ids", txn_ids)
+
     def _get_database(self, uri):
         database = self._databases.get(uri)
         if database is None:
@@ -111,6 +127,10 @@ class ZStorm(object):
         """Set C{default_uri} as the default URI for stores called C{name}."""
         self._default_databases[name] = self._get_database(default_uri)
         self._default_uris[name] = default_uri
+
+    def set_default_tpc(self, name, default_flag):
+        """Set the default two-phase mode for stores with the given C{name}."""
+        self._default_tpcs[name] = default_flag
 
     def create(self, name, uri=None):
         """Create a new store called C{name}.
@@ -132,6 +152,7 @@ class ZStorm(object):
 
         store = Store(database)
         store._register_for_txn = True
+        store._tpc = self._default_tpcs.get(name, False)
         store._event.hook(
             "register-transaction", register_store_with_transaction,
             weakref.ref(self))
@@ -215,8 +236,20 @@ def register_store_with_transaction(store, zstorm_ref):
         raise ZStormError("Store not registered with ZStorm, or registered "
                           "with another thread.")
 
+    txn = zstorm.transaction_manager.get()
+
+    if store._tpc:
+        global_transaction_id = zstorm._txn_ids.get(txn)
+        if global_transaction_id is None:
+            # The the global transaction doesn't have an ID yet, let's create
+            # one in a way that it will be unique
+            global_transaction_id = "_storm_%s" % str(uuid4())
+            zstorm._txn_ids[txn] = global_transaction_id
+        xid = Xid(0, global_transaction_id, zstorm.get_name(store))
+        store.begin(xid)
+
     data_manager = StoreDataManager(store, zstorm)
-    zstorm.transaction_manager.get().join(data_manager)
+    txn.join(data_manager)
 
     # Unhook the event handler.  It will be rehooked for the next transaction.
     return False
@@ -231,6 +264,12 @@ class StoreDataManager(object):
         self._store = store
         self._zstorm = zstorm
         self.transaction_manager = zstorm.transaction_manager
+
+    def _hook_register_transaction_event(self):
+        if self._store._register_for_txn:
+            self._store._event.hook(
+                "register-transaction", register_store_with_transaction,
+                weakref.ref(self._zstorm))
 
     def abort(self, txn):
         try:
@@ -248,28 +287,45 @@ class StoreDataManager(object):
         # of them will fail.  In such cases, flushing earlier will
         # ensure that both transactions will be rolled back, instead
         # of one committed and one rolled back.
+        #
+        # If TPC support is on, we still want to perform this flush for a
+        # couple of reasons. Firstly the queries flush() runs couldn't
+        # be run after calling prepare(), because the transaction is frozen
+        # waiting for the final commit(), and secondly because if the flush
+        # fails the entire transaction will be aborted with a normal rollback
+        # as opposed to a TPC rollback, that would happen after prepare().
         self._store.flush()
 
     def commit(self, txn):
-        try:
-            self._store.commit()
-        finally:
-            if self._store._register_for_txn:
-                self._store._event.hook(
-                    "register-transaction", register_store_with_transaction,
-                    weakref.ref(self._zstorm))
+        if self._store._tpc:
+            self._store.prepare()
 
     def tpc_vote(self, txn):
         pass
 
     def tpc_finish(self, txn):
-        pass
+        # If commit raises an exception, we let the exception propagate, as
+        # the transaction manager will then call tcp_abort, and we will
+        # register the hook there
+        self._store.commit()
+        self._hook_register_transaction_event()
 
     def tpc_abort(self, txn):
-        pass
+        if self._store._tpc:
+            try:
+                self._store.rollback()
+            finally:
+                self._hook_register_transaction_event()
 
     def sortKey(self):
-        return "store_%d" % id(self)
+        # Stores in TPC mode should be the last to be committed, this makes
+        # it possible to have TPC behavior when there's only a single store
+        # not in TPC mode.
+        if self._store._tpc:
+            prefix = "zz"
+        else:
+            prefix = "aa"
+        return "%s_store_%d" % (prefix, id(self))
 
 
 global_zstorm = ZStorm()

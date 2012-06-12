@@ -145,6 +145,98 @@ class ZStormTest(TestHelper):
                                          "name2": "sqlite:2",
                                          "name3": "sqlite:3"})
 
+    def test_register_store_for_tpc_transaction(self):
+        """
+        Setting a store to use two-phase-commit mode, makes ZStorm
+        call its begin() method when it joins the transaction.
+        """
+        self.zstorm.set_default_uri("name", "sqlite:")
+        self.zstorm.set_default_tpc("name", True)
+        store = self.zstorm.get("name")
+        xids = []
+        store.begin = lambda xid: xids.append(xid)
+        store.execute("SELECT 1")
+        [xid] = xids
+        self.assertEqual(0, xid.format_id)
+        self.assertEqual("_storm", xid.global_transaction_id[:6])
+        self.assertEqual("name", xid.branch_qualifier)
+
+    def test_register_store_for_tpc_transaction_uses_per_transaction_id(self):
+        """
+        Two stores in two-phase-commit mode joining the same transaction share
+        the same global transaction ID.
+        """
+        self.zstorm.set_default_uri("name1", "sqlite:1")
+        self.zstorm.set_default_uri("name2", "sqlite:2")
+        self.zstorm.set_default_tpc("name1", True)
+        self.zstorm.set_default_tpc("name2", True)
+        store1 = self.zstorm.get("name1")
+        store2 = self.zstorm.get("name2")
+        xids = []
+        store1.begin = lambda xid: xids.append(xid)
+        store2.begin = lambda xid: xids.append(xid)
+        store1.execute("SELECT 1")
+        store2.execute("SELECT 1")
+        [xid1, xid2] = xids
+        self.assertEqual(xid1.global_transaction_id,
+                         xid2.global_transaction_id)
+
+    def test_register_store_for_tpc_transaction_uses_unique_global_ids(self):
+        """
+        Each global transaction gets assigned a unique ID.
+        """
+        self.zstorm.set_default_uri("name", "sqlite:")
+        self.zstorm.set_default_tpc("name", True)
+        store = self.zstorm.get("name")
+        xids = []
+        store.begin = lambda xid: xids.append(xid)
+        store.execute("SELECT 1")
+        transaction.abort()
+        store.execute("SELECT 1")
+        transaction.abort()
+        [xid1, xid2] = xids
+        self.assertNotEqual(xid1.global_transaction_id,
+                            xid2.global_transaction_id)
+
+    def test_transaction_with_two_phase_commit(self):
+        """
+        If a store is set to use TPC, than the associated data manager will
+        call its prepare() and commit() methods when committing.
+        """
+        self.zstorm.set_default_uri("name", "sqlite:")
+        self.zstorm.set_default_tpc("name", True)
+        store = self.zstorm.get("name")
+        calls = []
+        store.begin = lambda xid: calls.append("begin")
+        store.prepare = lambda: calls.append("prepare")
+        store.commit = lambda: calls.append("commit")
+        store.execute("SELECT 1")
+        transaction.commit()
+        self.assertEqual(["begin", "prepare", "commit"], calls)
+
+    def test_transaction_with_single_and_two_phase_commit_stores(self):
+        """
+        When there are both stores in single-phase and two-phase mode, the
+        ones in single-phase mode are committed first. This makes it possible
+        to actually achieve two-phase commit behavior when only one store
+        doesn't support TPC.
+        """
+        self.zstorm.set_default_uri("name1", "sqlite:1")
+        self.zstorm.set_default_uri("name2", "sqlite:2")
+        self.zstorm.set_default_tpc("name1", True)
+        self.zstorm.set_default_tpc("name2", False)
+        store1 = self.zstorm.get("name1")
+        store2 = self.zstorm.get("name2")
+        commits = []
+        store1.begin = lambda xid: None
+        store1.prepare = lambda: None
+        store1.commit = lambda: commits.append("commit1")
+        store2.commit = lambda: commits.append("commit2")
+        store1.execute("SELECT 1")
+        store2.execute("SELECT 1")
+        transaction.commit()
+        self.assertEqual(["commit2", "commit1"], commits)
+
     def _isInTransaction(self, store):
         """Check if a Store is part of the current transaction."""
         for dm in transaction.get()._resources:
@@ -184,6 +276,39 @@ class ZStormTest(TestHelper):
 
     def test_wb_store_joins_transaction_on_use_after_abort(self):
         store = self.zstorm.get("name", "sqlite:")
+        store.execute("SELECT 1")
+        transaction.abort()
+        self.assertNotInTransaction(store)
+        store.execute("SELECT 1")
+        self.assertInTransaction(store)
+
+    def test_wb_store_joins_transaction_on_use_after_tpc_commit(self):
+        """
+        A store used after a two-phase commit re-joins the new transaction.
+        """
+        self.zstorm.set_default_uri("name", "sqlite:")
+        self.zstorm.set_default_tpc("name", True)
+        store = self.zstorm.get("name")
+        store.begin = lambda xid: None
+        store.prepare = lambda: None
+        store.commit = lambda: None
+        store.execute("SELECT 1")
+        transaction.commit()
+        self.assertNotInTransaction(store)
+        store.execute("SELECT 1")
+        self.assertInTransaction(store)
+
+    def test_wb_store_joins_transaction_on_use_after_tpc_abort(self):
+        """
+        A store used after a rollback during a two-phase commit re-joins the
+        new transaction.
+        """
+        self.zstorm.set_default_uri("name", "sqlite:")
+        self.zstorm.set_default_tpc("name", True)
+        store = self.zstorm.get("name")
+        store.begin = lambda xid: None
+        store.prepare = lambda: None
+        store.rollback = lambda: None
         store.execute("SELECT 1")
         transaction.abort()
         self.assertNotInTransaction(store)
