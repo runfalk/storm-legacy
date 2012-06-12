@@ -308,9 +308,10 @@ class PostgresConnection(Connection):
 
         if isinstance(exc, disconnection_errors):
             # When the connection is closed by a termination of pgbouncer, a
-            # ProgrammingError is raised. If the raw connection is closed we
-            # assume it's actually a disconnection.
-            if isinstance(exc, ProgrammingError):
+            # DatabaseError or subclass with no message (depending on
+            # psycopg2 version) is raised. If the raw connection is closed
+            # we assume it's actually a disconnection.
+            if isinstance(exc, DatabaseError):
                 if self._raw_connection.closed:
                     return True
             msg = str(exc)
@@ -345,12 +346,16 @@ class Postgres(Database):
                 "'psycopg2' >= %s not found. Found %s."
                 % (REQUIRED_PSYCOPG2_VERSION, PSYCOPG2_VERSION))
         self._dsn = make_dsn(uri)
-        isolation = uri.options.get("isolation", "serializable")
+        isolation = uri.options.get("isolation", "repeatable-read")
         isolation_mapping = {
             "autocommit": psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT,
             "serializable": psycopg2.extensions.ISOLATION_LEVEL_SERIALIZABLE,
-            "read-committed": psycopg2.extensions.ISOLATION_LEVEL_READ_COMMITTED,
-        }
+            "read-committed":
+                psycopg2.extensions.ISOLATION_LEVEL_READ_COMMITTED,
+            "repeatable-read":
+                psycopg2.extensions.ISOLATION_LEVEL_REPEATABLE_READ,
+            "read-uncommitted":
+                psycopg2.extensions.ISOLATION_LEVEL_READ_UNCOMMITTED}
         try:
             self._isolation = isolation_mapping[isolation]
         except KeyError:

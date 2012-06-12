@@ -37,41 +37,29 @@ class TestMakeApp(TestCase):
     def test_find_timeline_set_in_environ(self):
         # If a timeline object is known, find_timeline finds it:
         app, find_timeline = make_app(self.stub_app)
-        timeline = object()
+        timeline = FakeTimeline()
         self.in_request = lambda:self.assertEqual(timeline, find_timeline())
         list(app({'timeline.timeline': timeline}, self.stub_start_response))
-        # Having left the request, no timeline is known:
-        self.assertEqual(None, find_timeline())
 
     def test_find_timeline_set_in_environ_during_generator(self):
         # If a timeline object is known, find_timeline finds it:
         app, find_timeline = make_app(self.stub_app)
-        timeline = object()
+        timeline = FakeTimeline()
         self.in_generator = lambda:self.assertEqual(timeline, find_timeline())
         list(app({'timeline.timeline': timeline}, self.stub_start_response))
-        # Having left the request, no timeline is known:
-        self.assertEqual(None, find_timeline())
 
-    def raiser(self):
-        raise ValueError('foo')
-
-    def test_find_timeline_exception_in_app_still_gets_cleared(self):
-        self.in_request = self.raiser
+    def test_timeline_is_replaced_in_subsequent_request(self):
         app, find_timeline = make_app(self.stub_app)
-        timeline = object()
-        self.assertRaises(
-            ValueError, lambda: list(app({'timeline.timeline': timeline},
-            self.stub_start_response)))
-        self.assertEqual(None, find_timeline())
+        timeline = FakeTimeline()
+        self.in_request = lambda:self.assertEqual(timeline, find_timeline())
+        list(app({'timeline.timeline': timeline}, self.stub_start_response))
 
-    def test_find_timeline_exception_in_generator_still_gets_cleared(self):
-        self.in_generator = self.raiser
-        app, find_timeline = make_app(self.stub_app)
-        timeline = object()
-        self.assertRaises(
-            ValueError, lambda: list(app({'timeline.timeline': timeline},
-            self.stub_start_response)))
-        self.assertEqual(None, find_timeline())
+        # Having left the request, the timeline is left behind...
+        self.assertEqual(timeline, find_timeline())
+        # ... but only until the next request comes through.
+        timeline2 = FakeTimeline()
+        self.in_request = lambda:self.assertEqual(timeline2, find_timeline())
+        list(app({'timeline.timeline': timeline2}, self.stub_start_response))
 
     def test_lookups_are_threaded(self):
         # with two threads in a request at once, each only sees their own
@@ -81,7 +69,7 @@ class TestMakeApp(TestCase):
         sync = threading.Condition()
         waiting = []
         def check_timeline():
-            timeline = object()
+            timeline = FakeTimeline()
             def start_response(status, headers):
                 # Block on the condition, so all test threads are in
                 # start_response when the test resumes.
@@ -115,3 +103,11 @@ class TestMakeApp(TestCase):
         if errors.qsize():
             found_timeline, timeline = errors.get(False)
             self.assertEqual(timeline, found_timeline)
+
+
+class FakeTimeline(object):
+    """A fake Timeline.
+
+    We need this because we can't use plain object instances as they can't be
+    weakreferenced.
+    """

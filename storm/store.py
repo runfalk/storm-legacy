@@ -1568,6 +1568,9 @@ class EmptyResultSet(object):
         self._order_by = True
         return self
 
+    def group_by(self, *expr):
+        return self
+
     def remove(self):
         return 0
 

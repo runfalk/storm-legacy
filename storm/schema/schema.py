@@ -114,7 +114,7 @@ class Schema(object):
         committer = self._committer if self._autocommit else NoopCommitter()
         patch_applier = PatchApplier(store, self._patch_package, committer)
         try:
-            store.execute("SELECT * FROM patch WHERE 1=2")
+            store.execute("SELECT * FROM patch WHERE version=0")
         except StormError:
             # No schema at all. Create it from the ground.
             store.rollback()

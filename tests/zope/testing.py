@@ -51,10 +51,11 @@ class ZStormResourceManagerTest(TestHelper):
         super(ZStormResourceManagerTest, self).setUp()
         self._package_dir = self.makeDir()
         sys.path.append(self._package_dir)
-        patch_dir = os.path.join(self._package_dir, "patch_package")
-        os.mkdir(patch_dir)
-        self.makeFile(path=os.path.join(patch_dir, "__init__.py"), content="")
-        self.makeFile(path=os.path.join(patch_dir, "patch_1.py"),
+        self.patch_dir = os.path.join(self._package_dir, "patch_package")
+        os.mkdir(self.patch_dir)
+        self.makeFile(path=os.path.join(self.patch_dir, "__init__.py"),
+                      content="")
+        self.makeFile(path=os.path.join(self.patch_dir, "patch_1.py"),
                       content=PATCH)
         import patch_package
         create = ["CREATE TABLE test (foo TEXT UNIQUE, bar INT)"]
@@ -108,6 +109,8 @@ class ZStormResourceManagerTest(TestHelper):
         zstorm = self.resource.make([])
         store = zstorm.get("test")
         self.assertEqual([], list(store.execute("SELECT foo, bar FROM test")))
+        self.assertEqual([(1,)],
+                         list(store.execute("SELECT version FROM patch")))
 
     def test_make_delete(self):
         """
@@ -283,3 +286,23 @@ class ZStormResourceManagerTest(TestHelper):
         self.resource.use_global_zstorm = True
         zstorm = self.resource.make([])
         self.assertIs(global_zstorm, zstorm)
+
+    def test_provide_utility_before_patches(self):
+        """
+        The L{IZStorm} utility is provided before patches are applied, in order
+        to let them get it if they need.
+        """
+        content = ("from zope.component import getUtility\n"
+                   "from storm.zope.interfaces import IZStorm\n"
+                   "def apply(store):\n"
+                   "    getUtility(IZStorm)\n")
+        self.makeFile(path=os.path.join(self.patch_dir, "patch_2.py"),
+                      content=content)
+        self.store.execute("CREATE TABLE patch "
+                           "(version INTEGER NOT NULL PRIMARY KEY)")
+        self.store.execute("CREATE TABLE test (foo TEXT)")
+        self.store.commit()
+        zstorm = self.resource.make([])
+        store = zstorm.get("test")
+        self.assertEqual([(1,), (2,)],
+                         sorted(store.execute("SELECT version FROM patch")))
