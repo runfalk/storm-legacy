@@ -281,15 +281,18 @@ class Connection(object):
             Reconnection happens automatically on rollback.
 
         """
-        self._ensure_connected()
-        if xid:
-            raw_xid = self._raw_xid(xid)
-            self._check_disconnect(self._raw_connection.tpc_commit, raw_xid)
-        elif self._two_phase_transaction:
-            self._check_disconnect(self._raw_connection.tpc_commit)
-            self._two_phase_transaction = False
-        else:
-            self._check_disconnect(self._raw_connection.commit)
+        try:
+            self._ensure_connected()
+            if xid:
+                raw_xid = self._raw_xid(xid)
+                self._check_disconnect(self._raw_connection.tpc_commit, raw_xid)
+            elif self._two_phase_transaction:
+                self._check_disconnect(self._raw_connection.tpc_commit)
+                self._two_phase_transaction = False
+            else:
+                self._check_disconnect(self._raw_connection.commit)
+        finally:
+            self._check_disconnect(trace, "connection_commit", self, xid)
 
     def recover(self):
         """Return a list of L{Xid}s representing pending transactions."""
@@ -305,27 +308,32 @@ class Connection(object):
              transaction to rollback. This form should be called outside
              of a transaction, and is intended for use in recovery.
         """
-        if self._state == STATE_CONNECTED:
-            try:
-                if xid:
-                    raw_xid = self._raw_xid(xid)
-                    self._raw_connection.tpc_rollback(raw_xid)
-                elif self._two_phase_transaction:
-                    self._raw_connection.tpc_rollback()
+        try:
+            if self._state == STATE_CONNECTED:
+                try:
+                    if xid:
+                        raw_xid = self._raw_xid(xid)
+                        self._raw_connection.tpc_rollback(raw_xid)
+                    elif self._two_phase_transaction:
+                        self._raw_connection.tpc_rollback()
+                    else:
+                        self._raw_connection.rollback()
+                except Error, exc:
+                    if self.is_disconnection_error(exc):
+                        self._raw_connection = None
+                        self._state = STATE_RECONNECT
+                        self._two_phase_transaction = False
+                    else:
+                        # self._check_disconnect(
+                        #   trace, "connection_rollback_error", self, xid)
+                        raise
                 else:
-                    self._raw_connection.rollback()
-            except Error, exc:
-                if self.is_disconnection_error(exc):
-                    self._raw_connection = None
-                    self._state = STATE_RECONNECT
                     self._two_phase_transaction = False
-                else:
-                    raise
             else:
                 self._two_phase_transaction = False
-        else:
-            self._two_phase_transaction = False
-            self._state = STATE_RECONNECT
+                self._state = STATE_RECONNECT
+        finally:
+            self._check_disconnect(trace, "connection_rollback", self, xid)
 
     @staticmethod
     def to_database(params):

@@ -362,6 +362,20 @@ class TimeoutTracerTest(TimeoutTracerTestBase):
         self.execute()
         self.execute()
 
+    def test_connection_commit_hook(self):
+        connection = StubConnection()
+        connection._timeout_tracer_remaining_time = 100
+        self.tracer.connection_commit(connection)
+        self.assertEqual(
+            0, getattr(connection, '_timeout_tracer_remaining_time', None))
+
+    def test_connection_rollback_hook(self):
+        connection = StubConnection()
+        connection._timeout_tracer_remaining_time = 100
+        self.tracer.connection_rollback(connection)
+        self.assertEqual(
+            0, getattr(connection, '_timeout_tracer_remaining_time', None))
+
 
 class StubConnection(Connection):
 
@@ -369,6 +383,7 @@ class StubConnection(Connection):
         self._database = None
         self._event = None
         self._raw_connection = None
+        self.name = 'Foo'
 
 
 class BaseStatementTracerTest(TestCase):
@@ -502,13 +517,6 @@ class TimelineTracerTest(TestHelper):
         self.assertEqual('statement', self.timeline.actions[-1].detail)
 
     def test_category_from_prefix_and_connection_name(self):
-        class StubConnection(Connection):
-
-            def __init__(self):
-                self._database = None
-                self._event = None
-                self._raw_connection = None
-                self.name = 'Foo'
         tracer = TimelineTracer(self.factory, prefix='bar-')
         tracer._expanded_raw_execute(StubConnection(), 'cursor', 'statement')
         self.assertEqual('bar-Foo', self.timeline.actions[-1].category)

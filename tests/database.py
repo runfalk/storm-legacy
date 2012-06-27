@@ -118,6 +118,12 @@ class FakeTracer(object):
         self.seen.append(("ERROR", connection, type(raw_cursor),
                           statement, params, error))
 
+    def connection_commit(self, connection, xid=None):
+        self.seen.append(("COMMIT", connection, xid))
+
+    def connection_rollback(self, connection, xid=None):
+        self.seen.append(("ROLLBACK", connection, xid))
+
 
 class DatabaseTest(TestHelper):
 
@@ -157,10 +163,6 @@ class ConnectionTest(TestHelper):
         result = self.connection.execute("something", noresult=True)
         self.assertEquals(result, None)
         self.assertEquals(self.executed, [("something", marker), "RCLOSE"])
-
-    def test_execute_convert_param_style(self):
-        self.connection.execute("'?' ? '?' ? '?'")
-        self.assertEquals(self.executed, [("'?' ? '?' ? '?'", marker)])
 
     def test_execute_convert_param_style(self):
         class MyConnection(Connection):
@@ -282,9 +284,23 @@ class ConnectionTest(TestHelper):
         self.connection.commit()
         self.assertEquals(self.executed, ["COMMIT"])
 
+    def test_commit_tracing(self):
+        self.assertMethodsMatch(FakeTracer, DebugTracer)
+        tracer = FakeTracer()
+        install_tracer(tracer)
+        self.connection.commit()
+        self.assertEquals(tracer.seen, [("COMMIT", self.connection, None)])
+
     def test_rollback(self):
         self.connection.rollback()
         self.assertEquals(self.executed, ["ROLLBACK"])
+
+    def test_rollback_tracing(self):
+        self.assertMethodsMatch(FakeTracer, DebugTracer)
+        tracer = FakeTracer()
+        install_tracer(tracer)
+        self.connection.rollback()
+        self.assertEquals(tracer.seen, [("ROLLBACK", self.connection, None)])
 
     def test_close(self):
         self.connection.close()

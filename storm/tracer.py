@@ -42,6 +42,16 @@ class DebugTracer(object):
         self._stream.write("[%s] DONE\n" % time)
         self._stream.flush()
 
+    def connection_commit(self, connection, xid=None):
+        time = datetime.now().isoformat()[11:]
+        self._stream.write("[%s] COMMIT\n" % time)
+        self._stream.flush()
+
+    def connection_rollback(self, connection, xid=None):
+        time = datetime.now().isoformat()[11:]
+        self._stream.write("[%s] ROLLBACK\n" % time)
+        self._stream.flush()
+
 
 class TimeoutTracer(object):
     """Provide a timeout facility for connections to prevent rogue operations.
@@ -86,6 +96,28 @@ class TimeoutTracer(object):
         """
         raise NotImplementedError("%s.connection_raw_execute_error() must be "
                                   "implemented" % self.__class__.__name__)
+
+    def connection_commit(self, connection, xid=None):
+        """Reset Connection._timeout_tracer_remaining_time.
+
+        @param connection: The L{Connection} to the database.
+        @param xid: Optionally the L{Xid} of a previously prepared
+             transaction to commit.
+        """
+        self._reset_timeout_tracer_remaining_time(connection)
+
+    def connection_rollback(self, connection, xid=None):
+        """Reset Connection._timeout_tracer_remaining_time.
+
+        @param connection: The L{Connection} to the database.
+        @param xid: Optionally the L{Xid} of a previously prepared
+             transaction to rollback.
+        """
+        self._reset_timeout_tracer_remaining_time(connection)
+
+    def _reset_timeout_tracer_remaining_time(self, connection):
+        """Set connection._timeout_tracer_remaining_time to 0."""
+        connection._timeout_tracer_remaining_time = 0
 
     def set_statement_timeout(self, raw_cursor, remaining_time):
         """Perform the timeout setup in the raw cursor.
