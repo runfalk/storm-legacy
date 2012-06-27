@@ -324,8 +324,6 @@ class Connection(object):
                         self._state = STATE_RECONNECT
                         self._two_phase_transaction = False
                     else:
-                        # self._check_disconnect(
-                        #   trace, "connection_rollback_error", self, xid)
                         raise
                 else:
                     self._two_phase_transaction = False
