@@ -1,4 +1,5 @@
 import datetime
+import os
 import sys
 from unittest import TestCase
 
@@ -23,7 +24,7 @@ from storm.tracer import (trace, install_tracer, get_tracers, remove_tracer,
                           remove_tracer_type, remove_all_tracers, debug,
                           BaseStatementTracer, DebugTracer, TimeoutTracer,
                           TimelineTracer, TimeoutError, _tracers)
-from storm.database import Connection
+from storm.database import Connection, create_database
 from storm.expr import Variable
 
 from tests.helper import TestHelper
@@ -380,19 +381,65 @@ class TimeoutTracerTest(TimeoutTracerTestBase):
         self.execute()
         self.execute()
 
-    def test_connection_commit_hook(self):
-        connection = StubConnection()
-        connection._timeout_tracer_remaining_time = 100
-        self.tracer.connection_commit(connection)
-        self.assertEqual(
-            0, getattr(connection, '_timeout_tracer_remaining_time', None))
 
-    def test_connection_rollback_hook(self):
-        connection = StubConnection()
-        connection._timeout_tracer_remaining_time = 100
-        self.tracer.connection_rollback(connection)
-        self.assertEqual(
-            0, getattr(connection, '_timeout_tracer_remaining_time', None))
+class TimeoutTracerWithDBTest(TestHelper):
+
+    def setUp(self):
+        super(TimeoutTracerWithDBTest, self).setUp()
+        self.tracer = StuckInTimeTimeoutTracer(10)
+        install_tracer(self.tracer)
+        database = create_database(os.environ["STORM_POSTGRES_URI"])
+        self.connection = database.connect()
+
+    def tearDown(self):
+        super(TimeoutTracerWithDBTest, self).tearDown()
+        remove_tracer(self.tracer)
+        self.connection.close()
+
+    def is_supported(self):
+        return bool(os.environ.get("STORM_POSTGRES_URI"))
+
+    def test_timeout_set_on_beginning_of_new_transaction__commit(self):
+        """Check that we set the statement timeout before the first query of a
+        transaction regardless of the remaining time left by previous
+        transactions.
+
+        When we reuse a connection for a different transaction, the remaining
+        time of a previous transaction (which is stored in the connection)
+        could cause the first query in that transaction to run with no
+        timeout. This test makes sure that doesn't happen.
+        """
+        self.connection.execute('SELECT 1')
+        self.assertEqual([10], self.tracer.set_statement_timeout_calls)
+
+        self.connection.commit()
+
+        self.connection.execute('SELECT 1')
+        self.assertEqual([10, 10], self.tracer.set_statement_timeout_calls)
+
+    def test_timeout_set_on_beginning_of_new_transaction__rollback(self):
+        """Same as the test above, but here we rollback the first tx."""
+        self.connection.execute('SELECT 1')
+        self.assertEqual([10], self.tracer.set_statement_timeout_calls)
+
+        self.connection.rollback()
+
+        self.connection.execute('SELECT 1')
+        self.assertEqual([10, 10], self.tracer.set_statement_timeout_calls)
+
+
+class StuckInTimeTimeoutTracer(TimeoutTracer):
+
+    def __init__(self, fixed_remaining_time):
+        super(StuckInTimeTimeoutTracer, self).__init__()
+        self.set_statement_timeout_calls = []
+        self.fixed_remaining_time = fixed_remaining_time
+
+    def get_remaining_time(self):
+        return self.fixed_remaining_time
+
+    def set_statement_timeout(self, raw_cursor, remaining_time):
+        self.set_statement_timeout_calls.append(remaining_time)
 
 
 class StubConnection(Connection):
