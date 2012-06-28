@@ -209,6 +209,24 @@ class DebugTracerTest(TestHelper):
         self.tracer.connection_raw_execute_success(connection, raw_cursor,
                                                    statement, params)
 
+    def test_connection_commit(self):
+        self.stream.write("[04:05:06.000007] COMMIT xid=None\n")
+        self.stream.flush()
+        self.mocker.replay()
+
+        connection = "CONNECTION"
+
+        self.tracer.connection_commit(connection)
+
+    def test_connection_rollback(self):
+        self.stream.write("[04:05:06.000007] ROLLBACK xid=None\n")
+        self.stream.flush()
+        self.mocker.replay()
+
+        connection = "CONNECTION"
+
+        self.tracer.connection_rollback(connection)
+
 
 class TimeoutTracerTestBase(TestHelper):
 

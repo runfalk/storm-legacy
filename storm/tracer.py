@@ -44,12 +44,12 @@ class DebugTracer(object):
 
     def connection_commit(self, connection, xid=None):
         time = datetime.now().isoformat()[11:]
-        self._stream.write("[%s] COMMIT\n" % time)
+        self._stream.write("[%s] COMMIT xid=%s\n" % (time, xid))
         self._stream.flush()
 
     def connection_rollback(self, connection, xid=None):
         time = datetime.now().isoformat()[11:]
-        self._stream.write("[%s] ROLLBACK\n" % time)
+        self._stream.write("[%s] ROLLBACK xid=%s\n" % (time, xid))
         self._stream.flush()
 
 
