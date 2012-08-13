@@ -275,6 +275,21 @@ class ZStormResourceManagerTest(TestHelper):
         self.assertEqual([],
                          list(store.execute("SELECT * FROM sqlite_master")))
 
+    def test_no_schema_clean(self):
+        """
+        A particular database may have no schema associated. If it's committed
+        during tests, it will just be skipped when cleaning un tables.
+        """
+        self.databases[0]["schema"] = None
+        zstorm = self.resource.make([])
+        store = zstorm.get("test")
+        store.commit()
+
+        with CaptureTracer() as tracer:
+            self.resource.clean(zstorm)
+
+        self.assertEqual([], tracer.queries)
+
     def test_deprecated_database_format(self):
         """
         The old deprecated format of the 'database' constructor parameter is
