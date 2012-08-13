@@ -119,6 +119,21 @@ class ZStormResourceManager(TestResourceManager):
 
         return self._zstorm
 
+    def _set_commit_proxy(self, store):
+        """Set a commit proxy to keep track of commits and clean up the tables.
+
+        @param store: The L{Store} to set the commit proxy on. Any commit on
+            this store will result in the associated tables to be cleaned upon
+            tear down.
+        """
+        store.__real_commit__ = store.commit
+
+        def commit_proxy():
+            self._commits[store] = True
+            store.__real_commit__()
+
+        store.commit = commit_proxy
+
     def _ensure_schema(self, name, schema, schema_uri):
         """Ensure that the schema for the given database is up-to-date.
 
@@ -197,21 +212,6 @@ class ZStormResourceManager(TestResourceManager):
         schema_stamp_path = os.path.join(self.schema_stamp_dir, name)
         with open(schema_stamp_path, "w") as fd:
             fd.write("%d" % schema_mtime)
-
-    def _set_commit_proxy(self, store):
-        """Set a commit proxy to keep track of commits and clean up the tables.
-
-        @param store: The L{Store} to set the commit proxy on. Any commit on
-            this store will result in the associated tables to be cleaned upon
-            tear down.
-        """
-        store.__real_commit__ = store.commit
-
-        def commit_proxy():
-            self._commits[store] = True
-            store.__real_commit__()
-
-        store.commit = commit_proxy
 
     def clean(self, resource):
         """Clean up the stores after a test."""
