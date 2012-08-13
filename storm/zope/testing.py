@@ -92,15 +92,15 @@ class ZStormResourceManager(TestResourceManager):
             # other stores).
             provideUtility(self._zstorm)
 
+            self._set_zstorm_create_hook()
+
             for database in databases:
                 name = database["name"]
                 uri = database["uri"]
-                self._zstorm.set_default_uri(name, uri)
                 schema = database.get("schema")
                 schema_uri = database.get("schema-uri", uri)
 
-                store = self._zstorm.get(name)
-                self._set_commit_proxy(store)
+                self._zstorm.set_default_uri(name, uri)
 
                 if schema is not None:
                     # The configuration for this database does not include a
@@ -119,7 +119,19 @@ class ZStormResourceManager(TestResourceManager):
 
         return self._zstorm
 
-    def _set_commit_proxy(self, store):
+    def _set_zstorm_create_hook(self):
+        """Set a hook in ZStorm.create, so we can lazily set commit proxies."""
+
+        self._zstorm.__real_create__ = self._zstorm.create
+
+        def create_hook(*args, **kwargs):
+            store = self._zstorm.__real_create__(*args, **kwargs)
+            self._set_store_commit_proxy(store)
+            return store
+
+        self._zstorm.create = create_hook
+
+    def _set_store_commit_proxy(self, store):
         """Set a commit proxy to keep track of commits and clean up the tables.
 
         @param store: The L{Store} to set the commit proxy on. Any commit on

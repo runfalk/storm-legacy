@@ -83,6 +83,16 @@ class ZStormResourceManagerTest(TestHelper):
         store = zstorm.get("test")
         self.assertEqual([], list(store.execute("SELECT foo, bar FROM test")))
 
+    def test_make_lazy(self):
+        """
+        L{ZStormResourceManager.make} does not create all stores upfront, but
+        only when they're actually used, likewise L{ZStorm.get}.
+        """
+        zstorm = self.resource.make([])
+        self.assertEqual([], list(zstorm.iterstores()))
+        store = zstorm.get("test")
+        self.assertEqual([("test", store)], list(zstorm.iterstores()))
+
     def test_make_upgrade(self):
         """
         L{ZStormResourceManager.make} upgrades the schema if needed.
@@ -200,6 +210,7 @@ class ZStormResourceManagerTest(TestHelper):
         is always invoked upon test cleanup.
         """
         zstorm = self.resource.make([])
+        zstorm.get("test")  # Force the creation of the store
         self.store.execute("INSERT INTO test (foo, bar) VALUES ('data', 123)")
         self.store.commit()
         self.resource.force_delete = True
