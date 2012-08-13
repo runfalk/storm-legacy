@@ -49,9 +49,9 @@ class ZStormResourceManagerTest(TestHelper):
 
     def setUp(self):
         super(ZStormResourceManagerTest, self).setUp()
-        self._package_dir = self.makeDir()
-        sys.path.append(self._package_dir)
-        self.patch_dir = os.path.join(self._package_dir, "patch_package")
+        package_dir = self.makeDir()
+        sys.path.append(package_dir)
+        self.patch_dir = os.path.join(package_dir, "patch_package")
         os.mkdir(self.patch_dir)
         self.makeFile(path=os.path.join(self.patch_dir, "__init__.py"),
                       content="")
@@ -70,7 +70,6 @@ class ZStormResourceManagerTest(TestHelper):
     def tearDown(self):
         global_zstorm._reset()
         del sys.modules["patch_package"]
-        sys.path.remove(self._package_dir)
         if "patch_1" in sys.modules:
             del sys.modules["patch_1"]
         super(ZStormResourceManagerTest, self).tearDown()
@@ -306,3 +305,61 @@ class ZStormResourceManagerTest(TestHelper):
         store = zstorm.get("test")
         self.assertEqual([(1,), (2,)],
                          sorted(store.execute("SELECT version FROM patch")))
+
+    def test_create_schema_stamp_dir(self):
+        """
+        If a schema stamp directory is set, it's created automatically if it
+        doesn't exist yet.
+        """
+        self.resource.schema_stamp_dir = self.makeFile()
+        self.resource.make([])
+        self.assertTrue(os.path.exists(self.resource.schema_stamp_dir))
+
+    def test_use_schema_stamp(self):
+        """
+        If a schema stamp directory is set, then it's used to decide whether
+        to upgrade the schema or not. In case the patch directory hasn't been
+        changed since the last known upgrade, no schema upgrade is run.
+        """
+        self.resource.schema_stamp_dir = self.makeFile()
+
+        self.resource.make([])
+
+        # Simulate a second test run that initializes the zstorm resource
+        # from scratch, using the same schema stamp directory
+        resource2 = ZStormResourceManager(self.databases)
+        resource2.schema_stamp_dir = self.resource.schema_stamp_dir
+
+        with CaptureTracer() as tracer:
+            resource2.make([])
+
+        self.assertEqual([], tracer.queries)
+
+    def test_use_schema_stamp_out_of_date(self):
+        """
+        If a schema stamp directory is set, then it's used to decide whether
+        to upgrade the schema or not. In case the patch directory has changed
+        a schema upgrade is run.
+        """
+        self.resource.schema_stamp_dir = self.makeFile()
+        self.resource.make([])
+
+        # Simulate a second test run that initializes the zstorm resource
+        # from scratch, using the same schema stamp directory
+        resource2 = ZStormResourceManager(self.databases)
+        resource2.schema_stamp_dir = self.resource.schema_stamp_dir
+
+        self.makeFile(path=os.path.join(self.patch_dir, "patch_2.py"),
+                      content="def apply(store): pass")
+
+        class FakeStat(object):
+            st_mtime = os.stat(self.patch_dir).st_mtime + 1
+
+        stat_mock = self.mocker.replace(os.stat)
+        stat_mock(self.patch_dir)
+        self.mocker.result(FakeStat())
+        self.mocker.replay()
+
+        resource2.make([])
+        result = self.store.execute("SELECT version FROM patch")
+        self.assertEqual([(1,), (2,)], sorted(result.get_all()))
