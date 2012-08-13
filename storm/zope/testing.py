@@ -120,8 +120,9 @@ class ZStormResourceManager(TestResourceManager):
         return self._zstorm
 
     def _set_create_hook(self):
-        """Set a hook in ZStorm.create, so we can lazily set commit proxies."""
-
+        """
+        Set a hook in ZStorm.create, so we can lazily set commit proxies.
+        """
         self._zstorm.__real_create__ = self._zstorm.create
 
         def create_hook(name, uri=None):
