@@ -99,9 +99,7 @@ class ZStormResourceManager(TestResourceManager):
                 uri = database["uri"]
                 schema = database.get("schema")
                 schema_uri = database.get("schema-uri", uri)
-
                 self._zstorm.set_default_uri(name, uri)
-
                 if schema is not None:
                     # The configuration for this database does not include a
                     # schema definition, so we just setup the store (the user
