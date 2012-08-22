@@ -18,7 +18,10 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+import os
+
 import transaction
+
 from testresources import TestResourceManager
 from zope.component import provideUtility, getUtility
 
@@ -48,9 +51,14 @@ class ZStormResourceManager(TestResourceManager):
     @ivar use_global_zstorm: If C{True} then the C{global_zstorm} object from
         C{storm.zope.zstorm} will be used, instead of creating a new one. This
         is useful for code loading the zcml directives of C{storm.zope}.
+    @ivar schema_stamp_dir: Optionally, a path to a directory that will be used
+        to save timestamps of the schema's patch packages, so schema upgrades
+        will be performed only when needed. This is just an optimisation to let
+        the resource setup a bit faster.
     """
     force_delete = False
     use_global_zstorm = False
+    schema_stamp_dir = None
 
     def __init__(self, databases):
         super(ZStormResourceManager, self).__init__()
@@ -69,10 +77,11 @@ class ZStormResourceManager(TestResourceManager):
         if self._zstorm is None:
 
             if self.use_global_zstorm:
-                zstorm = global_zstorm
+                self._zstorm = global_zstorm
             else:
-                zstorm = ZStorm()
-            schema_zstorm = ZStorm()
+                self._zstorm = ZStorm()
+            self._schema_zstorm = ZStorm()
+
             databases = self._databases
 
             # Adapt the old databases format to the new one, for backward
@@ -84,42 +93,25 @@ class ZStormResourceManager(TestResourceManager):
             # Provide the global IZStorm utility before applying patches, so
             # patch code can get the ztorm object if needed (e.g. looking up
             # other stores).
-            provideUtility(zstorm)
+            provideUtility(self._zstorm)
+
+            self._set_create_hook()
 
             for database in databases:
                 name = database["name"]
                 uri = database["uri"]
-                zstorm.set_default_uri(name, uri)
                 schema = database.get("schema")
-                if schema is None:
+                schema_uri = database.get("schema-uri", uri)
+                self._zstorm.set_default_uri(name, uri)
+                if schema is not None:
                     # The configuration for this database does not include a
                     # schema definition, so we just setup the store (the user
                     # code should apply the schema elsewhere, if any)
-                    continue
-                schema_uri = database.get("schema-uri", uri)
-                self._schemas[name] = schema
-                schema_zstorm.set_default_uri(name, schema_uri)
-                store = zstorm.get(name)
-                self._set_commit_proxy(store)
-                schema_store = schema_zstorm.get(name)
-                # Disable schema autocommits, we will commit everything at once
-                schema.autocommit(False)
-                try:
-                    schema.upgrade(schema_store)
-                except UnknownPatchError:
-                    schema.drop(schema_store)
-                    schema_store.commit()
-                    schema.upgrade(schema_store)
-                else:
-                    # Clean up tables here to ensure that the first test run
-                    # starts with an empty db
-                    schema.delete(schema_store)
+                    self._schemas[name] = schema
+                    self._ensure_schema(name, schema, schema_uri)
 
             # Commit all schema changes across all stores
             transaction.commit()
-
-            self._zstorm = zstorm
-            self._schema_zstorm = schema_zstorm
 
         elif getUtility(IZStorm) is not self._zstorm:
             # This probably means that the test code has overwritten our
@@ -127,6 +119,22 @@ class ZStormResourceManager(TestResourceManager):
             provideUtility(self._zstorm)
 
         return self._zstorm
+
+    def _set_create_hook(self):
+        """
+        Set a hook in ZStorm.create, so we can lazily set commit proxies.
+        """
+        self._zstorm.__real_create__ = self._zstorm.create
+
+        def create_hook(name, uri=None):
+            store = self._zstorm.__real_create__(name, uri=uri)
+            if self._schemas.get(name) is not None:
+                # Only set commit proxies for databases that have a schema
+                # that we can use for cleanup
+                self._set_commit_proxy(store)
+            return store
+
+        self._zstorm.create = create_hook
 
     def _set_commit_proxy(self, store):
         """Set a commit proxy to keep track of commits and clean up the tables.
@@ -142,6 +150,85 @@ class ZStormResourceManager(TestResourceManager):
             store.__real_commit__()
 
         store.commit = commit_proxy
+
+    def _ensure_schema(self, name, schema, schema_uri):
+        """Ensure that the schema for the given database is up-to-date.
+
+        As an optimisation, if the C{schema_stamp_dir} attribute is set, then
+        this method performs a fast check based on the patch directory
+        timestamp rather than the database patch table, so connections and
+        upgrade queries can be skipped if there's no need.
+
+        @param name: The name of the database to check.
+        @param schema: The schema to be ensured.
+        @param schema_uri: The URI to use to connect to the database if the
+            schema needs to be upgraded or rebuilt.
+        """
+        # If a schema stamp directory is set, then figure out whether there's
+        # need to upgrade the schema by looking at timestamps.
+        if self.schema_stamp_dir is not None:
+            schema_mtime = self._get_schema_mtime(schema)
+            schema_stamp_mtime = self._get_schema_stamp_mtime(name)
+
+            # The modification time of the schema's patch directory matches our
+            # timestamp, so the schema is already up-to-date
+            if schema_mtime == schema_stamp_mtime:
+                return
+
+            # Save the modification time of the schema's patch directory so in
+            # subsequent runs we'll know if we're already up-to-date
+            self._set_schema_stamp_mtime(name, schema_mtime)
+
+        self._schema_zstorm.set_default_uri(name, schema_uri)
+        schema_store = self._schema_zstorm.get(name)
+        # Disable schema autocommits, we will commit everything at once
+        schema.autocommit(False)
+        try:
+            schema.upgrade(schema_store)
+        except UnknownPatchError:
+            schema.drop(schema_store)
+            schema_store.commit()
+            schema.upgrade(schema_store)
+        else:
+            # Clean up tables here to ensure that the first test run starts
+            # with an empty db
+            schema.delete(schema_store)
+
+    def _get_schema_mtime(self, schema):
+        """
+        Return the modification time of the C{schema}'s patch directory.
+        """
+        schema_stat = os.stat(os.path.dirname(schema._patch_package.__file__))
+        return int(schema_stat.st_mtime)
+
+    def _get_schema_stamp_mtime(self, name):
+        """
+        Return the modification time of schemas's patch directory, as saved
+        in the stamp directory.
+        """
+        # Let's create the stamp directory if it doesn't exist
+        if not os.path.exists(self.schema_stamp_dir):
+            os.makedirs(self.schema_stamp_dir)
+
+        schema_stamp_path = os.path.join(self.schema_stamp_dir, name)
+
+        # Get the last schema modification time we ran the upgrade for, or -1
+        # if this is our first run
+        if os.path.exists(schema_stamp_path):
+            with open(schema_stamp_path) as fd:
+                schema_stamp_mtime = int(fd.read())
+        else:
+            schema_stamp_mtime = -1
+
+        return schema_stamp_mtime
+
+    def _set_schema_stamp_mtime(self, name, schema_mtime):
+        """
+        Save the schema's modification time in the stamp directory.
+        """
+        schema_stamp_path = os.path.join(self.schema_stamp_dir, name)
+        with open(schema_stamp_path, "w") as fd:
+            fd.write("%d" % schema_mtime)
 
     def clean(self, resource):
         """Clean up the stores after a test."""
