@@ -76,7 +76,10 @@ class ZStormResourceManager(TestResourceManager):
         """
         if self._zstorm is None:
 
-            self._zstorm = self.use_global_zstorm and global_zstorm or ZStorm()
+            if self.use_global_zstorm:
+                self._zstorm = global_zstorm
+            else:
+                self._zstorm = ZStorm()
             self._schema_zstorm = ZStorm()
 
             databases = self._databases

@@ -278,7 +278,7 @@ class ZStormResourceManagerTest(TestHelper):
     def test_no_schema_clean(self):
         """
         A particular database may have no schema associated. If it's committed
-        during tests, it will just be skipped when cleaning un tables.
+        during tests, it will just be skipped when cleaning up tables.
         """
         self.databases[0]["schema"] = None
         zstorm = self.resource.make([])
