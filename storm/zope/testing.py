@@ -108,7 +108,8 @@ class ZStormResourceManager(TestResourceManager):
                     # schema definition, so we just setup the store (the user
                     # code should apply the schema elsewhere, if any)
                     self._schemas[name] = schema
-                    self._ensure_schema(name, schema, schema_uri)
+                    self._schema_zstorm.set_default_uri(name, schema_uri)
+                    self._ensure_schema(name, schema)
 
             # Commit all schema changes across all stores
             transaction.commit()
@@ -151,7 +152,7 @@ class ZStormResourceManager(TestResourceManager):
 
         store.commit = commit_proxy
 
-    def _ensure_schema(self, name, schema, schema_uri):
+    def _ensure_schema(self, name, schema):
         """Ensure that the schema for the given database is up-to-date.
 
         As an optimisation, if the C{schema_stamp_dir} attribute is set, then
@@ -161,8 +162,6 @@ class ZStormResourceManager(TestResourceManager):
 
         @param name: The name of the database to check.
         @param schema: The schema to be ensured.
-        @param schema_uri: The URI to use to connect to the database if the
-            schema needs to be upgraded or rebuilt.
         """
         # If a schema stamp directory is set, then figure out whether there's
         # need to upgrade the schema by looking at timestamps.
@@ -179,7 +178,6 @@ class ZStormResourceManager(TestResourceManager):
             # subsequent runs we'll know if we're already up-to-date
             self._set_schema_stamp_mtime(name, schema_mtime)
 
-        self._schema_zstorm.set_default_uri(name, schema_uri)
         schema_store = self._schema_zstorm.get(name)
         # Disable schema autocommits, we will commit everything at once
         schema.autocommit(False)

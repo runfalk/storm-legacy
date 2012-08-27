@@ -265,6 +265,28 @@ class ZStormResourceManagerTest(TestHelper):
         self.resource.clean(zstorm)
         self.assertEqual([], list(schema_store.execute("SELECT * FROM test")))
 
+    def test_schema_uri_with_schema_stamp_dir(self):
+        """
+        If a schema stamp directory is set, and the stamp indicates there's no
+        need to update the schema, the resource clean up code will still
+        connect as schema user if it needs to run the schema delete statements
+        because of a commit.
+        """
+        self.resource.schema_stamp_dir = self.makeFile()
+        self.databases[0]["schema-uri"] = self.databases[0]["uri"]
+        self.resource.make([])
+
+        # Simulate a second test run that initializes the zstorm resource
+        # from scratch, using the same schema stamp directory
+        resource2 = ZStormResourceManager(self.databases)
+        resource2.schema_stamp_dir = self.resource.schema_stamp_dir
+        zstorm = resource2.make([])
+        store = zstorm.get("test")
+        store.execute("INSERT INTO test (foo) VALUES ('data')")
+        store.commit()  # Committing will force a schema.delete() run
+        resource2.clean(zstorm)
+        self.assertEqual([], list(store.execute("SELECT * FROM test")))
+
     def test_no_schema(self):
         """
         A particular database may have no schema associated.
