@@ -125,6 +125,18 @@ class SchemaTest(MockerTestCase):
         self.assertRaises(StormError,
                           self.store.execute, "SELECT * FROM person")
 
+    def test_drop_with_missing_patch_table(self):
+        """
+        L{Schema.drop} works fine even if the user's supplied statements end up
+        dropping the patch table that we created.
+        """
+        import patch_package
+        schema = Schema([], ["DROP TABLE patch"], [], patch_package)
+        schema.create(self.store)
+        schema.drop(self.store)
+        self.assertRaises(StormError,
+                          self.store.execute, "SELECT * FROM patch")
+
     def test_delete(self):
         """
         L{Schema.delete} can be used to clear the tables of a L{Store}.

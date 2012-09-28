@@ -55,7 +55,7 @@ class Schema(object):
     @see: L{PatchApplier}.
     """
     _create_patch = "CREATE TABLE patch (version INTEGER NOT NULL PRIMARY KEY)"
-    _drop_patch = "DROP TABLE patch"
+    _drop_patch = "DROP TABLE IF EXISTS patch"
     _autocommit = True
 
     def __init__(self, creates, drops, deletes, patch_package, committer=None):
