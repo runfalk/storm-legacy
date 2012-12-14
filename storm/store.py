@@ -1786,14 +1786,6 @@ def replace_columns(expr, columns):
             select.order_by = Undef
         return select
     elif isinstance(expr, SetExpr):
-        # The ORDER BY clause might refer to columns we have replaced.
-        # Luckily we can ignore it if there is no limit/offset.
-        if expr.order_by is not Undef and (
-            expr.limit is not Undef or expr.offset is not Undef):
-            raise FeatureError(
-                "__contains__() does not yet support set "
-                "expressions that combine ORDER BY with "
-                "LIMIT/OFFSET")
         subexprs = [replace_columns(subexpr, columns)
                     for subexpr in expr.exprs]
         return expr.__class__(
