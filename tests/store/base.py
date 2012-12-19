@@ -5583,6 +5583,35 @@ class StoreTest(object):
 
         self.assertEquals(result3.count(), 2)
 
+    def test_result_union_limit_count(self):
+        """
+        It's possible to count the result of a union that is limited.
+        """
+        result1 = self.store.find(Foo, id=30)
+        result2 = self.store.find(Foo, id=30)
+
+        result3 = result1.union(result2, all=True)
+        result3.order_by(Foo.id)
+        result3.config(limit=1)
+
+        self.assertEquals(result3.count(), 1)
+        self.assertEquals(result3.count(Foo.id), 1)
+
+    def test_result_union_limit_avg(self):
+        """
+        It's possible to average the result of a union that is limited.
+        """
+        result1 = self.store.find(Foo, id=10)
+        result2 = self.store.find(Foo, id=30)
+
+        result3 = result1.union(result2, all=True)
+        result3.order_by(Foo.id)
+        result3.config(limit=1)
+
+        # Since 30 was left off because of the limit, the only result will be
+        # 10, and the average of that is 10.
+        self.assertEquals(result3.avg(Foo.id), 10)
+
     def test_result_difference(self):
         if self.__class__.__name__.startswith("MySQL"):
             return

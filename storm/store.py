@@ -1244,7 +1244,11 @@ class ResultSet(object):
                 alias = Alias(expr, "_expr")
                 columns.append(alias)
                 aggregate = aggregate_func(alias)
-            subquery = replace_columns(self._get_select(), columns)
+            # Ordering probably doesn't matter for any aggregates, and since
+            # replace_columns() blows up on an ordered query, we'll drop it.
+            select = self._get_select()
+            select.order_by = Undef
+            subquery = replace_columns(select, columns)
             select = Select(aggregate, tables=Alias(subquery, "_tmp"))
         result = self._store._connection.execute(select)
         value = result.get_one()[0]
