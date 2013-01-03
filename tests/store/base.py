@@ -4060,6 +4060,20 @@ class StoreTest(object):
                           (400, 20, "Title 100"),
                          ])
 
+    def test_reference_set_order_by_desc_id(self):
+        self.add_reference_set_bar_400()
+
+        class FooRefSetOrderByDescID(Foo):
+            bars = ReferenceSet(Foo.id, Bar.foo_id, order_by=Desc(Bar.id))
+
+        foo = self.store.get(FooRefSetOrderByDescID, 20)
+
+        values = list(foo.bars.values(Bar.id, Bar.foo_id, Bar.title))
+        self.assertEquals(values, [
+                          (400, 20, "Title 100"),
+                          (200, 20, "Title 200"),
+                         ])
+
     def test_indirect_reference_set(self):
         foo = self.store.get(FooIndRefSet, 20)
 

@@ -25,7 +25,7 @@ from storm.exceptions import (
 from storm.store import Store, get_where_for_args, LostObjectError
 from storm.variables import LazyValue
 from storm.expr import (
-    Select, Column, Exists, ComparableExpr, LeftJoin, Not, SQLRaw,
+    Select, Column, Exists, ComparableExpr, SuffixExpr, LeftJoin, Not, SQLRaw,
     compare_columns, compile)
 from storm.info import get_cls_info, get_obj_info
 
@@ -912,6 +912,12 @@ class PropertyResolver(object):
             return self.resolve(property)
         elif isinstance(property, basestring):
             return self._resolve_string(property)
+        elif isinstance(property, SuffixExpr):
+            # XXX This covers cases like order_by=Desc("Bar.id"), see #620369.
+            # Eventually we might want to add support for other types of
+            # expressions
+            property.expr = self.resolve(property.expr)
+            return property
         elif not isinstance(property, Column):
             return _find_descriptor_obj(self._used_cls, property)
         return property
