@@ -73,6 +73,9 @@ Bug fixes
   everything and leave the transaction in a clean state when using Django's
   ZopeTransactionMiddleware and DatabaseWrapper.
 
+- It's now again possible to use the Desc() expression when passing an
+  order_by parameter to a ReferenceSet (bug #620369).
+
 0.19 (2011-10-03)
 =================
 
