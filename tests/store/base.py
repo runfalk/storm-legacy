@@ -4055,10 +4055,8 @@ class StoreTest(object):
         foo = self.store.get(FooRefSetOrderID, 20)
 
         values = list(foo.bars.values(Bar.id, Bar.foo_id, Bar.title))
-        self.assertEquals(values, [
-                          (200, 20, "Title 200"),
-                          (400, 20, "Title 100"),
-                         ])
+        self.assertEquals(values,
+                          [(200, 20, "Title 200"), (400, 20, "Title 100")])
 
     def test_reference_set_order_by_desc_id(self):
         self.add_reference_set_bar_400()
@@ -4069,10 +4067,8 @@ class StoreTest(object):
         foo = self.store.get(FooRefSetOrderByDescID, 20)
 
         values = list(foo.bars.values(Bar.id, Bar.foo_id, Bar.title))
-        self.assertEquals(values, [
-                          (400, 20, "Title 100"),
-                          (200, 20, "Title 200"),
-                         ])
+        self.assertEquals(values,
+                          [(400, 20, "Title 100"), (200, 20, "Title 200")])
 
     def test_indirect_reference_set(self):
         foo = self.store.get(FooIndRefSet, 20)
@@ -4082,10 +4078,7 @@ class StoreTest(object):
             items.append((bar.id, bar.title))
         items.sort()
 
-        self.assertEquals(items, [
-                          (100, "Title 300"),
-                          (200, "Title 200"),
-                         ])
+        self.assertEquals(items, [(100, "Title 300"), (200, "Title 200")])
 
     def test_indirect_reference_set_with_added(self):
         bar1 = Bar()
