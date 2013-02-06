@@ -369,9 +369,15 @@ class Connection(object):
         @return: The dbapi cursor object, as fetched from L{build_raw_cursor}.
         """
         raw_cursor = self._check_disconnect(self.build_raw_cursor)
-        self._check_disconnect(
-            trace, "connection_raw_execute", self, raw_cursor,
-            statement, params or ())
+        try:
+            self._check_disconnect(
+                trace, "connection_raw_execute", self, raw_cursor,
+                statement, params or ())
+        except Exception, error:
+            self._check_disconnect(
+                trace, "connection_raw_execute_error", self, raw_cursor,
+                statement, params or (), error)
+            raise
         if params:
             args = (statement, tuple(self.to_database(params)))
         else:
@@ -528,5 +534,5 @@ def create_database(uri):
         factory = module.create_from_uri
     return factory(uri)
 
-# Deal with circular import.        
+# Deal with circular import.
 from storm.tracer import trace
