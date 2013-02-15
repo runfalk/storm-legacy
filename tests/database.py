@@ -230,6 +230,10 @@ class ConnectionTest(TestHelper):
                                          "something", (), error)])
 
     def test_raw_execute_setup_error_tracing(self):
+        """
+        When an exception is raised in the connection_raw_execute hook of a
+        tracer, the connection_raw_execute_error hook is called.
+        """
         cursor_mock = self.mocker.patch(FakeTracer)
         cursor_mock.connection_raw_execute(ARGS)
         error = ZeroDivisionError()
