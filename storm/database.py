@@ -369,13 +369,21 @@ class Connection(object):
         @return: The dbapi cursor object, as fetched from L{build_raw_cursor}.
         """
         raw_cursor = self._check_disconnect(self.build_raw_cursor)
-        self._check_disconnect(
-            trace, "connection_raw_execute", self, raw_cursor,
-            statement, params or ())
+        self._prepare_execution(raw_cursor, params, statement)
+        args = self._execution_args(params, statement)
+        self._run_execution(raw_cursor, args, params, statement)
+        return raw_cursor
+
+    def _execution_args(self, params, statement):
+        """Get the appropriate statement execution arguments."""
         if params:
             args = (statement, tuple(self.to_database(params)))
         else:
             args = (statement,)
+        return args
+
+    def _run_execution(self, raw_cursor, args, params, statement):
+        """Complete the statement execution, along with result reports."""
         try:
             self._check_disconnect(raw_cursor.execute, *args)
         except Exception, error:
@@ -387,7 +395,18 @@ class Connection(object):
             self._check_disconnect(
                 trace, "connection_raw_execute_success", self, raw_cursor,
                 statement, params or ())
-        return raw_cursor
+
+    def _prepare_execution(self, raw_cursor, params, statement):
+        """Prepare the statement execution to be run."""
+        try:
+            self._check_disconnect(
+                trace, "connection_raw_execute", self, raw_cursor,
+                statement, params or ())
+        except Exception, error:
+            self._check_disconnect(
+                trace, "connection_raw_execute_error", self, raw_cursor,
+                statement, params or (), error)
+            raise
 
     def _ensure_connected(self):
         """Ensure that we are connected to the database.
@@ -528,5 +547,5 @@ def create_database(uri):
         factory = module.create_from_uri
     return factory(uri)
 
-# Deal with circular import.        
+# Deal with circular import.
 from storm.tracer import trace
