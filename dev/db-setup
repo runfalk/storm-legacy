@@ -9,11 +9,11 @@ MYSQL_PRIVS="GRANT ALL PRIVILEGES ON *.* TO '$USER'@'localhost' IDENTIFIED BY ''
 restart_service() {
     sudo $PGINIT stop
     set +e
-    foo=$(sudo $PGINIT start 2>&1)
+    output=$(sudo $PGINIT start 2>&1)
     rc=$?
     set -e
     if [ $rc -ne 0 ]; then
-        size=$(echo $foo | grep -E 'size=[0-9]+' | sed -E 's/.*size=([0-9]+).*/\1/')
+        size=$(echo $output | grep -E 'size=[0-9]+' | sed -E 's/.*size=([0-9]+).*/\1/')
         SYSCTLCONF=/etc/sysctl.d/90-storm.conf
         sudo sh -c "echo kernel.shmmax = $size > $SYSCTLCONF"
         sudo sysctl -p $SYSCTLCONF
