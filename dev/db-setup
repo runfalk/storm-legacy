@@ -13,7 +13,7 @@ restart_service() {
     rc=$?
     set -e
     if [ $rc -ne 0 ]; then
-        size=$(echo $output | grep -E 'size=[0-9]+' | sed -E 's/.*size=([0-9]+).*/\1/')
+        size=$(echo $output | grep -E 'size=[0-9]+' | sed -r 's/.*size=([0-9]+).*/\1/')
         SYSCTLCONF=/etc/sysctl.d/90-storm.conf
         sudo sh -c "echo kernel.shmmax = $size > $SYSCTLCONF"
         sudo sysctl -p $SYSCTLCONF
