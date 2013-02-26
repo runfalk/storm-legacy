@@ -5,12 +5,28 @@ PGCONF=/etc/postgresql/*/main/postgresql.conf
 PGINIT=/etc/init.d/postgresql*
 MYSQL_PRIVS="GRANT ALL PRIVILEGES ON *.* TO '$USER'@'localhost' IDENTIFIED BY '' WITH GRANT OPTION;"
 
+# Restart service and examine output to attempt to adjust kernel tunables
+restart_service() {
+    sudo $PGINIT stop
+    set +e
+    foo=$(sudo $PGINIT start 2>&1)
+    rc=$?
+    set -e
+    if [ $rc -ne 0 ]; then
+        size=$(echo $foo | grep -E 'size=[0-9]+' | sed -E 's/.*size=([0-9]+).*/\1/')
+        SYSCTLCONF=/etc/sysctl.d/90-storm.conf
+        sudo sh -c "echo kernel.shmmax = $size > $SYSCTLCONF"
+        sudo sysctl -p $SYSCTLCONF
+        sudo $PGINIT start
+    fi
+}
+
 echo " * Fixing localhost access to postgres, restarting service"
 sudo sed -i.bak -r 's/(host.*127\.0\.0\.1.*)\s+\w+$/\1 trust/' $PGHBA
 sudo sed -i.bak -r 's/(host.*::1\/128.*)\s+\w+$/\1 trust/' $PGHBA
 sudo sed -i.bak -r 's/(host.*::1\/128.*)\s+\w+$/\1 trust/' $PGHBA
 sudo sed -i.bak -r 's/#(max_prepared_transactions.*)= 0/\1 = 200/' $PGCONF
-sudo $PGINIT restart
+restart_service
 
 echo " * Create postgres superuser ($USER - will fail if existing)"
 # If this fails, we will get errors later, so don't fail.
@@ -28,5 +44,3 @@ pg_dump storm_test > /dev/null
 mysqldump -u $USER storm_test > /dev/null
 
 echo " * All Done."
-
-
