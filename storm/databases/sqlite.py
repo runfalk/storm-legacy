@@ -179,6 +179,7 @@ class SQLite(Database):
         self._timeout = float(uri.options.get("timeout", 5))
         self._synchronous = uri.options.get("synchronous")
         self._journal_mode = uri.options.get("journal_mode")
+        self._foreign_keys = uri.options.get("foreign_keys")
 
     def raw_connect(self):
         # See the story at the end to understand why we set isolation_level.
@@ -191,6 +192,10 @@ class SQLite(Database):
         if self._journal_mode is not None:
             raw_connection.execute("PRAGMA journal_mode = %s" %
                                    (self._journal_mode,))
+
+        if self._foreign_keys is not None:
+            raw_connection.execute("PRAGMA foreign_keys = ON")
+
         return raw_connection
 
 
