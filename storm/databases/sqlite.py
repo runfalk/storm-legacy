@@ -194,7 +194,8 @@ class SQLite(Database):
                                    (self._journal_mode,))
 
         if self._foreign_keys is not None:
-            raw_connection.execute("PRAGMA foreign_keys = ON")
+            raw_connection.execute("PRAGMA foreign_keys = %s" %
+                                   (self._foreign_keys,))
 
         return raw_connection
 
