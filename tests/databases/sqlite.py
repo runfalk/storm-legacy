@@ -196,12 +196,38 @@ class SQLiteFileTest(SQLiteMemoryTest):
             self.assertEquals(result,
                               journal_values[value])
 
+    def test_journal_persistency_to_rollback(self):
+        journal_values = {"DELETE": u'delete', "TRUNCATE": u'truncate',
+                          "PERSIST": u'persist', "MEMORY": u'memory',
+                          "WAL": u'wal', "OFF": u'off'}
+        for value in journal_values:
+            database = SQLite(URI("sqlite:%s?journal_mode=%s" %
+                                  (self.get_path(), value)))
+            connection = database.connect()
+            connection.execute("CREATE TABLE test (id INTEGER PRIMARY KEY)")
+            connection.rollback()
+            result = connection.execute("PRAGMA journal_mode").get_one()[0]
+            self.assertEquals(result,
+                              journal_values[value])
+
     def test_foreign_keys(self):
         foreign_keys_values = {"ON": 1, "OFF": 0}
         for value in foreign_keys_values:
             database = SQLite(URI("sqlite:%s?foreign_keys=%s" %
                                   (self.get_path(), value)))
             connection = database.connect()
+            result = connection.execute("PRAGMA foreign_keys").get_one()[0]
+            self.assertEquals(result,
+                              foreign_keys_values[value])
+
+    def test_foreign_keys_persistency_to_rollback(self):
+        foreign_keys_values = {"ON": 1, "OFF": 0}
+        for value in foreign_keys_values:
+            database = SQLite(URI("sqlite:%s?foreign_keys=%s" %
+                                  (self.get_path(), value)))
+            connection = database.connect()
+            connection.execute("CREATE TABLE test (id INTEGER PRIMARY KEY)")
+            connection.rollback()
             result = connection.execute("PRAGMA foreign_keys").get_one()[0]
             self.assertEquals(result,
                               foreign_keys_values[value])
