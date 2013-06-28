@@ -4070,6 +4070,9 @@ class StoreTest(object):
         self.assertEquals(values,
                           [(400, 20, "Title 100"), (200, 20, "Title 200")])
 
+        self.assertEquals(foo.bars.first().id, 400)
+        self.assertEquals(foo.bars.last().id, 200)
+
     def test_indirect_reference_set(self):
         foo = self.store.get(FooIndRefSet, 20)
 

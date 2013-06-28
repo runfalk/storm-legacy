@@ -281,7 +281,7 @@ class BoundReferenceSetBase(object):
         where = self._get_where_clause()
         result = store.find(self._target_cls, where, *args, **kwargs)
         if self._order_by is not None:
-            result.order_by(self._order_by)
+            result.order_by(*self._order_by)
         return result
 
     def __iter__(self):
