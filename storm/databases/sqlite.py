@@ -48,7 +48,12 @@ compile = compile.create_child()
 @compile.when(Select)
 def compile_select_sqlite(compile, select, state):
     if select.offset is not Undef and select.limit is Undef:
-        select.limit = sys.maxint
+        if sys.platform.startswith('darwin'):
+            # On OS X sqlite doesn't like maxint as LIMIT. See also
+            # https://lists.ubuntu.com/archives/storm/2013-June/001492.html
+            select.limit = sys.maxint - 1
+        else:
+            select.limit = sys.maxint
     statement = compile_select(compile, select, state)
     if state.context is SELECT:
         # SQLite breaks with (SELECT ...) UNION (SELECT ...), so we
