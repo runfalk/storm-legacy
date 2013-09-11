@@ -29,11 +29,14 @@ used to upgrade it (see also L{PatchApplier}).
 
 For example:
 
+>>> store =  Store(create_database('sqlite:'))
 >>> creates = ['CREATE TABLE person (id INTEGER, name TEXT)']
 >>> drops = ['DROP TABLE person']
 >>> deletes = ['DELETE FROM person']
 >>> import patch_module
->>> Schema(creates, drops, deletes, patch_module)
+>>> schema = Schema(creates, drops, deletes, patch_module)
+>>> schema.create(store)
+
 
 where patch_module is a Python module containing database patches used to
 upgrade the schema over time.
