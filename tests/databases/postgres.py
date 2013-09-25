@@ -28,7 +28,7 @@ from storm.exceptions import InterfaceError, ProgrammingError
 from storm.variables import DateTimeVariable, RawStrVariable
 from storm.variables import ListVariable, IntVariable, Variable
 from storm.properties import Int
-from storm.exceptions import DisconnectionError
+from storm.exceptions import DisconnectionError, OperationalError
 from storm.expr import (Union, Select, Insert, Update, Alias, SQLRaw, State,
                         Sequence, Like, Column, COLUMN)
 from storm.tracer import install_tracer, TimeoutError
@@ -579,12 +579,30 @@ class PostgresTest(DatabaseTest, TestHelper):
         exc = ProgrammingError("SSL SYSCALL error: Connection timed out")
         self.assertTrue(self.connection.is_disconnection_error(exc))
 
+    def test_is_disconnection_error_with_could_not_send_data(self):
+        """
+        If the underlying driver raises an OperationalError with 'could not
+        send data to server', we consider the connection
+        dead and mark it as needing reconnection.
+        """
+        exc = OperationalError("could not send data to server")
+        self.assertTrue(self.connection.is_disconnection_error(exc))
+
+    def test_is_disconnection_error_with_could_not_receive_data(self):
+        """
+        If the underlying driver raises an OperationalError with 'could not
+        receive data from server', we consider the connection
+        dead and mark it as needing reconnection.
+        """
+        exc = OperationalError("could not receive data from server")
+        self.assertTrue(self.connection.is_disconnection_error(exc))
+
 
 _max_prepared_transactions = None
 
 
 class PostgresTwoPhaseCommitTest(TwoPhaseCommitTest, TestHelper):
-    
+
     def is_supported(self):
         uri = os.environ.get("STORM_POSTGRES_URI")
         if not uri:
