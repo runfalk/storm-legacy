@@ -18,7 +18,8 @@ apt_get install --no-install-recommends \
     python-transaction \
     python-twisted \
     python-zope.component \
-    python-zope.security
+    python-zope.security \
+    python-setuptools
 
 
 echo " * All Done!"
