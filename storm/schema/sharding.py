@@ -46,14 +46,17 @@ class Sharding(object):
         self._stores.append((store, schema))
 
     def create(self):
+        """Create all schemas from scratch across all L{Store} shards."""
         for store, schema in self._stores:
             schema.create(store)
 
     def drop(self):
+        """Drop all tables across all L{Store} shards."""
         for store, schema in self._stores:
             schema.drop(store)
 
     def delete(self):
+        """Delete all table rows across all L{Store} shards."""
         for store, schema in self._stores:
             schema.delete(store)
 
