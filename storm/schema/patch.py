@@ -27,7 +27,10 @@ To create a patch series all is needed is to add Python files under a module
 of choice, an name them as 'patch_N.py' where 'N' is the version of the patch
 in the series. Each patch file must define an C{apply} callable taking a
 L{Store} instance has its only argument. This function will be called when the
-patch gets applied.
+patch gets applied. A patch file can be also named as 'patch_N.empty' and it
+will be treated as patch with a no-op C{apply} callable. This is handy when
+working with partitioned databases with multiple L{Schema}s, where a certain
+patch number is actually a no-op in some of the stores (see L{Migration}).
 
 The L{PatchApplier} can be then used to apply to a L{Store} all the available
 patches. After a patch has been applied, its version is recorded in a special
@@ -101,8 +104,16 @@ class PatchApplier(object):
         @return: The imported module.
         """
         module_name = "patch_%d" % (version,)
-        return __import__(self._package.__name__ + "." + module_name,
-                          None, None, [''])
+        try:
+            return __import__(
+                self._package.__name__ + "." + module_name, None, None, [''])
+        except ImportError:
+            # Check if this actually an empty patch
+            patch_directory = self._get_patch_directory()
+            patch_path = os.path.join(patch_directory, module_name + ".empty")
+            if os.path.exists(patch_path):
+                return _EmptyPatchModule()
+            raise
 
     def apply(self, version):
         """Execute the patch with the given version.
@@ -136,11 +147,25 @@ class PatchApplier(object):
         @raises UnknownPatchError: If the patch table has versions for which
             no patch file actually exists.
         """
-        unknown_patches = self.get_unknown_patch_versions()
-        if unknown_patches:
-            raise UnknownPatchError(self._store, unknown_patches)
+        self._check_unknown()
         for version in self._get_unapplied_versions():
             self.apply(version)
+
+    def apply_next(self):
+        """Execute the next unapplied patch, if any.
+
+        @return: The patch number of the patch that was applied, or C{None} if
+            no patch was applied (i.e. the store is up-to-date with the
+            schema).
+        """
+        unapplied_versions = self._get_unapplied_versions()
+        try:
+            version = unapplied_versions.next()
+        except StopIteration:
+            self._check_unknown()
+            return None
+        self.apply(version)
+        return version
 
     def mark_applied(self, version):
         """Mark the patch with the given version as applied."""
@@ -172,6 +197,12 @@ class PatchApplier(object):
                 unknown_patches.add(patch)
         return unknown_patches
 
+    def _check_unknown(self):
+        """Look for patches that we don't know about."""
+        unknown_patches = self.get_unknown_patch_versions()
+        if unknown_patches:
+            raise UnknownPatchError(self._store, unknown_patches)
+
     def _get_unapplied_versions(self):
         """Return the versions of all unapplied patches."""
         applied = self._get_applied_patches()
@@ -188,10 +219,21 @@ class PatchApplier(object):
 
     def _get_patch_versions(self):
         """Return the versions of all available patches."""
-        format = re.compile(r"^patch_(\d+).py$")
+        format = re.compile(r"^patch_(\d+).(py|empty)$")
 
-        filenames = os.listdir(os.path.dirname(self._package.__file__))
+        filenames = os.listdir(self._get_patch_directory())
         matches = [(format.match(fn), fn) for fn in filenames]
         matches = sorted(filter(lambda x: x[0], matches),
-                         key=lambda x: int(x[1][6:-3]))
+                         key=lambda x: int(x[0].group(1)))
         return [int(match.group(1)) for match, filename in matches]
+
+    def _get_patch_directory(self):
+        """Get the path to the directory of the patch package."""
+        return os.path.dirname(self._package.__file__)
+
+
+class _EmptyPatchModule(object):
+    """Fake module object with a no-op C{apply} function."""
+
+    def apply(self, store):
+        pass

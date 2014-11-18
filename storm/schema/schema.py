@@ -46,6 +46,10 @@ from storm.locals import StormError
 from storm.schema.patch import PatchApplier
 
 
+class SchemaAlreadyCreatedError(Exception):
+    """Raised when calling L{Schema.create} against a non-pristine L{Store}."""
+
+
 class Schema(object):
     """Create, drop, clean and patch table schemas.
 
@@ -68,13 +72,14 @@ class Schema(object):
         self._patch_package = patch_package
         self._committer = committer
 
-    def _execute_statements(self, store, statements):
+    def _execute_statements(self, store, statements, quiet=False):
         """Execute the given statements in the given store."""
         for statement in statements:
             try:
                 store.execute(statement)
             except Exception:
-                print "Error running %s" % statement
+                if not quiet:
+                    print "Error running %s" % statement
                 raise
         if self._autocommit:
             store.commit()
@@ -91,9 +96,19 @@ class Schema(object):
         self._autocommit = flag
 
     def create(self, store):
-        """Run C{CREATE TABLE} SQL statements with C{store}."""
-        self._execute_statements(store, [self._create_patch])
+        """Run C{CREATE TABLE} SQL statements with C{store}.
+
+        @raises SchemaAlreadyCreatedError: If the schema for this store was
+            already created.
+        """
+        try:
+            self._execute_statements(store, [self._create_patch], quiet=True)
+        except StormError:
+            store.rollback()
+            raise SchemaAlreadyCreatedError()
         self._execute_statements(store, self._creates)
+        patch_applier = self._build_patch_applier(store)
+        patch_applier.mark_applied_all()
 
     def drop(self, store):
         """Run C{DROP TABLE} SQL statements with C{store}."""
@@ -110,20 +125,34 @@ class Schema(object):
         If a schema isn't present a new one will be created.  Unapplied
         patches will be applied to an existing schema.
         """
-        class NoopCommitter(object):
-            commit = lambda _: None
-            rollback = lambda _: None
-
-        committer = self._committer if self._autocommit else NoopCommitter()
-        patch_applier = PatchApplier(store, self._patch_package, committer)
+        patch_applier = self._build_patch_applier(store)
         try:
             store.execute("SELECT * FROM patch WHERE version=0")
         except StormError:
             # No schema at all. Create it from the ground.
             store.rollback()
             self.create(store)
-            patch_applier.mark_applied_all()
-            if self._autocommit:
-                store.commit()
         else:
             patch_applier.apply_all()
+
+    def advance(self, store):
+        """Advance the schema of C{store} by applying the next unapplied patch.
+
+        @return: The version of patch that has been applied or C{None} if
+            no patch was applied (i.e. the schema is fully upgraded).
+        """
+        patch_applier = self._build_patch_applier(store)
+        return patch_applier.apply_next()
+
+    def _build_patch_applier(self, store):
+        """Build a L{PatchApplier} to use for the given C{store}."""
+        committer = self._committer
+        if not self._autocommit:
+            committer = _NoopCommitter()
+        return PatchApplier(store, self._patch_package, committer)
+
+
+class _NoopCommitter(object):
+    """Dummy committer that does nothing."""
+    commit = lambda _: None
+    rollback = lambda _: None

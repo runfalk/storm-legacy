@@ -202,6 +202,16 @@ class PatchTest(MockerTestCase):
 
         self.assert_transaction_committed()
 
+    def test_apply_with_empty_patch(self):
+        """
+        If a patch file is named like 'patch_NN.empty', than the
+        L{PatchApplier.apply} method will treat it as a no-op patch
+        and just insert the relevant row in the database table.
+        """
+        self.add_module("patch_99.empty", "")
+        self.patch_applier.apply(99)
+        self.assertTrue(self.store.get(Patch, (99)))
+
     def test_apply_all(self):
         """
         L{PatchApplier.apply_all} executes all unapplied patches.
@@ -218,6 +228,52 @@ class PatchTest(MockerTestCase):
         self.assertEquals(y, 380)
 
         self.assert_transaction_committed()
+
+    def test_apply_all_with_empty_patches(self):
+        """
+        L{PatchApplier.apply_all} executes also empty patches.
+        """
+        self.add_module("patch_99.empty", "")
+        self.patch_applier.apply_all()
+        self.assertTrue(self.store.get(Patch, (99)))
+
+    def test_apply_next(self):
+        """
+        L{PatchApplier.apply_next} executes the next unapplied patch.
+        """
+        # At first only patch 42 gets applied
+        version = self.patch_applier.apply_next()
+        self.assertEqual(version, 42)
+        self.assertTrue("mypackage.patch_42" in sys.modules)
+        self.assertFalse("mypackage.patch_380" in sys.modules)
+        x = getattr(self.mypackage, "patch_42").x
+        self.assertEquals(x, 42)
+
+        # Then patch 380 gets applied
+        version = self.patch_applier.apply_next()
+        self.assertTrue("mypackage.patch_380" in sys.modules)
+        y = getattr(self.mypackage, "patch_380").y
+        self.assertEquals(y, 380)
+
+    def test_apply_next_no_pending_patches(self):
+        """
+        If there are no pending patches and no unapplied patches,
+        L{PatchApplier.apply_next} returns C{None}.
+        """
+        # Finally there's no patch to apply left
+        self.patch_applier.apply_all()
+        self.assertIsNone(self.patch_applier.apply_next())
+
+    def test_apply_next_check_unknown(self):
+        """
+        If there are no pending patches to apply L{PatchApplier.apply_next},
+        checks for unknown patches and raises if it finds one.
+        """
+        self.store.add(Patch(666))
+        self.store.flush()
+        self.patch_applier.apply_next()
+        self.patch_applier.apply_next()
+        self.assertRaises(UnknownPatchError, self.patch_applier.apply_next)
 
     def test_apply_exploding_patch(self):
         """

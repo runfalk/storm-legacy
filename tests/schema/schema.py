@@ -22,7 +22,7 @@ import os
 import sys
 
 from storm.locals import StormError, Store, create_database
-from storm.schema import Schema
+from storm.schema import Schema, SchemaAlreadyCreatedError
 from tests.mocker import MockerTestCase
 
 
@@ -104,6 +104,9 @@ class SchemaTest(MockerTestCase):
                           self.store.execute, "SELECT * FROM person")
         self.schema.create(self.store)
         self.assertEquals(list(self.store.execute("SELECT * FROM person")), [])
+        # By default changes are committed
+        store2 = Store(self.database)
+        self.assertEquals(list(store2.execute("SELECT * FROM person")), [])
 
     def test_create_with_autocommit_off(self):
         """
@@ -114,6 +117,19 @@ class SchemaTest(MockerTestCase):
         self.store.rollback()
         self.assertRaises(StormError, self.store.execute,
                           "SELECT * FROM patch")
+
+    def test_create_with_existing_patch_table(self):
+        """
+        L{Schema.create} raises an exception if the given store is not
+        pristine. The store is also rolled back so it can be used to
+        execute other statements (typically applying any pending patch).
+        """
+        rollbacks = []
+        self.store.rollback = lambda: rollbacks.append(True)
+        self.schema.create(self.store)
+        self.assertRaises(
+            SchemaAlreadyCreatedError, self.schema.create, self.store)
+        self.assertEqual([True], rollbacks)
 
     def test_drop(self):
         """
@@ -186,6 +202,27 @@ def apply(store):
 """
         self.package.create_module("patch_1.py", contents)
         self.schema.upgrade(self.store)
+        self.store.execute(
+            "INSERT INTO person (id, name, phone) VALUES (1, 'Jane', '123')")
+        self.assertEquals(list(self.store.execute("SELECT * FROM person")),
+                          [(1, u"Jane", u"123")])
+
+    def test_advance(self):
+        """
+        L{Schema.advance} executes at most one patch.
+        """
+        self.schema.create(self.store)
+        contents1 = """
+def apply(store):
+    store.execute('ALTER TABLE person ADD COLUMN phone TEXT')
+"""
+        contents2 = """
+def apply(store):
+    store.execute('ALTER TABLE person ADD COLUMN address TEXT')
+"""
+        self.package.create_module("patch_1.py", contents1)
+        self.package.create_module("patch_2.py", contents2)
+        self.schema.advance(self.store)
         self.store.execute(
             "INSERT INTO person (id, name, phone) VALUES (1, 'Jane', '123')")
         self.assertEquals(list(self.store.execute("SELECT * FROM person")),
