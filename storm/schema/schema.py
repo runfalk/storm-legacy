@@ -46,8 +46,18 @@ from storm.locals import StormError
 from storm.schema.patch import PatchApplier
 
 
-class SchemaAlreadyCreatedError(Exception):
-    """Raised when calling L{Schema.create} against a non-pristine L{Store}."""
+class SchemaMissingError(Exception):
+    """Raised when a L{Store} has no schema at all."""
+
+
+class UnappliedPatchesError(Exception):
+    """Raised when a L{Store} has unapplied schema patches.
+
+    @ivar unapplied_versions: A list containing all unapplied patch versions.
+    """
+
+    def __init__(self, unapplied_versions):
+        self.unapplied_versions = unapplied_versions
 
 
 class Schema(object):
@@ -72,14 +82,13 @@ class Schema(object):
         self._patch_package = patch_package
         self._committer = committer
 
-    def _execute_statements(self, store, statements, quiet=False):
+    def _execute_statements(self, store, statements):
         """Execute the given statements in the given store."""
         for statement in statements:
             try:
                 store.execute(statement)
             except Exception:
-                if not quiet:
-                    print "Error running %s" % statement
+                print "Error running %s" % statement
                 raise
         if self._autocommit:
             store.commit()
@@ -95,17 +104,35 @@ class Schema(object):
         """
         self._autocommit = flag
 
+    def check(self, store):
+        """Check that the given L{Store} is compliant with this L{Schema}.
+
+        @param store: The L{Store} to check.
+
+        @raises SchemaMissingError: If there is no schema at all.
+        @raises UnappliedPatchesError: If there are unapplied schema patches.
+        @raises UnknownPatchError: If the store has patches the schema doesn't.
+        """
+        try:
+            store.execute("SELECT * FROM patch WHERE version=0")
+        except StormError:
+            # No schema at all. Create it from the ground.
+            store.rollback()
+            raise SchemaMissingError()
+
+        patch_applier = self._build_patch_applier(store)
+        patch_applier.check_unknown()
+        unapplied_versions = patch_applier.get_unapplied_versions()
+        if unapplied_versions:
+            raise UnappliedPatchesError(unapplied_versions)
+
     def create(self, store):
         """Run C{CREATE TABLE} SQL statements with C{store}.
 
         @raises SchemaAlreadyCreatedError: If the schema for this store was
             already created.
         """
-        try:
-            self._execute_statements(store, [self._create_patch], quiet=True)
-        except StormError:
-            store.rollback()
-            raise SchemaAlreadyCreatedError()
+        self._execute_statements(store, [self._create_patch])
         self._execute_statements(store, self._creates)
         patch_applier = self._build_patch_applier(store)
         patch_applier.mark_applied_all()
@@ -127,22 +154,23 @@ class Schema(object):
         """
         patch_applier = self._build_patch_applier(store)
         try:
-            store.execute("SELECT * FROM patch WHERE version=0")
-        except StormError:
+            self.check(store)
+        except SchemaMissingError:
             # No schema at all. Create it from the ground.
-            store.rollback()
             self.create(store)
-        else:
-            patch_applier.apply_all()
+        except UnappliedPatchesError, error:
+            patch_applier.check_unknown()
+            for version in error.unapplied_versions:
+                self.advance(store, version)
 
-    def advance(self, store):
+    def advance(self, store, version):
         """Advance the schema of C{store} by applying the next unapplied patch.
 
         @return: The version of patch that has been applied or C{None} if
             no patch was applied (i.e. the schema is fully upgraded).
         """
         patch_applier = self._build_patch_applier(store)
-        return patch_applier.apply_next()
+        patch_applier.apply(version)
 
     def _build_patch_applier(self, store):
         """Build a L{PatchApplier} to use for the given C{store}."""
