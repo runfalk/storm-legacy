@@ -19,6 +19,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 import os
+import shutil
 
 import transaction
 
@@ -26,6 +27,7 @@ from testresources import TestResourceManager
 from zope.component import provideUtility, getUtility
 
 from storm.schema.patch import UnknownPatchError
+from storm.schema.sharding import Sharding, VERTICAL_PATCHING
 from storm.zope.zstorm import ZStorm, global_zstorm
 from storm.zope.interfaces import IZStorm
 
@@ -55,10 +57,13 @@ class ZStormResourceManager(TestResourceManager):
         to save timestamps of the schema's patch packages, so schema upgrades
         will be performed only when needed. This is just an optimisation to let
         the resource setup a bit faster.
+    @ivar upgrade_mode: The patching mode to use when performing schema
+        upgrades, see L{Sharding.upgrade}.
     """
     force_delete = False
     use_global_zstorm = False
     schema_stamp_dir = None
+    upgrade_mode = VERTICAL_PATCHING
 
     def __init__(self, databases):
         super(ZStormResourceManager, self).__init__()
@@ -67,6 +72,7 @@ class ZStormResourceManager(TestResourceManager):
         self._schema_zstorm = None
         self._commits = {}
         self._schemas = {}
+        self._sharding = Sharding()
 
     def make(self, dependencies):
         """Create a L{ZStorm} resource to be used by tests.
@@ -97,6 +103,7 @@ class ZStormResourceManager(TestResourceManager):
 
             self._set_create_hook()
 
+            enforce_schema = False
             for database in databases:
                 name = database["name"]
                 uri = database["uri"]
@@ -109,7 +116,26 @@ class ZStormResourceManager(TestResourceManager):
                     # code should apply the schema elsewhere, if any)
                     self._schemas[name] = schema
                     self._schema_zstorm.set_default_uri(name, schema_uri)
-                    self._ensure_schema(name, schema)
+                    schema.autocommit(False)
+                    store = self._schema_zstorm.get(name)
+                    self._sharding.add(store, schema)
+                    if self._has_patch_package_changed(name, schema):
+                        enforce_schema = True
+
+            if enforce_schema:
+                try:
+                    self._sharding.upgrade(mode=self.upgrade_mode)
+                except UnknownPatchError:
+                    self._sharding.drop()
+                    self._sharding.create()
+                except:
+                    # An unknown error occured, let's drop all timestamps so
+                    # in subsequent runs we won't assume that everything is
+                    # fine
+                    self._purge_schema_stamp_dir()
+                    raise
+                else:
+                    self._sharding.delete()
 
             # Commit all schema changes across all stores
             transaction.commit()
@@ -152,8 +178,8 @@ class ZStormResourceManager(TestResourceManager):
 
         store.commit = commit_proxy
 
-    def _ensure_schema(self, name, schema):
-        """Ensure that the schema for the given database is up-to-date.
+    def _has_patch_package_changed(self, name, schema):
+        """Whether the schema for the given database is up-to-date.
 
         As an optimisation, if the C{schema_stamp_dir} attribute is set, then
         this method performs a fast check based on the patch directory
@@ -162,6 +188,9 @@ class ZStormResourceManager(TestResourceManager):
 
         @param name: The name of the database to check.
         @param schema: The schema to be ensured.
+
+        @return: C{True} if the patch directory has changed and the schema
+            needs to be updated, C{False} otherwise.
         """
         # If a schema stamp directory is set, then figure out whether there's
         # need to upgrade the schema by looking at timestamps.
@@ -172,25 +201,13 @@ class ZStormResourceManager(TestResourceManager):
             # The modification time of the schema's patch directory matches our
             # timestamp, so the schema is already up-to-date
             if schema_mtime == schema_stamp_mtime:
-                return
+                return False
 
             # Save the modification time of the schema's patch directory so in
             # subsequent runs we'll know if we're already up-to-date
             self._set_schema_stamp_mtime(name, schema_mtime)
 
-        schema_store = self._schema_zstorm.get(name)
-        # Disable schema autocommits, we will commit everything at once
-        schema.autocommit(False)
-        try:
-            schema.upgrade(schema_store)
-        except UnknownPatchError:
-            schema.drop(schema_store)
-            schema_store.commit()
-            schema.upgrade(schema_store)
-        else:
-            # Clean up tables here to ensure that the first test run starts
-            # with an empty db
-            schema.delete(schema_store)
+        return True
 
     def _get_schema_mtime(self, schema):
         """
@@ -227,6 +244,11 @@ class ZStormResourceManager(TestResourceManager):
         schema_stamp_path = os.path.join(self.schema_stamp_dir, name)
         with open(schema_stamp_path, "w") as fd:
             fd.write("%d" % schema_mtime)
+
+    def _purge_schema_stamp_dir(self):
+        """Remove the stamp directory."""
+        if self.schema_stamp_dir and os.path.exists(self.schema_stamp_dir):
+            shutil.rmtree(self.schema_stamp_dir)
 
     def clean(self, resource):
         """Clean up the stores after a test."""
