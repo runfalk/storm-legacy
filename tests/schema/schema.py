@@ -22,7 +22,8 @@ import os
 import sys
 
 from storm.locals import StormError, Store, create_database
-from storm.schema import Schema, SchemaAlreadyCreatedError
+from storm.schema.schema import (
+    Schema, SchemaMissingError, UnappliedPatchesError)
 from tests.mocker import MockerTestCase
 
 
@@ -96,6 +97,29 @@ class SchemaTest(MockerTestCase):
 
         return Package(package_dir, name)
 
+    def test_check_with_missing_schema(self):
+        """
+        L{Schema.check} raises an exception if the given store is
+        completely pristine and no schema has been applied yet.
+        """
+        rollbacks = []
+        self.store.rollback = lambda: rollbacks.append(True)
+        self.assertRaises(SchemaMissingError, self.schema.check, self.store)
+        self.assertEqual([True], rollbacks)
+
+    def test_check_with_unapplied_patches(self):
+        """
+        L{Schema.check} raises an exception if the given store has unapplied
+        schema patches.
+        """
+        self.schema.create(self.store)
+        contents = """
+def apply(store):
+    pass
+"""
+        self.package.create_module("patch_1.py", contents)
+        self.assertRaises(UnappliedPatchesError, self.schema.check, self.store)
+
     def test_create(self):
         """
         L{Schema.create} can be used to create the tables of a L{Store}.
@@ -117,19 +141,6 @@ class SchemaTest(MockerTestCase):
         self.store.rollback()
         self.assertRaises(StormError, self.store.execute,
                           "SELECT * FROM patch")
-
-    def test_create_with_existing_patch_table(self):
-        """
-        L{Schema.create} raises an exception if the given store is not
-        pristine. The store is also rolled back so it can be used to
-        execute other statements (typically applying any pending patch).
-        """
-        rollbacks = []
-        self.store.rollback = lambda: rollbacks.append(True)
-        self.schema.create(self.store)
-        self.assertRaises(
-            SchemaAlreadyCreatedError, self.schema.create, self.store)
-        self.assertEqual([True], rollbacks)
 
     def test_drop(self):
         """
@@ -209,7 +220,7 @@ def apply(store):
 
     def test_advance(self):
         """
-        L{Schema.advance} executes at most one patch.
+        L{Schema.advance} executes the given patch version.
         """
         self.schema.create(self.store)
         contents1 = """
@@ -222,7 +233,7 @@ def apply(store):
 """
         self.package.create_module("patch_1.py", contents1)
         self.package.create_module("patch_2.py", contents2)
-        self.schema.advance(self.store)
+        self.schema.advance(self.store, 1)
         self.store.execute(
             "INSERT INTO person (id, name, phone) VALUES (1, 'Jane', '123')")
         self.assertEquals(list(self.store.execute("SELECT * FROM person")),
