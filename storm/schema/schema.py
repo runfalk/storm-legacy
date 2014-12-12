@@ -34,7 +34,8 @@ For example:
 >>> drops = ['DROP TABLE person']
 >>> deletes = ['DELETE FROM person']
 >>> import patch_module
->>> schema = Schema(creates, drops, deletes, patch_module)
+>>> patch_set = PatchSet(patch_module)
+>>> schema = Schema(creates, drops, deletes, patch_set)
 >>> schema.create(store)
 
 
@@ -42,8 +43,10 @@ where patch_module is a Python module containing database patches used to
 upgrade the schema over time.
 """
 
+import types
+
 from storm.locals import StormError
-from storm.schema.patch import PatchApplier
+from storm.schema.patch import PatchApplier, PatchSet
 
 
 class SchemaMissingError(Exception):
@@ -66,7 +69,7 @@ class Schema(object):
     @param creates: A list of C{CREATE TABLE} statements.
     @param drops: A list of C{DROP TABLE} statements.
     @param deletes: A list of C{DELETE FROM} statements.
-    @param patch_package: The Python package containing patch modules to apply.
+    @param patch_set: The L{PatchSet} containing patch modules to apply.
     @param committer: Optionally a committer to pass to the L{PatchApplier}.
 
     @see: L{PatchApplier}.
@@ -75,11 +78,16 @@ class Schema(object):
     _drop_patch = "DROP TABLE IF EXISTS patch"
     _autocommit = True
 
-    def __init__(self, creates, drops, deletes, patch_package, committer=None):
+    def __init__(self, creates, drops, deletes, patch_set, committer=None):
         self._creates = creates
         self._drops = drops
         self._deletes = deletes
-        self._patch_package = patch_package
+        if isinstance(patch_set, types.ModuleType):
+            # Up to version 0.20.0 the fourth positional parameter used to
+            # be a raw module containing the patches. We wrap it with PatchSet
+            # for keeping backward-compatibility.
+            patch_set = PatchSet(patch_set)
+        self._patch_set = patch_set
         self._committer = committer
 
     def _execute_statements(self, store, statements):
@@ -122,7 +130,7 @@ class Schema(object):
 
         patch_applier = self._build_patch_applier(store)
         patch_applier.check_unknown()
-        unapplied_versions = patch_applier.get_unapplied_versions()
+        unapplied_versions = list(patch_applier.get_unapplied_versions())
         if unapplied_versions:
             raise UnappliedPatchesError(unapplied_versions)
 
@@ -177,7 +185,7 @@ class Schema(object):
         committer = self._committer
         if not self._autocommit:
             committer = _NoopCommitter()
-        return PatchApplier(store, self._patch_package, committer)
+        return PatchApplier(store, self._patch_set, committer)
 
 
 class _NoopCommitter(object):
