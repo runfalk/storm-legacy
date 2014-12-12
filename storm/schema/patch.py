@@ -91,7 +91,7 @@ class PatchApplier(object):
         if isinstance(patch_set, types.ModuleType):
             # Up to version 0.20.0 the second positional parameter used to
             # be a raw module containing the patches. We wrap it with PatchSet
-            # so to keep backward-compatibility.
+            # for keeping backward-compatibility.
             patch_set = PatchSet(patch_set)
         self._patch_set = patch_set
         if committer is None:
