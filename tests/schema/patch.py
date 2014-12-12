@@ -24,7 +24,7 @@ import os
 
 from storm.locals import StormError, Store, create_database
 from storm.schema.patch import (
-    Patch, PatchApplier, UnknownPatchError, BadPatchError, PatchPackage)
+    Patch, PatchApplier, UnknownPatchError, BadPatchError, PatchSet)
 from tests.mocker import MockerTestCase
 
 
@@ -133,6 +133,7 @@ class PatchApplierTest(MockerTestCase):
 
         import mypackage
         self.mypackage = mypackage
+        self.patch_set = PatchSet(mypackage)
 
         # Create another connection just to keep track of the state of the
         # whole transaction manager.  See the assertion functions below.
@@ -152,7 +153,7 @@ class PatchApplierTest(MockerTestCase):
                 self.another_store.rollback()
 
         self.committer = Committer()
-        self.patch_applier = PatchApplier(self.store, self.mypackage,
+        self.patch_applier = PatchApplier(self.store, self.patch_set,
                                           self.committer)
 
     def tearDown(self):
@@ -401,10 +402,10 @@ class PatchApplierTest(MockerTestCase):
             self.fail("BadPatchError not raised")
 
 
-class PatchPackageTest(MockerTestCase):
+class PatchSetTest(MockerTestCase):
 
     def setUp(self):
-        super(PatchPackageTest, self).setUp()
+        super(PatchSetTest, self).setUp()
         self.sys_dir = self.makeDir()
         self.package_dir = os.path.join(self.sys_dir, "mypackage")
         os.makedirs(self.package_dir)
@@ -414,10 +415,10 @@ class PatchPackageTest(MockerTestCase):
 
         sys.path.append(self.sys_dir)
         import mypackage
-        self.patch_package = PatchPackage(mypackage, sub_level="foo")
+        self.patch_package = PatchSet(mypackage, sub_level="foo")
 
     def tearDown(self):
-        super(PatchPackageTest, self).tearDown()
+        super(PatchSetTest, self).tearDown()
         for name in list(sys.modules):
             if name == "mypackage" or name.startswith("mypackage."):
                 del sys.modules[name]
@@ -451,3 +452,14 @@ class PatchPackageTest(MockerTestCase):
         self.makeFile(content="", dirname=patch_1_dir, basename="foo.py")
         patch_module = self.patch_package.get_patch_module(1)
         self.assertEqual("mypackage.patch_1.foo", patch_module.__name__)
+
+    def test_get_patch_module_no_sub_level(self):
+        """
+        The C{get_patch_module} method returns a dummy patch module if no
+        sub-level file exists in the patch directory for the given version.
+        """
+        patch_1_dir = os.path.join(self.package_dir, "patch_1")
+        os.makedirs(patch_1_dir)
+        patch_module = self.patch_package.get_patch_module(1)
+        store = object()
+        self.assertIsNone(patch_module.apply(store))
