@@ -24,7 +24,7 @@ import os
 
 from storm.locals import StormError, Store, create_database
 from storm.schema.patch import (
-    Patch, PatchApplier, UnknownPatchError, BadPatchError)
+    Patch, PatchApplier, UnknownPatchError, BadPatchError, PatchSet)
 from tests.mocker import MockerTestCase
 
 
@@ -99,10 +99,10 @@ class MockPatchStore(object):
         self.committed += 1
 
 
-class PatchTest(MockerTestCase):
+class PatchApplierTest(MockerTestCase):
 
     def setUp(self):
-        super(PatchTest, self).setUp()
+        super(PatchApplierTest, self).setUp()
 
         self.patchdir = self.makeDir()
         self.pkgdir = os.path.join(self.patchdir, "mypackage")
@@ -133,6 +133,7 @@ class PatchTest(MockerTestCase):
 
         import mypackage
         self.mypackage = mypackage
+        self.patch_set = PatchSet(mypackage)
 
         # Create another connection just to keep track of the state of the
         # whole transaction manager.  See the assertion functions below.
@@ -152,11 +153,11 @@ class PatchTest(MockerTestCase):
                 self.another_store.rollback()
 
         self.committer = Committer()
-        self.patch_applier = PatchApplier(self.store, self.mypackage,
+        self.patch_applier = PatchApplier(self.store, self.patch_set,
                                           self.committer)
 
     def tearDown(self):
-        super(PatchTest, self).tearDown()
+        super(PatchApplierTest, self).tearDown()
         self.committer.rollback()
         sys.path.remove(self.patchdir)
         for name in list(sys.modules):
@@ -202,11 +203,11 @@ class PatchTest(MockerTestCase):
 
         self.assert_transaction_committed()
 
-    def test_apply_with_empty_patch(self):
+    def atest_apply_with_patch_directory(self):
         """
-        If a patch file is named like 'patch_NN.empty', than the
-        L{PatchApplier.apply} method will treat it as a no-op patch
-        and just insert the relevant row in the database table.
+        If a directory in the patch module is named like 'patch_NN', than the
+        L{PatchApplier.apply} method will treat it as a patch directory and
+        will try to apply the relevant patch.
         """
         self.add_module("patch_99.empty", "")
         self.patch_applier.apply(99)
@@ -229,7 +230,7 @@ class PatchTest(MockerTestCase):
 
         self.assert_transaction_committed()
 
-    def test_apply_all_with_empty_patches(self):
+    def atest_apply_all_with_empty_patches(self):
         """
         L{PatchApplier.apply_all} executes also empty patches.
         """
@@ -399,3 +400,66 @@ class PatchTest(MockerTestCase):
             self.assertTrue("# Comment" in formatted)
         else:
             self.fail("BadPatchError not raised")
+
+
+class PatchSetTest(MockerTestCase):
+
+    def setUp(self):
+        super(PatchSetTest, self).setUp()
+        self.sys_dir = self.makeDir()
+        self.package_dir = os.path.join(self.sys_dir, "mypackage")
+        os.makedirs(self.package_dir)
+
+        self.makeFile(
+            content="", dirname=self.package_dir, basename="__init__.py")
+
+        sys.path.append(self.sys_dir)
+        import mypackage
+        self.patch_package = PatchSet(mypackage, sub_level="foo")
+
+    def tearDown(self):
+        super(PatchSetTest, self).tearDown()
+        for name in list(sys.modules):
+            if name == "mypackage" or name.startswith("mypackage."):
+                del sys.modules[name]
+
+    def test_get_patch_versions(self):
+        """
+        The C{get_patch_versions} method returns the available patch versions,
+        by looking at directories named like "patch_N".
+        """
+        patch_1_dir = os.path.join(self.package_dir, "patch_1")
+        os.makedirs(patch_1_dir)
+        self.assertEqual([1], self.patch_package.get_patch_versions())
+
+    def test_get_patch_versions_ignores_non_patch_directories(self):
+        """
+        The C{get_patch_versions} method ignores files or directories not
+        matching the required name pattern.
+        """
+        random_dir = os.path.join(self.package_dir, "random")
+        os.makedirs(random_dir)
+        self.assertEqual([], self.patch_package.get_patch_versions())
+
+    def test_get_patch_module(self):
+        """
+        The C{get_patch_module} method returns the Python module for the patch
+        with the given version.
+        """
+        patch_1_dir = os.path.join(self.package_dir, "patch_1")
+        os.makedirs(patch_1_dir)
+        self.makeFile(content="", dirname=patch_1_dir, basename="__init__.py")
+        self.makeFile(content="", dirname=patch_1_dir, basename="foo.py")
+        patch_module = self.patch_package.get_patch_module(1)
+        self.assertEqual("mypackage.patch_1.foo", patch_module.__name__)
+
+    def test_get_patch_module_no_sub_level(self):
+        """
+        The C{get_patch_module} method returns a dummy patch module if no
+        sub-level file exists in the patch directory for the given version.
+        """
+        patch_1_dir = os.path.join(self.package_dir, "patch_1")
+        os.makedirs(patch_1_dir)
+        patch_module = self.patch_package.get_patch_module(1)
+        store = object()
+        self.assertIsNone(patch_module.apply(store))

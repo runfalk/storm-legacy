@@ -27,10 +27,7 @@ To create a patch series all is needed is to add Python files under a module
 of choice, an name them as 'patch_N.py' where 'N' is the version of the patch
 in the series. Each patch file must define an C{apply} callable taking a
 L{Store} instance has its only argument. This function will be called when the
-patch gets applied. A patch file can be also named as 'patch_N.empty' and it
-will be treated as patch with a no-op C{apply} callable. This is handy when
-working with partitioned databases with multiple L{Schema}s, where a certain
-patch number is actually a no-op in some of the stores (see L{Sharding}).
+patch gets applied.
 
 The L{PatchApplier} can be then used to apply to a L{Store} all the available
 patches. After a patch has been applied, its version is recorded in a special
@@ -40,6 +37,7 @@ patches. After a patch has been applied, its version is recorded in a special
 import sys
 import os
 import re
+import types
 
 from storm.locals import StormError, Int
 
@@ -81,39 +79,24 @@ class PatchApplier(object):
     """Apply to a L{Store} the database patches from a given Python package.
 
     @param store: The L{Store} to apply the patches to.
-    @param package: The Python package containing the patches. Each patch is
-        represented by a file inside the module, whose filename must match
-        the format 'patch_N.py', where N is an integer number.
+    @param patch_set: The L{PatchSet} containing the patches to apply.
     @param committer: Optionally an object implementing 'commit()' and
         'rollback()' methods, to be used to commit or rollback the changes
         after applying a patch. If C{None} is given, the C{store} itself is
         used.
     """
 
-    def __init__(self, store, package, committer=None):
+    def __init__(self, store, patch_set, committer=None):
         self._store = store
-        self._package = package
+        if isinstance(patch_set, types.ModuleType):
+            # Up to version 0.20.0 the second positional parameter used to
+            # be a raw module containing the patches. We wrap it with PatchSet
+            # so to keep backward-compatibility.
+            patch_set = PatchSet(patch_set)
+        self._patch_set = patch_set
         if committer is None:
             committer = store
         self._committer = committer
-
-    def _module(self, version):
-        """Import the Python module of the patch file with the given version.
-
-        @param: The version of the module patch to import.
-        @return: The imported module.
-        """
-        module_name = "patch_%d" % (version,)
-        try:
-            return __import__(
-                self._package.__name__ + "." + module_name, None, None, [''])
-        except ImportError:
-            # Check if this actually an empty patch
-            patch_directory = self._get_patch_directory()
-            patch_path = os.path.join(patch_directory, module_name + ".empty")
-            if os.path.exists(patch_path):
-                return _EmptyPatchModule()
-            raise
 
     def apply(self, version):
         """Execute the patch with the given version.
@@ -127,7 +110,7 @@ class PatchApplier(object):
         self._store.add(patch)
         module = None
         try:
-            module = self._module(version)
+            module = self._patch_set.get_patch_module(version)
             module.apply(self._store)
         except StormError:
             self._committer.rollback()
@@ -173,7 +156,7 @@ class PatchApplier(object):
         database, but don't appear in the schema's patches module.
         """
         applied = self._get_applied_patches()
-        known_patches = self._get_patch_versions()
+        known_patches = self._patch_set.get_patch_versions()
         unknown_patches = set()
 
         for patch in applied:
@@ -194,7 +177,7 @@ class PatchApplier(object):
     def get_unapplied_versions(self):
         """Return the versions of all unapplied patches."""
         applied = self._get_applied_patches()
-        for version in self._get_patch_versions():
+        for version in self._patch_set.get_patch_versions():
             if version not in applied:
                 yield version
 
@@ -205,15 +188,81 @@ class PatchApplier(object):
             applied.add(patch.version)
         return applied
 
-    def _get_patch_versions(self):
-        """Return the versions of all available patches."""
-        format = re.compile(r"^patch_(\d+).(py|empty)$")
 
-        filenames = os.listdir(self._get_patch_directory())
+class PatchSet(object):
+    """A collection of patch modules.
+
+    Each patch module lives in a regular Python module file, contained in a
+    sub-directory named against the patch version. For example, given
+    a directory tree like:
+
+      mypackage/
+          __init__.py
+          patch_1/
+              __init__.py
+              foo.py
+
+    the following code will return a patch module object for foo.py:
+
+      >>> import mypackage
+      >>> patch_set = PackagePackage(mypackage, sub_level="foo")
+      >>> patch_module = patch_set.get_patch_module(1)
+      >>> print patch_module.__name__
+      'mypackage.patch_1.foo'
+
+    Different sub-levels can be used to apply different patches to different
+    stores (see L{Sharding}).
+
+    Alternatively if no sub-level is provided, the structure will be flat:
+
+      mypackage/
+          __init__.py
+          patch_1.py
+
+      >>> import mypackage
+      >>> patch_set = PackagePackage(mypackage)
+      >>> patch_module = patch_set.get_patch_module(1)
+      >>> print patch_module.__name__
+      'mypackage.patch_1'
+
+    This simpler structure can be used if you have just one store to patch
+    or you don't care to co-ordinate the patches across your stores.
+    """
+
+    def __init__(self, package, sub_level=None):
+        self._package = package
+        self._sub_level = sub_level
+
+    def get_patch_versions(self):
+        """Return the versions of all available patches."""
+        pattern = r"^patch_(\d+)"
+        if not self._sub_level:
+            pattern += ".py"
+        pattern += "$"
+        format = re.compile(pattern)
+
+        patch_directory = self._get_patch_directory()
+        filenames = os.listdir(patch_directory)
         matches = [(format.match(fn), fn) for fn in filenames]
         matches = sorted(filter(lambda x: x[0], matches),
                          key=lambda x: int(x[0].group(1)))
         return [int(match.group(1)) for match, filename in matches]
+
+    def get_patch_module(self, version):
+        """Import the Python module of the patch file with the given version.
+
+        @param: The version of the module patch to import.
+        @return: The imported module.
+        """
+        name = "patch_%d" % version
+        levels = [self._package.__name__, name]
+        if self._sub_level:
+            directory = self._get_patch_directory()
+            path = os.path.join(directory, name, self._sub_level + ".py")
+            if not os.path.exists(path):
+                return _EmptyPatchModule()
+            levels.append(self._sub_level)
+        return __import__(".".join(levels), None, None, [''])
 
     def _get_patch_directory(self):
         """Get the path to the directory of the patch package."""
