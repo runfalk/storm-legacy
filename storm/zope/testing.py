@@ -27,7 +27,7 @@ from testresources import TestResourceManager
 from zope.component import provideUtility, getUtility
 
 from storm.schema.patch import UnknownPatchError
-from storm.schema.sharding import Sharding, VERTICAL_PATCHING
+from storm.schema.sharding import Sharding
 from storm.zope.zstorm import ZStorm, global_zstorm
 from storm.zope.interfaces import IZStorm
 
@@ -57,13 +57,17 @@ class ZStormResourceManager(TestResourceManager):
         to save timestamps of the schema's patch packages, so schema upgrades
         will be performed only when needed. This is just an optimisation to let
         the resource setup a bit faster.
-    @ivar upgrade_mode: The patching mode to use when performing schema
-        upgrades, see L{Sharding.upgrade}.
+    @ivar vertical_patching: If C{True}, patches will be applied "vertically",
+        meaning that all patches for the first store will be applied, then
+        all patches for the second store etc. Otherwise, if set to C{False}
+        patches will be applied "horizontally" (see L{Sharding.upgrade}). The
+        default is C{True} just because of backward-compatibility, but normally
+        you should set it to C{False}.
     """
     force_delete = False
     use_global_zstorm = False
     schema_stamp_dir = None
-    upgrade_mode = VERTICAL_PATCHING
+    vertical_patching = True
 
     def __init__(self, databases):
         super(ZStormResourceManager, self).__init__()
@@ -72,7 +76,7 @@ class ZStormResourceManager(TestResourceManager):
         self._schema_zstorm = None
         self._commits = {}
         self._schemas = {}
-        self._sharding = Sharding()
+        self._sharding = []
 
     def make(self, dependencies):
         """Create a L{ZStorm} resource to be used by tests.
@@ -118,24 +122,28 @@ class ZStormResourceManager(TestResourceManager):
                     self._schema_zstorm.set_default_uri(name, schema_uri)
                     schema.autocommit(False)
                     store = self._schema_zstorm.get(name)
-                    self._sharding.add(store, schema)
+                    if not self._sharding or self.vertical_patching:
+                        self._sharding.append(Sharding())
+                    sharding = self._sharding[-1]
+                    sharding.add(store, schema)
                     if self._has_patch_package_changed(name, schema):
                         enforce_schema = True
 
             if enforce_schema:
-                try:
-                    self._sharding.upgrade(mode=self.upgrade_mode)
-                except UnknownPatchError:
-                    self._sharding.drop()
-                    self._sharding.create()
-                except:
-                    # An unknown error occured, let's drop all timestamps so
-                    # in subsequent runs we won't assume that everything is
-                    # fine
-                    self._purge_schema_stamp_dir()
-                    raise
-                else:
-                    self._sharding.delete()
+                for sharding in self._sharding:
+                    try:
+                        sharding.upgrade()
+                    except UnknownPatchError:
+                        sharding.drop()
+                        sharding.create()
+                    except:
+                        # An unknown error occured, let's drop all timestamps
+                        # so subsequent runs won't assume that everything is
+                        # fine
+                        self._purge_schema_stamp_dir()
+                        raise
+                    else:
+                        sharding.delete()
 
             # Commit all schema changes across all stores
             transaction.commit()

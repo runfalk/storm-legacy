@@ -23,10 +23,6 @@
 from storm.schema.schema import SchemaMissingError, UnappliedPatchesError
 
 
-HORIZONTAL_PATCHING = 1
-VERTICAL_PATCHING = 2
-
-
 class PatchLevelMismatchError(Exception):
     """Raised when stores don't have all the same patch level."""
 
@@ -60,7 +56,7 @@ class Sharding(object):
         for store, schema in self._stores:
             schema.delete(store)
 
-    def upgrade(self, mode=HORIZONTAL_PATCHING):
+    def upgrade(self):
         """Perform a schema upgrade.
 
         Pristine L{Store}s without any schema applied yet, will be initialized
@@ -69,28 +65,14 @@ class Sharding(object):
         All other L{Store}s will be upgraded to the latest version of their
         L{Schema}s by applying all pending patches.
 
-        There are two patching modes that can be used: horizontal or vertical.
-
-        With horizontal upgrades the patch numbering must be the same across
-        all L{Schema}s, and all L{Store}s must be at the same patch number. For
-        example if the common patch number is N, the upgrade will start by
-        applying patch number N + 1 to all non-pristine stores, following the
-        order in which the stores were added to the L{Sharding}. Then the
-        upgrade will apply all patches with number N + 2, etc.
-
-        With vertical upgrades all pending patches for the first store get
-        applied sequentially one after the other, then the same happens for
-        all pending patches in the second stored, etc.
+        The patching strategy is "horizontal", meaning that patch numbering
+        must be the same across all L{Schema}s, and all L{Store}s must be at
+        the same patch number. For example if the common patch number is N,
+        the upgrade will start by applying patch number N + 1 to all
+        non-pristine stores, following the order in which the stores were
+        added to the L{Sharding}. Then the upgrade will apply all patches
+        with number N + 2, etc.
         """
-        if mode == HORIZONTAL_PATCHING:
-            self._horizontal_upgrade()
-        elif mode == VERTICAL_PATCHING:
-            self._vertical_upgrade()
-        else:
-            raise RuntimeError("Unknown patch strategy")
-
-    def _horizontal_upgrade(self):
-        """Apply patches horizzontally."""
         stores_to_upgrade = []
         unapplied_versions = []
         for store, schema in self._stores:
@@ -109,8 +91,3 @@ class Sharding(object):
         for version in unapplied_versions:
             for store, schema in stores_to_upgrade:
                 schema.advance(store, version)
-
-    def _vertical_upgrade(self):
-        """Apply patches vertically."""
-        for store, schema in self._stores:
-            schema.upgrade(store)

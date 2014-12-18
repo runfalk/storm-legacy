@@ -21,8 +21,7 @@
 from tests.mocker import MockerTestCase
 
 from storm.schema.schema import SchemaMissingError, UnappliedPatchesError
-from storm.schema.sharding import (
-    Sharding, PatchLevelMismatchError, VERTICAL_PATCHING)
+from storm.schema.sharding import Sharding, PatchLevelMismatchError
 
 
 class FakeSchema(object):
@@ -101,25 +100,6 @@ class ShardingTest(MockerTestCase):
         self.assertEqual(2, store2.patch)
         self.assertEqual(
             [(self.store, 1), (store2, 1), (self.store, 2), (store2, 2)],
-            self.schema.applied)
-
-    def test_upgrade_multi_store_vertically(self):
-        """
-        With vertical sharding, all pending patches for a L{Store} are
-        applied sequentially.
-        """
-        self.store.pristine = False
-        self.sharding.add(self.store, self.schema)
-
-        store2 = FakeStore()
-        store2.pristine = False
-        self.sharding.add(store2, self.schema)
-
-        self.sharding.upgrade(mode=VERTICAL_PATCHING)
-        self.assertEqual(2, self.store.patch)
-        self.assertEqual(2, store2.patch)
-        self.assertEqual(
-            [(self.store, 1), (self.store, 2), (store2, 1), (store2, 2)],
             self.schema.applied)
 
     def test_upgrade_patch_level_mismatch(self):

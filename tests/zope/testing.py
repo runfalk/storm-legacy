@@ -66,6 +66,7 @@ class ZStormResourceManagerTest(TestHelper):
         schema = ZSchema(create, drop, delete, PatchSet(patch_package))
         self.databases = [{"name": "test", "uri": uri, "schema": schema}]
         self.resource = ZStormResourceManager(self.databases)
+        self.resource.vertical_patching = False
         self.store = Store(create_database(uri))
 
     def tearDown(self):
