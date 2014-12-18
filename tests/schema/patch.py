@@ -203,13 +203,18 @@ class PatchApplierTest(MockerTestCase):
 
         self.assert_transaction_committed()
 
-    def atest_apply_with_patch_directory(self):
+    def test_apply_with_patch_directory(self):
         """
-        If a directory in the patch module is named like 'patch_NN', than the
-        L{PatchApplier.apply} method will treat it as a patch directory and
-        will try to apply the relevant patch.
+        If the given L{PatchSet} uses sub-level patches, then the
+        L{PatchApplier.apply} method will look at the per-patch directory and
+        apply the relevant sub-level patch.
         """
-        self.add_module("patch_99.empty", "")
+        path = os.path.join(self.pkgdir, "patch_99")
+        self.makeDir(path=path)
+        self.makeFile(content="", path=os.path.join(path, "__init__.py"))
+        self.makeFile(content=patch_test_0, path=os.path.join(path, "foo.py"))
+        self.patch_set._sub_level = "foo"
+        self.add_module("patch_99/foo.py", patch_test_0)
         self.patch_applier.apply(99)
         self.assertTrue(self.store.get(Patch, (99)))
 
@@ -229,14 +234,6 @@ class PatchApplierTest(MockerTestCase):
         self.assertEquals(y, 380)
 
         self.assert_transaction_committed()
-
-    def atest_apply_all_with_empty_patches(self):
-        """
-        L{PatchApplier.apply_all} executes also empty patches.
-        """
-        self.add_module("patch_99.empty", "")
-        self.patch_applier.apply_all()
-        self.assertTrue(self.store.get(Patch, (99)))
 
     def test_apply_exploding_patch(self):
         """

@@ -190,5 +190,9 @@ class Schema(object):
 
 class _NoopCommitter(object):
     """Dummy committer that does nothing."""
-    commit = lambda _: None
-    rollback = lambda _: None
+
+    def commit(self):
+        pass
+
+    def rollback(self):
+        pass
