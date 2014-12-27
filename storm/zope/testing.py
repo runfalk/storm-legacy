@@ -196,7 +196,8 @@ class ZStormResourceManager(TestResourceManager):
         """
         Return the modification time of the C{schema}'s patch directory.
         """
-        schema_stat = os.stat(os.path.dirname(schema._patch_package.__file__))
+        patch_directory = os.path.dirname(schema._patch_set._package.__file__)
+        schema_stat = os.stat(patch_directory)
         return int(schema_stat.st_mtime)
 
     def _get_schema_stamp_mtime(self, name):

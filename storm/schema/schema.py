@@ -34,7 +34,8 @@ For example:
 >>> drops = ['DROP TABLE person']
 >>> deletes = ['DELETE FROM person']
 >>> import patch_module
->>> schema = Schema(creates, drops, deletes, patch_module)
+>>> patch_set = PatchSet(patch_module)
+>>> schema = Schema(creates, drops, deletes, patch_set)
 >>> schema.create(store)
 
 
@@ -42,8 +43,24 @@ where patch_module is a Python module containing database patches used to
 upgrade the schema over time.
 """
 
+import types
+
 from storm.locals import StormError
-from storm.schema.patch import PatchApplier
+from storm.schema.patch import PatchApplier, PatchSet
+
+
+class SchemaMissingError(Exception):
+    """Raised when a L{Store} has no schema at all."""
+
+
+class UnappliedPatchesError(Exception):
+    """Raised when a L{Store} has unapplied schema patches.
+
+    @ivar unapplied_versions: A list containing all unapplied patch versions.
+    """
+
+    def __init__(self, unapplied_versions):
+        self.unapplied_versions = unapplied_versions
 
 
 class Schema(object):
@@ -52,7 +69,7 @@ class Schema(object):
     @param creates: A list of C{CREATE TABLE} statements.
     @param drops: A list of C{DROP TABLE} statements.
     @param deletes: A list of C{DELETE FROM} statements.
-    @param patch_package: The Python package containing patch modules to apply.
+    @param patch_set: The L{PatchSet} containing patch modules to apply.
     @param committer: Optionally a committer to pass to the L{PatchApplier}.
 
     @see: L{PatchApplier}.
@@ -61,11 +78,16 @@ class Schema(object):
     _drop_patch = "DROP TABLE IF EXISTS patch"
     _autocommit = True
 
-    def __init__(self, creates, drops, deletes, patch_package, committer=None):
+    def __init__(self, creates, drops, deletes, patch_set, committer=None):
         self._creates = creates
         self._drops = drops
         self._deletes = deletes
-        self._patch_package = patch_package
+        if isinstance(patch_set, types.ModuleType):
+            # Up to version 0.20.0 the fourth positional parameter used to
+            # be a raw module containing the patches. We wrap it with PatchSet
+            # for keeping backward-compatibility.
+            patch_set = PatchSet(patch_set)
+        self._patch_set = patch_set
         self._committer = committer
 
     def _execute_statements(self, store, statements):
@@ -90,10 +112,38 @@ class Schema(object):
         """
         self._autocommit = flag
 
+    def check(self, store):
+        """Check that the given L{Store} is compliant with this L{Schema}.
+
+        @param store: The L{Store} to check.
+
+        @raises SchemaMissingError: If there is no schema at all.
+        @raises UnappliedPatchesError: If there are unapplied schema patches.
+        @raises UnknownPatchError: If the store has patches the schema doesn't.
+        """
+        try:
+            store.execute("SELECT * FROM patch WHERE version=0")
+        except StormError:
+            # No schema at all. Create it from the ground.
+            store.rollback()
+            raise SchemaMissingError()
+
+        patch_applier = self._build_patch_applier(store)
+        patch_applier.check_unknown()
+        unapplied_versions = list(patch_applier.get_unapplied_versions())
+        if unapplied_versions:
+            raise UnappliedPatchesError(unapplied_versions)
+
     def create(self, store):
-        """Run C{CREATE TABLE} SQL statements with C{store}."""
+        """Run C{CREATE TABLE} SQL statements with C{store}.
+
+        @raises SchemaAlreadyCreatedError: If the schema for this store was
+            already created.
+        """
         self._execute_statements(store, [self._create_patch])
         self._execute_statements(store, self._creates)
+        patch_applier = self._build_patch_applier(store)
+        patch_applier.mark_applied_all()
 
     def drop(self, store):
         """Run C{DROP TABLE} SQL statements with C{store}."""
@@ -110,20 +160,39 @@ class Schema(object):
         If a schema isn't present a new one will be created.  Unapplied
         patches will be applied to an existing schema.
         """
-        class NoopCommitter(object):
-            commit = lambda _: None
-            rollback = lambda _: None
-
-        committer = self._committer if self._autocommit else NoopCommitter()
-        patch_applier = PatchApplier(store, self._patch_package, committer)
+        patch_applier = self._build_patch_applier(store)
         try:
-            store.execute("SELECT * FROM patch WHERE version=0")
-        except StormError:
+            self.check(store)
+        except SchemaMissingError:
             # No schema at all. Create it from the ground.
-            store.rollback()
             self.create(store)
-            patch_applier.mark_applied_all()
-            if self._autocommit:
-                store.commit()
-        else:
-            patch_applier.apply_all()
+        except UnappliedPatchesError, error:
+            patch_applier.check_unknown()
+            for version in error.unapplied_versions:
+                self.advance(store, version)
+
+    def advance(self, store, version):
+        """Advance the schema of C{store} by applying the next unapplied patch.
+
+        @return: The version of patch that has been applied or C{None} if
+            no patch was applied (i.e. the schema is fully upgraded).
+        """
+        patch_applier = self._build_patch_applier(store)
+        patch_applier.apply(version)
+
+    def _build_patch_applier(self, store):
+        """Build a L{PatchApplier} to use for the given C{store}."""
+        committer = self._committer
+        if not self._autocommit:
+            committer = _NoopCommitter()
+        return PatchApplier(store, self._patch_set, committer)
+
+
+class _NoopCommitter(object):
+    """Dummy committer that does nothing."""
+
+    def commit(self):
+        pass
+
+    def rollback(self):
+        pass

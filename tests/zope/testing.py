@@ -27,6 +27,7 @@ from tests.zope import has_transaction, has_zope_component, has_testresources
 from storm.locals import create_database, Store, Unicode, Int
 from storm.exceptions import IntegrityError
 from storm.testing import CaptureTracer
+from storm.schema.patch import PatchSet
 
 if has_transaction and has_zope_component and has_testresources:
     from zope.component import provideUtility, getUtility
@@ -62,7 +63,7 @@ class ZStormResourceManagerTest(TestHelper):
         drop = ["DROP TABLE test"]
         delete = ["DELETE FROM test"]
         uri = "sqlite:///%s" % self.makeFile()
-        schema = ZSchema(create, drop, delete, patch_package)
+        schema = ZSchema(create, drop, delete, PatchSet(patch_package))
         self.databases = [{"name": "test", "uri": uri, "schema": schema}]
         self.resource = ZStormResourceManager(self.databases)
         self.store = Store(create_database(uri))
