@@ -18,7 +18,28 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-"""Manage L{Schema}s across a set of L{Store} shards."""
+"""Manage L{Schema}s across a set of L{Store} shards.
+
+The L{Sharding} class can be used to perform schema operations (create,
+upgrade, delete) against a set of L{Store}s. For example, let's say
+we have two L{Schema}s and two L{Store}s we want to apply them to. We can
+setup our L{Sharding} instance like this:
+
+>>> schema1 = Schema(...)
+>>> schema1 = Schema(...)
+>>> store1 = Store(...)
+>>> store2 = Store(...)
+>>> sharding = Sharding()
+>>> sharding.add(store1, schema1)
+>>> sharding.add(store2, schema2)
+
+And then perform schema maintenance operations across all shards:
+
+>>> sharding.upgrade()
+
+Patches will be applied "horizontally", meaning that the stores will always
+be at the same patch level. See L{storm.schema.patch.PatchSet}.
+"""
 
 from storm.schema.schema import SchemaMissingError, UnappliedPatchesError
 
