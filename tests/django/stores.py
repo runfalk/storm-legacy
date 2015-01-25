@@ -47,7 +47,11 @@ class DjangoStoreTests(TestHelper):
 
     def tearDown(self):
         if django.VERSION >= (1, 1):
-            conf.settings._wrapped = None
+            if django.VERSION >= (1, 6):
+                from django.utils.functional import empty
+            else:
+                empty = None
+            conf.settings._wrapped = empty
         else:
             conf.settings._target = None
         # Reset the utility to cleanup the StoreSynchronizer's from the

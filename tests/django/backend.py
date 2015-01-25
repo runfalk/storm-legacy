@@ -43,12 +43,7 @@ def make_wrapper():
     from storm.django.backend import base
     if django.VERSION >= (1, 1):
         wrapper = base.DatabaseWrapper({
-                'DATABASE_HOST': settings.DATABASE_HOST,
                 'DATABASE_NAME': settings.DATABASE_NAME,
-                'DATABASE_OPTIONS': settings.DATABASE_OPTIONS,
-                'DATABASE_PASSWORD': settings.DATABASE_PASSWORD,
-                'DATABASE_PORT': settings.DATABASE_PORT,
-                'DATABASE_USER': settings.DATABASE_USER,
                 'TIME_ZONE': settings.TIME_ZONE,
                 'OPTIONS': {},
                 })
@@ -67,7 +62,6 @@ class DjangoBackendTests(object):
         settings.configure(STORM_STORES={})
         settings.MIDDLEWARE_CLASSES += (
             "storm.django.middleware.ZopeTransactionMiddleware",)
-
         settings.DATABASE_ENGINE = "storm.django.backend"
         settings.DATABASE_NAME = "django"
         settings.STORM_STORES["django"] = self.get_store_uri()
@@ -78,7 +72,11 @@ class DjangoBackendTests(object):
         transaction.abort()
         self.drop_tables()
         if django.VERSION >= (1, 1):
-            settings._wrapped = None
+            if django.VERSION >= (1, 6):
+                from django.utils.functional import empty
+            else:
+                empty = None
+            settings._wrapped = empty
         else:
             settings._target = None
         global_zstorm._reset()
@@ -200,7 +198,11 @@ class DjangoBackendDisconnectionTests(DatabaseDisconnectionMixin):
     def tearDown(self):
         transaction.abort()
         if django.VERSION >= (1, 1):
-            settings._wrapped = None
+            if django.VERSION >= (1, 6):
+                from django.utils.functional import empty
+            else:
+                empty = None
+            settings._wrapped = empty
         else:
             settings._target = None
         global_zstorm._reset()
