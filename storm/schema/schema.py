@@ -121,12 +121,18 @@ class Schema(object):
         @raises UnappliedPatchesError: If there are unapplied schema patches.
         @raises UnknownPatchError: If the store has patches the schema doesn't.
         """
+        # Let's create a savepoint here: the select statement below is just
+        # used to test if the patch exists and we don't want to rollback
+        # the whole transaction in case it fails.
+        store.execute("SAVEPOINT schema")
         try:
             store.execute("SELECT * FROM patch WHERE version=0")
         except StormError:
             # No schema at all. Create it from the ground.
-            store.rollback()
+            store.execute("ROLLBACK TO SAVEPOINT schema")
             raise SchemaMissingError()
+        else:
+            store.execute("RELEASE SAVEPOINT schema")
 
         patch_applier = self._build_patch_applier(store)
         patch_applier.check_unknown()

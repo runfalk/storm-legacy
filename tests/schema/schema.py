@@ -99,13 +99,13 @@ class SchemaTest(MockerTestCase):
 
     def test_check_with_missing_schema(self):
         """
-        L{Schema.check} raises an exception if the given store is
-        completely pristine and no schema has been applied yet.
+        L{Schema.check} raises an exception if the given store is completely
+        pristine and no schema has been applied yet. The transaction doesn't
+        get rolled back so it's still usable.
         """
-        rollbacks = []
-        self.store.rollback = lambda: rollbacks.append(True)
+        self.store.execute("CREATE TABLE foo (bar INT)")
         self.assertRaises(SchemaMissingError, self.schema.check, self.store)
-        self.assertEqual([True], rollbacks)
+        self.assertIsNone(self.store.execute("SELECT 1 FROM foo").get_one())
 
     def test_check_with_unapplied_patches(self):
         """
