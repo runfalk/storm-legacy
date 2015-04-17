@@ -37,6 +37,7 @@ from storm.expr import (
 from storm.exceptions import (
     WrongStoreError, NotFlushedError, OrderLoopError, UnorderedError,
     NotOneError, FeatureError, CompileError, LostObjectError, ClassInfoError)
+from storm.properties import PropertyColumn
 from storm import Undef
 from storm.cache import Cache
 from storm.event import EventSystem
@@ -1706,7 +1707,12 @@ class FindSpec(object):
         return columns, default_tables
 
     def is_compatible(self, find_spec):
-        """Return True if this FindSpec is compatible with a second one."""
+        """Return True if this FindSpec is compatible with a second one.
+
+        Two FindSpecs are considered compatible if either the find specs
+        are identical (i.e. specifies the same classes and columns) or
+        the find spec columns are of the same type.
+        """
         if self.is_tuple != find_spec.is_tuple:
             return False
         if len(self._cls_spec_info) != len(find_spec._cls_spec_info):
@@ -1715,7 +1721,18 @@ class FindSpec(object):
             self._cls_spec_info, find_spec._cls_spec_info):
             if is_expr1 != is_expr2:
                 return False
-            if info1 is not info2:
+            # If both infos are PropertyColumns, check whether they are
+            # of the same type. Ideally we should check that the types as
+            # defined in the database are the same, but checking the
+            # variable class is easier and will work most of the time.
+            if isinstance(info1, PropertyColumn):
+                if not isinstance(info2, PropertyColumn):
+                    return False
+                variable_class1 = info1.variable_factory().__class__
+                variable_class2 = info2.variable_factory().__class__
+                if variable_class1 is not variable_class2:
+                    return False
+            elif info1 is not info2:
                 return False
         return True
 
