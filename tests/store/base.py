@@ -5576,7 +5576,7 @@ class StoreTest(object):
         """
         It's possible to do a union of two result sets on columns on
         different classes, as long as their variable classes are the
-        same (e.g. both are IntVariables)
+        same (e.g. both are IntVariables).
         """
         result1 = self.store.find(Foo.id, Foo.id == 10)
         result2 = self.store.find(Bar.foo_id, Bar.id == 200)

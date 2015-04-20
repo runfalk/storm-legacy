@@ -1726,6 +1726,7 @@ class FindSpec(object):
             # defined in the database are the same, but checking the
             # variable class is easier and will work most of the time.
             if isinstance(info1, PropertyColumn):
+                break
                 if not isinstance(info2, PropertyColumn):
                     return False
                 variable_class1 = info1.variable_factory().__class__
