@@ -72,8 +72,7 @@ class ZStormResourceManagerTest(TestHelper):
     def tearDown(self):
         global_zstorm._reset()
         del sys.modules["patch_package"]
-        if "patch_1" in sys.modules:
-            del sys.modules["patch_1"]
+        sys.modules.pop("patch_package.patch_1", None)
         super(ZStormResourceManagerTest, self).tearDown()
 
     def test_make(self):
