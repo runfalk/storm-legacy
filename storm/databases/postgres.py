@@ -80,6 +80,32 @@ def compile_returning(compile, expr, state):
     return "%s RETURNING %s" % (expr, columns)
 
 
+class Case(Expr):
+    """A "CASE" statement.
+
+    @params cases: a list of tuples with (condition, result).
+    @param default: an optional default condition if no other case matches.
+    """
+    def __init__(self, cases, default=Undef):
+        self.cases = cases
+        self.default = default
+
+
+@compile.when(Case)
+def compile_case(compile, expr, state):
+    cases = [
+        "WHEN %s THEN %s" % (
+            compile(condition, state), compile(value, state))
+        for condition, value in expr.cases]
+
+    if expr.default is not Undef:
+        default = " ELSE %s" % compile(expr.default, state)
+    else:
+        default = ""
+
+    return "CASE %s%s END" % (" ".join(cases), default)
+
+
 class currval(FuncExpr):
 
     name = "currval"
