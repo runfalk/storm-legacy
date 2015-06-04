@@ -57,11 +57,13 @@ else:
 
 def terminate_other_backends(connection):
     """Terminate all connections to the database except the one given."""
+    pid_column = "procpid" if connection._database._version < 90200 else "pid"
     connection.execute(
-        "SELECT pg_terminate_backend(procpid)"
+        "SELECT pg_terminate_backend(%(pid_column)s)"
         "  FROM pg_stat_activity"
         " WHERE datname = current_database()"
-        "   AND procpid != pg_backend_pid()")
+        "   AND %(pid_column)s != pg_backend_pid()" %
+        {"pid_column": pid_column})
 
 
 def terminate_all_backends(database):
