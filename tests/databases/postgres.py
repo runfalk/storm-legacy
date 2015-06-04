@@ -373,6 +373,18 @@ class PostgresTest(DatabaseTest, TestHelper):
         self.assertEqual(
             [3, "big", 9], [param.get() for param in state.parameters])
 
+    def test_compile_case_with_expression(self):
+        """
+        If an expression, the resulting CASE expression uses the simple syntax.
+        """
+        cases = [(1, u"one"), (2, u"two")]
+        state = State()
+        statement = compile(Case(cases, expression=Column("foo")), state)
+        self.assertEqual(
+            "CASE foo WHEN ? THEN ? WHEN ? THEN ? END", statement)
+        self.assertEqual(
+            [1, "one", 2, "two"], [param.get() for param in state.parameters])
+
     def test_currval_no_escaping(self):
         expr = currval(Column("thecolumn", "theschema.thetable"))
         statement = compile(expr)

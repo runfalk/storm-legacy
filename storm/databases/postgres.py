@@ -81,13 +81,17 @@ def compile_returning(compile, expr, state):
 
 
 class Case(Expr):
-    """A "CASE" statement.
+    """A CASE statement.
 
-    @params cases: a list of tuples with (condition, result).
+    @params cases: a list of tuples of (condition, result) or (value, result),
+        if an expression is passed too.
+    @param expression: the expression to compare (if the simple form is used).
     @param default: an optional default condition if no other case matches.
+
     """
-    def __init__(self, cases, default=Undef):
+    def __init__(self, cases, expression=Undef, default=Undef):
         self.cases = cases
+        self.expression = expression
         self.default = default
 
 
@@ -98,12 +102,17 @@ def compile_case(compile, expr, state):
             compile(condition, state), compile(value, state))
         for condition, value in expr.cases]
 
+    if expr.expression is not Undef:
+        expression = compile(expr.expression, state) + " "
+    else:
+        expression = ""
+
     if expr.default is not Undef:
         default = " ELSE %s" % compile(expr.default, state)
     else:
         default = ""
 
-    return "CASE %s%s END" % (" ".join(cases), default)
+    return "CASE %s%s%s END" % (expression, " ".join(cases), default)
 
 
 class currval(FuncExpr):
