@@ -22,7 +22,8 @@ from datetime import date, time, timedelta
 import os
 
 from storm.databases.postgres import (
-    Postgres, compile, currval, Returning, PostgresTimeoutTracer, make_dsn)
+    Postgres, compile, currval, Returning, Case, PostgresTimeoutTracer,
+    make_dsn)
 from storm.database import create_database
 from storm.exceptions import InterfaceError, ProgrammingError
 from storm.variables import DateTimeVariable, RawStrVariable
@@ -346,6 +347,44 @@ class PostgresTest(DatabaseTest, TestHelper):
         self.assertEquals(compile(Select(Foo.id)),
                           'SELECT "my schema"."my table"."my.column" '
                           'FROM "my schema"."my table"')
+
+    def test_compile_case(self):
+        """The Case expr is compiled in a Postgres' CASE expression."""
+        cases = [
+            (Column("foo") > 3, u"big"), (Column("bar") == None, 4)]
+        state = State()
+        statement = compile(Case(cases), state)
+        self.assertEqual(
+            "CASE WHEN (foo > ?) THEN ? WHEN (bar IS NULL) THEN ? END",
+            statement)
+        self.assertEqual(
+            [3, "big", 4], [param.get() for param in state.parameters])
+
+    def test_compile_case_with_default(self):
+        """
+        If a default is provided, the resulting CASE expression includes
+        an ELSE clause.
+        """
+        cases = [(Column("foo") > 3, u"big")]
+        state = State()
+        statement = compile(Case(cases, default=9), state)
+        self.assertEqual(
+            "CASE WHEN (foo > ?) THEN ? ELSE ? END", statement)
+        self.assertEqual(
+            [3, "big", 9], [param.get() for param in state.parameters])
+
+    def test_compile_case_with_expression(self):
+        """
+        If an expression is provided, the resulting CASE expression uses the
+        simple syntax.
+        """
+        cases = [(1, u"one"), (2, u"two")]
+        state = State()
+        statement = compile(Case(cases, expression=Column("foo")), state)
+        self.assertEqual(
+            "CASE foo WHEN ? THEN ? WHEN ? THEN ? END", statement)
+        self.assertEqual(
+            [1, "one", 2, "two"], [param.get() for param in state.parameters])
 
     def test_currval_no_escaping(self):
         expr = currval(Column("thecolumn", "theschema.thetable"))
