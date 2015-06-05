@@ -375,7 +375,8 @@ class PostgresTest(DatabaseTest, TestHelper):
 
     def test_compile_case_with_expression(self):
         """
-        If an expression, the resulting CASE expression uses the simple syntax.
+        If an expression is provided, the resulting CASE expression uses the
+        simple syntax.
         """
         cases = [(1, u"one"), (2, u"two")]
         state = State()
