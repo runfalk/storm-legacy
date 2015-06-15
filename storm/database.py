@@ -479,6 +479,13 @@ class Database(object):
 
     connection_factory = Connection
 
+    def __init__(self, uri):
+        self._uri = uri
+
+    def get_uri(self):
+        """Return the URI object this database was created with."""
+        return self._uri
+
     def connect(self, event=None):
         """Create a connection to the database.
 

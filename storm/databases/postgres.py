@@ -377,6 +377,7 @@ class Postgres(Database):
     _version = None
 
     def __init__(self, uri):
+        super(Postgres, self).__init__(uri)
         if psycopg2 is dummy:
             raise DatabaseModuleError(
                 "'psycopg2' >= %s not found. Found %s."

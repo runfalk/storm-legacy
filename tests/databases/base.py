@@ -102,6 +102,9 @@ class DatabaseTest(object):
     def test_create(self):
         self.assertTrue(isinstance(self.database, Database))
 
+    def test_get_uri(self):
+        self.assertIsNotNone(self.database.get_uri())
+
     def test_connection(self):
         self.assertTrue(isinstance(self.connection, Connection))
 
