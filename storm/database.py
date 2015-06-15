@@ -479,7 +479,7 @@ class Database(object):
 
     connection_factory = Connection
 
-    def __init__(self, uri):
+    def __init__(self, uri=None):
         self._uri = uri
 
     def get_uri(self):
