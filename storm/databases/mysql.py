@@ -127,6 +127,7 @@ class MySQL(Database):
     _converters = None
 
     def __init__(self, uri):
+        super(MySQL, self).__init__(uri)
         if MySQLdb is dummy:
             raise DatabaseModuleError("'MySQLdb' module not found")
         self._connect_kwargs = {}
