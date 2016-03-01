@@ -1,12 +1,20 @@
 #!/bin/bash -eu
 
+CODENAME=$(lsb_release -cs)
+
 function apt_get() {
     sudo DEBIAN_FRONTEND=noninteractive apt-get \
         -y -o Dpkg::Options::='--force-confold' $*
 }
 
+if [[ $CODENAME > "vivid" ]]; then
+    PYTHON_MYSQL="python-mysqldb python-pymysql"
+else
+    PYTHON_MYSQL="python-mysqldb"
+fi
+
 apt_get install --no-install-recommends \
-    python-mysqldb \
+    $PYTHON_MYSQL \
     mysql-server \
     postgresql \
     pgbouncer \
