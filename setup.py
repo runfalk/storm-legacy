@@ -53,7 +53,6 @@ setup(
     test_suite = "tests.find_tests",
     tests_require=[
         # Versions based on Lucid, where packaged.
-        "django >= 1.1.1",
         "fixtures >= 0.3.5",
         # pgbouncer (the Python module) is not yet packaged in Ubuntu.
         "pgbouncer >= 0.0.7",
