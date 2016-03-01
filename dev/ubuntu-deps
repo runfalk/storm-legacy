@@ -1,7 +1,5 @@
 #!/bin/bash -eu
 
-CODENAME=$(lsb_release -cs)
-
 function apt_get() {
     sudo DEBIAN_FRONTEND=noninteractive apt-get \
         -y -o Dpkg::Options::='--force-confold' $*
