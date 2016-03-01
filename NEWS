@@ -8,6 +8,17 @@ Improvements
   package, which can apply patches "in parallel" against a set of stores. See
   the module docstring for more information.
 
+Bug fixes
+---------
+
+- Fixed SQLObject tests to work with SQLObject 2.x by using Unicode strings for
+  LIKE operations.
+
+API changes
+-----------
+
+- Removed Django support, storm.django is no more.
+
 0.20 (2013-06-28)
 =================
 

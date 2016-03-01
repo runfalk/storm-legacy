@@ -7,19 +7,12 @@ function apt_get() {
         -y -o Dpkg::Options::='--force-confold' $*
 }
 
-if [[ $CODENAME > "vivid" ]]; then
-    PYTHON_MYSQL="python-mysqldb python-pymysql"
-else
-    PYTHON_MYSQL="python-mysqldb"
-fi
-
 apt_get install --no-install-recommends \
-    $PYTHON_MYSQL \
+    python-mysqldb \
     mysql-server \
     postgresql \
     pgbouncer \
     build-essential \
-    python-django \
     python-fixtures \
     python-psycopg2 \
     python-testresources \
