@@ -344,7 +344,7 @@ class SQLObjectTest(TestHelper):
         self.assertEquals(nobody, None)
 
         # SQLBuilder style expression:
-        person = self.Person.selectFirst(LIKE(self.Person.q.name, "John%"),
+        person = self.Person.selectFirst(LIKE(self.Person.q.name, u"John%"),
                                          orderBy="name")
         self.assertNotEqual(person, None)
         self.assertEqual(person.name, "John Doe")
@@ -1207,15 +1207,15 @@ class SQLObjectTest(TestHelper):
         self.assertEquals(person.name, "John Moe")
 
     def test_CONTAINSSTRING(self):
-        expr = CONTAINSSTRING(self.Person.q.name, "Do")
+        expr = CONTAINSSTRING(self.Person.q.name, u"Do")
         result = self.Person.select(expr)
         self.assertEquals([person.name for person in result],
-                          ["John Doe"])
+                          [u"John Doe"])
 
-        person.name = "Funny !%_ Name"
+        person.name = u"Funny !%_ Name"
 
-        expr = NOT(CONTAINSSTRING(self.Person.q.name, "!%_"))
+        expr = NOT(CONTAINSSTRING(self.Person.q.name, u"!%_"))
         result = self.Person.select(expr)
         self.assertEquals([person.name for person in result],
-                          ["John Joe"])
+                          [u"John Joe"])
 
