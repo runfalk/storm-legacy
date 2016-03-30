@@ -40,9 +40,9 @@ except ImportError:
 
 from storm.expr import (
     Undef, Expr, SetExpr, Select, Insert, Alias, And, Eq, FuncExpr, SQLRaw,
-    Sequence, Like, SQLToken, COLUMN, COLUMN_NAME, COLUMN_PREFIX, TABLE,
-    compile, compile_select, compile_insert, compile_set_expr, compile_like,
-    compile_sql_token)
+    Sequence, Like, SQLToken, BinaryOper, COLUMN, COLUMN_NAME, COLUMN_PREFIX,
+    TABLE, compile, compile_select, compile_insert, compile_set_expr,
+    compile_like, compile_sql_token)
 from storm.variables import Variable, ListVariable
 from storm.database import Database, Connection, Result
 from storm.exceptions import (
@@ -456,3 +456,17 @@ class PostgresTimeoutTracer(TimeoutTracer):
             "statement timeout" in str(error)):
             raise TimeoutError(
                 statement, params, "SQL server cancelled statement")
+
+
+# Postgres-specific operators
+
+class JSONElement(BinaryOper):
+    """Return an element of a JSON value (by index or field name)."""
+
+    oper = "->"
+
+
+class JSONTextElement(BinaryOper):
+    """Return an element of a JSON value (by index or field name) as text."""
+
+    oper = "->>"
