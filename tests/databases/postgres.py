@@ -20,6 +20,7 @@
 #
 from datetime import date, time, timedelta
 import os
+import json
 
 from storm.databases.postgres import (
     Postgres, compile, currval, Returning, Case, PostgresTimeoutTracer,
@@ -31,7 +32,7 @@ from storm.variables import ListVariable, IntVariable, Variable
 from storm.properties import Int
 from storm.exceptions import DisconnectionError, OperationalError
 from storm.expr import (Union, Select, Insert, Update, Alias, SQLRaw, State,
-                        Sequence, Like, Column, COLUMN, Cast)
+                        Sequence, Like, Column, COLUMN, Cast, Func)
 from storm.tracer import install_tracer, TimeoutError
 from storm.uri import URI
 
@@ -641,18 +642,22 @@ class PostgresTest(DatabaseTest, TestHelper):
     def test_json_element(self):
         "JSONElement returns an element from a json field."
         connection = self.database.connect()
-        json_value = Cast(u'{"a": 1,"b": 2}', "json")
-        result = connection.execute(
-            Select(JSONElement(json_value, u"b")))
-        self.assertEqual(2, result.get_one()[0])
+        json_value = Cast(u'{"a": 1}', "json")
+        expr = JSONElement(json_value, u"a")
+        result = connection.execute(Select(expr))
+        self.assertEqual("1", result.get_one()[0])
+        result = connection.execute(Select(Func("pg_typeof", expr)))
+        self.assertEqual("json", result.get_one()[0])
 
     def test_json_text_element(self):
         "JSONTextElement returns an element from a json field as text."
         connection = self.database.connect()
-        json_value = Cast(u'{"a": 1,"b": 2}', "json")
-        result = connection.execute(
-            Select(JSONTextElement(json_value, u"b")))
-        self.assertEqual("2", result.get_one()[0])
+        json_value = Cast(u'{"a": 1}', "json")
+        expr = JSONTextElement(json_value, u"a")
+        result = connection.execute(Select(expr))
+        self.assertEqual("1", result.get_one()[0])
+        result = connection.execute(Select(Func("pg_typeof", expr)))
+        self.assertEqual("text", result.get_one()[0])
 
 
 _max_prepared_transactions = None
