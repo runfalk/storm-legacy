@@ -644,7 +644,9 @@ class PostgresTest(DatabaseTest, TestHelper):
         connection = self.database.connect()
         json_value = Cast(u'{"a": 1}', "json")
         expr = JSONElement(json_value, u"a")
-        result = connection.execute(Select(expr))
+        # Need to cast as text since newer psycopg versions decode JSON
+        # automatically.
+        result = connection.execute(Select(Cast(expr, "text")))
         self.assertEqual("1", result.get_one()[0])
         result = connection.execute(Select(Func("pg_typeof", expr)))
         self.assertEqual("json", result.get_one()[0])
