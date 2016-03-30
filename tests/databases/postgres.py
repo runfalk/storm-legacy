@@ -23,7 +23,7 @@ import os
 
 from storm.databases.postgres import (
     Postgres, compile, currval, Returning, Case, PostgresTimeoutTracer,
-    make_dsn)
+    make_dsn, JSONElement, JSONTextElement)
 from storm.database import create_database
 from storm.exceptions import InterfaceError, ProgrammingError
 from storm.variables import DateTimeVariable, RawStrVariable
@@ -31,7 +31,7 @@ from storm.variables import ListVariable, IntVariable, Variable
 from storm.properties import Int
 from storm.exceptions import DisconnectionError, OperationalError
 from storm.expr import (Union, Select, Insert, Update, Alias, SQLRaw, State,
-                        Sequence, Like, Column, COLUMN)
+                        Sequence, Like, Column, COLUMN, Cast)
 from storm.tracer import install_tracer, TimeoutError
 from storm.uri import URI
 
@@ -637,6 +637,22 @@ class PostgresTest(DatabaseTest, TestHelper):
         """
         exc = OperationalError("could not receive data from server")
         self.assertTrue(self.connection.is_disconnection_error(exc))
+
+    def test_json_element(self):
+        "JSONElement returns an element from a json field."
+        connection = self.database.connect()
+        json_value = Cast(u'{"a": 1,"b": 2}', "json")
+        result = connection.execute(
+            Select(JSONElement(json_value, u"b")))
+        self.assertEqual(2, result.get_one()[0])
+
+    def test_json_text_element(self):
+        "JSONTextElement returns an element from a json field as text."
+        connection = self.database.connect()
+        json_value = Cast(u'{"a": 1,"b": 2}', "json")
+        result = connection.execute(
+            Select(JSONTextElement(json_value, u"b")))
+        self.assertEqual("2", result.get_one()[0])
 
 
 _max_prepared_transactions = None
