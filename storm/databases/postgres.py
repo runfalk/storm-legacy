@@ -18,7 +18,10 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+
 from datetime import datetime, date, time, timedelta
+import json
+
 from distutils.version import LooseVersion
 
 from storm.databases import dummy
@@ -43,7 +46,9 @@ from storm.expr import (
     Sequence, Like, SQLToken, BinaryOper, COLUMN, COLUMN_NAME, COLUMN_PREFIX,
     TABLE, compile, compile_select, compile_insert, compile_set_expr,
     compile_like, compile_sql_token)
-from storm.variables import Variable, ListVariable
+from storm.variables import (
+    Variable, ListVariable, JSONVariable as BaseJSONVariable)
+from storm.properties import SimpleProperty
 from storm.database import Database, Connection, Result
 from storm.exceptions import (
     install_exceptions, DatabaseError, DatabaseModuleError, InterfaceError,
@@ -470,3 +475,24 @@ class JSONTextElement(BinaryOper):
     """Return an element of a JSON value (by index or field name) as text."""
 
     oper = "->>"
+
+
+# Postgres-specific properties and variables
+
+class JSONVariable(BaseJSONVariable):
+
+    __slots__ = ()
+
+    def _loads(self, value):
+        if isinstance(value, str):
+            # psycopg versions < 2.5 don't automatically convert JSON columns
+            # to python objects, they return a string.
+            #
+            # Note that on newer versions, if the object contained is an actual
+            # string, it's returned as unicode, so the check is still valid.
+            return json.loads(value)
+        return value
+
+
+class JSON(SimpleProperty):
+    variable_class = JSONVariable
