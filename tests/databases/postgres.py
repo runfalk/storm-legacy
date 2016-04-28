@@ -99,7 +99,6 @@ class PostgresTest(DatabaseTest, TestHelper):
         self.connection.execute("CREATE TABLE returning_test "
                                 "(id1 INTEGER DEFAULT 123, "
                                 " id2 INTEGER DEFAULT 456)")
-
         self.connection.execute("CREATE TABLE json_test "
                                 "(id SERIAL PRIMARY KEY, "
                                 " j JSON)")
