@@ -24,8 +24,9 @@ import json
 
 from storm.databases.postgres import (
     Postgres, compile, currval, Returning, Case, PostgresTimeoutTracer,
-    make_dsn, JSONElement, JSONTextElement)
+    make_dsn, JSONElement, JSONTextElement, JSON)
 from storm.database import create_database
+from storm.store import Store
 from storm.exceptions import InterfaceError, ProgrammingError
 from storm.variables import DateTimeVariable, RawStrVariable
 from storm.variables import ListVariable, IntVariable, Variable
@@ -98,10 +99,14 @@ class PostgresTest(DatabaseTest, TestHelper):
         self.connection.execute("CREATE TABLE returning_test "
                                 "(id1 INTEGER DEFAULT 123, "
                                 " id2 INTEGER DEFAULT 456)")
+        self.connection.execute("CREATE TABLE json_test "
+                                "(id SERIAL PRIMARY KEY, "
+                                " json JSON)")
 
     def drop_tables(self):
         super(PostgresTest, self).drop_tables()
-        for table in ["like_case_insensitive_test", "returning_test"]:
+        tables = ("like_case_insensitive_test", "returning_test", "json_test")
+        for table in tables:
             try:
                 self.connection.execute("DROP TABLE %s" % table)
                 self.connection.commit()
@@ -660,6 +665,28 @@ class PostgresTest(DatabaseTest, TestHelper):
         self.assertEqual("1", result.get_one()[0])
         result = connection.execute(Select(Func("pg_typeof", expr)))
         self.assertEqual("text", result.get_one()[0])
+
+    def test_json_property(self):
+        """The JSON property is encoded as JSON"""
+
+        class TestModel(object):
+            __storm_table__ = "json_test"
+
+            id = Int(primary=True)
+            json = JSON()
+
+        connection = self.database.connect()
+        value = {"a": 3, "b": "foo", "c": None}
+        db_value = json.dumps(value).decode("utf-8")
+        connection.execute(
+            "INSERT INTO json_test (json) VALUES (?)", (db_value,))
+        connection.commit()
+
+        store = Store(self.database)
+        obj = store.find(TestModel).one()
+        store.close()
+        # The JSON object is decoded to python
+        self.assertEqual(value, obj.json)
 
 
 _max_prepared_transactions = None
