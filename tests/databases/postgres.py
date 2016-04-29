@@ -101,7 +101,7 @@ class PostgresTest(DatabaseTest, TestHelper):
                                 " id2 INTEGER DEFAULT 456)")
         self.connection.execute("CREATE TABLE json_test "
                                 "(id SERIAL PRIMARY KEY, "
-                                " j JSON)")
+                                " json JSON)")
 
     def drop_tables(self):
         super(PostgresTest, self).drop_tables()
@@ -673,20 +673,20 @@ class PostgresTest(DatabaseTest, TestHelper):
             __storm_table__ = "json_test"
 
             id = Int(primary=True)
-            j = JSON()
+            json = JSON()
 
         connection = self.database.connect()
         value = {"a": 3, "b": "foo", "c": None}
         db_value = json.dumps(value).decode("utf-8")
         connection.execute(
-            "INSERT INTO json_test (j) VALUES (?)", (db_value,))
+            "INSERT INTO json_test (json) VALUES (?)", (db_value,))
         connection.commit()
 
         store = Store(self.database)
         obj = store.find(TestModel).one()
         store.close()
         # The JSON object is decoded to python
-        self.assertEqual(value, obj.j)
+        self.assertEqual(value, obj.json)
 
 
 _max_prepared_transactions = None
