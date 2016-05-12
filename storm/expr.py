@@ -486,7 +486,10 @@ class Comparable(object):
         return Neg(self)
 
     def is_in(self, others):
-        if not isinstance(others, Expr):
+        from storm.store import ResultSet
+        if isinstance(others, ResultSet):
+            others = others._get_select()
+        elif not isinstance(others, Expr):
             others = list(others)
             if not others:
                 return False

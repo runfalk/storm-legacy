@@ -5684,8 +5684,22 @@ class StoreTest(object):
 
         self.assertEquals(result3.count(), 2)
 
+    def test_is_in_result_set_subquery(self):
+        """
+        When is_in() is passed a ResultSet, a single query with a subquery
+        is performed.
+        """
+        stream = StringIO()
+        self.addCleanup(debug, False)
+        debug(True, stream)
+
+        result1 = self.store.find(Foo.id, Foo.id < 25)
+        result2 = self.store.find(Foo, Foo.id.is_in(result1))
+        self.assertEquals(result2.count(), 2)
+        self.assertIn("foo.id IN (SELECT foo.id", stream.getvalue())
+
     def test_is_in_empty_result_set(self):
-        result1 = self.store.find(Foo, Foo.id < 10)
+        result1 = self.store.find(Foo.id, Foo.id < 10)
         result2 = self.store.find(Foo, Or(Foo.id > 20, Foo.id.is_in(result1)))
         self.assertEquals(result2.count(), 1)
 
