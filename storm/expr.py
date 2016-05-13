@@ -486,12 +486,7 @@ class Comparable(object):
         return Neg(self)
 
     def is_in(self, others):
-        from storm.store import ResultSet
-        if isinstance(others, ResultSet):
-            # If a ResultSet is passed, use it for a SELECT subquery, instead
-            # of performing a separate query and passing in the resulting list.
-            others = others._get_select()
-        elif not isinstance(others, Expr):
+        if not isinstance(others, Expr):
             others = list(others)
             if not others:
                 return False
