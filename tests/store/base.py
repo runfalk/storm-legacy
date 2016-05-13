@@ -44,6 +44,7 @@ from storm.exceptions import (
 from storm.cache import Cache
 from storm.store import AutoReload, EmptyResultSet, Store, ResultSet
 from storm.tracer import debug
+from storm.testing import CaptureTracer
 
 from tests.info import Wrapper
 from tests.helper import TestHelper
@@ -5684,8 +5685,22 @@ class StoreTest(object):
 
         self.assertEquals(result3.count(), 2)
 
+    def test_is_in_result_set_subquery(self):
+        """
+        When is_in() is passed a ResultSet, a single query with a subquery
+        is performed.
+        """
+        with CaptureTracer() as tracer:
+            result1 = self.store.find(Foo.id, Foo.id < 25)
+            result2 = self.store.find(Foo, Foo.id.is_in(result1))
+            self.assertEquals(result2.count(), 2)
+            self.assertEqual(
+                ["SELECT COUNT(*) FROM foo WHERE foo.id IN"
+                 " (SELECT foo.id FROM foo WHERE foo.id < 25)"],
+                tracer.queries)
+
     def test_is_in_empty_result_set(self):
-        result1 = self.store.find(Foo, Foo.id < 10)
+        result1 = self.store.find(Foo.id, Foo.id < 10)
         result2 = self.store.find(Foo, Or(Foo.id > 20, Foo.id.is_in(result1)))
         self.assertEquals(result2.count(), 1)
 
