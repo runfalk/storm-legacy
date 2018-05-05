@@ -2,9 +2,6 @@
 import os
 import re
 
-import ez_setup
-ez_setup.use_setuptools()
-
 from setuptools import setup, Extension, find_packages
 
 
@@ -32,7 +29,7 @@ setup(
     license="LGPL",
     url="https://storm.canonical.com",
     download_url="https://launchpad.net/storm/+download",
-    packages=find_packages(),
+    packages=find_packages(exclude=["tests", "tests.*"]),
     package_data={"": ["*.zcml"]},
     classifiers=[
         "Development Status :: 5 - Production/Stable",

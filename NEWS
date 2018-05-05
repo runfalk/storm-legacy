@@ -13,6 +13,7 @@ Bug fixes
 
 - Fixed SQLObject tests to work with SQLObject 2.x by using Unicode strings for
   LIKE operations.
+- Fixed storm installs tests directory in site-packages (lp:#1199578)
 
 API changes
 -----------

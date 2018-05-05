@@ -22,13 +22,7 @@
 import os
 
 
-# Use a 4-digit version for development versions with 99 as the final version.
-# For example, if 0.15 is the currently released version of Storm, the
-# development version should be version 0.15.0.99.  This will make it obvious
-# that this isn't the 0.15 release version while also allowing us to release
-# an 0.15.1 if need be.  Release versions should use 2-digit version numbers,
-# with 0.16 being the next release version in this example.
-version = "0.20.0.99"
+version = "0.21.0"
 version_info = tuple([int(x) for x in version.split(".")])
 
 
