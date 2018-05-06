@@ -1,0 +1,19 @@
+language: python
+cache: pip
+python:
+  - "2.7"
+addons:
+  postgresql: "10"
+  apt:
+    packages:
+      - postgresql-10
+      - postgresql-client-10
+env:
+  global:
+    - PGPORT=5433
+install:
+  - pip install -e .
+before_script:
+  - psql -c "ALTER USER travis WITH PASSWORD 'travis';"
+script:
+  - STORM_POSTGRES_URI="postgres://travis:travis@localhost:5433/travis" python setup.py test
