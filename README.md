@@ -17,6 +17,7 @@ since I have no intention of maintaining them.
 List of removed features:
 
  * MySQL support
+ * SQLObject support
  * WSGI debug timeline
 
 

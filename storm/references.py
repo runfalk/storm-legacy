@@ -106,9 +106,8 @@ class Reference(object):
     # Must initialize _relation later because we don't want to resolve
     # string references at definition time, since classes refered to might
     # not be available yet.  Notice that this attribute is "public" to the
-    # Proxy class and the SQLObject wrapper.  It's still underlined because
-    # it's *NOT* part of the public API of Storm (we'll modify it without
-    # warnings!).
+    # Proxy class.  It's still underlined because it's *NOT* part of the
+    # public API of Storm (we'll modify it without warnings!).
     _relation = LazyAttribute("_relation", "_build_relation")
 
     def __init__(self, local_key, remote_key, on_remote=False):

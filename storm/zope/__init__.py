@@ -22,11 +22,9 @@ from zope.interface import classImplements
 
 from storm.info import ObjectInfo
 from storm.store import EmptyResultSet, ResultSet
-from storm.zope.interfaces import IResultSet, ISQLObjectResultSet
-from storm import sqlobject as storm_sqlobject
+from storm.zope.interfaces import IResultSet
 
 
-classImplements(storm_sqlobject.SQLObjectResultSet, ISQLObjectResultSet)
 classImplements(ResultSet, IResultSet)
 classImplements(EmptyResultSet, IResultSet)
 
