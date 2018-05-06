@@ -1,3 +1,28 @@
+What is this fork?
+==================
+I use Storm in a private project and the code base is pretty big,
+so switching to SQLAlchemy will be a long and windy road. I'll
+maintain this fork until I've replaced Storm. This will hopefully
+happen before Python 2 EOL in 2020. Unless I decide it's easier to
+patch Storm to support Python 3.
+
+The reason for forking is that Storm hasn't seen a release in
+almost five years; the last release was 0.20 2013-06-28. I forked
+the current trunk on 2018-05-04 which had quite a few fixes for
+things that are broken in 0.20.
+
+I decided to remove a lot of features that I don't personally use,
+since I have no intention of maintaining them.
+
+List of removed features:
+
+ * MySQL support
+ * WSGI debug timeline
+
+
+Description
+===========
+
 Storm is an Object Relational Mapper for Python developed at
 Canonical.  API docs, a manual, and a tutorial are available from:
 
@@ -89,10 +114,12 @@ SHORT VERSION:  If you are running ubuntu, or probably debian, the
 following should work.  If not, and for reference, the long version
 is below.
 
- $ dev/ubuntu-deps
- $ make develop
- $ dev/db-setup
- $ make check
+```bash
+dev/ubuntu-deps
+make develop
+dev/db-setup
+make check
+```
 
 LONG VERSION:
 
@@ -109,10 +136,12 @@ In order to run the test suite, and exercise all supported backends,
 you will need to install MySQL and PostgreSQL, along with the
 related Python database drivers:
 
- $ sudo apt-get install \
-       python-mysqldb mysql-server \
-       postgresql pgbouncer \
-       build-essential
+```bash
+sudo apt-get install \
+    python-mysqldb mysql-server \
+    postgresql pgbouncer \
+    build-essential
+```
 
 These will take a few minutes to download (its a bit under 200MB all
 together).  Once the download is complete, a screen called
@@ -126,21 +155,18 @@ case.
 The Python dependencies for running tests can mostly be installed with
 apt-get:
 
- $ apt-get install \
-       python-fixtures python-psycopg2 \
-       python-testresources python-transaction python-twisted \
-       python-zope.component python-zope.security
+```bash
+apt-get install \
+    python-fixtures python-psycopg2 \
+    python-testresources python-transaction python-twisted \
+    python-zope.component python-zope.security
+```
 
-Two modules - pgbouncer and timeline - are not yet packaged in
-Ubuntu. These can be installed from PyPI:
-
-  http://pypi.python.org/pypi/pgbouncer
-  http://pypi.python.org/pypi/timeline
+One module - pgbouncer - is not yet packaged in Ubuntu. It can be
+installed from PyPI: http://pypi.python.org/pypi/pgbouncer
 
 Alternatively, dependencies can be downloaded as eggs into the current
-directory with:
-
- $ make develop
+directory with: `make develop`
 
 This ensures that all dependencies are available, downloading from
 PyPI as appropriate.
@@ -149,10 +175,12 @@ Setting up database users and access security
 ---------------------------------------------
 
 PostgreSQL needs to be setup to allow TCP/IP connections from
-localhost.  Edit /etc/postgresql/8.3/main/pg_hba.conf and make sure
-the following line is present:
+localhost.  Edit `/etc/postgresql/8.3/main/pg_hba.conf` and make
+sure the following line is present:
 
- host all all 127.0.0.1/32 trust
+```
+host all all 127.0.0.1/32 trust
+```
 
 This will probably (with PostgresSQL 8.4) entail changing 'md5' to
 'trust'.
@@ -161,46 +189,34 @@ In order to run the two-phase commit tests, you will also need to
 change the max_prepared_transactions value in postgres.conf to
 something like
 
-  max_prepared_transactions = 200
+```
+max_prepared_transactions = 200
+```
 
 Now save and close, then restart the server:
 
- $ sudo /etc/init.d/postgresql-8.4 restart
+```bash
+sudo systemctl restart postgresql
+```
 
-Next, you probably noticed that, while MySQL asked us about a root
-user several times, PostgreSQL didn't ask us at all.  Lets create
-our PostgreSQL user now.  As noted in the Ubuntu PostgreSQL
+Lets create our PostgreSQL user now. As noted in the Ubuntu PostgreSQL
 documentation, the easiest thing is to create a user with the same
 name as your username.  Run the following command to create a user
 for yourself (if prompted for a password, leave it blank):
 
- $ sudo -u postgres createuser --superuser $USER
-
-Despite having created our root user already, MySQL requires an
-extra step. First we start mysql as the root user (which, you may
-recall, has no password) with:
-
- $ mysql -u root
-
-Then we create a new user. Be sure to replace YOUR_USERNAME with
-your actual user name (leaving the quotes in place).
-
-mysql> GRANT ALL PRIVILEGES ON *.* TO 'YOUR_USERNAME'@'localhost'
-IDENTIFIED BY '' WITH GRANT OPTION;
+```bash
+sudo -u postgres createuser --superuser $USER
+```
 
 Creating test databases
 -----------------------
 
-The test suite needs some local databases in place to exercise MySQL
-and PostgreSQL functionality.  While still at the MySQL command
-prompt run:
+The test suite needs some local databases in place to exercise
+PostgreSQL functionality:
 
-mysql> CREATE DATABASE storm_test CHARACTER SET utf8;
-
-Use Ctrl+D to exit, then, once back on the standard terminal, run
-the command for PostgreSQL:
-
- $ createdb storm_test
+```bash
+createdb storm_test
+```
 
 Running the tests
 -----------------
@@ -208,7 +224,9 @@ Running the tests
 Finally, its time to run the tests!  Go into the base directory of
 the storm branch you want to test, and run:
 
- $ make check
+```bash
+make check
+```
 
 They'll take a while to run.  All tests should pass: failures mean
 there's a problem with your environment or a bug in Storm.
