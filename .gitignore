@@ -1,8 +1,10 @@
 *.egg-info/
 *.egg/
+*.eggs/
 *.pyc
 *.so
 apidoc/
 build-stamp/
 build/
 dist/
+venv/
