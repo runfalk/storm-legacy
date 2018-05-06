@@ -8,18 +8,36 @@ Improvements
   package, which can apply patches "in parallel" against a set of stores. See
   the module docstring for more information.
 
+- ResultSet can now be used as subquery.
+
+- JSON support for more recent psycopg2 versions.
+
+- Added PostgreSQL JSON operator support (JSONElement and JSONTextElement).
+
+- Added PostgreSQL Case statement support.
+
+- Added a Database.get_uri() method.
+
+- Support Union of result sets of different classes as long as the columns are
+  of the same type.
+
 Bug fixes
 ---------
 
 - Fixed SQLObject tests to work with SQLObject 2.x by using Unicode strings for
   LIKE operations.
+
 - Fixed storm installs tests directory in site-packages (lp:#1199578)
+
+- Fixed psycopg2>=2.5 by using ABCMeta base class injection for exceptions
 
 API changes
 -----------
 
 - Removed Django support, storm.django is no more.
+
 - Removed MySQL support.
+
 - Removed timeline support.
 
 0.20 (2013-06-28)
