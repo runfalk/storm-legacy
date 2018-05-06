@@ -43,14 +43,14 @@ SQLite database to play with, and a store using that database.
 >>>
 }}}
 
-Three databases are supported at the moment: SQLite, MySQL and PostgreSQL.
+Two databases are supported at the moment: SQLite and PostgreSQL.
 The parameter passed to `create_database()` is an URI, as follows:
 
 {{{
 database = create_database("scheme://username:password@hostname:port/database_name")
 }}}
 
-The scheme may be "sqlite", "postgres", or "mysql".
+The scheme may be "sqlite" or "postgres".
 
 Now we have to create the table that will actually hold the data
 for our class.

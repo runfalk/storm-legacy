@@ -89,7 +89,7 @@ class SQLiteResult(Result):
 
     @staticmethod
     def from_database(row):
-        """Convert MySQL-specific datatypes to "normal" Python types.
+        """Convert SQLite-specific datatypes to "normal" Python types.
 
         If there are anny C{buffer} instances in the row, convert them
         to strings.

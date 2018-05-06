@@ -6,8 +6,6 @@ function apt_get() {
 }
 
 apt_get install --no-install-recommends \
-    python-mysqldb \
-    mysql-server \
     postgresql \
     pgbouncer \
     build-essential \

@@ -330,8 +330,6 @@ class DatabaseTest(object):
         that works with data in memory, in fact) becomes a dangerous thing.
 
         For PostgreSQL, isolation level must be SERIALIZABLE.
-        For MySQL, isolation level must be REPEATABLE READ (the default),
-        and the InnoDB engine must be in use.
         For SQLite, the isolation level already is SERIALIZABLE when not
         in autocommit mode.  OTOH, PySQLite is nuts regarding transactional
         behavior, and will easily offer READ COMMITTED behavior inside a
