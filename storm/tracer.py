@@ -186,58 +186,6 @@ class BaseStatementTracer(object):
         raise NotImplementedError(self._expanded_raw_execute)
 
 
-class TimelineTracer(BaseStatementTracer):
-    """Storm tracer class to insert executed statements into a L{Timeline}.
-
-    For more information on timelines see the module at
-    http://pypi.python.org/pypi/timeline.
-
-    The timeline to use is obtained by calling the timeline_factory supplied to
-    the constructor. This simple function takes no parameters and returns a
-    timeline to use. If it returns None, the tracer is bypassed.
-    """
-
-    def __init__(self, timeline_factory, prefix='SQL-'):
-        """Create a TimelineTracer.
-
-        @param timeline_factory: A factory function to produce the timeline to
-            record a query against.
-        @param prefix: A prefix to give the connection name when starting an
-            action. Connection names are found by trying a getattr for 'name'
-            on the connection object. If no name has been assigned, '<unknown>'
-            is used instead.
-        """
-        super(TimelineTracer, self).__init__()
-        self.timeline_factory = timeline_factory
-        self.prefix = prefix
-        # Stores the action in progress in a given thread.
-        self.threadinfo = threading.local()
-
-    def _expanded_raw_execute(self, connection, raw_cursor, statement):
-        timeline = self.timeline_factory()
-        if timeline is None:
-            return
-        connection_name = getattr(connection, 'name', '<unknown>')
-        action = timeline.start(self.prefix + connection_name, statement)
-        self.threadinfo.action = action
-
-    def connection_raw_execute_success(self, connection, raw_cursor,
-                                       statement, params):
-
-        # action may be None if the tracer was installed after the statement
-        # was submitted.
-        action = getattr(self.threadinfo, 'action', None)
-        if action is not None:
-            action.finish()
-
-    def connection_raw_execute_error(self, connection, raw_cursor,
-                                     statement, params, error):
-        # Since we are just logging durations, we execute the same
-        # hook code for errors as successes.
-        self.connection_raw_execute_success(
-            connection, raw_cursor, statement, params)
-
-
 _tracers = []
 
 

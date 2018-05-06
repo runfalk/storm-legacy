@@ -57,7 +57,6 @@ setup(
         "testresources >= 0.2.4",
         "testtools >= 0.9.8",
         # timeline is not yet packaged in Ubuntu.
-        "timeline >= 0.0.2",
         "transaction >= 1.0.0",
         "twisted >= 10.0.0",
         "zope.component >= 3.8.0",

@@ -13,17 +13,11 @@ if has_fixtures:
 else:
     TestWithFixtures = object
 
-try:
-    # Optional dependency, if missing TimelineTracer tests are skipped.
-    import timeline
-    has_timeline = True
-except ImportError:
-    has_timeline = False
 
 from storm.tracer import (trace, install_tracer, get_tracers, remove_tracer,
                           remove_tracer_type, remove_all_tracers, debug,
                           BaseStatementTracer, DebugTracer, TimeoutTracer,
-                          TimelineTracer, TimeoutError, _tracers)
+                          TimeoutError, _tracers)
 from storm.database import Connection, create_database
 from storm.expr import Variable
 
@@ -535,68 +529,6 @@ class BaseStatementTracerTest(TestCase):
             [(conn, 'cursor',
               "Unformattable query: '%s %s' with params [u'substring'].")],
             tracer.calls)
-
-
-class TimelineTracerTest(TestHelper):
-
-    def is_supported(self):
-        return has_timeline
-
-    def factory(self):
-        self.timeline = timeline.Timeline()
-        return self.timeline
-
-    def test_separate_tracers_own_state(self):
-        """Check that multiple TimelineTracer's could be used at once."""
-        tracer1 = TimelineTracer(self.factory)
-        tracer2 = TimelineTracer(self.factory)
-        tracer1.threadinfo.action = 'foo'
-        self.assertEqual(None, getattr(tracer2.threadinfo, 'action', None))
-
-    def test_error_finishes_action(self):
-        tracer = TimelineTracer(self.factory)
-        action = timeline.Timeline().start('foo', 'bar')
-        tracer.threadinfo.action = action
-        tracer.connection_raw_execute_error(
-            'conn', 'cursor', 'statement', 'params', 'error')
-        self.assertNotEqual(None, action.duration)
-
-    def test_success_finishes_action(self):
-        tracer = TimelineTracer(self.factory)
-        action = timeline.Timeline().start('foo', 'bar')
-        tracer.threadinfo.action = action
-        tracer.connection_raw_execute_success(
-            'conn', 'cursor', 'statement', 'params')
-        self.assertNotEqual(None, action.duration)
-
-    def test_finds_timeline_from_factory(self):
-        factory_result = timeline.Timeline()
-        tracer = TimelineTracer(lambda: factory_result)
-        tracer._expanded_raw_execute('conn', 'cursor', 'statement')
-        self.assertEqual(1, len(factory_result.actions))
-
-    def test_action_details_are_statement(self):
-        """The detail in the timeline action is the formatted SQL statement."""
-        tracer = TimelineTracer(self.factory)
-        tracer._expanded_raw_execute('conn', 'cursor', 'statement')
-        self.assertEqual('statement', self.timeline.actions[-1].detail)
-
-    def test_category_from_prefix_and_connection_name(self):
-        tracer = TimelineTracer(self.factory, prefix='bar-')
-        tracer._expanded_raw_execute(StubConnection(), 'cursor', 'statement')
-        self.assertEqual('bar-Foo', self.timeline.actions[-1].category)
-
-    def test_unnamed_connection(self):
-        """A connection with no name has <unknown> put in as a placeholder."""
-        tracer = TimelineTracer(self.factory, prefix='bar-')
-        tracer._expanded_raw_execute('conn', 'cursor', 'statement')
-        self.assertEqual('bar-<unknown>', self.timeline.actions[-1].category)
-
-    def test_default_prefix(self):
-        """By default the prefix "SQL-" is added to the action's category."""
-        tracer = TimelineTracer(self.factory)
-        tracer._expanded_raw_execute('conn', 'cursor', 'statement')
-        self.assertEqual('SQL-<unknown>', self.timeline.actions[-1].category)
 
 
 class CaptureTracerTest(TestHelper, TestWithFixtures):
