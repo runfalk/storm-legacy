@@ -20,6 +20,7 @@ List of removed features:
  * SQLObject support
  * Twisted integration
  * WSGI debug timeline
+ * Zope integration
 
 
 Description

@@ -95,14 +95,6 @@ def find_tests(testpaths=()):
                     unittest.defaultTestLoader.loadTestsFromModule(module))
             elif filename.endswith(".txt"):
                 load_test = True
-                if relpath == os.path.join("tests", "zope", "README.txt"):
-                    # Special case the inclusion of the Zope-dependent
-                    # ZStorm doctest.
-                    import tests.zope as ztest
-                    load_test = (
-                        ztest.has_transaction and
-                        ztest.has_zope_component and
-                        ztest.has_zope_security)
                 if load_test:
                     parent_path = os.path.dirname(relpath).replace(
                         os.path.sep, ".")
