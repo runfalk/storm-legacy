@@ -55,13 +55,6 @@ def test_with_runner(runner):
     return not result.wasSuccessful()
 
 
-def test_with_trial():
-    from twisted.trial.reporter import TreeReporter
-    from twisted.trial.runner import TrialRunner
-    runner = TrialRunner(reporterFactory=TreeReporter, realTimeErrors=True)
-    return test_with_runner(runner)
-
-
 def test_with_unittest():
     runner = unittest.TextTestRunner()
     return test_with_runner(runner)

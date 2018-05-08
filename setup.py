@@ -56,9 +56,7 @@ setup(
         "psycopg2 >= 2.0.13",
         "testresources >= 0.2.4",
         "testtools >= 0.9.8",
-        # timeline is not yet packaged in Ubuntu.
         "transaction >= 1.0.0",
-        "twisted >= 10.0.0",
         "zope.component >= 3.8.0",
         # zope.component 3.11.0 requires a version of zope.interface that no
         # version of Ubuntu yet packages. The following rule exists for the

@@ -18,6 +18,7 @@ List of removed features:
 
  * MySQL support
  * SQLObject support
+ * Twisted integration
  * WSGI debug timeline
 
 

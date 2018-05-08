@@ -13,7 +13,6 @@ apt_get install --no-install-recommends \
     python-psycopg2 \
     python-testresources \
     python-transaction \
-    python-twisted \
     python-zope.component \
     python-zope.security \
     python-setuptools
