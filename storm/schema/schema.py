@@ -42,6 +42,7 @@ For example:
 where patch_module is a Python module containing database patches used to
 upgrade the schema over time.
 """
+from __future__ import print_function
 
 import types
 
@@ -96,7 +97,7 @@ class Schema(object):
             try:
                 store.execute(statement)
             except Exception:
-                print "Error running %s" % statement
+                print("Error running %s" % statement)
                 raise
         if self._autocommit:
             store.commit()
@@ -172,7 +173,7 @@ class Schema(object):
         except SchemaMissingError:
             # No schema at all. Create it from the ground.
             self.create(store)
-        except UnappliedPatchesError, error:
+        except UnappliedPatchesError as error:
             patch_applier.check_unknown()
             for version in error.unapplied_versions:
                 self.advance(store, version)

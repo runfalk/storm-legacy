@@ -143,7 +143,7 @@ class VariableTest(TestHelper):
         variable = CustomVariable(allow_none=False, column=column)
         try:
             variable.set(None)
-        except NoneError, e:
+        except NoneError as e:
             pass
         self.assertTrue("column_name" in str(e))
 
@@ -152,7 +152,7 @@ class VariableTest(TestHelper):
         variable = CustomVariable(allow_none=False, column=column)
         try:
             variable.set(None)
-        except NoneError, e:
+        except NoneError as e:
             pass
         self.assertTrue("table_name.column_name" in str(e))
 
@@ -467,7 +467,7 @@ class DateTimeVariableTest(TestHelper):
         self.assertEquals(variable.get(), epoch)
         variable.set(0.0)
         self.assertEquals(variable.get(), epoch)
-        variable.set(0L)
+        variable.set(0)
         self.assertEquals(variable.get(), epoch)
         variable.set(epoch)
         self.assertEquals(variable.get(), epoch)
@@ -769,7 +769,7 @@ class ParseIntervalTest(TestHelper):
     def test_unsupported_unit(self):
         try:
             self.check("1 month", None)
-        except ValueError, e:
+        except ValueError as e:
             self.assertEquals(str(e), "Unsupported interval unit 'month' "
                                       "in interval '1 month'")
         else:
@@ -778,7 +778,7 @@ class ParseIntervalTest(TestHelper):
     def test_missing_value(self):
         try:
             self.check("day", None)
-        except ValueError, e:
+        except ValueError as e:
             self.assertEquals(str(e), "Expected an interval value rather than "
                                       "'day' in interval 'day'")
         else:

@@ -51,9 +51,9 @@ def compile_select_sqlite(compile, select, state):
         if sys.maxsize > 2**32:
             # On 64-bit platforms sqlite doesn't like maxint as LIMIT. See also
             # https://lists.ubuntu.com/archives/storm/2013-June/001492.html
-            select.limit = sys.maxint - 1
+            select.limit = sys.maxsize - 1
         else:
-            select.limit = sys.maxint
+            select.limit = sys.maxsize
     statement = compile_select(compile, select, state)
     if state.context is SELECT:
         # SQLite breaks with (SELECT ...) UNION (SELECT ...), so we
@@ -157,7 +157,7 @@ class SQLiteConnection(Connection):
         while True:
             try:
                 return Connection.raw_execute(self, statement, params)
-            except sqlite.OperationalError, e:
+            except sqlite.OperationalError as e:
                 if str(e) != "database is locked":
                     raise
                 elif now() - started < self._database._timeout:

@@ -24,6 +24,7 @@ from weakref import WeakKeyDictionary
 from copy import copy
 import re
 
+from storm.compat import long_int
 from storm.exceptions import CompileError, NoTableError, ExprError
 from storm.variables import (
     Variable, RawStrVariable, UnicodeVariable, LazyValue,
@@ -216,7 +217,7 @@ class CompilePython(Compile):
                 "    return match" %
                 (",".join("_%d" % i for i in range(len(state.parameters))),
                  source))
-        exec code in namespace
+        exec(code, namespace)
         return namespace['closure'](state.parameters, bool)
 
 
@@ -313,7 +314,7 @@ def compile_unicode(compile, expr, state):
     state.parameters.append(UnicodeVariable(expr))
     return "?"
 
-@compile.when(int, long)
+@compile.when(int, long_int)
 def compile_int(compile, expr, state):
     state.parameters.append(IntVariable(expr))
     return "?"
@@ -358,7 +359,7 @@ def compile_none(compile, expr, state):
     return "NULL"
 
 
-@compile_python.when(str, unicode, int, long, float, type(None))
+@compile_python.when(str, unicode, int, long_int, float, type(None))
 def compile_python_builtin(compile, expr, state):
     return repr(expr)
 

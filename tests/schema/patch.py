@@ -345,7 +345,7 @@ class PatchApplierTest(MockerTestCase):
         self.add_module("patch_999.py", patch_no_args_apply)
         try:
             self.patch_applier.apply_all()
-        except BadPatchError, e:
+        except BadPatchError as e:
             self.assertTrue("mypackage/patch_999.py" in str(e))
             self.assertTrue("takes no arguments" in str(e))
             self.assertTrue("TypeError" in str(e))
@@ -360,7 +360,7 @@ class PatchApplierTest(MockerTestCase):
         self.add_module("patch_999.py", patch_missing_apply)
         try:
             self.patch_applier.apply_all()
-        except BadPatchError, e:
+        except BadPatchError as e:
             self.assertTrue("mypackage/patch_999.py" in str(e))
             self.assertTrue("no attribute" in str(e))
             self.assertTrue("AttributeError" in str(e))
@@ -375,7 +375,7 @@ class PatchApplierTest(MockerTestCase):
         self.add_module("patch_999.py", "that's not python")
         try:
             self.patch_applier.apply_all()
-        except BadPatchError, e:
+        except BadPatchError as e:
             self.assertTrue(" 999 " in str(e))
             self.assertTrue("SyntaxError" in str(e))
         else:
@@ -389,7 +389,7 @@ class PatchApplierTest(MockerTestCase):
         self.add_module("patch_999.py", patch_name_error)
         try:
             self.patch_applier.apply_all()
-        except BadPatchError, e:
+        except BadPatchError as e:
             self.assertTrue("mypackage/patch_999.py" in str(e))
             self.assertTrue("NameError" in str(e))
             self.assertTrue("blah" in str(e))

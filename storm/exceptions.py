@@ -144,7 +144,7 @@ def install_exceptions(module):
                       DataError, NotSupportedError, InterfaceError):
         module_exception = getattr(module, exception.__name__, None)
         if (module_exception is not None and
-            isinstance(module_exception, (type, types.ClassType))):
+            isinstance(module_exception, type)):
             # XXX This may need to be revisited when porting to Python 3 if
             # virtual subclasses are still ignored for exception handling
             # (https://bugs.python.org/issue12029).

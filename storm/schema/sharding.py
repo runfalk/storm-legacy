@@ -101,7 +101,7 @@ class Sharding(object):
                 schema.check(store)
             except SchemaMissingError:
                 schema.create(store)
-            except UnappliedPatchesError, error:
+            except UnappliedPatchesError as error:
                 if not unapplied_versions:
                     unapplied_versions = error.unapplied_versions
                 elif unapplied_versions != error.unapplied_versions:

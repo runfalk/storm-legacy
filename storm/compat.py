@@ -19,13 +19,34 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-__all__ = ["json"]
+import json
+import sys
 
 
-try:
-    import json
-except ImportError:
-    try:
-        import simplejson as json
-    except ImportError:
-        json = None
+__all__ = [
+    "bstr",
+    "is_python2",
+    "long_int",
+    "json",
+    "ustr",
+    "version",
+]
+
+
+version = sys.version_info[:2]
+
+
+if version >= (3, 0):
+    is_python2 = False
+
+    bstr = bytes
+    ustr = str
+    iter_range = range
+    long_int = int
+else:
+    is_python2 = True
+
+    bstr = str
+    ustr = unicode
+    iter_range = xrange
+    long_int = long

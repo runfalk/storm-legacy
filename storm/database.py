@@ -318,7 +318,7 @@ class Connection(object):
                         self._raw_connection.tpc_rollback()
                     else:
                         self._raw_connection.rollback()
-                except Error, exc:
+                except Error as exc:
                     if self.is_disconnection_error(exc):
                         self._raw_connection = None
                         self._state = STATE_RECONNECT
@@ -386,7 +386,7 @@ class Connection(object):
         """Complete the statement execution, along with result reports."""
         try:
             self._check_disconnect(raw_cursor.execute, *args)
-        except Exception, error:
+        except Exception as error:
             self._check_disconnect(
                 trace, "connection_raw_execute_error", self, raw_cursor,
                 statement, params or (), error)
@@ -402,7 +402,7 @@ class Connection(object):
             self._check_disconnect(
                 trace, "connection_raw_execute", self, raw_cursor,
                 statement, params or ())
-        except Exception, error:
+        except Exception as error:
             self._check_disconnect(
                 trace, "connection_raw_execute_error", self, raw_cursor,
                 statement, params or (), error)
@@ -423,7 +423,7 @@ class Connection(object):
         elif self._state == STATE_RECONNECT:
             try:
                 self._raw_connection = self._database.raw_connect()
-            except DatabaseError, exc:
+            except DatabaseError as exc:
                 self._state = STATE_DISCONNECTED
                 self._raw_connection = None
                 raise DisconnectionError(str(exc))
@@ -452,7 +452,7 @@ class Connection(object):
             'extra_disconnection_errors', ())
         try:
             return function(*args, **kwargs)
-        except Exception, exc:
+        except Exception as exc:
             if self.is_disconnection_error(exc, extra_disconnection_errors):
                 self._state = STATE_DISCONNECTED
                 self._raw_connection = None

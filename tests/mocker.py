@@ -487,7 +487,7 @@ class MockerBase(object):
         for event in self._events:
             try:
                 event.verify()
-            except AssertionError, e:
+            except AssertionError as e:
                 error = str(e)
                 if not error:
                     raise RuntimeError("Empty error message from %r"
@@ -1029,7 +1029,7 @@ class Mock(object):
             path.root_object = object
         try:
             return self.__mocker__.act(path)
-        except MatchError, exception:
+        except MatchError as exception:
             root_mock = path.root_mock
             if (path.root_object is not None and
                 root_mock.__mocker_passthrough__):
@@ -1037,7 +1037,7 @@ class Mock(object):
             # Reinstantiate to show raise statement on traceback, and
             # also to make the traceback shown shorter.
             raise MatchError(str(exception))
-        except AssertionError, e:
+        except AssertionError as e:
             lines = str(e).splitlines()
             message = [ERROR_PREFIX + "Unmet expectation:", ""]
             message.append("=> " + lines.pop(0))
@@ -1083,7 +1083,7 @@ class Mock(object):
         # something that doesn't offer them.
         try:
             result = self.__mocker_act__("len")
-        except MatchError, e:
+        except MatchError as e:
             raise AttributeError(str(e))
         if type(result) is Mock:
             return 0
@@ -1092,7 +1092,7 @@ class Mock(object):
     def __nonzero__(self):
         try:
             return self.__mocker_act__("nonzero")
-        except MatchError, e:
+        except MatchError as e:
             return True
 
     def __iter__(self):
@@ -1519,7 +1519,7 @@ class Event(object):
         for task in self._tasks:
             try:
                 task_result = task.run(path)
-            except AssertionError, e:
+            except AssertionError as e:
                 error = str(e)
                 if not error:
                     raise RuntimeError("Empty error message from %r" % task)
@@ -1562,7 +1562,7 @@ class Event(object):
         for task in self._tasks:
             try:
                 task.verify()
-            except AssertionError, e:
+            except AssertionError as e:
                 error = str(e)
                 if not error:
                     raise RuntimeError("Empty error message from %r" % task)
@@ -1672,7 +1672,7 @@ class RunCounter(Task):
     def __init__(self, min, max=False):
         self.min = min
         if max is None:
-            self.max = sys.maxint
+            self.max = sys.maxsize
         elif max is False:
             self.max = min
         else:

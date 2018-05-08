@@ -114,7 +114,7 @@ class SQLiteFileTest(SQLiteMemoryTest):
         started = time.time()
         try:
             connection2.execute("INSERT INTO test VALUES (2)")
-        except OperationalError, exception:
+        except OperationalError as exception:
             self.assertEquals(str(exception), "database is locked")
             self.assertTrue(time.time()-started >= 0.3)
         else:
@@ -141,7 +141,7 @@ class SQLiteFileTest(SQLiteMemoryTest):
         started = time.time()
         try:
             connection1.commit()
-        except OperationalError, exception:
+        except OperationalError as exception:
             self.assertEquals(str(exception), "database is locked")
             # In 0.10, the next assertion failed because the timeout wasn't
             # enforced for the "COMMIT" statement.

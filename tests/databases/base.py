@@ -192,10 +192,10 @@ class DatabaseTest(object):
                                           "ORDER BY id DESC")
         iter1 = iter(result1)
         iter2 = iter(result2)
-        self.assertEquals(iter1.next(), (10, "Title 10"))
-        self.assertEquals(iter2.next(), (20, "Title 20"))
-        self.assertEquals(iter1.next(), (20, "Title 20"))
-        self.assertEquals(iter2.next(), (10, "Title 10"))
+        self.assertEquals(next(iter1), (10, "Title 10"))
+        self.assertEquals(next(iter2), (20, "Title 20"))
+        self.assertEquals(next(iter1), (20, "Title 20"))
+        self.assertEquals(next(iter2), (10, "Title 10"))
         self.assertRaises(StopIteration, iter1.next)
         self.assertRaises(StopIteration, iter2.next)
 
@@ -344,7 +344,7 @@ class DatabaseTest(object):
                 connection2.execute("UPDATE test SET title='Title 100' "
                                     "WHERE id=10")
                 connection2.commit()
-            except OperationalError, e:
+            except OperationalError as e:
                 self.assertEquals(str(e), "database is locked") # SQLite blocks
             result = connection1.execute("SELECT title FROM test WHERE id=10")
             self.assertEquals(result.get_one(), ("Title 10",))
@@ -383,7 +383,7 @@ class DatabaseTest(object):
     def test_wb_result_iter_goes_through_from_database(self):
         result = self.connection.execute("SELECT one, two FROM number")
         result.from_database = self.from_database
-        self.assertEquals(iter(result).next(), (2, 3))
+        self.assertEquals(next(iter(result)), (2, 3))
 
     def test_rowcount_insert(self):
         # All supported backends support rowcount, so far.
@@ -770,7 +770,7 @@ class DatabaseDisconnectionTest(DatabaseDisconnectionMixin):
             cursor = self.connection._raw_connection.cursor()
             cursor.execute("SELECT 1")
             cursor.fetchone()
-        except Error, exc:
+        except Error as exc:
             self.assertTrue(self.connection.is_disconnection_error(exc))
         else:
             self.fail("Disconnection was not caught.")
@@ -779,7 +779,7 @@ class DatabaseDisconnectionTest(DatabaseDisconnectionMixin):
         # error when called.
         try:
             self.connection._raw_connection.rollback()
-        except Error, exc:
+        except Error as exc:
             self.assertTrue(self.connection.is_disconnection_error(exc))
         else:
             self.fail("Disconnection was not raised.")
@@ -803,7 +803,7 @@ class DatabaseDisconnectionTest(DatabaseDisconnectionMixin):
             cursor = self.connection._raw_connection.cursor()
             cursor.execute("SELECT 1")
             cursor.fetchone()
-        except DatabaseError, exc:
+        except DatabaseError as exc:
             self.assertTrue(self.connection.is_disconnection_error(exc))
         else:
             self.fail("Disconnection was not caught.")

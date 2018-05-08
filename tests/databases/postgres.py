@@ -741,7 +741,7 @@ class PostgresDisconnectionTest(DatabaseDisconnectionTest, TwoPhaseCommitDisconn
         self.connection._raw_connection = FakeConnection()
         try:
             self.connection.rollback()
-        except Exception, exc:
+        except Exception as exc:
             self.fail('Exception should have been swallowed: %s' % repr(exc))
 
 
@@ -875,7 +875,7 @@ class PostgresTimeoutTracerTest(TimeoutTracerTestBase):
         self.remaining_time = 0.001
         try:
             self.connection.execute(statement)
-        except TimeoutError, e:
+        except TimeoutError as e:
             self.assertEqual("SQL server cancelled statement", e.message)
             self.assertEqual(statement, e.statement)
             self.assertEqual((), e.params)

@@ -1546,7 +1546,7 @@ class StoreTest(object):
         result.group_by(FooValue.value2)
         result.order_by(Count(FooValue.id), Sum(FooValue.value1))
         result = list(result)
-        self.assertEquals(result, [(2L, 2L), (2L, 2L), (2L, 3L), (3L, 6L)])
+        self.assertEquals(result, [(2, 2), (2, 2), (2, 3), (3, 6)])
 
     def test_find_group_by_table(self):
         result = self.store.find(
@@ -5900,7 +5900,7 @@ class StoreTest(object):
             self.store.commit()
             try:
                 self.assertEquals(myfoo.title, title)
-            except AssertionError, e:
+            except AssertionError as e:
                 raise AssertionError(unicode(e, 'replace') +
                     " (ensure your database was created with CREATE DATABASE"
                     " ... CHARACTER SET utf8)")

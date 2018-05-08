@@ -260,7 +260,7 @@ class PropertyRegistry(object):
                 i += 1
         else:
             namespace_parts = ("." + namespace).split(".")
-            best_path_info = (0, sys.maxint)
+            best_path_info = (0, sys.maxsize)
             while i < l and self._properties[i][0].startswith(key):
                 path, prop_ref = self._properties[i]
                 prop = prop_ref()

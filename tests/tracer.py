@@ -284,7 +284,7 @@ class TimeoutTracerTest(TimeoutTracerTestBase):
 
         try:
             self.execute()
-        except TimeoutError, e:
+        except TimeoutError as e:
             self.assertEqual("0 seconds remaining in time budget", e.message)
             self.assertEqual(self.statement, e.statement)
             self.assertEqual(self.params, e.params)
@@ -594,7 +594,7 @@ class CaptureTracerTest(TestHelper, TestWithFixtures):
         try:
             with CaptureTracer():
                 raise RuntimeError("boom")
-        except RuntimeError, error:
+        except RuntimeError as error:
             errors.append(error)
         [error] = errors
         self.assertEqual("boom", str(error))
