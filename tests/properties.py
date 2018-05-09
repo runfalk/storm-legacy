@@ -18,15 +18,13 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+import gc
+import json
+import uuid
+
 from datetime import datetime, date, time, timedelta
 from decimal import Decimal as decimal
-import gc
-try:
-    import uuid
-except ImportError:
-    uuid = None
 
-from storm.compat import json
 from storm.exceptions import NoneError, PropertyPathError
 from storm.properties import PropertyPublisherMeta
 from storm.properties import *

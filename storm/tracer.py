@@ -5,6 +5,7 @@ import threading
 
 # Circular import: imported at the end of the module.
 # from storm.database import convert_param_marks
+from storm.compat import iter_range, ustr
 from storm.exceptions import TimeoutError
 from storm.expr import Variable
 
@@ -169,7 +170,7 @@ class BaseStatementTracer(object):
             # string parameters which represent encoded binary data.
             render_params = []
             for param in query_params:
-                if isinstance(param, unicode):
+                if isinstance(param, ustr):
                     render_params.append(repr(param.encode('utf8')))
                 else:
                     render_params.append(repr(param))
@@ -216,15 +217,17 @@ def remove_tracer(tracer):
 
 
 def remove_tracer_type(tracer_type):
-    for i in range(len(_tracers) - 1, -1, -1):
-        if type(_tracers[i]) is tracer_type:
-            del _tracers[i]
+    _tracers[:] = [
+        tracer for tracer in _tracers
+        if type(tracer) is not tracer_type
+    ]
 
 
 def debug(flag, stream=None):
     remove_tracer_type(DebugTracer)
     if flag:
         install_tracer(DebugTracer(stream=stream))
+
 
 # Deal with circular import.
 from storm.database import convert_param_marks

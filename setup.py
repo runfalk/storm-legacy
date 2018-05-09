@@ -53,7 +53,7 @@ setup(
         "fixtures >= 0.3.5",
         # pgbouncer (the Python module) is not yet packaged in Ubuntu.
         "pgbouncer >= 0.0.7",
-        "psycopg2 >= 2.0.13",
+        "psycopg2 >= 2.5",
         "testresources >= 0.2.4",
         "testtools >= 0.9.8",
         ],

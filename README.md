@@ -17,6 +17,7 @@ since I have no intention of maintaining them.
 List of removed features:
 
  * MySQL support
+ * Python 2.6 and earlier support
  * SQLObject support
  * Twisted integration
  * WSGI debug timeline

@@ -22,6 +22,7 @@ from bisect import insort_left, bisect_left
 import weakref
 import sys
 
+from storm.compat import iter_items, iter_zip
 from storm.exceptions import PropertyPathError
 from storm.info import get_obj_info, get_cls_info
 from storm.expr import Column, Undef
@@ -76,7 +77,7 @@ class Property(object):
     def _detect_attr_name(self, used_cls):
         self_id = id(self)
         for cls in used_cls.__mro__:
-            for attr, prop in cls.__dict__.items():
+            for attr, prop in iter_items(cls.__dict__):
                 if id(prop) == self_id:
                     return attr
         raise RuntimeError("Property used in an unknown class")
@@ -218,7 +219,7 @@ class Enum(SimpleProperty):
 
     def __init__(self, name=None, primary=False, **kwargs):
         set_map = dict(kwargs.pop("map"))
-        get_map = dict((value, key) for key, value in set_map.items())
+        get_map = {value: key for key, value in iter_items(set_map)}
         if "set_map" in kwargs:
             set_map = dict(kwargs.pop("set_map"))
 
@@ -270,7 +271,7 @@ class PropertyRegistry(object):
                 path_parts = path.split(".")
                 path_parts.reverse()
                 common_prefix = 0
-                for part, ns_part in zip(path_parts, namespace_parts):
+                for part, ns_part in iter_zip(path_parts, namespace_parts):
                     if part == ns_part:
                         common_prefix += 1
                     else:

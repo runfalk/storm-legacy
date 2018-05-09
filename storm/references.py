@@ -20,6 +20,7 @@
 #
 import weakref
 
+from storm.compat import iter_items, iter_zip, string_types
 from storm.exceptions import (
     ClassInfoError, FeatureError, NoStoreError, WrongStoreError)
 from storm.store import Store, get_where_for_args, LostObjectError
@@ -459,7 +460,7 @@ class Relation(object):
 
         primary_key = get_cls_info(self.remote_cls).primary_key
         if len(primary_key) == len(self.remote_key):
-            for column1, column2 in zip(self.remote_key, primary_key):
+            for column1, column2 in iter_zip(self.remote_key, primary_key):
                 if column1.name != column2.name:
                     break
             else:
@@ -577,7 +578,7 @@ class Relation(object):
             if type(remote) is not tuple:
                 remote = (remote,)
             assert len(remote) == len(local_variables)
-            for variable, value in zip(local_variables, remote):
+            for variable, value in iter_zip(local_variables, remote):
                 variable.set(value)
             return
 
@@ -620,8 +621,8 @@ class Relation(object):
         if setting:
             local_vars = local_info.variables
             remote_vars = remote_info.variables
-            pairs = zip(self._get_local_columns(local.__class__),
-                        self.remote_key)
+            pairs = iter_zip(self._get_local_columns(local.__class__),
+                             self.remote_key)
             if self.on_remote:
                 local_has_changed = False
                 for local_column, remote_column in pairs:
@@ -875,8 +876,8 @@ class Relation(object):
             return self._l_to_r[local_cls].get(local_column)
         except KeyError:
             map = {}
-            for local_prop, _remote_column in zip(self.local_key,
-                                                  self.remote_key):
+            for local_prop, _remote_column in iter_zip(self.local_key,
+                                                       self.remote_key):
                 map[local_prop.__get__(None, local_cls)] = _remote_column
             return self._l_to_r.setdefault(local_cls, map).get(local_column)
 
@@ -885,8 +886,8 @@ class Relation(object):
             return self._r_to_l[local_cls].get(remote_column)
         except KeyError:
             map = {}
-            for local_prop, _remote_column in zip(self.local_key,
-                                                   self.remote_key):
+            for local_prop, _remote_column in iter_zip(self.local_key,
+                                                       self.remote_key):
                 map[_remote_column] = local_prop.__get__(None, local_cls)
             return self._r_to_l.setdefault(local_cls, map).get(remote_column)
 
@@ -909,7 +910,7 @@ class PropertyResolver(object):
     def resolve_one(self, property):
         if type(property) is tuple:
             return self.resolve(property)
-        elif isinstance(property, basestring):
+        elif isinstance(property, string_types):
             return self._resolve_string(property)
         elif isinstance(property, SuffixExpr):
             # XXX This covers cases like order_by=Desc("Bar.id"), see #620369.
@@ -937,14 +938,14 @@ class PropertyResolver(object):
 
 def _find_descriptor_class(used_cls, descr):
     for cls in used_cls.__mro__:
-        for attr, _descr in cls.__dict__.iteritems():
+        for attr, _descr in iter_items(cls.__dict__):
             if _descr is descr:
                 return cls
     raise RuntimeError("Reference used in an unknown class")
 
 def _find_descriptor_obj(used_cls, descr):
     for cls in used_cls.__mro__:
-        for attr, _descr in cls.__dict__.iteritems():
+        for attr, _descr in iter_items(cls.__dict__):
             if _descr is descr:
                 return getattr(cls, attr)
     raise RuntimeError("Reference used in an unknown class")

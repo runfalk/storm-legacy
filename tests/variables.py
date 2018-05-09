@@ -18,17 +18,15 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+import gc
+import json
+import uuid
+import weakref
+
 from datetime import datetime, date, time, timedelta
 from decimal import Decimal
-import cPickle as pickle
-import gc
-import weakref
-try:
-    import uuid
-except ImportError:
-    uuid = None
 
-from storm.compat import json
+from storm.compat import pickle
 from storm.exceptions import NoneError
 from storm.variables import *
 from storm.event import EventSystem

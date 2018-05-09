@@ -18,13 +18,19 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from urllib import quote
 
+try:
+    from urllib.parse import quote, unquote
+except ImportError:
+    # Python 2
+    from urllib import quote, unquote
+
+
+from storm.compat import iter_items
 from storm.exceptions import URIError
 
 
 class URI(object):
-
     username = None
     password = None
     host = None
@@ -102,10 +108,12 @@ class URI(object):
             append(escape(self.database, "/"))
         if self.options:
             options = ["%s=%s" % (escape(key), escape(value))
-                       for key, value in sorted(self.options.iteritems())]
+                       for key, value in sorted(iter_items(self.options))]
             append("?")
             append("&".join(options))
         return "".join(tokens)
+
+    __unicode__ = __str__
 
 
 def escape(s, safe=""):
@@ -113,15 +121,4 @@ def escape(s, safe=""):
 
 
 def unescape(s):
-    if "%" not in s:
-        return s
-    i = 0
-    j = s.find("%")
-    r = []
-    while j != -1:
-        r.append(s[i:j])
-        i = j+3
-        r.append(chr(int(s[j+1:i], 16)))
-        j = s.find("%", i)
-    r.append(s[i:])
-    return "".join(r)
+    return unquote(s)

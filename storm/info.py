@@ -20,6 +20,7 @@
 #
 from weakref import ref
 
+from storm.compat import iter_values, string_types
 from storm.exceptions import ClassInfoError
 from storm.expr import Column, Desc, TABLE
 from storm.expr import compile, Table
@@ -73,7 +74,7 @@ class ClassInfo(dict):
 
         self.cls = cls
 
-        if isinstance(self.table, basestring):
+        if isinstance(self.table, string_types):
             self.table = Table(self.table)
 
         pairs = []
@@ -131,7 +132,7 @@ class ClassInfo(dict):
                 __order__ = (__order__,)
             self.default_order = []
             for item in __order__:
-                if isinstance(item, basestring):
+                if isinstance(item, string_types):
                     if item.startswith("-"):
                         prop = Desc(getattr(cls, item[1:]))
                     else:
@@ -192,7 +193,7 @@ class ObjectInfo(dict):
         self.event.emit("object-deleted")
 
     def checkpoint(self):
-        for variable in self.variables.itervalues():
+        for variable in iter_values(self.variables):
             variable.checkpoint()
 
 

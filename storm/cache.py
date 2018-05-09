@@ -1,5 +1,6 @@
 import itertools
 
+from storm.compat import iter_items
 
 class Cache(object):
     """Prevents recently used objects from being deallocated.
@@ -140,8 +141,8 @@ class GenerationalCache(object):
         objects, but no more than twice that number.
         """
         self._size = size
-        cache = itertools.islice(itertools.chain(self._new_cache.iteritems(),
-                                                 self._old_cache.iteritems()),
+        cache = itertools.islice(itertools.chain(iter_items(self._new_cache),
+                                                 iter_items(self._old_cache)),
                                  0, size)
         self._new_cache = dict(cache)
         self._old_cache.clear()

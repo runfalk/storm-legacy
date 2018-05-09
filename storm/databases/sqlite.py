@@ -32,6 +32,7 @@ except ImportError:
     except ImportError:
         sqlite = dummy
 
+from storm.compat import bstr, ustr
 from storm.variables import Variable, RawStrVariable
 from storm.database import Database, Connection, Result
 from storm.exceptions import install_exceptions, DatabaseModuleError
@@ -84,7 +85,7 @@ class SQLiteResult(Result):
     def set_variable(variable, value):
         if isinstance(variable, RawStrVariable):
             # pysqlite2 may return unicode.
-            value = str(value)
+            value = bstr(value)
         variable.set(value, from_db=True)
 
     @staticmethod
@@ -96,7 +97,7 @@ class SQLiteResult(Result):
         """
         for value in row:
             if isinstance(value, buffer):
-                yield str(value)
+                yield bstr(value)
             else:
                 yield value
 
@@ -118,8 +119,8 @@ class SQLiteConnection(Connection):
             if isinstance(param, Variable):
                 param = param.get(to_db=True)
             if isinstance(param, (datetime, date, time, timedelta)):
-                yield str(param)
-            elif isinstance(param, str):
+                yield ustr(param)
+            elif isinstance(param, bstr):
                 yield buffer(param)
             else:
                 yield param
@@ -158,7 +159,7 @@ class SQLiteConnection(Connection):
             try:
                 return Connection.raw_execute(self, statement, params)
             except sqlite.OperationalError as e:
-                if str(e) != "database is locked":
+                if ustr(e) != "database is locked":
                     raise
                 elif now() - started < self._database._timeout:
                     # pysqlite didn't handle the timeout correctly,

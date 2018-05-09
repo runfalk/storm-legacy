@@ -22,25 +22,15 @@
 from datetime import datetime, date, time, timedelta
 import json
 
-from distutils.version import LooseVersion
-
 from storm.databases import dummy
 
-# PostgreSQL support in Storm requires psycopg2 2.0.7 or greater.
-# Earlier versions of psyocpg2 contain data loss bugs.
-# See https://bugs.launchpad.net/storm/+bug/322206 for more details.
-REQUIRED_PSYCOPG2_VERSION = LooseVersion('2.0.7')
-PSYCOPG2_VERSION = None
 try:
     import psycopg2
-    PSYCOPG2_VERSION = LooseVersion(psycopg2.__version__.split(' ')[0])
-    if PSYCOPG2_VERSION < REQUIRED_PSYCOPG2_VERSION:
-        psycopg2 = dummy
-    else:
-        import psycopg2.extensions
+    import psycopg2.extensions
 except ImportError:
     psycopg2 = dummy
 
+from storm.compat import bstr, iter_zip, ustr
 from storm.expr import (
     Undef, Expr, SetExpr, Select, Insert, Alias, And, Eq, FuncExpr, SQLRaw,
     Sequence, Like, SQLToken, BinaryOper, COLUMN, COLUMN_NAME, COLUMN_PREFIX,
@@ -252,7 +242,7 @@ class PostgresResult(Result):
 
     def get_insert_identity(self, primary_key, primary_variables):
         equals = []
-        for column, variable in zip(primary_key, primary_variables):
+        for column, variable in iter_zip(primary_key, primary_variables):
             if not variable.is_defined():
                 # The Select here prevents PostgreSQL from going nuts and
                 # performing a sequential scan when there *is* an index.
@@ -298,8 +288,8 @@ class PostgresConnection(Connection):
             # trip to the database for obtaining these values.
 
             result = Connection.execute(self, Returning(statement), params)
-            for variable, value in zip(statement.primary_variables,
-                                       result.get_one()):
+            for variable, value in iter_zip(statement.primary_variables,
+                                            result.get_one()):
                 result.set_variable(variable, value)
             return result
 
@@ -310,7 +300,7 @@ class PostgresConnection(Connection):
         Like L{Connection.raw_execute}, but encode the statement to
         UTF-8 if it is unicode.
         """
-        if type(statement) is unicode:
+        if type(statement) is ustr:
             # psycopg breaks with unicode statements.
             statement = statement.encode("UTF-8")
         return Connection.raw_execute(self, statement, params)
@@ -325,10 +315,10 @@ class PostgresConnection(Connection):
             if isinstance(param, Variable):
                 param = param.get(to_db=True)
             if isinstance(param, (datetime, date, time, timedelta)):
-                yield str(param)
-            elif isinstance(param, unicode):
+                yield ustr(param)
+            elif isinstance(param, ustr):
                 yield param.encode("UTF-8")
-            elif isinstance(param, str):
+            elif isinstance(param, bstr):
                 yield psycopg2.Binary(param)
             else:
                 yield param
@@ -354,7 +344,7 @@ class PostgresConnection(Connection):
             if isinstance(exc, DatabaseError):
                 if self._raw_connection.closed:
                     return True
-            msg = str(exc)
+            msg = ustr(exc)
             return (
                 "SSL SYSCALL error" in msg or
                 "EOF detected" in msg or
@@ -384,9 +374,7 @@ class Postgres(Database):
     def __init__(self, uri):
         super(Postgres, self).__init__(uri)
         if psycopg2 is dummy:
-            raise DatabaseModuleError(
-                "'psycopg2' >= %s not found. Found %s."
-                % (REQUIRED_PSYCOPG2_VERSION, PSYCOPG2_VERSION))
+            raise DatabaseModuleError("psycopg2>=2.5 not found")
         self._dsn = make_dsn(uri)
         isolation = uri.options.get("isolation", "repeatable-read")
         isolation_mapping = {
@@ -458,7 +446,7 @@ class PostgresTimeoutTracer(TimeoutTracer):
         # This should just check for
         # psycopg2.extensions.QueryCanceledError in the future.
         if (isinstance(error, DatabaseError) and
-            "statement timeout" in str(error)):
+            "statement timeout" in ustr(error)):
             raise TimeoutError(
                 statement, params, "SQL server cancelled statement")
 
@@ -480,17 +468,10 @@ class JSONTextElement(BinaryOper):
 # Postgres-specific properties and variables
 
 class JSONVariable(BaseJSONVariable):
-
     __slots__ = ()
 
     def _loads(self, value):
-        if isinstance(value, str):
-            # psycopg versions < 2.5 don't automatically convert JSON columns
-            # to python objects, they return a string.
-            #
-            # Note that on newer versions, if the object contained is an actual
-            # string, it's returned as unicode, so the check is still valid.
-            return json.loads(value)
+        # Since psycopg2 2.5 the value is decoded by the driver
         return value
 
 

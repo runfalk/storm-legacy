@@ -24,7 +24,7 @@ from weakref import WeakKeyDictionary
 from copy import copy
 import re
 
-from storm.compat import long_int
+from storm.compat import bstr, long_int, ustr
 from storm.exceptions import CompileError, NoTableError, ExprError
 from storm.variables import (
     Variable, RawStrVariable, UnicodeVariable, LazyValue,
@@ -165,10 +165,10 @@ class Compile(object):
         expr_type = type(expr)
 
         if (expr_type is SQLRaw or
-            raw and (expr_type is str or expr_type is unicode)):
+            raw and (expr_type is bstr or expr_type is ustr)):
             return expr
 
-        if token and (expr_type is str or expr_type is unicode):
+        if token and (expr_type is bstr or expr_type is ustr):
             expr = SQLToken(expr)
 
         if state is None:
@@ -179,15 +179,15 @@ class Compile(object):
             compiled = []
             for subexpr in expr:
                 subexpr_type = type(subexpr)
-                if subexpr_type is SQLRaw or raw and (subexpr_type is str or
-                                                      subexpr_type is unicode):
+                if subexpr_type is SQLRaw or raw and (subexpr_type is bstr or
+                                                      subexpr_type is ustr):
                     statement = subexpr
                 elif subexpr_type is tuple or subexpr_type is list:
                     state.precedence = outer_precedence
                     statement = self(subexpr, state, join, raw, token)
                 else:
-                    if token and (subexpr_type is unicode or
-                                  subexpr_type is str):
+                    if token and (subexpr_type is ustr or
+                                  subexpr_type is bstr):
                         subexpr = SQLToken(subexpr)
                     statement = self._compile_single(subexpr, state,
                                                      outer_precedence)
@@ -304,12 +304,12 @@ SELECT = Context("SELECT")
 # --------------------------------------------------------------------
 # Builtin type support
 
-@compile.when(str)
+@compile.when(bstr)
 def compile_str(compile, expr, state):
     state.parameters.append(RawStrVariable(expr))
     return "?"
 
-@compile.when(unicode)
+@compile.when(ustr)
 def compile_unicode(compile, expr, state):
     state.parameters.append(UnicodeVariable(expr))
     return "?"
@@ -359,7 +359,7 @@ def compile_none(compile, expr, state):
     return "NULL"
 
 
-@compile_python.when(str, unicode, int, long_int, float, type(None))
+@compile_python.when(bstr, ustr, int, long_int, float, type(None))
 def compile_python_builtin(compile, expr, state):
     return repr(expr)
 
@@ -509,19 +509,19 @@ class Comparable(object):
         return Upper(self)
 
     def startswith(self, prefix):
-        if not isinstance(prefix, unicode):
+        if not isinstance(prefix, ustr):
             raise ExprError("Expected unicode argument, got %r" % type(prefix))
         pattern = prefix.translate(like_escape) + u"%"
         return Like(self, pattern, u"!")
 
     def endswith(self, suffix):
-        if not isinstance(suffix, unicode):
+        if not isinstance(suffix, ustr):
             raise ExprError("Expected unicode argument, got %r" % type(suffix))
         pattern = u"%" + suffix.translate(like_escape)
         return Like(self, pattern, u"!")
 
     def contains_string(self, substring):
-        if not isinstance(substring, unicode):
+        if not isinstance(substring, ustr):
             raise ExprError("Expected unicode argument, got %r" % type(substring))
         pattern = u"%" + substring.translate(like_escape) + u"%"
         return Like(self, pattern, u"!")
@@ -737,7 +737,7 @@ def compile_insert(compile, insert, state):
     state.context = EXPR
     values = insert.values
     if values is Undef:
-        values = [tuple(insert.map.itervalues())]
+        values = [tuple(insert.map.values())]
     if isinstance(values, Expr):
         compiled_values = compile(values, state)
     else:

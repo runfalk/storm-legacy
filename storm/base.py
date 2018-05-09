@@ -18,12 +18,14 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+from storm.compat import add_metaclass
 from storm.properties import PropertyPublisherMeta
 
 
 __all__ = ["Storm"]
 
 
+@add_metaclass(PropertyPublisherMeta)
 class Storm(object):
     """An optional base class for objects stored in a Storm Store.
 
@@ -31,5 +33,3 @@ class Storm(object):
     PropertyRegistry. It is necessary to use this if you want to
     specify References with strings.
     """
-    __metaclass__ = PropertyPublisherMeta
-

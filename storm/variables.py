@@ -18,16 +18,14 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+import re
+import json
+import uuid
+
 from datetime import datetime, date, time, timedelta
 from decimal import Decimal
-import cPickle as pickle
-import re
-try:
-    import uuid
-except ImportError:
-    uuid = None
 
-from storm.compat import json
+from storm.compat import bstr, long_int, pickle, string_types, ustr
 from storm.exceptions import NoneError
 from storm import Undef, has_cextensions
 
@@ -52,6 +50,9 @@ __all__ = [
     "JSONVariable",
     "ListVariable",
 ]
+
+
+numeric_types = (int, long_int, float, Decimal)
 
 
 class LazyValue(object):
@@ -329,7 +330,7 @@ class BoolVariable(Variable):
     __slots__ = ()
 
     def parse_set(self, value, from_db):
-        if not isinstance(value, (int, long, float, Decimal)):
+        if not isinstance(value, numeric_types):
             raise TypeError("Expected bool, found %r: %r"
                             % (type(value), value))
         return bool(value)
@@ -339,7 +340,7 @@ class IntVariable(Variable):
     __slots__ = ()
 
     def parse_set(self, value, from_db):
-        if not isinstance(value, (int, long, float, Decimal)):
+        if not isinstance(value, numeric_types):
             raise TypeError("Expected int, found %r: %r"
                             % (type(value), value))
         return int(value)
@@ -349,7 +350,7 @@ class FloatVariable(Variable):
     __slots__ = ()
 
     def parse_set(self, value, from_db):
-        if not isinstance(value, (int, long, float, Decimal)):
+        if not isinstance(value, numeric_types):
             raise TypeError("Expected float, found %r: %r"
                             % (type(value), value))
         return float(value)
@@ -360,8 +361,8 @@ class DecimalVariable(Variable):
 
     @staticmethod
     def parse_set(value, from_db):
-        if (from_db and isinstance(value, basestring) or
-            isinstance(value, (int, long))):
+        if (from_db and isinstance(value, string_types) or
+            isinstance(value, (int, long_int))):
             value = Decimal(value)
         elif not isinstance(value, Decimal):
             raise TypeError("Expected Decimal, found %r: %r"
@@ -371,7 +372,7 @@ class DecimalVariable(Variable):
     @staticmethod
     def parse_get(value, to_db):
         if to_db:
-            return unicode(value)
+            return ustr(value)
         return value
 
 
@@ -380,8 +381,8 @@ class RawStrVariable(Variable):
 
     def parse_set(self, value, from_db):
         if isinstance(value, buffer):
-            value = str(value)
-        elif not isinstance(value, str):
+            value = bstr(value)
+        elif not isinstance(value, bstr):
             raise TypeError("Expected str, found %r: %r"
                             % (type(value), value))
         return value
@@ -391,7 +392,7 @@ class UnicodeVariable(Variable):
     __slots__ = ()
 
     def parse_set(self, value, from_db):
-        if not isinstance(value, unicode):
+        if not isinstance(value, ustr):
             raise TypeError("Expected unicode, found %r: %r"
                             % (type(value), value))
         return value
@@ -408,7 +409,7 @@ class DateTimeVariable(Variable):
         if from_db:
             if isinstance(value, datetime):
                 pass
-            elif isinstance(value, (str, unicode)):
+            elif isinstance(value, string_types):
                 if " " not in value:
                     raise ValueError("Unknown date/time format: %r" % value)
                 date_str, time_str = value.split(" ")
@@ -422,7 +423,7 @@ class DateTimeVariable(Variable):
                 else:
                     value = value.astimezone(self._tzinfo)
         else:
-            if type(value) in (int, long, float):
+            if type(value) in (int, long_int, float):
                 value = datetime.utcfromtimestamp(value)
             elif not isinstance(value, datetime):
                 raise TypeError("Expected datetime, found %s" % repr(value))
@@ -442,7 +443,7 @@ class DateVariable(Variable):
                 return value.date()
             if isinstance(value, date):
                 return value
-            if not isinstance(value, (str, unicode)):
+            if not isinstance(value, string_types):
                 raise TypeError("Expected date, found %s" % repr(value))
             if " " in value:
                 value, time_str = value.split(" ")
@@ -465,7 +466,7 @@ class TimeVariable(Variable):
                 return None
             if isinstance(value, time):
                 return value
-            if not isinstance(value, (str, unicode)):
+            if not isinstance(value, string_types):
                 raise TypeError("Expected time, found %s" % repr(value))
             if " " in value:
                 date_str, value = value.split(" ")
@@ -488,7 +489,7 @@ class TimeDeltaVariable(Variable):
                 return None
             if isinstance(value, timedelta):
                 return value
-            if not isinstance(value, (str, unicode)):
+            if not isinstance(value, string_types):
                 raise TypeError("Expected timedelta, found %s" % repr(value))
             return _parse_interval(value)
         else:
@@ -502,7 +503,7 @@ class UUIDVariable(Variable):
 
     def parse_set(self, value, from_db):
         assert uuid is not None, "The uuid module was not found."
-        if from_db and isinstance(value, basestring):
+        if from_db and isinstance(value, string_types):
             value = uuid.UUID(value)
         elif not isinstance(value, uuid.UUID):
             raise TypeError("Expected UUID, found %r: %r"
@@ -511,7 +512,7 @@ class UUIDVariable(Variable):
 
     def parse_get(self, value, to_db):
         if to_db:
-            return unicode(value)
+            return ustr(value)
         return value
 
 
@@ -589,13 +590,12 @@ class MutableValueVariable(Variable):
 
 
 class EncodedValueVariable(MutableValueVariable):
-
     __slots__ = ()
 
     def parse_set(self, value, from_db):
         if from_db:
             if isinstance(value, buffer):
-                value = str(value)
+                value = bstr(value)
             return self._loads(value)
         else:
             return value
@@ -615,7 +615,6 @@ class EncodedValueVariable(MutableValueVariable):
 
 
 class PickleVariable(EncodedValueVariable):
-
     def _loads(self, value):
         return pickle.loads(value)
 
@@ -624,7 +623,6 @@ class PickleVariable(EncodedValueVariable):
 
 
 class JSONVariable(EncodedValueVariable):
-
     __slots__ = ()
 
     def __init__(self, *args, **kwargs):
@@ -633,7 +631,7 @@ class JSONVariable(EncodedValueVariable):
         super(JSONVariable, self).__init__(*args, **kwargs)
 
     def _loads(self, value):
-        if not isinstance(value, unicode):
+        if not isinstance(value, ustr):
             raise TypeError(
                 "Cannot safely assume encoding of byte string %r." % value)
         return json.loads(value)
@@ -643,7 +641,7 @@ class JSONVariable(EncodedValueVariable):
         # and so we treat it as such here. In other words, this method returns
         # unicode and never str.
         dump = json.dumps(value, ensure_ascii=False)
-        if not isinstance(dump, unicode):
+        if not isinstance(dump, ustr):
             # json.dumps() does not always return unicode. See
             # http://code.google.com/p/simplejson/issues/detail?id=40 for one
             # of many discussions of str/unicode handling in simplejson.

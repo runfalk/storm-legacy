@@ -28,6 +28,7 @@ from copy import copy
 from weakref import WeakValueDictionary
 from operator import itemgetter
 
+from storm.compat import iter_items, iter_values, iter_zip, long_int
 from storm.info import get_cls_info, get_obj_info, set_obj_info
 from storm.variables import Variable, LazyValue
 from storm.expr import (
@@ -177,7 +178,7 @@ class Store(object):
         assert len(key) == len(cls_info.primary_key)
 
         primary_vars = []
-        for column, variable in zip(cls_info.primary_key, key):
+        for column, variable in iter_zip(cls_info.primary_key, key):
             if not isinstance(variable, Variable):
                 variable = column.variable_factory(value=variable)
             primary_vars.append(variable)
@@ -470,7 +471,7 @@ class Store(object):
         self._dirty = flushing
 
         predecessors = {}
-        for (before_info, after_info), n in self._order.iteritems():
+        for (before_info, after_info), n in iter_items(self._order):
             if n > 0:
                 before_set = predecessors.get(after_info)
                 if before_set is None:
@@ -614,7 +615,7 @@ class Store(object):
             resolve_expr = Select([variable.get_lazy()
                                    for variable in select_variables])
             result = self._connection.execute(resolve_expr)
-            for variable, value in zip(select_variables, result.get_one()):
+            for variable, value in iter_zip(select_variables, result.get_one()):
                 result.set_variable(variable, value)
 
         return changes
@@ -763,7 +764,7 @@ class Store(object):
             raise LostObjectError("Can't obtain values from the database "
                                   "(object got removed?)")
         obj_info.pop("invalidated", None)
-        for column, value in zip(columns, values):
+        for column, value in iter_zip(columns, values):
             variable = obj_info.variables[column]
             lazy_value = variable.get_lazy()
             is_unknown_lazy = not (lazy_value is None or
@@ -849,7 +850,8 @@ class Store(object):
             del obj_info["primary_vars"]
 
     def _iter_alive(self):
-        return self._alive.values()
+        # We need a list here since alive may be mutated while iterating
+        return list(iter_values(self._alive))
 
     def _enable_change_notification(self, obj_info):
         obj_info.event.emit("start-tracking-changes", self._event)
@@ -1003,7 +1005,7 @@ class ResultSet(object):
             L{ResultSet} will be returned appropriately modified with
             C{OFFSET} and C{LIMIT} clauses.
         """
-        if isinstance(index, (int, long)):
+        if isinstance(index, (int, long_int)):
             if index == 0:
                 result_set = self
             else:
@@ -1050,7 +1052,7 @@ class ResultSet(object):
         if self._select is Undef and self._group_by is Undef:
             # No predefined select: adjust the where clause.
             dummy, default_tables = self._find_spec.get_columns_and_tables()
-            where = [Eq(*pair) for pair in zip(columns, values)]
+            where = [Eq(*pair) for pair in iter_zip(columns, values)]
             if self._where is not Undef:
                 where.append(self._where)
             select = Select(1, And(*where), self._tables,
@@ -1060,7 +1062,7 @@ class ResultSet(object):
             aliased_columns = [Alias(column, "_key%d" % index)
                                for (index, column) in enumerate(columns)]
             subquery = replace_columns(self._get_select(), aliased_columns)
-            where = [Eq(*pair) for pair in zip(aliased_columns, values)]
+            where = [Eq(*pair) for pair in iter_zip(aliased_columns, values)]
             select = Select(1, And(*where), Alias(subquery, "_tmp"))
 
         result = self._store._connection.execute(select)
@@ -1332,7 +1334,7 @@ class ResultSet(object):
         else:
             variables = [column.variable_factory() for column in columns]
             for values in result:
-                for variable, value in zip(variables, values):
+                for variable, value in iter_zip(variables, values):
                     result.set_variable(variable, value)
                 yield tuple(variable.get() for variable in variables)
 
@@ -1377,7 +1379,7 @@ class ResultSet(object):
                                    "expression: %r" % repr(expr.expr2))
             changes[expr.expr1] = expr.expr2
 
-        for key, value in kwargs.items():
+        for key, value in iter_items(kwargs):
             column = getattr(cls, key)
             if value is None:
                 changes[column] = None
@@ -1402,7 +1404,8 @@ class ResultSet(object):
                     for column in changes:
                         obj_info.variables[column].set(AutoReload)
         else:
-            changes = changes.items()
+            # We need a list here since we may iterate multiple times
+            changes = list(iter_items(changes))
             for obj in cached:
                 for column, value in changes:
                     variables = get_obj_info(obj).variables
@@ -1717,7 +1720,7 @@ class FindSpec(object):
             return False
         if len(self._cls_spec_info) != len(find_spec._cls_spec_info):
             return False
-        for (is_expr1, info1), (is_expr2, info2) in zip(
+        for (is_expr1, info1), (is_expr2, info2) in iter_zip(
             self._cls_spec_info, find_spec._cls_spec_info):
             if is_expr1 != is_expr2:
                 return False
@@ -1768,7 +1771,7 @@ class FindSpec(object):
 
         columns = []
         values = []
-        for (is_expr, info), value in zip(self._cls_spec_info, item):
+        for (is_expr, info), value in iter_zip(self._cls_spec_info, item):
             if is_expr:
                 if not isinstance(value, (Expr, Variable)) and (
                     value is not None):
@@ -1791,7 +1794,7 @@ def get_where_for_args(args, kwargs, cls=None):
         if cls is None:
             raise FeatureError("Can't determine class that keyword "
                                "arguments are associated with")
-        for key, value in kwargs.items():
+        for key, value in iter_items(kwargs):
             equals.append(getattr(cls, key) == value)
     if equals:
         return And(*equals)

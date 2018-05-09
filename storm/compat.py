@@ -19,15 +19,21 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import json
 import sys
 
 
 __all__ = [
+    "add_metaclass",
     "bstr",
     "is_python2",
+    "iter_range",
+    "iter_items",
+    "iter_keys",
+    "iter_values",
+    "iter_zip",
     "long_int",
-    "json",
+    "pickle",
+    "string_types",
     "ustr",
     "version",
 ]
@@ -43,6 +49,15 @@ if version >= (3, 0):
     ustr = str
     iter_range = range
     long_int = int
+
+    def iter_items(obj):
+        return obj.items()
+
+    def iter_keys(obj):
+        return obj.keys()
+
+    def iter_values(obj):
+        return obj.values()
 else:
     is_python2 = True
 
@@ -50,3 +65,59 @@ else:
     ustr = unicode
     iter_range = xrange
     long_int = long
+
+    def iter_items(obj):
+        return obj.iteritems()
+
+    def iter_keys(obj):
+        return obj.iterkeys()
+
+    def iter_values(obj):
+        return obj.itervalues()
+
+
+string_types = (bstr, ustr)
+
+
+try:
+    from itertools import izip as iter_zip
+except ImportError:
+    iter_zip = zip
+
+
+try:
+    # We need to import cPickle first as pickle exists in Python 2 as well, but
+    # is not implemented in C
+    import cPickle as pickle
+except ImportError:
+    import pickle
+
+
+def add_metaclass(metaclass):
+    """
+    Class decorator for creating a class with a metaclass. Shamelessly copied
+    from Six (https://bitbucket.org/gutworth/six).
+
+    .. code-block:: python
+
+        @add_metaclass(MetaClass)
+        def NormalClass(object):
+            pass
+    """
+
+    def wrapper(cls):
+        orig_vars = cls.__dict__.copy()
+        slots = orig_vars.get("__slots__")
+
+        if slots is not None:
+            if isinstance(slots, string_types):
+                slots = [slots]
+
+            for slots_var in slots:
+                orig_vars.pop(slots_var)
+
+        orig_vars.pop("__dict__", None)
+        orig_vars.pop("__weakref__", None)
+
+        return metaclass(cls.__name__, cls.__bases__, orig_vars)
+    return wrapper
