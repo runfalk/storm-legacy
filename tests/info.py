@@ -21,6 +21,7 @@
 from weakref import ref
 import gc
 
+from storm.compat import add_metaclass, iter_zip
 from storm.exceptions import ClassInfoError
 from storm.properties import Property
 from storm.variables import Variable
@@ -228,7 +229,7 @@ class ObjectInfoTest(TestHelper):
     def test_primary_vars(self):
         self.assertTrue(isinstance(self.obj_info.primary_vars, tuple))
 
-        for column, variable in zip(self.cls_info.primary_key,
+        for column, variable in iter_zip(self.cls_info.primary_key,
                                     self.obj_info.primary_vars):
             self.assertEquals(self.obj_info.variables.get(column),
                               variable)
@@ -569,8 +570,9 @@ class ClassAliasTest(TestHelper):
                 cls = type.__new__(meta_cls, name, bases, dict)
                 cls.__storm_table__ = "HAH! GOTCH YA!"
                 return cls
+
+        @add_metaclass(MetaClass)
         class Class(object):
-            __metaclass__ = MetaClass
             __storm_table__ = "table"
             prop1 = Property("column1", primary=True)
         Alias = ClassAlias(Class, "USE_THIS")

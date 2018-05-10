@@ -3,7 +3,6 @@ Copyright (c) 2007  Gustavo Niemeyer <gustavo@niemeyer.net>
 
 Graceful platform for test doubles in Python (mocks, stubs, fakes, and dummies).
 """
-import __builtin__
 import tempfile
 import unittest
 import inspect
@@ -13,6 +12,7 @@ import sys
 import os
 import gc
 
+from storm.compat import iter_items, iter_range, iter_values, iter_zip, string_types, ustr
 
 if sys.version_info < (2, 4):
     from sets import Set as set # pragma: nocover
@@ -28,6 +28,9 @@ __version__ = "0.10.1"
 
 
 ERROR_PREFIX = "[Mocker] "
+
+# Needed to access type() within function that have type as an argument
+_type = type
 
 
 # --------------------------------------------------------------------
@@ -274,7 +277,7 @@ class MockerTestCase(unittest.TestCase):
         """
         first_methods = dict(inspect.getmembers(first, inspect.ismethod))
         second_methods = dict(inspect.getmembers(second, inspect.ismethod))
-        for name, first_method in first_methods.items():
+        for name, first_method in iter_items(first_methods):
             first_argspec = inspect.getargspec(first_method)
             first_formatted = inspect.formatargspec(*first_argspec)
 
@@ -488,7 +491,7 @@ class MockerBase(object):
             try:
                 event.verify()
             except AssertionError as e:
-                error = str(e)
+                error = ustr(e)
                 if not error:
                     raise RuntimeError("Empty error message from %r"
                                        % event)
@@ -528,7 +531,7 @@ class MockerBase(object):
     def proxy(self, object, spec=True, type=True, name=None, count=True,
               passthrough=True):
         """Return a new mock object which proxies to the given object.
- 
+
         Proxies are useful when only part of the behavior of an object
         is to be mocked.  Unknown expressions may be passed through to
         the real implementation implicitly (if the C{passthrough} argument
@@ -562,7 +565,7 @@ class MockerBase(object):
                             explicitly requested via the L{passthrough()}
                             method.
         """
-        if isinstance(object, basestring):
+        if isinstance(object, string_types):
             if name is None:
                 name = object
             import_stack = object.split(".")
@@ -583,7 +586,7 @@ class MockerBase(object):
         if spec is True:
             spec = object
         if type is True:
-            type = __builtin__.type(object)
+            type = _type(object)
         return Mock(self, spec=spec, type=type, object=object,
                     name=name, count=count, passthrough=passthrough)
 
@@ -690,7 +693,7 @@ class MockerBase(object):
             # (ordering between 2 events is undefined).
             events = self._events
             order = [(events[i].satisfied()*2 + events[i].has_run(), i)
-                     for i in range(len(events))]
+                     for i in iter_range(len(events))]
             order.sort()
             postponed = None
             for weight, i in order:
@@ -1036,9 +1039,9 @@ class Mock(object):
                 return path.execute(path.root_object)
             # Reinstantiate to show raise statement on traceback, and
             # also to make the traceback shown shorter.
-            raise MatchError(str(exception))
+            raise MatchError(ustr(exception))
         except AssertionError as e:
-            lines = str(e).splitlines()
+            lines = ustr(e).splitlines()
             message = [ERROR_PREFIX + "Unmet expectation:", ""]
             message.append("=> " + lines.pop(0))
             message.extend([" " + line for line in lines])
@@ -1084,12 +1087,12 @@ class Mock(object):
         try:
             result = self.__mocker_act__("len")
         except MatchError as e:
-            raise AttributeError(str(e))
+            raise AttributeError(ustr(e))
         if type(result) is Mock:
             return 0
         return result
 
-    def __nonzero__(self):
+    def __bool__(self):
         try:
             return self.__mocker_act__("nonzero")
         except MatchError as e:
@@ -1105,6 +1108,8 @@ class Mock(object):
             return iter([])
         return result
 
+    __nonzero__ = __bool__
+
     # When adding a new action kind here, also add support for it on
     # Action.execute() and Path.__str__().
 
@@ -1115,13 +1120,13 @@ def find_object_name(obj, depth=0):
         frame = sys._getframe(depth+1)
     except:
         return None
-    for name, frame_obj in frame.f_locals.iteritems():
+    for name, frame_obj in iter_items(frame.f_locals):
         if frame_obj is obj:
             return name
     self = frame.f_locals.get("self")
     if self is not None:
         try:
-            items = list(self.__dict__.iteritems())
+            items = list(iter_items(self.__dict__))
         except:
             pass
         else:
@@ -1216,7 +1221,7 @@ class Path(object):
             return None
         return self.actions[-1].path
     parent_path = property(parent_path)
- 
+
     def __add__(self, action):
         """Return a new path which includes the given action at the end."""
         return self.__class__(self.root_mock, self.root_object,
@@ -1224,7 +1229,7 @@ class Path(object):
 
     def __eq__(self, other):
         """Verify if the two paths are equal.
-        
+
         Two paths are equal if they refer to the same mock object, and
         have the actions with equal kind, args and kwargs.
         """
@@ -1232,21 +1237,21 @@ class Path(object):
             self.root_object is not other.root_object or
             len(self.actions) != len(other.actions)):
             return False
-        for action, other_action in zip(self.actions, other.actions):
+        for action, other_action in iter_zip(self.actions, other.actions):
             if action != other_action:
                 return False
         return True
 
     def matches(self, other):
         """Verify if the two paths are equivalent.
-        
+
         Two paths are equal if they refer to the same mock object, and
         have the same actions performed on them.
         """
         if (self.root_mock is not other.root_mock or
             len(self.actions) != len(other.actions)):
             return False
-        for action, other_action in zip(self.actions, other.actions):
+        for action, other_action in iter_zip(self.actions, other.actions):
             if not action.matches(other_action):
                 return False
         return True
@@ -1270,7 +1275,7 @@ class Path(object):
                 result = "del %s.%s" % (result, action.args[0])
             elif action.kind == "call":
                 args = [repr(x) for x in action.args]
-                items = list(action.kwargs.iteritems())
+                items = list(iter_items(action.kwargs))
                 items.sort()
                 for pair in items:
                     args.append("%s=%r" % pair)
@@ -1390,7 +1395,7 @@ def match_params(args1, kwargs1, args2, kwargs2):
 
     # Either we have the same number of kwargs, or unknown keywords are
     # accepted (KWARGS was used), so check just the ones in kwargs1.
-    for key, arg1 in kwargs1.iteritems():
+    for key, arg1 in iter_items(kwargs1):
         if key not in kwargs2:
             return False
         arg2 = kwargs2[key]
@@ -1404,7 +1409,7 @@ def match_params(args1, kwargs1, args2, kwargs2):
     # arguments, or ARGS was used.  If ARGS wasn't used, arguments
     # must match one-on-one necessarily.
     if not has_args:
-        for arg1, arg2 in zip(args1, args2):
+        for arg1, arg2 in iter_zip(args1, args2):
             if isinstance(arg1, SpecialArgument):
                 if not arg1.matches(arg2):
                     return False
@@ -1434,14 +1439,14 @@ def match_params(args1, kwargs1, args2, kwargs2):
         array = [0]*args2l
     else:
         array = [1]*args2l
-    for i in range(len(args1)):
+    for i in iter_range(len(args1)):
         last = array[0]
         if args1[i] is ARGS:
-            for j in range(1, args2l):
+            for j in iter_range(1, args2l):
                 last, array[j] = array[j], min(array[j-1], array[j], last)
         else:
             array[0] = i or int(args1[i] != args2[0])
-            for j in range(1, args2l):
+            for j in iter_range(1, args2l):
                 last, array[j] = array[j], last or int(args1[i] != args2[j])
         if 0 not in array:
             return False
@@ -1520,7 +1525,7 @@ class Event(object):
             try:
                 task_result = task.run(path)
             except AssertionError as e:
-                error = str(e)
+                error = ustr(e)
                 if not error:
                     raise RuntimeError("Empty error message from %r" % task)
                 errors.append(error)
@@ -1528,8 +1533,8 @@ class Event(object):
                 if task_result is not None:
                     result = task_result
         if errors:
-            message = [str(self.path)]
-            if str(path) != message[0]:
+            message = [ustr(self.path)]
+            if ustr(path) != message[0]:
                 message.append("- Run: %s" % path)
             for error in errors:
                 lines = error.splitlines()
@@ -1563,12 +1568,12 @@ class Event(object):
             try:
                 task.verify()
             except AssertionError as e:
-                error = str(e)
+                error = ustr(e)
                 if not error:
                     raise RuntimeError("Empty error message from %r" % task)
                 errors.append(error)
         if errors:
-            message = [str(self.path)]
+            message = [ustr(self.path)]
             for error in errors:
                 lines = error.splitlines()
                 message.append("- " + lines.pop(0))
@@ -1920,7 +1925,7 @@ def global_replace(remove, install):
     for referrer in gc.get_referrers(remove):
         if (type(referrer) is dict and
             referrer.get("__mocker_replace__", True)):
-            for key, value in referrer.items():
+            for key, value in list(iter_items(referrer)):
                 if value is remove:
                     referrer[key] = install
 
@@ -1992,7 +1997,7 @@ class Patcher(Task):
         for kind in self._monitored:
             attr = self._get_kind_attr(kind)
             seen = set()
-            for obj in self._monitored[kind].itervalues():
+            for obj in iter_values(self._monitored[kind]):
                 cls = type(obj)
                 if issubclass(cls, type):
                     cls = obj
@@ -2006,7 +2011,7 @@ class Patcher(Task):
                                     self.execute)
 
     def restore(self):
-        for obj, attr, original in self._patched.itervalues():
+        for obj, attr, original in iter_values(self._patched):
             if original is Undefined:
                 delattr(obj, attr)
             else:

@@ -22,6 +22,7 @@ from datetime import date, time, timedelta
 import os
 import json
 
+from storm.compat import ustr
 from storm.databases.postgres import (
     Postgres, compile, currval, Returning, Case, PostgresTimeoutTracer,
     make_dsn, JSONElement, JSONTextElement, JSON)
@@ -154,7 +155,7 @@ class PostgresTest(DatabaseTest, TestHelper):
         result = connection.execute("SELECT title FROM test WHERE id=1")
         title = result.get_one()[0]
 
-        self.assertTrue(isinstance(title, unicode))
+        self.assertTrue(isinstance(title, ustr))
         self.assertEquals(title, uni_str)
 
     def test_unicode_array(self):
@@ -735,7 +736,7 @@ class PostgresDisconnectionTest(DatabaseDisconnectionTest, TwoPhaseCommitDisconn
         InterfaceErrors are a form of a disconnection error, so rollback()
         must swallow them and reconnect.
         """
-        class FakeConnection:
+        class FakeConnection(object):
             def rollback(self):
                 raise InterfaceError('connection already closed')
         self.connection._raw_connection = FakeConnection()

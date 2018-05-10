@@ -22,6 +22,7 @@ from datetime import timedelta
 import time
 import os
 
+from storm.compat import ustr
 from storm.exceptions import OperationalError
 from storm.databases.sqlite import SQLite
 from storm.database import create_database
@@ -32,9 +33,8 @@ from tests.helper import TestHelper, MakePath
 
 
 class SQLiteMemoryTest(DatabaseTest, TestHelper):
-
     helpers = [MakePath]
-    
+
     def get_path(self):
         return ""
 
@@ -115,14 +115,14 @@ class SQLiteFileTest(SQLiteMemoryTest):
         try:
             connection2.execute("INSERT INTO test VALUES (2)")
         except OperationalError as exception:
-            self.assertEquals(str(exception), "database is locked")
+            self.assertEquals(ustr(exception), "database is locked")
             self.assertTrue(time.time()-started >= 0.3)
         else:
             self.fail("OperationalError not raised")
 
     def test_commit_timeout(self):
         """Regression test for commit observing the timeout.
-        
+
         In 0.10, the timeout wasn't observed for connection.commit().
 
         """
@@ -142,7 +142,7 @@ class SQLiteFileTest(SQLiteMemoryTest):
         try:
             connection1.commit()
         except OperationalError as exception:
-            self.assertEquals(str(exception), "database is locked")
+            self.assertEquals(ustr(exception), "database is locked")
             # In 0.10, the next assertion failed because the timeout wasn't
             # enforced for the "COMMIT" statement.
             self.assertTrue(time.time()-started >= 0.3)

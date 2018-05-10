@@ -18,12 +18,12 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from cStringIO import StringIO
 import tempfile
 import logging
 import shutil
 import sys
 
+from storm.compat import iter_zip, StringIO
 from tests import mocker
 
 
@@ -31,7 +31,6 @@ __all__ = ["TestHelper", "MakePath", "LogKeeper"]
 
 
 class TestHelper(mocker.MockerTestCase):
-
     helpers = []
 
     def is_supported(self):
@@ -70,7 +69,7 @@ class TestHelper(mocker.MockerTestCase):
 
     def assertVariablesEqual(self, checked, expected):
         self.assertEquals(len(checked), len(expected))
-        for check, expect in zip(checked, expected):
+        for check, expect in iter_zip(checked, expected):
             self.assertEquals(check.__class__, expect.__class__)
             self.assertEquals(check.get(), expect.get())
 

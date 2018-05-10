@@ -23,19 +23,20 @@
 import os
 import select
 import socket
-import SocketServer
 import threading
+
+from storm.compat import socketserver
 
 
 TIMEOUT = 0.1
 
 
-class ProxyRequestHandler(SocketServer.BaseRequestHandler):
+class ProxyRequestHandler(socketserver.BaseRequestHandler):
     """A request handler that proxies traffic to another TCP port."""
 
     def __init__(self, request, client_address, server):
         self._generation = server._generation
-        SocketServer.BaseRequestHandler.__init__(
+        socketserver.BaseRequestHandler.__init__(
             self, request, client_address, server)
 
     def handle(self):
@@ -66,12 +67,12 @@ class ProxyRequestHandler(SocketServer.BaseRequestHandler):
                     self.request.shutdown(socket.SHUT_WR)
 
 
-class ProxyTCPServer(SocketServer.ThreadingTCPServer):
+class ProxyTCPServer(socketserver.ThreadingTCPServer):
 
     allow_reuse_address = True
 
     def __init__(self, proxy_dest):
-        SocketServer.ThreadingTCPServer.__init__(
+        socketserver.ThreadingTCPServer.__init__(
             self, ("127.0.0.1", 0), ProxyRequestHandler)
         # Python 2.4 doesn't retrieve the socket details, so record
         # them here.  We need to do this so we can recreate the socket

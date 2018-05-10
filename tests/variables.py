@@ -26,7 +26,7 @@ import weakref
 from datetime import datetime, date, time, timedelta
 from decimal import Decimal
 
-from storm.compat import pickle
+from storm.compat import pickle, ustr
 from storm.exceptions import NoneError
 from storm.variables import *
 from storm.event import EventSystem
@@ -143,7 +143,7 @@ class VariableTest(TestHelper):
             variable.set(None)
         except NoneError as e:
             pass
-        self.assertTrue("column_name" in str(e))
+        self.assertTrue("column_name" in ustr(e))
 
     def test_set_none_with_allow_none_and_column_with_table(self):
         column = Column("column_name", SQLToken("table_name"))
@@ -152,7 +152,7 @@ class VariableTest(TestHelper):
             variable.set(None)
         except NoneError as e:
             pass
-        self.assertTrue("table_name.column_name" in str(e))
+        self.assertTrue("table_name.column_name" in ustr(e))
 
     def test_set_with_validator(self):
         args = []
@@ -473,7 +473,7 @@ class DateTimeVariableTest(TestHelper):
 
     def test_get_set_from_database(self):
         datetime_str = "1977-05-04 12:34:56.78"
-        datetime_uni = unicode(datetime_str)
+        datetime_uni = ustr(datetime_str)
         datetime_obj = datetime(1977, 5, 4, 12, 34, 56, 780000)
 
         variable = DateTimeVariable()
@@ -486,7 +486,7 @@ class DateTimeVariableTest(TestHelper):
         self.assertEquals(variable.get(), datetime_obj)
 
         datetime_str = "1977-05-04 12:34:56"
-        datetime_uni = unicode(datetime_str)
+        datetime_uni = ustr(datetime_str)
         datetime_obj = datetime(1977, 5, 4, 12, 34, 56)
 
         variable.set(datetime_str, from_db=True)
@@ -551,7 +551,7 @@ class DateVariableTest(TestHelper):
 
     def test_get_set_from_database(self):
         date_str = "1977-05-04"
-        date_uni = unicode(date_str)
+        date_uni = ustr(date_str)
         date_obj = date(1977, 5, 4)
         datetime_obj = datetime(1977, 5, 4, 0, 0, 0)
 
@@ -595,7 +595,7 @@ class TimeVariableTest(TestHelper):
 
     def test_get_set_from_database(self):
         time_str = "12:34:56.78"
-        time_uni = unicode(time_str)
+        time_uni = ustr(time_str)
         time_obj = time(12, 34, 56, 780000)
 
         variable = TimeVariable()
@@ -608,7 +608,7 @@ class TimeVariableTest(TestHelper):
         self.assertEquals(variable.get(), time_obj)
 
         time_str = "12:34:56"
-        time_uni = unicode(time_str)
+        time_uni = ustr(time_str)
         time_obj = time(12, 34, 56)
 
         variable.set(time_str, from_db=True)
@@ -665,7 +665,7 @@ class TimeDeltaVariableTest(TestHelper):
 
     def test_get_set_from_database(self):
         delta_str = "42 days 12:34:56.78"
-        delta_uni = unicode(delta_str)
+        delta_uni = ustr(delta_str)
         delta_obj = timedelta(days=42, hours=12, minutes=34,
                               seconds=56, microseconds=780000)
 
@@ -679,7 +679,7 @@ class TimeDeltaVariableTest(TestHelper):
         self.assertEquals(variable.get(), delta_obj)
 
         delta_str = "1 day, 12:34:56"
-        delta_uni = unicode(delta_str)
+        delta_uni = ustr(delta_str)
         delta_obj = timedelta(days=1, hours=12, minutes=34, seconds=56)
 
         variable.set(delta_str, from_db=True)
@@ -768,7 +768,7 @@ class ParseIntervalTest(TestHelper):
         try:
             self.check("1 month", None)
         except ValueError as e:
-            self.assertEquals(str(e), "Unsupported interval unit 'month' "
+            self.assertEquals(ustr(e), "Unsupported interval unit 'month' "
                                       "in interval '1 month'")
         else:
             self.fail("ValueError not raised")
@@ -777,7 +777,7 @@ class ParseIntervalTest(TestHelper):
         try:
             self.check("day", None)
         except ValueError as e:
-            self.assertEquals(str(e), "Expected an interval value rather than "
+            self.assertEquals(ustr(e), "Expected an interval value rather than "
                                       "'day' in interval 'day'")
         else:
             self.fail("ValueError not raised")
@@ -914,7 +914,7 @@ class JSONVariableTest(EncodedValueVariableTestMixin, TestHelper):
         # simplejson/json.
         variable = self.variable_type()
         variable.set({u"a": 1})
-        self.assertTrue(isinstance(variable.get(to_db=True), unicode))
+        self.assertTrue(isinstance(variable.get(to_db=True), ustr))
 
 
 class ListVariableTest(TestHelper):

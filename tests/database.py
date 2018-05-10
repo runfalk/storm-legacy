@@ -22,6 +22,7 @@ import sys
 import new
 import gc
 
+from storm.compat import iter_range, ustr
 from storm.exceptions import ClosedError, DatabaseError, DisconnectionError
 from storm.variables import Variable
 import storm.database
@@ -38,7 +39,6 @@ marker = object()
 
 
 class RawConnection(object):
-
     closed = False
 
     def __init__(self, executed):
@@ -58,7 +58,6 @@ class RawConnection(object):
 
 
 class RawCursor(object):
-
     def __init__(self, arraysize=1, executed=None):
         self.arraysize = arraysize
         if executed is None:
@@ -66,9 +65,9 @@ class RawCursor(object):
         else:
             self.executed = executed
 
-        self._fetchone_data = [("fetchone%d" % i,) for i in range(3)]
-        self._fetchall_data = [("fetchall%d" % i,) for i in range(2)]
-        self._fetchmany_data = [("fetchmany%d" % i,) for i in range(5)]
+        self._fetchone_data = [("fetchone%d" % i,) for i in iter_range(3)]
+        self._fetchall_data = [("fetchall%d" % i,) for i in iter_range(2)]
+        self._fetchmany_data = [("fetchmany%d" % i,) for i in iter_range(5)]
 
     def close(self):
         self.executed.append("RCLOSE")
@@ -93,13 +92,11 @@ class RawCursor(object):
 
 
 class FakeConnection(object):
-
     def _check_disconnect(self, _function, *args, **kwargs):
         return _function(*args, **kwargs)
 
 
 class FakeTracer(object):
-
     def __init__(self, stream=None):
         self.seen = []
 
@@ -257,7 +254,7 @@ class ConnectionTest(TestHelper):
         install_tracer(tracer_mock)
         self.connection.is_disconnection_error = (
             lambda exc, extra_disconnection_errors=():
-                'connection closed' in str(exc))
+                "connection closed" in ustr(exc))
 
         self.assertRaises(DisconnectionError,
                           self.connection.execute, "something")
@@ -267,13 +264,13 @@ class ConnectionTest(TestHelper):
         tracer_mock = self.mocker.patch(tracer)
         tracer_mock.connection_raw_execute(ARGS)
         tracer_mock.connection_raw_execute_success(ARGS)
-        self.mocker.throw(DatabaseError('connection closed'))
+        self.mocker.throw(DatabaseError("connection closed"))
         self.mocker.replay()
 
         install_tracer(tracer_mock)
         self.connection.is_disconnection_error = (
             lambda exc, extra_disconnection_errors=():
-                'connection closed' in str(exc))
+                "connection closed" in ustr(exc))
 
         self.assertRaises(DisconnectionError,
                           self.connection.execute, "something")
@@ -293,7 +290,7 @@ class ConnectionTest(TestHelper):
         install_tracer(tracer_mock)
         self.connection.is_disconnection_error = (
             lambda exc, extra_disconnection_errors=():
-                'connection closed' in str(exc))
+                'connection closed' in ustr(exc))
 
         self.assertRaises(DisconnectionError,
                           self.connection.execute, "something")

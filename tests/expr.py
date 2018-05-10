@@ -18,11 +18,13 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+from __future__ import division
+
 from decimal import Decimal
 
 from tests.helper import TestHelper
 
-from storm.compat import is_python2, long_int
+from storm.compat import is_python2, iter_range, long_int
 from storm.variables import *
 from storm.expr import *
 
@@ -34,7 +36,7 @@ class Func2(NamedFunc):
     name = "func2"
 
 # Create columnN, tableN, and elemN variables.
-for i in range(10):
+for i in iter_range(10):
     for name in ["column", "elem"]:
         exec("%s%d = SQLToken('%s%d')" % (name, i, name, i))
     for name in ["table"]:
@@ -50,7 +52,7 @@ def compile_track_context(compile, expr, state):
     return ""
 
 def track_contexts(n):
-    return [TrackContext() for i in range(n)]
+    return [TrackContext() for i in iter_range(n)]
 
 
 class ExprTest(TestHelper):
@@ -68,7 +70,7 @@ class ExprTest(TestHelper):
         self.assertEquals(expr.distinct, False)
 
     def test_select_constructor(self):
-        objects = [object() for i in range(9)]
+        objects = [object() for i in iter_range(9)]
         expr = Select(*objects)
         self.assertEquals(expr.columns, objects[0])
         self.assertEquals(expr.where, objects[1])
@@ -89,7 +91,7 @@ class ExprTest(TestHelper):
         self.assertEquals(expr.primary_variables, Undef)
 
     def test_insert_constructor(self):
-        objects = [object() for i in range(5)]
+        objects = [object() for i in iter_range(5)]
         expr = Insert(*objects)
         self.assertEquals(expr.map, objects[0])
         self.assertEquals(expr.table, objects[1])
@@ -105,7 +107,7 @@ class ExprTest(TestHelper):
         self.assertEquals(expr.default_table, Undef)
 
     def test_update_constructor(self):
-        objects = [object() for i in range(4)]
+        objects = [object() for i in iter_range(4)]
         expr = Update(*objects)
         self.assertEquals(expr.map, objects[0])
         self.assertEquals(expr.where, objects[1])
@@ -118,7 +120,7 @@ class ExprTest(TestHelper):
         self.assertEquals(expr.table, Undef)
 
     def test_delete_constructor(self):
-        objects = [object() for i in range(3)]
+        objects = [object() for i in iter_range(3)]
         expr = Delete(*objects)
         self.assertEquals(expr.where, objects[0])
         self.assertEquals(expr.table, objects[1])
@@ -144,7 +146,7 @@ class ExprTest(TestHelper):
         self.assertEquals(expr.variable_factory, Variable)
 
     def test_column_constructor(self):
-        objects = [object() for i in range(3)]
+        objects = [object() for i in iter_range(3)]
         objects.insert(2, True)
         expr = Column(*objects)
         self.assertEquals(expr.name, objects[0])
@@ -229,7 +231,7 @@ class ExprTest(TestHelper):
         self.assertEquals(expr.tables, Undef)
 
     def test_sql_constructor(self):
-        objects = [object() for i in range(3)]
+        objects = [object() for i in iter_range(3)]
         expr = SQL(*objects)
         self.assertEquals(expr.expr, objects[0])
         self.assertEquals(expr.params, objects[1])
@@ -260,14 +262,14 @@ class ExprTest(TestHelper):
         self.assertRaises(ExprError, JoinExpr, None, on, None)
 
     def test_join_expr_right_left(self):
-        objects = [object() for i in range(2)]
+        objects = [object() for i in iter_range(2)]
         expr = JoinExpr(*objects)
         self.assertEquals(expr.left, objects[0])
         self.assertEquals(expr.right, objects[1])
         self.assertEquals(expr.on, Undef)
 
     def test_join_expr_right_left_on(self):
-        objects = [object() for i in range(3)]
+        objects = [object() for i in iter_range(3)]
         expr = JoinExpr(*objects)
         self.assertEquals(expr.left, objects[0])
         self.assertEquals(expr.right, objects[1])
@@ -281,7 +283,7 @@ class ExprTest(TestHelper):
         self.assertEquals(expr.on, Undef)
 
     def test_table(self):
-        objects = [object() for i in range(1)]
+        objects = [object() for i in iter_range(1)]
         expr = Table(*objects)
         self.assertEquals(expr.name, objects[0])
 
@@ -291,7 +293,7 @@ class ExprTest(TestHelper):
         self.assertTrue(isinstance(expr.name, str))
 
     def test_alias_constructor(self):
-        objects = [object() for i in range(2)]
+        objects = [object() for i in iter_range(2)]
         expr = Alias(*objects)
         self.assertEquals(expr.expr, objects[0])
         self.assertEquals(expr.name, objects[1])
@@ -495,7 +497,7 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, "child")
 
     def test_precedence(self):
-        for i in range(10):
+        for i in iter_range(10):
             exec("e%d = SQLRaw('%d')" % (i, i))
         expr = And(e1, Or(e2, e3),
                    Add(e4, Mul(e5, Sub(e6, Div(e7, Div(e8, e9))))))
@@ -2130,7 +2132,7 @@ class CompileTest(TestHelper):
 class CompilePythonTest(TestHelper):
 
     def test_precedence(self):
-        for i in range(10):
+        for i in iter_range(10):
             exec("e%d = SQLRaw('%d')" % (i, i))
         expr = And(e1, Or(e2, e3),
                    Add(e4, Mul(e5, Sub(e6, Div(e7, Div(e8, e9))))))

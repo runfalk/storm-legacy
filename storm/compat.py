@@ -34,6 +34,7 @@ __all__ = [
     "long_int",
     "pickle",
     "string_types",
+    "StringIO",
     "ustr",
     "version",
 ]
@@ -92,6 +93,17 @@ try:
 except ImportError:
     import pickle
 
+
+try:
+    from io import StringIo
+except ImportError:
+    from cStringIO import StringIO
+
+
+try:
+    import socketserver
+except ImportError:
+    import SocketServer as socketserver
 
 def add_metaclass(metaclass):
     """

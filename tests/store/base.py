@@ -20,13 +20,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from cStringIO import StringIO
 import decimal
 import gc
 import operator
 from uuid import uuid4
 import weakref
 
+from storm.compat import add_metaclass, iter_range, iter_values, long_int, StringIO, ustr
 from storm.references import Reference, ReferenceSet, Proxy
 from storm.database import Result, STATE_DISCONNECTED
 from storm.properties import (
@@ -1019,7 +1019,7 @@ class StoreTest(object):
     def test_find_max_unicode(self):
         title = self.store.find(Foo).max(Foo.title)
         self.assertEquals(title, "Title 30")
-        self.assertTrue(isinstance(title, unicode))
+        self.assertTrue(isinstance(title, ustr))
 
     def test_find_max_with_empty_result_and_disallow_none(self):
         class Bar(object):
@@ -1040,7 +1040,7 @@ class StoreTest(object):
     def test_find_min_unicode(self):
         title = self.store.find(Foo).min(Foo.title)
         self.assertEquals(title, "Title 10")
-        self.assertTrue(isinstance(title, unicode))
+        self.assertTrue(isinstance(title, ustr))
 
     def test_find_min_with_empty_result_and_disallow_none(self):
         class Bar(object):
@@ -1124,7 +1124,7 @@ class StoreTest(object):
         values = list(values)
         self.assertEquals(values, ["Title 30", "Title 20", "Title 10"])
         self.assertEquals([type(value) for value in values],
-                          [unicode, unicode, unicode])
+                          [ustr, ustr, ustr])
 
     def test_find_multiple_values(self):
         result = self.store.find(Foo).order_by(Foo.id)
@@ -1136,7 +1136,7 @@ class StoreTest(object):
 
     def test_find_values_with_no_arguments(self):
         result = self.store.find(Foo).order_by(Foo.id)
-        self.assertRaises(FeatureError, result.values().next)
+        self.assertRaises(FeatureError, next, result.values())
 
     def test_find_slice_values(self):
         values = self.store.find(Foo).order_by(Foo.id)[1:2].values(Foo.id)
@@ -2528,7 +2528,7 @@ class StoreTest(object):
         foo = self.store.get(Foo, 20)
         self.store.execute("UPDATE foo SET title='Title 40' WHERE id=20")
         self.store.reload(foo)
-        for variable in get_obj_info(foo).variables.values():
+        for variable in iter_values(get_obj_info(foo).variables):
             self.assertFalse(variable.has_changed())
 
     def test_reload_new(self):
@@ -4420,8 +4420,9 @@ class StoreTest(object):
         self.assertRaises(NoStoreError, foo2.bars.remove, object())
 
     def test_string_reference(self):
+        @add_metaclass(PropertyPublisherMeta)
         class Base(object):
-            __metaclass__ = PropertyPublisherMeta
+            pass
 
         class MyBar(Base):
             __storm_table__ = "bar"
@@ -4447,8 +4448,9 @@ class StoreTest(object):
         metaclass.  This makes it possible to work around problems with
         circular dependencies by delaying property resolution.
         """
+        @add_metaclass(PropertyPublisherMeta)
         class Base(object):
-            __metaclass__ = PropertyPublisherMeta
+            pass
 
         class MyFoo(Base):
             __storm_table__ = "foo"
@@ -4487,8 +4489,9 @@ class StoreTest(object):
         metaclass.  This makes it possible to work around problems with
         circular dependencies by delaying resolution of the order by column.
         """
+        @add_metaclass(PropertyPublisherMeta)
         class Base(object):
-            __metaclass__ = PropertyPublisherMeta
+            pass
 
         class MyFoo(Base):
             __storm_table__ = "foo"
@@ -4912,7 +4915,7 @@ class StoreTest(object):
         foo = self.store.get(DictFoo, 20)
         foo["a"] = 1
 
-        self.assertEquals(foo.items(), [("a", 1)])
+        self.assertEquals(list(foo.items()), [("a", 1)])
 
         new_obj = DictFoo()
         new_obj.id = 40
@@ -5246,7 +5249,7 @@ class StoreTest(object):
         self.store.add(foo)
         foo.id = AutoReload
         foo.title = u"New Title"
-        self.assertTrue(isinstance(foo.id, (int, long)))
+        self.assertTrue(isinstance(foo.id, (int, long_int)))
         self.assertEquals(foo.title, "New Title")
 
     def test_autoreload_primary_key_doesnt_reload_everything_else(self):
@@ -5732,8 +5735,9 @@ class StoreTest(object):
         self.assertEquals(foo.title, "New Title")
 
     def get_bar_proxy_with_string(self):
+        @add_metaclass(PropertyPublisherMeta)
         class Base(object):
-            __metaclass__ = PropertyPublisherMeta
+            pass
 
         class MyBarProxy(Base):
             __storm_table__ = "bar"
@@ -5901,14 +5905,14 @@ class StoreTest(object):
             try:
                 self.assertEquals(myfoo.title, title)
             except AssertionError as e:
-                raise AssertionError(unicode(e, 'replace') +
+                raise AssertionError(ustr(e, 'replace') +
                     " (ensure your database was created with CREATE DATABASE"
                     " ... CHARACTER SET utf8)")
 
     def test_creation_order_is_preserved_when_possible(self):
-        foos = [self.store.add(Foo()) for i in range(10)]
+        foos = [self.store.add(Foo()) for i in iter_range(10)]
         self.store.flush()
-        for i in range(len(foos)-1):
+        for i in iter_range(len(foos)-1):
             self.assertTrue(foos[i].id < foos[i+1].id)
 
     def test_update_order_is_preserved_when_possible(self):
@@ -5918,7 +5922,7 @@ class StoreTest(object):
                 self.flush_order = MyFoo.sequence
                 MyFoo.sequence += 1
 
-        foos = [self.store.add(MyFoo()) for i in range(10)]
+        foos = [self.store.add(MyFoo()) for i in iter_range(10)]
         self.store.flush()
 
         MyFoo.sequence = 0
@@ -5936,7 +5940,7 @@ class StoreTest(object):
                 self.flush_order = MyFoo.sequence
                 MyFoo.sequence += 1
 
-        foos = [self.store.add(MyFoo()) for i in range(10)]
+        foos = [self.store.add(MyFoo()) for i in iter_range(10)]
         self.store.flush()
 
         MyFoo.sequence = 0

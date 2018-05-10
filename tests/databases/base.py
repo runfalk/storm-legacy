@@ -21,11 +21,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 from datetime import datetime, date, time, timedelta
-import cPickle as pickle
 import shutil
 import sys
 import os
 
+from storm.compat import pickle, ustr
 from storm.uri import URI
 from storm.expr import Select, Column, SQLToken, SQLRaw, Count, Alias
 from storm.variables import (Variable, PickleVariable, RawStrVariable,
@@ -149,7 +149,7 @@ class DatabaseTest(object):
         self.assertTrue(isinstance(result, Result))
         row = result.get_one()
         self.assertEquals(row, ("Title 10",))
-        self.assertTrue(isinstance(row[0], unicode))
+        self.assertTrue(isinstance(row[0], ustr))
 
     def test_execute_params(self):
         result = self.connection.execute("SELECT one FROM number "
@@ -196,8 +196,8 @@ class DatabaseTest(object):
         self.assertEquals(next(iter2), (20, "Title 20"))
         self.assertEquals(next(iter1), (20, "Title 20"))
         self.assertEquals(next(iter2), (10, "Title 10"))
-        self.assertRaises(StopIteration, iter1.next)
-        self.assertRaises(StopIteration, iter2.next)
+        self.assertRaises(StopIteration, lambda: next(iter1))
+        self.assertRaises(StopIteration, lambda: next(iter2))
 
     def test_get_insert_identity(self):
         result = self.connection.execute("INSERT INTO test (title) "
@@ -345,7 +345,7 @@ class DatabaseTest(object):
                                     "WHERE id=10")
                 connection2.commit()
             except OperationalError as e:
-                self.assertEquals(str(e), "database is locked") # SQLite blocks
+                self.assertEquals(ustr(e), "database is locked") # SQLite blocks
             result = connection1.execute("SELECT title FROM test WHERE id=10")
             self.assertEquals(result.get_one(), ("Title 10",))
         finally:

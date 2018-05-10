@@ -14,6 +14,7 @@ else:
     TestWithFixtures = object
 
 
+from storm.compat import ustr
 from storm.tracer import (trace, install_tracer, get_tracers, remove_tracer,
                           remove_tracer_type, remove_all_tracers, debug,
                           BaseStatementTracer, DebugTracer, TimeoutTracer,
@@ -597,5 +598,5 @@ class CaptureTracerTest(TestHelper, TestWithFixtures):
         except RuntimeError as error:
             errors.append(error)
         [error] = errors
-        self.assertEqual("boom", str(error))
+        self.assertEqual(u"boom", ustr(error))
         self.assertEqual([], get_tracers())

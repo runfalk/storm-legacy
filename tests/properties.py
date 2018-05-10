@@ -25,6 +25,7 @@ import uuid
 from datetime import datetime, date, time, timedelta
 from decimal import Decimal as decimal
 
+from storm.compat import add_metaclass
 from storm.exceptions import NoneError, PropertyPathError
 from storm.properties import PropertyPublisherMeta
 from storm.properties import *
@@ -989,8 +990,9 @@ class PropertyPublisherMetaTest(TestHelper):
     def setUp(self):
         TestHelper.setUp(self)
 
+        @add_metaclass(PropertyPublisherMeta)
         class Base(object):
-            __metaclass__ = PropertyPublisherMeta
+            pass
 
         class Class(Base):
             __storm_table__ = "mytable"

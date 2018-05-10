@@ -473,10 +473,14 @@ class Comparable(object):
             other = getattr(self, "variable_factory", Variable)(value=other)
         return Mul(self, other)
 
-    def __div__(self, other):
+    # TODO: This should technically be floordiv
+    def __truediv__(self, other):
         if not isinstance(other, (Expr, Variable)):
             other = getattr(self, "variable_factory", Variable)(value=other)
         return Div(self, other)
+
+    # Python 2 compatibility
+    __div__ = __truediv__
 
     def __mod__(self, other):
         if not isinstance(other, (Expr, Variable)):

@@ -1,5 +1,6 @@
 from unittest import defaultTestLoader
 
+from storm.compat import iter_range, ustr
 from storm.properties import Int
 from storm.info import get_obj_info
 from storm.cache import Cache, GenerationalCache
@@ -14,7 +15,7 @@ class StubObjectInfo(object):
         self.hashed = False
 
     def get_obj(self):
-        return str(self.id)
+        return ustr(self.id)
 
     def __repr__(self):
         return "%s(%s)" % (self.__class__.__name__, self.id)
@@ -40,8 +41,8 @@ class BaseCacheTest(TestHelper):
 
     def setUp(self):
         super(BaseCacheTest, self).setUp()
-        self.obj_infos = [StubObjectInfo(i) for i in range(10)]
-        for i in range(len(self.obj_infos)):
+        self.obj_infos = [StubObjectInfo(i) for i in iter_range(10)]
+        for i in iter_range(len(self.obj_infos)):
             setattr(self, "obj%d" % (i+1), self.obj_infos[i])
 
     def clear_hashed(self):
@@ -134,7 +135,7 @@ class BaseCacheTest(TestHelper):
         """
         size = 10
         cache = self.Cache(size)
-        for value in xrange(size):
+        for value in iter_range(size):
             cache.add(StubObjectInfo(value))
         self.assertEqual(len(cache.get_cached()), size)
 
@@ -255,7 +256,7 @@ class TestGenerationalCache(BaseCacheTest):
         """
         size = 10
         cache = GenerationalCache(size)
-        for value in xrange(5 * size):
+        for value in iter_range(5 * size):
             cache.add(StubObjectInfo(value))
         self.assertEquals(len(cache.get_cached()), size * 2)
 
@@ -267,7 +268,7 @@ class TestGenerationalCache(BaseCacheTest):
         the size requested in edge cases.
         """
         cache = GenerationalCache(150)
-        for i in range(250):
+        for i in iter_range(250):
             cache.add(StubObjectInfo(i))
         cache.set_size(100)
         cached = cache.get_cached()
@@ -298,7 +299,7 @@ class TestGenerationalCache(BaseCacheTest):
         size = 10
         cache = GenerationalCache(size * 100)
         cache.set_size(size)
-        for value in xrange(size * 10):
+        for value in iter_range(size * 10):
             cache.add(StubObjectInfo(value))
         self.assertEquals(len(cache.get_cached()), size * 2)
 
