@@ -1,6 +1,8 @@
 0.21 (XXXX-XX-XX)
 =================
 
+This release only works on Python 2.7 and later.
+
 Improvements
 ------------
 
@@ -38,7 +40,15 @@ API changes
 
 - Removed MySQL support.
 
+- Removed schema management support.
+
+- Removed SQLObject emulation support.
+
 - Removed timeline support.
+
+- Removed Twisted support.
+
+- Removed Zope integration.
 
 0.20 (2013-06-28)
 =================

@@ -18,6 +18,7 @@ List of removed features:
 
  * MySQL support
  * Python 2.6 and earlier support
+ * Schema management
  * SQLObject support
  * Twisted integration
  * WSGI debug timeline
