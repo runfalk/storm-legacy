@@ -153,7 +153,7 @@ class TimeoutError(StormError):
         self.message = message
 
     def __str__(self):
-	return ', '.join(
+        return ', '.join(
             [repr(element) for element in
              (self.message, self.statement, self.params)
              if element is not None])

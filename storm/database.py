@@ -25,6 +25,9 @@ This is the common code for database support; specific databases are
 supported in modules in L{storm.databases}.
 """
 
+from importlib import import_module
+
+from storm.compat import string_types
 from storm.expr import Expr, State, compile
 # Circular import: imported at the end of the module.
 # from storm.tracer import trace
@@ -544,13 +547,12 @@ def create_database(uri):
         - "anything:..." Where 'anything' has previously been registered
           with L{register_scheme}.
     """
-    if isinstance(uri, basestring):
+    if isinstance(uri, string_types):
         uri = URI(uri)
     if uri.scheme in _database_schemes:
         factory = _database_schemes[uri.scheme]
     else:
-        module = __import__("%s.databases.%s" % (storm.__name__, uri.scheme),
-                            None, None, [""])
+        module = import_module("%s.databases.%s" % (storm.__name__, uri.scheme))
         factory = module.create_from_uri
     return factory(uri)
 

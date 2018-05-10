@@ -95,9 +95,11 @@ except ImportError:
 
 
 try:
-    from io import StringIo
-except ImportError:
+    # The io module is available in Python 2 but it works differently than
+    # cStringIO
     from cStringIO import StringIO
+except ImportError:
+    from io import StringIO
 
 
 try:
