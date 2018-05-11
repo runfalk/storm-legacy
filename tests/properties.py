@@ -419,7 +419,7 @@ class PropertyKindsTest(TestHelper):
         self.assertTrue(isinstance(self.obj.prop1, decimal))
 
     def test_str(self):
-        self.setup(RawStr, default="def", allow_none=False)
+        self.setup(RawStr, default=b"def", allow_none=False)
 
         self.assertTrue(isinstance(self.column1, Column))
         self.assertTrue(isinstance(self.column2, Column))
@@ -430,7 +430,7 @@ class PropertyKindsTest(TestHelper):
         self.assertTrue(isinstance(self.variable1, RawStrVariable))
         self.assertTrue(isinstance(self.variable2, RawStrVariable))
 
-        self.assertEquals(self.obj.prop1, "def")
+        self.assertEquals(self.obj.prop1, b"def")
         self.assertRaises(NoneError, setattr, self.obj, "prop1", None)
         self.obj.prop2 = None
         self.assertEquals(self.obj.prop2, None)
@@ -454,7 +454,7 @@ class PropertyKindsTest(TestHelper):
         self.obj.prop2 = None
         self.assertEquals(self.obj.prop2, None)
 
-        self.assertRaises(TypeError, setattr, self.obj, "prop1", "str")
+        self.assertRaises(TypeError, setattr, self.obj, "prop1", b"str")
 
     def test_datetime(self):
         self.setup(DateTime, default=0, allow_none=False)
@@ -818,7 +818,7 @@ class PropertyKindsTest(TestHelper):
                                (Bool, BoolVariable, True),
                                (Int, IntVariable, 1),
                                (Float, FloatVariable, 1.1),
-                               (RawStr, RawStrVariable, "str"),
+                               (RawStr, RawStrVariable, b"str"),
                                (Unicode, UnicodeVariable, u"unicode"),
                                (DateTime, DateTimeVariable, datetime.now()),
                                (Date, DateVariable, date.today()),

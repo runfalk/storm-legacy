@@ -24,6 +24,7 @@ import sys
 
 __all__ = [
     "add_metaclass",
+    "buffer",
     "bstr",
     "is_python2",
     "iter_range",
@@ -106,6 +107,12 @@ try:
     import socketserver
 except ImportError:
     import SocketServer as socketserver
+
+
+try:
+    from __builtin__ import buffer
+except ImportError:
+    buffer = memoryview
 
 def add_metaclass(metaclass):
     """

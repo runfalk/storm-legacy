@@ -22,6 +22,7 @@ from datetime import datetime, date, time, timedelta
 from time import sleep, time as now
 import sys
 
+from storm.compat import buffer
 from storm.databases import dummy
 
 try:
@@ -84,8 +85,12 @@ class SQLiteResult(Result):
     @staticmethod
     def set_variable(variable, value):
         if isinstance(variable, RawStrVariable):
-            # pysqlite2 may return unicode.
-            value = bstr(value)
+            # On Python 3 sqlite will return unicode objects when possible
+            try:
+                if not isinstance(value, bstr):
+                    value = ustr(value).encode("utf-8")
+            except:
+                value = bstr(value)
         variable.set(value, from_db=True)
 
     @staticmethod

@@ -171,9 +171,9 @@ class BaseStatementTracer(object):
             render_params = []
             for param in query_params:
                 if isinstance(param, ustr):
-                    render_params.append(repr(param.encode('utf8')))
+                    render_params.append(repr(param).lstrip(u"u"))
                 else:
-                    render_params.append(repr(param))
+                    render_params.append(repr(param).lstrip(u"b"))
             try:
                 statement_to_log = quoted_statement % tuple(render_params)
             except TypeError:

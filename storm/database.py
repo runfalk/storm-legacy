@@ -27,7 +27,7 @@ supported in modules in L{storm.databases}.
 
 from importlib import import_module
 
-from storm.compat import string_types
+from storm.compat import iter_range, string_types, ustr
 from storm.expr import Expr, State, compile
 # Circular import: imported at the end of the module.
 # from storm.tracer import trace
@@ -429,7 +429,7 @@ class Connection(object):
             except DatabaseError as exc:
                 self._state = STATE_DISCONNECTED
                 self._raw_connection = None
-                raise DisconnectionError(str(exc))
+                raise DisconnectionError(ustr(exc))
             else:
                 self._state = STATE_CONNECTED
 
@@ -459,7 +459,7 @@ class Connection(object):
             if self.is_disconnection_error(exc, extra_disconnection_errors):
                 self._state = STATE_DISCONNECTED
                 self._raw_connection = None
-                raise DisconnectionError(str(exc))
+                raise DisconnectionError(ustr(exc))
             else:
                 raise
 
@@ -519,7 +519,7 @@ def convert_param_marks(statement, from_param_mark, to_param_mark):
     if from_param_mark == to_param_mark or from_param_mark not in statement:
         return statement
     tokens = statement.split("'")
-    for i in range(0, len(tokens), 2):
+    for i in iter_range(0, len(tokens), 2):
         tokens[i] = tokens[i].replace(from_param_mark, to_param_mark)
     return "'".join(tokens)
 

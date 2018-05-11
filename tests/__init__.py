@@ -30,6 +30,9 @@ import doctest
 import os
 import unittest
 
+from storm.compat import is_python2
+
+
 try:
     import fixtures
     fixtures  # Silence lint.
@@ -93,7 +96,7 @@ def find_tests(testpaths=()):
                 module = __import__(modpath, None, None, [""])
                 suite.addTest(
                     unittest.defaultTestLoader.loadTestsFromModule(module))
-            elif filename.endswith(".txt"):
+            elif is_python2 and filename.endswith(".txt"):
                 load_test = True
                 if load_test:
                     parent_path = os.path.dirname(relpath).replace(

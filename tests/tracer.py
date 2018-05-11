@@ -522,13 +522,14 @@ class BaseStatementTracerTest(TestCase):
     def test_unformattable_statements_are_handled(self):
         tracer = self.LoggingBaseStatementTracer()
         conn = StubConnection()
-        var1 = MockVariable(u'substring')
+        substr = u"substring"
+        var1 = MockVariable(substr)
         tracer.connection_raw_execute(
             conn, 'cursor', "%s %s",
             [var1])
         self.assertEqual(
             [(conn, 'cursor',
-              "Unformattable query: '%s %s' with params [u'substring'].")],
+              "Unformattable query: '%s %s' with params [{!r}].".format(substr))],
             tracer.calls)
 
 

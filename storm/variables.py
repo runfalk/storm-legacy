@@ -25,7 +25,7 @@ import uuid
 from datetime import datetime, date, time, timedelta
 from decimal import Decimal
 
-from storm.compat import bstr, long_int, pickle, string_types, ustr
+from storm.compat import buffer, bstr, long_int, pickle, string_types, ustr
 from storm.exceptions import NoneError
 from storm import Undef, has_cextensions
 
@@ -383,7 +383,7 @@ class RawStrVariable(Variable):
         if isinstance(value, buffer):
             value = bstr(value)
         elif not isinstance(value, bstr):
-            raise TypeError("Expected str, found %r: %r"
+            raise TypeError("Expected bytes, found %r: %r"
                             % (type(value), value))
         return value
 
@@ -428,6 +428,15 @@ class DateTimeVariable(Variable):
             elif not isinstance(value, datetime):
                 raise TypeError("Expected datetime, found %s" % repr(value))
             if self._tzinfo is not None:
+                # Since Python 3.6 you can use astimezone on naive datetime
+                # instances. This assumes the current timezone is the one on
+                # the system. This may not be what we want since the DB can
+                # run on a separate machine with a different timezone.
+                if value.tzinfo is None:
+                    raise ValueError(
+                        "Tried to use a naive datetime in a timezone aware"
+                        "DataTimeVariable"
+                    )
                 value = value.astimezone(self._tzinfo)
         return value
 

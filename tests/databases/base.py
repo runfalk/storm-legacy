@@ -272,7 +272,7 @@ class DatabaseTest(object):
 
     def test_binary(self):
         """Ensure database works with high bits and embedded zeros."""
-        value = "\xff\x00\xff\x00"
+        value = b"\xff\x00\xff\x00"
         self.connection.execute("INSERT INTO bin_test (b) VALUES (?)",
                                 (value,))
         result = self.connection.execute("SELECT b FROM bin_test")
@@ -287,7 +287,7 @@ class DatabaseTest(object):
         variable = RawStrVariable()
         # If the following doesn't raise a TypeError we're good.
         result.set_variable(variable, result.get_one()[0])
-        self.assertEquals(variable.get(), "Value")
+        self.assertEquals(variable.get(), b"Value")
 
     def test_order_by_group_by(self):
         self.connection.execute("INSERT INTO test VALUES (100, 'Title 10')")

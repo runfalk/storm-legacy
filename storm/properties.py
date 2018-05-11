@@ -22,7 +22,7 @@ from bisect import insort_left, bisect_left
 import weakref
 import sys
 
-from storm.compat import iter_items, iter_zip
+from storm.compat import is_python2, iter_items, iter_zip
 from storm.exceptions import PropertyPathError
 from storm.info import get_obj_info, get_cls_info
 from storm.expr import Column, Undef
@@ -122,6 +122,11 @@ class PropertyColumn(Column):
         # function call on each access.
         for attr in ["__get__", "__set__", "__delete__"]:
             setattr(self, attr, getattr(prop, attr))
+
+    # This seems to be required on Python 3
+    if not is_python2:
+        def __hash__(self):
+            return id(self)
 
 
 class SimpleProperty(Property):

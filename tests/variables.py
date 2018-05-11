@@ -26,7 +26,7 @@ import weakref
 from datetime import datetime, date, time, timedelta
 from decimal import Decimal
 
-from storm.compat import pickle, ustr
+from storm.compat import buffer, bstr, pickle, ustr
 from storm.exceptions import NoneError
 from storm.variables import *
 from storm.event import EventSystem
@@ -141,18 +141,18 @@ class VariableTest(TestHelper):
         variable = CustomVariable(allow_none=False, column=column)
         try:
             variable.set(None)
+            self.assertTrue(False)
         except NoneError as e:
-            pass
-        self.assertTrue("column_name" in ustr(e))
+            self.assertTrue("column_name" in ustr(e))
 
     def test_set_none_with_allow_none_and_column_with_table(self):
         column = Column("column_name", SQLToken("table_name"))
         variable = CustomVariable(allow_none=False, column=column)
         try:
             variable.set(None)
+            self.assertTrue(False)
         except NoneError as e:
-            pass
-        self.assertTrue("table_name.column_name" in ustr(e))
+            self.assertTrue("table_name.column_name" in ustr(e))
 
     def test_set_with_validator(self):
         args = []
@@ -440,10 +440,10 @@ class RawStrVariableTest(TestHelper):
 
     def test_set_get(self):
         variable = RawStrVariable()
-        variable.set("str")
-        self.assertEquals(variable.get(), "str")
-        variable.set(buffer("buffer"))
-        self.assertEquals(variable.get(), "buffer")
+        variable.set(b"str")
+        self.assertEquals(variable.get(), b"str")
+        variable.set(buffer(b"buffer"))
+        self.assertEquals(variable.get(), b"buffer")
         self.assertRaises(TypeError, variable.set, u"unicode")
 
 
@@ -453,7 +453,7 @@ class UnicodeVariableTest(TestHelper):
         variable = UnicodeVariable()
         variable.set(u"unicode")
         self.assertEquals(variable.get(), u"unicode")
-        self.assertRaises(TypeError, variable.set, "str")
+        self.assertRaises(TypeError, variable.set, b"str")
 
 
 class DateTimeVariableTest(TestHelper):
@@ -907,7 +907,7 @@ class JSONVariableTest(EncodedValueVariableTestMixin, TestHelper):
         # JSONVariable._loads() complains loudly if it does not receive a
         # unicode string because it has no way of knowing its encoding.
         variable = self.variable_type()
-        self.assertRaises(TypeError, variable.set, '"abc"', from_db=True)
+        self.assertRaises(TypeError, variable.set, b'"abc"', from_db=True)
 
     def test_unicode_to_db(self):
         # JSONVariable._dumps() works around unicode/str handling issues in

@@ -24,7 +24,7 @@ from weakref import WeakKeyDictionary
 from copy import copy
 import re
 
-from storm.compat import bstr, long_int, ustr
+from storm.compat import bstr, is_python2, long_int, ustr
 from storm.exceptions import CompileError, NoTableError, ExprError
 from storm.variables import (
     Variable, RawStrVariable, UnicodeVariable, LazyValue,
@@ -832,6 +832,10 @@ class Column(ComparableExpr):
         self.compile_cache = None
         self.compile_id = None
 
+    if not is_python2:
+        def __hash__(self):
+            return id(self)
+
 @compile.when(Column)
 def compile_column(compile, column, state):
     if column.table is not Undef:
@@ -865,8 +869,7 @@ def compile_python_column(compile, column, state):
 # Alias expressions
 
 class Alias(ComparableExpr):
-    """A representation of "AS" alias clauses. e.g., SELECT foo AS bar.
-    """
+    """A representation of "AS" alias clauses. e.g., SELECT foo AS bar."""
     __slots__ = ("expr", "name")
 
     auto_counter = 0
@@ -882,6 +885,11 @@ class Alias(ComparableExpr):
             Alias.auto_counter += 1
             name = "_%x" % Alias.auto_counter
         self.name = name
+
+    if not is_python2:
+        def __hash__(self):
+            return id(self)
+
 
 @compile.when(Alias)
 def compile_alias(compile, alias, state):

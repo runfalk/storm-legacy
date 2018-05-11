@@ -32,6 +32,10 @@ from storm.expr import *
 class Func1(NamedFunc):
     name = "func1"
 
+    if not is_python2:
+        def __hash__(self):
+            return id(self)
+
 class Func2(NamedFunc):
     name = "func2"
 
@@ -190,7 +194,7 @@ class ExprTest(TestHelper):
 
     def test_startswith(self):
         expr = Func1()
-        self.assertRaises(ExprError, expr.startswith, "not a unicode string")
+        self.assertRaises(ExprError, expr.startswith, b"not a unicode string")
 
         like_expr = expr.startswith(u"abc!!_%")
         self.assertTrue(isinstance(like_expr, Like))
@@ -200,7 +204,7 @@ class ExprTest(TestHelper):
 
     def test_endswith(self):
         expr = Func1()
-        self.assertRaises(ExprError, expr.startswith, "not a unicode string")
+        self.assertRaises(ExprError, expr.startswith, b"not a unicode string")
 
         like_expr = expr.endswith(u"abc!!_%")
         self.assertTrue(isinstance(like_expr, Like))
@@ -211,7 +215,7 @@ class ExprTest(TestHelper):
     def test_contains_string(self):
         expr = Func1()
         self.assertRaises(
-            ExprError, expr.contains_string, "not a unicode string")
+            ExprError, expr.contains_string, b"not a unicode string")
 
         like_expr = expr.contains_string(u"abc!!_%")
         self.assertTrue(isinstance(like_expr, Like))
@@ -497,10 +501,17 @@ class CompileTest(TestHelper):
         self.assertEquals(statement, "child")
 
     def test_precedence(self):
-        for i in iter_range(10):
-            exec("e%d = SQLRaw('%d')" % (i, i))
-        expr = And(e1, Or(e2, e3),
-                   Add(e4, Mul(e5, Sub(e6, Div(e7, Div(e8, e9))))))
+        expr = And(
+            SQLRaw(1),
+            Or(SQLRaw(2), SQLRaw(3)),
+            Add(
+                SQLRaw(4),
+                Mul(
+                    SQLRaw(5),
+                    Sub(SQLRaw(6), Div(SQLRaw(7), Div(SQLRaw(8), SQLRaw(9)))),
+                ),
+            ),
+        )
         statement = compile(expr)
         self.assertEquals(statement, "1 AND (2 OR 3) AND 4+5*(6-7/(8/9))")
 
@@ -571,9 +582,9 @@ class CompileTest(TestHelper):
 
     def test_str(self):
         state = State()
-        statement = compile("str", state)
+        statement = compile(b"str", state)
         self.assertEquals(statement, "?")
-        self.assertVariablesEqual(state.parameters, [RawStrVariable("str")])
+        self.assertVariablesEqual(state.parameters, [RawStrVariable(b"str")])
 
     def test_unicode(self):
         state = State()
@@ -1217,11 +1228,11 @@ class CompileTest(TestHelper):
         self.assertVariablesEqual(state.parameters, [Variable("value")])
 
     def test_like(self):
-        expr = Like(Func1(), "value")
+        expr = Like(Func1(), b"value")
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, "func1() LIKE ?")
-        self.assertVariablesEqual(state.parameters, [RawStrVariable("value")])
+        self.assertVariablesEqual(state.parameters, [RawStrVariable(b"value")])
 
         expr = Func1().like("Hello")
         state = State()
@@ -1230,19 +1241,19 @@ class CompileTest(TestHelper):
         self.assertVariablesEqual(state.parameters, [Variable("Hello")])
 
     def test_like_escape(self):
-        expr = Like(Func1(), "value", "!")
+        expr = Like(Func1(), b"value", b"!")
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, "func1() LIKE ? ESCAPE ?")
         self.assertVariablesEqual(state.parameters,
-                          [RawStrVariable("value"), RawStrVariable("!")])
+                          [RawStrVariable(b"value"), RawStrVariable(b"!")])
 
-        expr = Func1().like("Hello", "!")
+        expr = Func1().like("Hello", b"!")
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, "func1() LIKE ? ESCAPE ?")
         self.assertVariablesEqual(state.parameters,
-                          [Variable("Hello"), RawStrVariable("!")])
+                          [Variable("Hello"), RawStrVariable(b"!")])
 
     def test_like_compareable_case(self):
         expr = Func1().like("Hello")
@@ -1253,11 +1264,11 @@ class CompileTest(TestHelper):
         self.assertEquals(expr.case_sensitive, False)
 
     def test_in(self):
-        expr = In(Func1(), "value")
+        expr = In(Func1(), b"value")
         state = State()
         statement = compile(expr, state)
         self.assertEquals(statement, "func1() IN (?)")
-        self.assertVariablesEqual(state.parameters, [RawStrVariable("value")])
+        self.assertVariablesEqual(state.parameters, [RawStrVariable(b"value")])
 
         expr = In(Func1(), elem1)
         state = State()
@@ -2132,10 +2143,8 @@ class CompileTest(TestHelper):
 class CompilePythonTest(TestHelper):
 
     def test_precedence(self):
-        for i in iter_range(10):
-            exec("e%d = SQLRaw('%d')" % (i, i))
-        expr = And(e1, Or(e2, e3),
-                   Add(e4, Mul(e5, Sub(e6, Div(e7, Div(e8, e9))))))
+        expr = And(1, Or(2, 3),
+                   Add(4, Mul(5, Sub(6, Div(7, Div(8, 9))))))
         py_expr = compile_python(expr)
         self.assertEquals(py_expr, "1 and (2 or 3) and 4+5*(6-7/(8/9))")
 
@@ -2168,7 +2177,11 @@ class CompilePythonTest(TestHelper):
 
     def test_unicode(self):
         py_expr = compile_python(u"str")
-        self.assertEquals(py_expr, "u'str'")
+
+        if is_python2:
+            self.assertEquals(py_expr, "u'str'")
+        else:
+            self.assertEquals(py_expr, "'str'")
 
     def test_int(self):
         py_expr = compile_python(1)

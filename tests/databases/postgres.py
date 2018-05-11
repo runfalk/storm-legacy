@@ -146,7 +146,7 @@ class PostgresTest(DatabaseTest, TestHelper):
         self.assertEquals(encoding.upper(), "UTF8")
 
     def test_unicode(self):
-        raw_str = "\xc3\xa1\xc3\xa9\xc3\xad\xc3\xb3\xc3\xba"
+        raw_str = b"\xc3\xa1\xc3\xa9\xc3\xad\xc3\xb3\xc3\xba"
         uni_str = raw_str.decode("UTF-8")
 
         connection = self.database.connect()
@@ -159,7 +159,7 @@ class PostgresTest(DatabaseTest, TestHelper):
         self.assertEquals(title, uni_str)
 
     def test_unicode_array(self):
-        raw_str = "\xc3\xa1\xc3\xa9\xc3\xad\xc3\xb3\xc3\xba"
+        raw_str = b"\xc3\xa1\xc3\xa9\xc3\xad\xc3\xb3\xc3\xba"
         uni_str = raw_str.decode("UTF-8")
 
         connection = self.database.connect()

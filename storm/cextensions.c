@@ -1682,7 +1682,10 @@ Compile__call__(CompileObject *self, PyObject *args, PyObject *kwargs)
 
     join = default_compile_join;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|OSbb", kwlist,
+    // TODO: join argument is parsed as a generic PyObject when we in reality
+    //       expect it to be either bytes or unicode. It used to be PyString,
+    //       but that causes trouble on Python 3
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|OObb", kwlist,
                                      &expr, &state, &join, &raw, &token)) {
         return NULL;
     }
