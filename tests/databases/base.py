@@ -25,12 +25,12 @@ import shutil
 import sys
 import os
 
-from storm.compat import pickle, ustr
+from storm.compat import ustr
 from storm.uri import URI
 from storm.expr import Select, Column, SQLToken, SQLRaw, Count, Alias
-from storm.variables import (Variable, PickleVariable, RawStrVariable,
-                             DecimalVariable, DateTimeVariable, DateVariable,
-                             TimeVariable, TimeDeltaVariable)
+from storm.variables import (Variable, RawStrVariable, DecimalVariable,
+                             DateTimeVariable, DateVariable, TimeVariable,
+                             TimeDeltaVariable)
 from storm.database import *
 from storm.xid import Xid
 from storm.event import EventSystem
@@ -257,16 +257,6 @@ class DatabaseTest(object):
                                 (value,))
         result = self.connection.execute("SELECT td FROM datetime_test")
         variable = TimeDeltaVariable()
-        result.set_variable(variable, result.get_one()[0])
-        self.assertEquals(variable.get(), value)
-
-    def test_pickle(self):
-        value = {"a": 1, "b": 2}
-        value_dump = pickle.dumps(value, -1)
-        self.connection.execute("INSERT INTO bin_test (b) VALUES (?)",
-                                (value_dump,))
-        result = self.connection.execute("SELECT b FROM bin_test")
-        variable = PickleVariable()
         result.set_variable(variable, result.get_one()[0])
         self.assertEquals(variable.get(), value)
 

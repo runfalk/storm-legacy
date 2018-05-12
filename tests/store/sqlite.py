@@ -49,8 +49,8 @@ class SQLiteStoreTest(TestHelper, StoreTest):
         connection.execute("CREATE TABLE bar "
                            "(id INTEGER PRIMARY KEY,"
                            " foo_id INTEGER, title VARCHAR)")
-        connection.execute("CREATE TABLE bin "
-                           "(id INTEGER PRIMARY KEY, bin BLOB, foo_id INTEGER)")
+        connection.execute("CREATE TABLE json "
+                           "(id INTEGER PRIMARY KEY, data TEXT, foo_id INTEGER)")
         connection.execute("CREATE TABLE link "
                            "(foo_id INTEGER, bar_id INTEGER)")
         # We have to use TEXT here, since NUMERIC would cause SQLite

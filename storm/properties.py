@@ -30,14 +30,28 @@ from storm.variables import (
     Variable, VariableFactory, BoolVariable, IntVariable, FloatVariable,
     DecimalVariable, RawStrVariable, UnicodeVariable, DateTimeVariable,
     DateVariable, TimeVariable, TimeDeltaVariable, UUIDVariable,
-    PickleVariable, JSONVariable, ListVariable, EnumVariable)
+    JSONVariable, ListVariable, EnumVariable)
 
 
-
-__all__ = ["Property", "SimpleProperty",
-           "Bool", "Int", "Float", "Decimal", "RawStr", "Unicode",
-           "DateTime", "Date", "Time", "TimeDelta", "UUID", "Enum",
-           "Pickle", "JSON", "List", "PropertyRegistry"]
+__all__ = [
+    "Property",
+    "SimpleProperty",
+    "Bool",
+    "Int",
+    "Float",
+    "Decimal",
+    "RawStr",
+    "Unicode",
+    "DateTime",
+    "Date",
+    "Time",
+    "TimeDelta",
+    "UUID",
+    "Enum",
+    "JSON",
+    "List",
+    "PropertyRegistry",
+]
 
 
 class Property(object):
@@ -141,42 +155,47 @@ class SimpleProperty(Property):
 
 class Bool(SimpleProperty):
     variable_class = BoolVariable
- 
+
+
 class Int(SimpleProperty):
     variable_class = IntVariable
+
 
 class Float(SimpleProperty):
     variable_class = FloatVariable
 
+
 class Decimal(SimpleProperty):
     variable_class = DecimalVariable
+
 
 class RawStr(SimpleProperty):
     variable_class = RawStrVariable
 
-# OBSOLETE RawStr was Chars in 0.9. This will die soon.
-Chars = RawStr
 
 class Unicode(SimpleProperty):
     variable_class = UnicodeVariable
 
+
 class DateTime(SimpleProperty):
     variable_class = DateTimeVariable
+
 
 class Date(SimpleProperty):
     variable_class = DateVariable
 
+
 class Time(SimpleProperty):
     variable_class = TimeVariable
+
 
 class TimeDelta(SimpleProperty):
     variable_class = TimeDeltaVariable
 
+
 class UUID(SimpleProperty):
     variable_class = UUIDVariable
 
-class Pickle(SimpleProperty):
-    variable_class = PickleVariable
 
 class JSON(SimpleProperty):
     variable_class = JSONVariable

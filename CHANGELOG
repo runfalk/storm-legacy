@@ -40,6 +40,8 @@ API changes
 
 - Removed MySQL support.
 
+- Removed Pickle and PickleVariable.
+
 - Removed schema management support.
 
 - Removed SQLObject emulation support.

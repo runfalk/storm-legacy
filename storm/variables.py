@@ -46,7 +46,6 @@ __all__ = [
     "TimeDeltaVariable",
     "EnumVariable",
     "UUIDVariable",
-    "PickleVariable",
     "JSONVariable",
     "ListVariable",
 ]
@@ -623,27 +622,21 @@ class EncodedValueVariable(MutableValueVariable):
         self._value = self._loads(state[1])
 
 
-class PickleVariable(EncodedValueVariable):
-    def _loads(self, value):
-        return pickle.loads(value)
-
-    def _dumps(self, value):
-        return pickle.dumps(value, -1)
-
-
 class JSONVariable(EncodedValueVariable):
     __slots__ = ()
 
     def __init__(self, *args, **kwargs):
-        assert json is not None, (
-            "Neither the json nor the simplejson module was found.")
         super(JSONVariable, self).__init__(*args, **kwargs)
 
     def _loads(self, value):
-        if not isinstance(value, ustr):
+        json_openers = (u"[", u"{", u"'", u'"')
+        if isinstance(value, bstr):
             raise TypeError(
                 "Cannot safely assume encoding of byte string %r." % value)
-        return json.loads(value)
+        elif isinstance(value, ustr) and value.lstrip().startswith(json_openers):
+            # For databases like SQLite the data is not automatically decoded
+            return json.loads(value)
+        return value
 
     def _dumps(self, value):
         # http://www.ietf.org/rfc/rfc4627.txt states that JSON is text-based

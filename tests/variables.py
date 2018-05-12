@@ -889,12 +889,6 @@ class EncodedValueVariableTestMixin(object):
         self.assertEquals(changes, [(variable, None, ["a"], False)])
 
 
-class PickleVariableTest(EncodedValueVariableTestMixin, TestHelper):
-
-    encode = staticmethod(lambda data: pickle.dumps(data, -1))
-    variable_type = PickleVariable
-
-
 class JSONVariableTest(EncodedValueVariableTestMixin, TestHelper):
 
     encode = staticmethod(lambda data: json.dumps(data).decode("utf-8"))

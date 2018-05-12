@@ -74,8 +74,8 @@ class PostgresStoreTest(TestHelper, StoreTest):
         connection.execute("CREATE TABLE bar "
                            "(id SERIAL PRIMARY KEY,"
                            " foo_id INTEGER, title VARCHAR)")
-        connection.execute("CREATE TABLE bin "
-                           "(id SERIAL PRIMARY KEY, bin BYTEA, foo_id INTEGER)")
+        connection.execute("CREATE TABLE json "
+                           "(id SERIAL PRIMARY KEY, data JSON, foo_id INTEGER)")
         connection.execute("CREATE TABLE link "
                            "(foo_id INTEGER, bar_id INTEGER,"
                            " PRIMARY KEY (foo_id, bar_id))")

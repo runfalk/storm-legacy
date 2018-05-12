@@ -30,12 +30,11 @@ from storm.compat import add_metaclass, iter_range, iter_values, long_int, Strin
 from storm.references import Reference, ReferenceSet, Proxy
 from storm.database import Result, STATE_DISCONNECTED
 from storm.properties import (
-    Int, Float, RawStr, Unicode, Property, Pickle, UUID)
+    Int, Float, JSON, RawStr, Unicode, Property, UUID)
 from storm.properties import PropertyPublisherMeta, Decimal
-from storm.variables import PickleVariable
 from storm.expr import (
     Asc, Desc, Select, LeftJoin, SQL, Count, Sum, Avg, And, Or, Eq, Lower)
-from storm.variables import Variable, UnicodeVariable, IntVariable
+from storm.variables import Variable, JSONVariable, UnicodeVariable, IntVariable
 from storm.info import get_obj_info, ClassAlias
 from storm.exceptions import (
     ClosedError, ConnectionBlockedError, FeatureError, LostObjectError,
@@ -67,10 +66,10 @@ class UniqueID(object):
     def __init__(self, id):
         self.id = id
 
-class Blob(object):
-    __storm_table__ = "bin"
+class Json(object):
+    __storm_table__ = "json"
     id = Int(primary=True)
-    bin = RawStr()
+    data = JSON()
 
 class Link(object):
     __storm_table__ = "link"
@@ -209,9 +208,9 @@ class StoreTest(object):
                            " VALUES (200, 20, 'Title 200')")
         connection.execute("INSERT INTO bar (id, foo_id, title)"
                            " VALUES (300, 30, 'Title 100')")
-        connection.execute("INSERT INTO bin (id, bin) VALUES (10, 'Blob 30')")
-        connection.execute("INSERT INTO bin (id, bin) VALUES (20, 'Blob 20')")
-        connection.execute("INSERT INTO bin (id, bin) VALUES (30, 'Blob 10')")
+        connection.execute("INSERT INTO json (id, data) VALUES (10, '{}')")
+        connection.execute("INSERT INTO json (id, data) VALUES (20, '{\"a\": 1}')")
+        connection.execute("INSERT INTO json (id, data) VALUES (30, '{\"b\": 2}')")
         connection.execute("INSERT INTO link (foo_id, bar_id) VALUES (10, 100)")
         connection.execute("INSERT INTO link (foo_id, bar_id) VALUES (10, 200)")
         connection.execute("INSERT INTO link (foo_id, bar_id) VALUES (10, 300)")
@@ -266,7 +265,7 @@ class StoreTest(object):
         pass
 
     def drop_tables(self):
-        for table in ["foo", "bar", "bin", "link", "money", "selfref",
+        for table in ["foo", "bar", "json", "link", "money", "selfref",
                       "foovalue", "unique_id"]:
             try:
                 self.connection.execute("DROP TABLE %s" % table)
@@ -415,26 +414,17 @@ class StoreTest(object):
         to not create a leak. If we're holding a reference to the obj_info and
         rebuild the object, it should re-enable change notication.
         """
-        class PickleBlob(Blob):
-            bin = Pickle()
-
         # Disable the cache, which holds strong references.
         self.get_cache(self.store).set_size(0)
 
-        blob = self.store.get(Blob, 20)
-        blob.bin = b"\x80\x02}q\x01U\x01aK\x01s."
-        self.store.flush()
-        del blob
-        gc.collect()
-
-        pickle_blob = self.store.get(PickleBlob, 20)
-        obj_info = get_obj_info(pickle_blob)
-        del pickle_blob
+        json = self.store.get(Json, 20)
+        obj_info = get_obj_info(json)
+        del json
         gc.collect()
         self.assertEquals(obj_info.get_obj(), None)
 
-        pickle_blob = self.store.get(PickleBlob, 20)
-        pickle_blob.bin = "foobin"
+        json = self.store.get(Json, 20)
+        json.data["b"] = 2
         events = []
         obj_info.event.hook("changed", lambda *args: events.append(args))
 
@@ -447,46 +437,40 @@ class StoreTest(object):
         variables, those variables unhook from the global event system to
         prevent a leak.
         """
-        class PickleBlob(Blob):
-            bin = Pickle()
-
         # Disable the cache, which holds strong references.
         self.get_cache(self.store).set_size(0)
 
-        blob = self.store.get(Blob, 20)
-        blob.bin = b"\x80\x02}q\x01U\x01aK\x01s."
+        json = self.store.get(Json, 20)
+        json.data["b"] = 2
         self.store.flush()
-        del blob
+        del json
         gc.collect()
 
-        pickle_blob = self.store.get(PickleBlob, 20)
-        pickle_blob.bin = b"foobin"
-        del pickle_blob
+        json = self.store.get(Json, 20)
+        del json.data["a"]
+        del json
 
         self.store.flush()
         self.assertEquals(self.store._event._hooks["flush"], set())
 
     def test_mutable_variable_detect_change_from_alive(self):
         """
-        Changes in a mutable variable like a L{PickleVariable} are correctly
+        Changes in a mutable variable like a L{JSONVariable} are correctly
         detected, even if the object comes from the alive cache.
         """
-        class PickleBlob(Blob):
-            bin = Pickle()
-
-        blob = PickleBlob()
-        blob.bin = {"k": "v"}
-        blob.id = 4000
-        self.store.add(blob)
+        json = Json()
+        json.data = {"x": 0}
+        json.id = 4000
+        self.store.add(json)
         self.store.commit()
 
-        blob = self.store.find(PickleBlob, PickleBlob.id == 4000).one()
-        blob.bin["k1"] = "v1"
+        json = self.store.find(Json, Json.id == 4000).one()
+        json.data["y"] = 1
 
         self.store.commit()
 
-        blob = self.store.find(PickleBlob, PickleBlob.id == 4000).one()
-        self.assertEquals(blob.bin, {"k1": "v1", "k": "v"})
+        json = self.store.find(Json, Json.id == 4000).one()
+        self.assertEquals(json.data, {"x": 0, "y": 1})
 
     def test_wb_checkpoint_doesnt_override_changed(self):
         """
@@ -4668,149 +4652,140 @@ class StoreTest(object):
 
         self.assertEquals(foo.title, "Some default value")
 
-    def test_pickle_variable(self):
-        class PickleBlob(Blob):
-            bin = Pickle()
+    def test_json_variable(self):
+        class MyJson(Json):
+            pass
 
-        blob = self.store.get(Blob, 20)
-        blob.bin = b"\x80\x02}q\x01U\x01aK\x01s."
+        a = self.store.get(MyJson, 20)
         self.store.flush()
 
-        pickle_blob = self.store.get(PickleBlob, 20)
-        self.assertEquals(pickle_blob.bin["a"], 1)
-
-        pickle_blob.bin["b"] = 2
-
+        b = self.store.get(Json, 20)
+        self.assertEquals(b.data["a"], 1)
+        b.data["b"] = 2
         self.store.flush()
-        self.store.reload(blob)
-        self.assertEquals(blob.bin, b"\x80\x02}q\x01(U\x01aK\x01U\x01bK\x02u.")
 
-    def test_pickle_variable_remove(self):
+        self.store.reload(a)
+        self.assertEquals(a.data, {"a": 1, "b": 2})
+
+    def test_json_variable_remove(self):
         """
         When an object is removed from a store, it should unhook from the
         "flush" event emitted by the store, and thus not emit a "changed" event
         if its content change and that the store is flushed.
         """
-        class PickleBlob(Blob):
-            bin = Pickle()
+        class MyJson(Json):
+            pass
 
-        blob = self.store.get(Blob, 20)
-        blob.bin = b"\x80\x02}q\x01U\x01aK\x01s."
+        a = self.store.get(MyJson, 20)
         self.store.flush()
 
-        pickle_blob = self.store.get(PickleBlob, 20)
-        self.store.remove(pickle_blob)
+        b = self.store.get(Json, 20)
+        self.store.remove(b)
         self.store.flush()
 
         #  Let's change the object
-        pickle_blob.bin = "foobin"
+        b.data["b"] = 2
 
         # And subscribe to its changed event
-        obj_info = get_obj_info(pickle_blob)
+        obj_info = get_obj_info(b)
         events = []
         obj_info.event.hook("changed", lambda *args: events.append(args))
 
         self.store.flush()
         self.assertEquals(events, [])
 
-    def test_pickle_variable_unhook(self):
+    def test_json_variable_unhook(self):
         """
         A variable instance must unhook itself from the store event system when
         the store invalidates its objects.
         """
-        # I create a custom PickleVariable, with no __slots__ definition, to be
+        # I create a custom JSONVariable, with no __slots__ definition, to be
         # able to get a weakref of it, thing that I can't do with
-        # PickleVariable that defines __slots__ *AND* those parent is the C
+        # JSONVariable that defines __slots__ *AND* those parent is the C
         # implementation of Variable
-        class CustomPickleVariable(PickleVariable):
+        class CustomJsonVariable(JSONVariable):
             pass
 
-        class CustomPickle(Pickle):
-            variable_class = CustomPickleVariable
+        class CustomJson(JSON):
+            variable_class = CustomJsonVariable
 
-        class PickleBlob(Blob):
-            bin = CustomPickle()
+        class MyJson(Json):
+            data = CustomJson()
 
-        blob = self.store.get(Blob, 20)
-        blob.bin = b"\x80\x02}q\x01U\x01aK\x01s."
+        a = self.store.get(Json, 20)
         self.store.flush()
 
-        pickle_blob = self.store.get(PickleBlob, 20)
+        b = self.store.get(MyJson, 20)
         self.store.flush()
         self.store.invalidate()
 
-        obj_info = get_obj_info(pickle_blob)
-        variable = obj_info.variables[PickleBlob.bin]
+        obj_info = get_obj_info(b)
+        variable = obj_info.variables[MyJson.data]
         var_ref = weakref.ref(variable)
-        del variable, blob, pickle_blob, obj_info
+        del variable, a, b, obj_info
         gc.collect()
         self.assertTrue(var_ref() is None)
 
-    def test_pickle_variable_referenceset(self):
+    def test_json_variable_referenceset(self):
         """
         A variable instance must unhook itself from the store event system
         explcitely when the store invalidates its objects: it's particulary
         important when a ReferenceSet is used, because it keeps strong
         references to objects involved.
         """
-        class CustomPickleVariable(PickleVariable):
+        class CustomJsonVariable(JSONVariable):
             pass
 
-        class CustomPickle(Pickle):
-            variable_class = CustomPickleVariable
+        class CustomJson(JSON):
+            variable_class = CustomJsonVariable
 
-        class PickleBlob(Blob):
-            bin = CustomPickle()
+        class MyJson(Json):
+            data = CustomJson()
             foo_id = Int()
 
         class FooBlobRefSet(Foo):
-            blobs = ReferenceSet(Foo.id, PickleBlob.foo_id)
+            blobs = ReferenceSet(Foo.id, MyJson.foo_id)
 
-        blob = self.store.get(Blob, 20)
-        blob.bin = b"\x80\x02}q\x01U\x01aK\x01s."
+        a = self.store.get(Json, 20)
+        a.data["c"] = 3
         self.store.flush()
 
-        pickle_blob = self.store.get(PickleBlob, 20)
-
+        b = self.store.get(MyJson, 20)
         foo = self.store.get(FooBlobRefSet, 10)
-        foo.blobs.add(pickle_blob)
+        foo.blobs.add(b)
 
         self.store.flush()
         self.store.invalidate()
 
-        obj_info = get_obj_info(pickle_blob)
-        variable = obj_info.variables[PickleBlob.bin]
+        obj_info = get_obj_info(b)
+        variable = obj_info.variables[MyJson.data]
         var_ref = weakref.ref(variable)
-        del variable, blob, pickle_blob, obj_info, foo
+        del variable, a, b, obj_info, foo
         gc.collect()
         self.assertTrue(var_ref() is None)
 
-    def test_pickle_variable_referenceset_several_transactions(self):
+    def test_json_variable_referenceset_several_transactions(self):
         """
-        Check that a pickle variable fires the changed event when used among
+        Check that a JSONVariable fires the changed event when used among
         several transactions.
         """
-        class PickleBlob(Blob):
-            bin = Pickle()
+        class MyJson(Json):
             foo_id = Int()
 
         class FooBlobRefSet(Foo):
-            blobs = ReferenceSet(Foo.id, PickleBlob.foo_id)
-        blob = self.store.get(Blob, 20)
-        blob.bin = b"\x80\x02}q\x01U\x01aK\x01s."
-        self.store.flush()
+            blobs = ReferenceSet(Foo.id, MyJson.foo_id)
 
-        pickle_blob = self.store.get(PickleBlob, 20)
+        json = self.store.get(MyJson, 20)
 
         foo = self.store.get(FooBlobRefSet, 10)
-        foo.blobs.add(pickle_blob)
+        foo.blobs.add(json)
 
         self.store.flush()
         self.store.invalidate()
-        self.store.reload(pickle_blob)
+        self.store.reload(json)
 
-        pickle_blob.bin = b"foo"
-        obj_info = get_obj_info(pickle_blob)
+        json.data = {"x": 0}
+        obj_info = get_obj_info(json)
         events = []
         obj_info.event.hook("changed", lambda *args: events.append(args))
         self.store.flush()
@@ -4875,37 +4850,34 @@ class StoreTest(object):
         values aren't replaced during a find, when new data comes
         from the database and is used whenever possible.
         """
-        blob = self.store.get(Blob, 20)
-        blob.bin = b"\x80\x02}q\x01U\x01aK\x01s."
-        class PickleBlob(object):
-            __storm_table__ = "bin"
+        class MyJson(object):
+            __storm_table__ = "json"
             id = Int(primary=True)
-            pickle = Pickle("bin")
-        blob = self.store.get(PickleBlob, 20)
-        value = blob.pickle
+            renamed_data = JSON("data")
+        obj = self.store.get(MyJson, 20)
+        value = obj.renamed_data
+
         # Now the find should not destroy our value pointer.
-        blob = self.store.find(PickleBlob, id=20).one()
-        self.assertTrue(value is blob.pickle)
+        obj = self.store.find(MyJson, id=20).one()
+        self.assertTrue(value is obj.renamed_data)
 
-    def test_pickle_variable_with_deleted_object(self):
-        class PickleBlob(Blob):
-            bin = Pickle()
+    def test_json_variable_with_deleted_object(self):
+        class MyJson(Json):
+            pass
 
-        blob = self.store.get(Blob, 20)
-        blob.bin = b"\x80\x02}q\x01U\x01aK\x01s."
-        self.store.flush()
+        a = self.store.get(Json, 20)
+        b = self.store.get(MyJson, 20)
+        self.assertEquals(a.data["a"], 1)
+        self.assertEquals(b.data["a"], 1)
 
-        pickle_blob = self.store.get(PickleBlob, 20)
-        self.assertEquals(pickle_blob.bin["a"], 1)
+        b.data["b"] = 2
 
-        pickle_blob.bin["b"] = 2
-
-        del pickle_blob
+        del b
         gc.collect()
 
         self.store.flush()
-        self.store.reload(blob)
-        self.assertEquals(blob.bin, b"\x80\x02}q\x01(U\x01aK\x01U\x01bK\x02u.")
+        self.store.reload(a)
+        self.assertEquals(a.data, {"a": 1, "b": 2})
 
     def test_unhashable_object(self):
 

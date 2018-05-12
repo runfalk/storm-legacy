@@ -17,6 +17,7 @@ since I have no intention of maintaining them.
 List of removed features:
 
  * MySQL support
+ * Pickle column type (use JSON or re-implement it yourself)
  * Python 2.6 and earlier support
  * Schema management
  * SQLObject support
