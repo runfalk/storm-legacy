@@ -1,10 +1,10 @@
 *.egg-info/
-*.egg/
-*.eggs/
 *.pyc
 *.so
-apidoc/
+.DS_Store
+.pytest_cache/
 build-stamp/
 build/
 dist/
+doc-build/
 venv/

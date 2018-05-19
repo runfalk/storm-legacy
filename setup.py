@@ -5,10 +5,6 @@ import re
 from setuptools import setup, Extension, find_packages
 
 
-if os.path.isfile("MANIFEST"):
-    os.unlink("MANIFEST")
-
-
 BUILD_CEXTENSIONS = True
 
 
@@ -30,29 +26,31 @@ setup(
     url="https://storm.canonical.com",
     download_url="https://launchpad.net/storm/+download",
     packages=find_packages(exclude=["tests", "tests.*"]),
-    package_data={"": ["*.zcml"]},
+    extras_require={
+        "doc": [
+            "sphinx",
+            "sphinx_epytext",
+        ],
+        "dev": [
+            "fixtures>=0.3.5",
+            "psycopg2-binary>=2.5",
+            "pytest>=3",
+            "testresources>=0.2.4",
+            "testtools>=0.9.8",
+        ],
+    },
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
         ("License :: OSI Approved :: GNU Library or "
          "Lesser General Public License (LGPL)"),
         "Programming Language :: Python",
+        "Programming Language :: Python :: 2.7",
         "Topic :: Database",
         "Topic :: Database :: Front-Ends",
         "Topic :: Software Development :: Libraries :: Python Modules",
     ],
     ext_modules=(BUILD_CEXTENSIONS and
                  [Extension("storm.cextensions", ["storm/cextensions.c"])]),
-    # The following options are specific to setuptools but ignored (with a
-    # warning) by distutils.
-    include_package_data=True,
     zip_safe=False,
-    test_suite = "tests.find_tests",
-    tests_require=[
-        # Versions based on Lucid, where packaged.
-        "fixtures >= 0.3.5",
-        "psycopg2 >= 2.5",
-        "testresources >= 0.2.4",
-        "testtools >= 0.9.8",
-        ],
-    )
+)

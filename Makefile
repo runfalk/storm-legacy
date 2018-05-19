@@ -1,54 +1,38 @@
-PYTHON ?= python
-PYDOCTOR ?= pydoctor
-PGPORT ?= 5432
-
-TEST_COMMAND = $(PYTHON) setup.py test
-
-STORM_POSTGRES_URI = postgres:storm_test
-STORM_POSTGRES_HOST_URI = postgres://localhost:$(PGPORT)/storm_test
-STORM_MYSQL_URI = mysql:storm_test
-STORM_MYSQL_HOST_URI = mysql://localhost/storm_test
-
+STORM_POSTGRES_URI ?= postgres:storm_test
 export STORM_POSTGRES_URI
-export STORM_POSTGRES_HOST_URI
-export STORM_MYSQL_URI
-export STORM_MYSQL_HOST_URI
-
-all: build
 
 build:
-	$(PYTHON) setup.py build_ext -i
+	venv/bin/python setup.py build_ext
 
 develop:
-	$(TEST_COMMAND) --quiet --dry-run
+	[ ! -d "venv" ]
+	virtualenv --python=python2.7 --prompt="(storm)" venv
+	venv/bin/pip install --upgrade pip setuptools
+	venv/bin/pip install -e .[doc,dev]
 
-check:
-	@ # Run the tests once with C extensions and once without them.
-	STORM_CEXTENSIONS=0 $(TEST_COMMAND)
-	STORM_CEXTENSIONS=1 $(TEST_COMMAND)
+clean-build:
+	rm -rf build/
+	rm -rf doc-build/
 
-check-with-trial: develop
-	STORM_TEST_RUNNER=trial STORM_CEXTENSIONS=0 $(PYTHON) test
-	STORM_TEST_RUNNER=trial STORM_CEXTENSIONS=1 $(PYTHON) test
+clean-pyc:
+	find . -name "*.pyc" -type f -exec rm -f {} \;
+	find . -name "__pycache__" -type d -exec rmdir {} \;
+
+clean: clean-build clean-pyc
+
+realclean: clean
+	find . -name "*.so" -type f -exec rm -f {} \;
+	rm -rf *.egg-info/
+	rm -rf venv/
 
 doc:
-	$(PYDOCTOR) --make-html --html-output apidoc --add-package storm
+	@venv/bin/sphinx-build "doc/" "doc-build/"
 
-release:
-	$(PYTHON) setup.py sdist
+test:
+	@venv/bin/pytest
 
-clean:
-	rm -rf build
-	rm -rf build-stamp
-	rm -rf dist
-	rm -rf storm.egg-info
-	rm -rf debian/files
-	rm -rf debian/python-storm
-	rm -rf debian/python-storm.*
-	rm -rf *.egg
-	rm -rf _trial_temp
-	find . -name "*.so" -type f -exec rm -f {} \;
-	find . -name "*.pyc" -type f -exec rm -f {} \;
-	find . -name "*~" -type f -exec rm -f {} \;
+full-test:
+	STORM_CEXTENSIONS=0 make test
+	STORM_CEXTENSIONS=1 make test
 
-.PHONY: all build check clean develop doc release
+.PHONY : build clean clean-build clean-pyc develop doc realclean

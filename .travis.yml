@@ -12,8 +12,8 @@ env:
   global:
     - PGPORT=5433
 install:
-  - pip install -e .
+  - make develop
 before_script:
   - psql -c "ALTER USER travis WITH PASSWORD 'travis';"
 script:
-  - STORM_POSTGRES_URI="postgres://travis:travis@localhost:5433/travis" python setup.py test
+  - STORM_POSTGRES_URI="postgres://travis:travis@localhost:5433/travis" make full-test

@@ -23,6 +23,8 @@ Improvements
 - Support Union of result sets of different classes as long as the columns are
   of the same type.
 
+- Changed test runner to Pytest
+
 Bug fixes
 ---------
 
