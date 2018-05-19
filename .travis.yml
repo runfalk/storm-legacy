@@ -1,0 +1,28 @@
+language: python
+cache: pip
+python:
+  - "2.7"
+addons:
+  postgresql: "10"
+  apt:
+    packages:
+      - postgresql-10
+      - postgresql-client-10
+env:
+  global:
+    - PGPORT=5433
+install:
+  - make develop
+before_script:
+  - psql -c "ALTER USER travis WITH PASSWORD 'travis';"
+script:
+  - STORM_POSTGRES_URI="postgres://travis:travis@localhost:5433/travis" make full-test
+  - make doc
+deploy:
+  provider: pages
+  skip-cleanup: true
+  github-token: $GH_TOKEN
+  keep-history: true
+  committer-from-gh: true
+  on:
+    branch: master

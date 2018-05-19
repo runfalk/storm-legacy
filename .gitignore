@@ -1,0 +1,10 @@
+*.egg-info/
+*.pyc
+*.so
+.DS_Store
+.pytest_cache/
+build-stamp/
+build/
+dist/
+doc-build/
+venv/
