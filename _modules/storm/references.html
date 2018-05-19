@@ -1,0 +1,1028 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>storm.references &#8212; Storm  documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for storm.references</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Copyright (c) 2006, 2007 Canonical</span>
+<span class="c1">#</span>
+<span class="c1"># Written by Gustavo Niemeyer &lt;gustavo@niemeyer.net&gt;</span>
+<span class="c1">#</span>
+<span class="c1"># This file is part of Storm Object Relational Mapper.</span>
+<span class="c1">#</span>
+<span class="c1"># Storm is free software; you can redistribute it and/or modify</span>
+<span class="c1"># it under the terms of the GNU Lesser General Public License as</span>
+<span class="c1"># published by the Free Software Foundation; either version 2.1 of</span>
+<span class="c1"># the License, or (at your option) any later version.</span>
+<span class="c1">#</span>
+<span class="c1"># Storm is distributed in the hope that it will be useful,</span>
+<span class="c1"># but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="c1"># MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="c1"># GNU Lesser General Public License for more details.</span>
+<span class="c1">#</span>
+<span class="c1"># You should have received a copy of the GNU Lesser General Public License</span>
+<span class="c1"># along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
+<span class="c1">#</span>
+<span class="kn">import</span> <span class="nn">weakref</span>
+
+<span class="kn">from</span> <span class="nn">storm.compat</span> <span class="k">import</span> <span class="n">iter_items</span><span class="p">,</span> <span class="n">iter_zip</span><span class="p">,</span> <span class="n">string_types</span>
+<span class="kn">from</span> <span class="nn">storm.exceptions</span> <span class="k">import</span> <span class="p">(</span>
+    <span class="n">ClassInfoError</span><span class="p">,</span> <span class="n">FeatureError</span><span class="p">,</span> <span class="n">NoStoreError</span><span class="p">,</span> <span class="n">WrongStoreError</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">storm.store</span> <span class="k">import</span> <span class="n">Store</span><span class="p">,</span> <span class="n">get_where_for_args</span><span class="p">,</span> <span class="n">LostObjectError</span>
+<span class="kn">from</span> <span class="nn">storm.variables</span> <span class="k">import</span> <span class="n">LazyValue</span>
+<span class="kn">from</span> <span class="nn">storm.expr</span> <span class="k">import</span> <span class="p">(</span>
+    <span class="n">Select</span><span class="p">,</span> <span class="n">Column</span><span class="p">,</span> <span class="n">Exists</span><span class="p">,</span> <span class="n">ComparableExpr</span><span class="p">,</span> <span class="n">SuffixExpr</span><span class="p">,</span> <span class="n">LeftJoin</span><span class="p">,</span> <span class="n">Not</span><span class="p">,</span> <span class="n">SQLRaw</span><span class="p">,</span>
+    <span class="n">compare_columns</span><span class="p">,</span> <span class="nb">compile</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">storm.info</span> <span class="k">import</span> <span class="n">get_cls_info</span><span class="p">,</span> <span class="n">get_obj_info</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Reference&quot;</span><span class="p">,</span> <span class="s2">&quot;ReferenceSet&quot;</span><span class="p">,</span> <span class="s2">&quot;Proxy&quot;</span><span class="p">]</span>
+
+
+<span class="k">class</span> <span class="nc">LazyAttribute</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This descriptor will call the named attribute builder to</span>
+<span class="sd">    initialize the given attribute on first access.  It avoids</span>
+<span class="sd">    having a test at every single place where the attribute is</span>
+<span class="sd">    touched when lazy initialization is wanted, and prevents</span>
+<span class="sd">    paying the price of a normal property when classes are</span>
+<span class="sd">    seldomly instantiated (the case of references).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">,</span> <span class="n">attr_builder</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_attr</span> <span class="o">=</span> <span class="n">attr</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_attr_builder</span> <span class="o">=</span> <span class="n">attr_builder</span>
+
+    <span class="k">def</span> <span class="nf">__get__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attr_builder</span><span class="p">)()</span>
+        <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attr</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">PendingReferenceValue</span><span class="p">(</span><span class="n">LazyValue</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Lazy value to be used as a marker for unflushed foreign keys.</span>
+
+<span class="sd">    When a reference is set to an object which is still unflushed,</span>
+<span class="sd">    the foreign key in the local object remains set to this value</span>
+<span class="sd">    until the object is flushed.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<span class="n">PendingReferenceValue</span> <span class="o">=</span> <span class="n">PendingReferenceValue</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="Reference"><a class="viewcode-back" href="../../columns.html#storm.references.Reference">[docs]</a><span class="k">class</span> <span class="nc">Reference</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Descriptor for one-to-one relationships.</span>
+
+<span class="sd">    This is typically used when the class that it is being defined on</span>
+<span class="sd">    has a foreign key onto another table::</span>
+
+<span class="sd">        class OtherGuy(object):</span>
+<span class="sd">            ...</span>
+<span class="sd">            id = Int()</span>
+
+<span class="sd">        class MyGuy(object):</span>
+<span class="sd">            ...</span>
+<span class="sd">            other_guy_id = Int()</span>
+<span class="sd">            other_guy = Reference(other_guy_id, OtherGuy.id)</span>
+
+<span class="sd">    but can also be used for backwards references, where OtherGuy&#39;s</span>
+<span class="sd">    table has a foreign key onto the class that you want this property</span>
+<span class="sd">    on::</span>
+
+<span class="sd">        class OtherGuy(object):</span>
+<span class="sd">            ...</span>
+<span class="sd">            my_guy_id = Int() # in the database, a foreign key to my_guy.id</span>
+
+<span class="sd">        class MyGuy(object):</span>
+<span class="sd">            ...</span>
+<span class="sd">            id = Int()</span>
+<span class="sd">            other_guy = Reference(id, OtherGuy.my_guy_id, on_remote=True)</span>
+
+<span class="sd">    In both cases, C{MyGuy().other_guy} will resolve to the</span>
+<span class="sd">    C{OtherGuy} instance which is linked to it. In the first case, it</span>
+<span class="sd">    will be the C{OtherGuy} instance whose C{id} is equivalent to the</span>
+<span class="sd">    C{MyGuy}&#39;s C{other_guy_id}; in the second, it&#39;ll be the</span>
+<span class="sd">    C{OtherGuy} instance whose C{my_guy_id} is equivalent to the</span>
+<span class="sd">    C{MyGuy}&#39;s C{id}.</span>
+
+<span class="sd">    Assigning to the property, for example with C{MyGuy().other_guy =</span>
+<span class="sd">    OtherGuy()}, will link the objects and update either</span>
+<span class="sd">    C{MyGuy.other_guy_id} or C{OtherGuy.my_guy_id} accordingly.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Must initialize _relation later because we don&#39;t want to resolve</span>
+    <span class="c1"># string references at definition time, since classes refered to might</span>
+    <span class="c1"># not be available yet.  Notice that this attribute is &quot;public&quot; to the</span>
+    <span class="c1"># Proxy class.  It&#39;s still underlined because it&#39;s *NOT* part of the</span>
+    <span class="c1"># public API of Storm (we&#39;ll modify it without warnings!).</span>
+    <span class="n">_relation</span> <span class="o">=</span> <span class="n">LazyAttribute</span><span class="p">(</span><span class="s2">&quot;_relation&quot;</span><span class="p">,</span> <span class="s2">&quot;_build_relation&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local_key</span><span class="p">,</span> <span class="n">remote_key</span><span class="p">,</span> <span class="n">on_remote</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create a Reference property.</span>
+
+<span class="sd">        @param local_key: The sibling column which is the foreign key</span>
+<span class="sd">            onto C{remote_key}. (unless C{on_remote} is passed; see</span>
+<span class="sd">            below).</span>
+<span class="sd">        @param remote_key: The column on the referred-to object which</span>
+<span class="sd">            will have the same value as that for C{local_key} when</span>
+<span class="sd">            resolved on an instance.</span>
+<span class="sd">        @param on_remote: If specified, then the reference is</span>
+<span class="sd">            backwards: It is the C{remote_key} which is a foreign key</span>
+<span class="sd">            onto C{local_key}.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_local_key</span> <span class="o">=</span> <span class="n">local_key</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_remote_key</span> <span class="o">=</span> <span class="n">remote_key</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_on_remote</span> <span class="o">=</span> <span class="n">on_remote</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cls</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">__get__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">local</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Don&#39;t use local here, as it might be security proxied.</span>
+            <span class="n">local</span> <span class="o">=</span> <span class="n">get_obj_info</span><span class="p">(</span><span class="n">local</span><span class="p">)</span><span class="o">.</span><span class="n">get_obj</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cls</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_cls</span> <span class="o">=</span> <span class="n">_find_descriptor_class</span><span class="p">(</span><span class="bp">cls</span> <span class="ow">or</span> <span class="n">local</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">local</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span>
+
+        <span class="n">remote</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_relation</span><span class="o">.</span><span class="n">get_remote</span><span class="p">(</span><span class="n">local</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">remote</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">remote</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_relation</span><span class="o">.</span><span class="n">local_variables_are_none</span><span class="p">(</span><span class="n">local</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="n">store</span> <span class="o">=</span> <span class="n">Store</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="n">local</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">store</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_relation</span><span class="o">.</span><span class="n">remote_key_is_primary</span><span class="p">:</span>
+            <span class="n">remote</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_relation</span><span class="o">.</span><span class="n">remote_cls</span><span class="p">,</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">_relation</span><span class="o">.</span><span class="n">get_local_variables</span><span class="p">(</span><span class="n">local</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">where</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_relation</span><span class="o">.</span><span class="n">get_where_for_remote</span><span class="p">(</span><span class="n">local</span><span class="p">)</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_relation</span><span class="o">.</span><span class="n">remote_cls</span><span class="p">,</span> <span class="n">where</span><span class="p">)</span>
+            <span class="n">remote</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">one</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">remote</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_relation</span><span class="o">.</span><span class="n">link</span><span class="p">(</span><span class="n">local</span><span class="p">,</span> <span class="n">remote</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">remote</span>
+
+    <span class="k">def</span> <span class="nf">__set__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local</span><span class="p">,</span> <span class="n">remote</span><span class="p">):</span>
+        <span class="c1"># Don&#39;t use local here, as it might be security proxied or something.</span>
+        <span class="n">local</span> <span class="o">=</span> <span class="n">get_obj_info</span><span class="p">(</span><span class="n">local</span><span class="p">)</span><span class="o">.</span><span class="n">get_obj</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cls</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_cls</span> <span class="o">=</span> <span class="n">_find_descriptor_class</span><span class="p">(</span><span class="n">local</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">remote</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_on_remote</span><span class="p">:</span>
+                <span class="n">remote</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__get__</span><span class="p">(</span><span class="n">local</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">remote</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">return</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">remote</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_relation</span><span class="o">.</span><span class="n">get_remote</span><span class="p">(</span><span class="n">local</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">remote</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">remote_info</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">remote_info</span> <span class="o">=</span> <span class="n">get_obj_info</span><span class="p">(</span><span class="n">remote</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_relation</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">get_obj_info</span><span class="p">(</span><span class="n">local</span><span class="p">),</span> <span class="n">remote_info</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Don&#39;t use remote here, as it might be</span>
+            <span class="c1"># security proxied or something.</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">remote</span> <span class="o">=</span> <span class="n">get_obj_info</span><span class="p">(</span><span class="n">remote</span><span class="p">)</span><span class="o">.</span><span class="n">get_obj</span><span class="p">()</span>
+            <span class="k">except</span> <span class="n">ClassInfoError</span><span class="p">:</span>
+                <span class="k">pass</span> <span class="c1"># It might fail when remote is a tuple or a raw value.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_relation</span><span class="o">.</span><span class="n">link</span><span class="p">(</span><span class="n">local</span><span class="p">,</span> <span class="n">remote</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_build_relation</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">resolver</span> <span class="o">=</span> <span class="n">PropertyResolver</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cls</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_local_key</span> <span class="o">=</span> <span class="n">resolver</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_local_key</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_remote_key</span> <span class="o">=</span> <span class="n">resolver</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_remote_key</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_relation</span> <span class="o">=</span> <span class="n">Relation</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_local_key</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_remote_key</span><span class="p">,</span>
+                                  <span class="kc">False</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_on_remote</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_relation</span><span class="o">.</span><span class="n">get_where_for_local</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__ne__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Not</span><span class="p">(</span><span class="bp">self</span> <span class="o">==</span> <span class="n">other</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ReferenceSet"><a class="viewcode-back" href="../../columns.html#storm.references.ReferenceSet">[docs]</a><span class="k">class</span> <span class="nc">ReferenceSet</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="c1"># Must initialize later because we don&#39;t want to resolve string</span>
+    <span class="c1"># references at definition time, since classes refered to might</span>
+    <span class="c1"># not be available yet.</span>
+    <span class="n">_relation1</span> <span class="o">=</span> <span class="n">LazyAttribute</span><span class="p">(</span><span class="s2">&quot;_relation1&quot;</span><span class="p">,</span> <span class="s2">&quot;_build_relations&quot;</span><span class="p">)</span>
+    <span class="n">_relation2</span> <span class="o">=</span> <span class="n">LazyAttribute</span><span class="p">(</span><span class="s2">&quot;_relation2&quot;</span><span class="p">,</span> <span class="s2">&quot;_build_relations&quot;</span><span class="p">)</span>
+    <span class="n">_order_by</span> <span class="o">=</span> <span class="n">LazyAttribute</span><span class="p">(</span><span class="s2">&quot;_order_by&quot;</span><span class="p">,</span> <span class="s2">&quot;_build_relations&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local_key1</span><span class="p">,</span> <span class="n">remote_key1</span><span class="p">,</span>
+                 <span class="n">remote_key2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">local_key2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">order_by</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_local_key1</span> <span class="o">=</span> <span class="n">local_key1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_remote_key1</span> <span class="o">=</span> <span class="n">remote_key1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_remote_key2</span> <span class="o">=</span> <span class="n">remote_key2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_local_key2</span> <span class="o">=</span> <span class="n">local_key2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_default_order_by</span> <span class="o">=</span> <span class="n">order_by</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cls</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">__get__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">local</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Don&#39;t use local here, as it might be security proxied.</span>
+            <span class="n">local</span> <span class="o">=</span> <span class="n">get_obj_info</span><span class="p">(</span><span class="n">local</span><span class="p">)</span><span class="o">.</span><span class="n">get_obj</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cls</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_cls</span> <span class="o">=</span> <span class="n">_find_descriptor_class</span><span class="p">(</span><span class="bp">cls</span> <span class="ow">or</span> <span class="n">local</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">local</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span>
+
+        <span class="c1">#store = Store.of(local)</span>
+        <span class="c1">#if store is None:</span>
+        <span class="c1">#    return None</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_relation2</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">BoundReferenceSet</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_relation1</span><span class="p">,</span> <span class="n">local</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_order_by</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">BoundIndirectReferenceSet</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_relation1</span><span class="p">,</span>
+                                             <span class="bp">self</span><span class="o">.</span><span class="n">_relation2</span><span class="p">,</span> <span class="n">local</span><span class="p">,</span>
+                                             <span class="bp">self</span><span class="o">.</span><span class="n">_order_by</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__set__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="n">FeatureError</span><span class="p">(</span><span class="s2">&quot;Assigning to ResultSets not supported&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_build_relations</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">resolver</span> <span class="o">=</span> <span class="n">PropertyResolver</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cls</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_default_order_by</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_order_by</span> <span class="o">=</span> <span class="n">resolver</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_default_order_by</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_order_by</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_local_key1</span> <span class="o">=</span> <span class="n">resolver</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_local_key1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_remote_key1</span> <span class="o">=</span> <span class="n">resolver</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_remote_key1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_relation1</span> <span class="o">=</span> <span class="n">Relation</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_local_key1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_remote_key1</span><span class="p">,</span>
+                                   <span class="kc">True</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_local_key2</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_remote_key2</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_local_key2</span> <span class="o">=</span> <span class="n">resolver</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_local_key2</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_remote_key2</span> <span class="o">=</span> <span class="n">resolver</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_remote_key2</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_relation2</span> <span class="o">=</span> <span class="n">Relation</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_local_key2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_remote_key2</span><span class="p">,</span>
+                                       <span class="kc">True</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_relation2</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+
+<span class="k">class</span> <span class="nc">BoundReferenceSetBase</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">find</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">store</span> <span class="o">=</span> <span class="n">Store</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_local</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">store</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">NoStoreError</span><span class="p">(</span><span class="s2">&quot;Can&#39;t perform operation without a store&quot;</span><span class="p">)</span>
+        <span class="n">where</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_where_clause</span><span class="p">()</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_target_cls</span><span class="p">,</span> <span class="n">where</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_order_by</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">_order_by</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">result</span>
+
+    <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">find</span><span class="p">()</span><span class="o">.</span><span class="fm">__iter__</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__contains__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">find</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">first</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span><span class="o">.</span><span class="n">first</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">last</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span><span class="o">.</span><span class="n">last</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">any</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">one</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span><span class="o">.</span><span class="n">one</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">values</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">columns</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">find</span><span class="p">()</span><span class="o">.</span><span class="n">values</span><span class="p">(</span><span class="o">*</span><span class="n">columns</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">order_by</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">find</span><span class="p">()</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">count</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">find</span><span class="p">()</span><span class="o">.</span><span class="n">count</span><span class="p">()</span>
+
+
+<span class="k">class</span> <span class="nc">BoundReferenceSet</span><span class="p">(</span><span class="n">BoundReferenceSetBase</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">relation</span><span class="p">,</span> <span class="n">local</span><span class="p">,</span> <span class="n">order_by</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_relation</span> <span class="o">=</span> <span class="n">relation</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_local</span> <span class="o">=</span> <span class="n">local</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_target_cls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_relation</span><span class="o">.</span><span class="n">remote_cls</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_order_by</span> <span class="o">=</span> <span class="n">order_by</span>
+
+    <span class="k">def</span> <span class="nf">_get_where_clause</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_relation</span><span class="o">.</span><span class="n">get_where_for_remote</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_local</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">clear</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">set_kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">remote_column</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_relation</span><span class="o">.</span><span class="n">remote_key</span><span class="p">:</span>
+            <span class="n">set_kwargs</span><span class="p">[</span><span class="n">remote_column</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">store</span> <span class="o">=</span> <span class="n">Store</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_local</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">store</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">NoStoreError</span><span class="p">(</span><span class="s2">&quot;Can&#39;t perform operation without a store&quot;</span><span class="p">)</span>
+        <span class="n">where</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_relation</span><span class="o">.</span><span class="n">get_where_for_remote</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_local</span><span class="p">)</span>
+        <span class="n">store</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_target_cls</span><span class="p">,</span> <span class="n">where</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="o">**</span><span class="n">set_kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">remote</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_relation</span><span class="o">.</span><span class="n">link</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_local</span><span class="p">,</span> <span class="n">remote</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">remove</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">remote</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_relation</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">get_obj_info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_local</span><span class="p">),</span>
+                              <span class="n">get_obj_info</span><span class="p">(</span><span class="n">remote</span><span class="p">),</span> <span class="kc">True</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">BoundIndirectReferenceSet</span><span class="p">(</span><span class="n">BoundReferenceSetBase</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">relation1</span><span class="p">,</span> <span class="n">relation2</span><span class="p">,</span> <span class="n">local</span><span class="p">,</span> <span class="n">order_by</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_relation1</span> <span class="o">=</span> <span class="n">relation1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_relation2</span> <span class="o">=</span> <span class="n">relation2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_local</span> <span class="o">=</span> <span class="n">local</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_order_by</span> <span class="o">=</span> <span class="n">order_by</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_target_cls</span> <span class="o">=</span> <span class="n">relation2</span><span class="o">.</span><span class="n">local_cls</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_link_cls</span> <span class="o">=</span> <span class="n">relation1</span><span class="o">.</span><span class="n">remote_cls</span>
+
+    <span class="k">def</span> <span class="nf">_get_where_clause</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_relation1</span><span class="o">.</span><span class="n">get_where_for_remote</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_local</span><span class="p">)</span> <span class="o">&amp;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_relation2</span><span class="o">.</span><span class="n">get_where_for_join</span><span class="p">())</span>
+
+    <span class="k">def</span> <span class="nf">clear</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">store</span> <span class="o">=</span> <span class="n">Store</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_local</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">store</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">NoStoreError</span><span class="p">(</span><span class="s2">&quot;Can&#39;t perform operation without a store&quot;</span><span class="p">)</span>
+        <span class="n">where</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_relation1</span><span class="o">.</span><span class="n">get_where_for_remote</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_local</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">args</span> <span class="ow">or</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="nb">filter</span> <span class="o">=</span> <span class="n">get_where_for_args</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target_cls</span><span class="p">)</span>
+            <span class="n">join</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_relation2</span><span class="o">.</span><span class="n">get_where_for_join</span><span class="p">()</span>
+            <span class="n">table</span> <span class="o">=</span> <span class="n">get_cls_info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_target_cls</span><span class="p">)</span><span class="o">.</span><span class="n">table</span>
+            <span class="n">where</span> <span class="o">&amp;=</span> <span class="n">Exists</span><span class="p">(</span><span class="n">Select</span><span class="p">(</span><span class="n">SQLRaw</span><span class="p">(</span><span class="s2">&quot;*&quot;</span><span class="p">),</span> <span class="n">join</span> <span class="o">&amp;</span> <span class="nb">filter</span><span class="p">,</span> <span class="n">tables</span><span class="o">=</span><span class="n">table</span><span class="p">))</span>
+        <span class="n">store</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_link_cls</span><span class="p">,</span> <span class="n">where</span><span class="p">)</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">remote</span><span class="p">):</span>
+        <span class="n">link</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_link_cls</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_relation1</span><span class="o">.</span><span class="n">link</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_local</span><span class="p">,</span> <span class="n">link</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+        <span class="c1"># Don&#39;t use remote here, as it might be security proxied or something.</span>
+        <span class="n">remote</span> <span class="o">=</span> <span class="n">get_obj_info</span><span class="p">(</span><span class="n">remote</span><span class="p">)</span><span class="o">.</span><span class="n">get_obj</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_relation2</span><span class="o">.</span><span class="n">link</span><span class="p">(</span><span class="n">remote</span><span class="p">,</span> <span class="n">link</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">remove</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">remote</span><span class="p">):</span>
+        <span class="n">store</span> <span class="o">=</span> <span class="n">Store</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_local</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">store</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">NoStoreError</span><span class="p">(</span><span class="s2">&quot;Can&#39;t perform operation without a store&quot;</span><span class="p">)</span>
+        <span class="c1"># Don&#39;t use remote here, as it might be security proxied or something.</span>
+        <span class="n">remote</span> <span class="o">=</span> <span class="n">get_obj_info</span><span class="p">(</span><span class="n">remote</span><span class="p">)</span><span class="o">.</span><span class="n">get_obj</span><span class="p">()</span>
+        <span class="n">where</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_relation1</span><span class="o">.</span><span class="n">get_where_for_remote</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_local</span><span class="p">)</span> <span class="o">&amp;</span>
+                 <span class="bp">self</span><span class="o">.</span><span class="n">_relation2</span><span class="o">.</span><span class="n">get_where_for_remote</span><span class="p">(</span><span class="n">remote</span><span class="p">))</span>
+        <span class="n">store</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_link_cls</span><span class="p">,</span> <span class="n">where</span><span class="p">)</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="Proxy"><a class="viewcode-back" href="../../columns.html#storm.references.Proxy">[docs]</a><span class="k">class</span> <span class="nc">Proxy</span><span class="p">(</span><span class="n">ComparableExpr</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Proxy exposes a referred object&#39;s column as a local column.</span>
+
+<span class="sd">    For example::</span>
+
+<span class="sd">      class Foo(object):</span>
+<span class="sd">          bar_id = Int()</span>
+<span class="sd">          bar = Reference(bar_id, Bar.id)</span>
+<span class="sd">          bar_title = Proxy(bar, Bar.title)</span>
+
+<span class="sd">    For most uses, Foo.bar_title should behave as if it were</span>
+<span class="sd">    a native property of Foo.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="Proxy.RemoteProp"><a class="viewcode-back" href="../../columns.html#storm.references.Proxy.RemoteProp">[docs]</a>    <span class="k">class</span> <span class="nc">RemoteProp</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This descriptor will resolve and set the _remote_prop attribute</span>
+<span class="sd">        when it&#39;s first used. It avoids having a test at every single</span>
+<span class="sd">        place where the attribute is touched.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">def</span> <span class="nf">__get__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+            <span class="n">resolver</span> <span class="o">=</span> <span class="n">PropertyResolver</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">obj</span><span class="o">.</span><span class="n">_cls</span><span class="p">)</span>
+            <span class="n">obj</span><span class="o">.</span><span class="n">_remote_prop</span> <span class="o">=</span> <span class="n">resolver</span><span class="o">.</span><span class="n">resolve_one</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">_unresolved_prop</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">obj</span><span class="o">.</span><span class="n">_remote_prop</span></div>
+
+    <span class="n">_remote_prop</span> <span class="o">=</span> <span class="n">RemoteProp</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reference</span><span class="p">,</span> <span class="n">remote_prop</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_reference</span> <span class="o">=</span> <span class="n">reference</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_unresolved_prop</span> <span class="o">=</span> <span class="n">remote_prop</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cls</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">__get__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cls</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_cls</span> <span class="o">=</span> <span class="n">_find_descriptor_class</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">obj</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span>
+        <span class="c1"># Have you counted how many descriptors we&#39;re dealing with here? ;-)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_remote_prop</span><span class="o">.</span><span class="fm">__get__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_reference</span><span class="o">.</span><span class="fm">__get__</span><span class="p">(</span><span class="n">obj</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">__set__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_remote_prop</span><span class="o">.</span><span class="fm">__set__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_reference</span><span class="o">.</span><span class="fm">__get__</span><span class="p">(</span><span class="n">obj</span><span class="p">),</span> <span class="n">value</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">variable_factory</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_remote_prop</span><span class="o">.</span><span class="n">variable_factory</span></div>
+
+<span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Proxy</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">compile_proxy</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">proxy</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+    <span class="c1"># Inject the join between the table of the class holding the proxy</span>
+    <span class="c1"># and the table of the class which is the target of the reference.</span>
+    <span class="n">left_join</span> <span class="o">=</span> <span class="n">LeftJoin</span><span class="p">(</span><span class="n">proxy</span><span class="o">.</span><span class="n">_reference</span><span class="o">.</span><span class="n">_relation</span><span class="o">.</span><span class="n">local_cls</span><span class="p">,</span>
+                         <span class="n">proxy</span><span class="o">.</span><span class="n">_remote_prop</span><span class="o">.</span><span class="n">table</span><span class="p">,</span>
+                         <span class="n">proxy</span><span class="o">.</span><span class="n">_reference</span><span class="o">.</span><span class="n">_relation</span><span class="o">.</span><span class="n">get_where_for_join</span><span class="p">())</span>
+    <span class="n">state</span><span class="o">.</span><span class="n">auto_tables</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">left_join</span><span class="p">)</span>
+
+    <span class="c1"># And compile the remote property normally.</span>
+    <span class="k">return</span> <span class="nb">compile</span><span class="p">(</span><span class="n">proxy</span><span class="o">.</span><span class="n">_remote_prop</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">Relation</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local_key</span><span class="p">,</span> <span class="n">remote_key</span><span class="p">,</span> <span class="n">many</span><span class="p">,</span> <span class="n">on_remote</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="nb">type</span><span class="p">(</span><span class="n">local_key</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">tuple</span> <span class="ow">and</span> <span class="nb">type</span><span class="p">(</span><span class="n">remote_key</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">tuple</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">local_key</span> <span class="o">=</span> <span class="n">local_key</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">remote_key</span> <span class="o">=</span> <span class="n">remote_key</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">local_cls</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">local_key</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s2">&quot;cls&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">remote_cls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">remote_key</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">cls</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">remote_key_is_primary</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="n">primary_key</span> <span class="o">=</span> <span class="n">get_cls_info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">remote_cls</span><span class="p">)</span><span class="o">.</span><span class="n">primary_key</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">primary_key</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">remote_key</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">column1</span><span class="p">,</span> <span class="n">column2</span> <span class="ow">in</span> <span class="n">iter_zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">remote_key</span><span class="p">,</span> <span class="n">primary_key</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">column1</span><span class="o">.</span><span class="n">name</span> <span class="o">!=</span> <span class="n">column2</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+                    <span class="k">break</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">remote_key_is_primary</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">many</span> <span class="o">=</span> <span class="n">many</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">on_remote</span> <span class="o">=</span> <span class="n">on_remote</span>
+
+        <span class="c1"># XXX These should probably be weak dictionaries.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_local_columns</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_remote_columns</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_l_to_r</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_r_to_l</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">def</span> <span class="nf">get_remote</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return the remote object for this relation, using the local cache.</span>
+
+<span class="sd">        If the object in the cache is invalidated, we validate it again to</span>
+<span class="sd">        check if it&#39;s still in the database.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">local_info</span> <span class="o">=</span> <span class="n">get_obj_info</span><span class="p">(</span><span class="n">local</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">obj</span> <span class="o">=</span> <span class="n">local_info</span><span class="p">[</span><span class="bp">self</span><span class="p">][</span><span class="s2">&quot;remote&quot;</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="n">remote_info</span> <span class="o">=</span> <span class="n">get_obj_info</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">remote_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;invalidated&quot;</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">Store</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span><span class="o">.</span><span class="n">_validate_alive</span><span class="p">(</span><span class="n">remote_info</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">LostObjectError</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="n">obj</span>
+
+    <span class="k">def</span> <span class="nf">get_where_for_remote</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Generate a column comparison expression for reference properties.</span>
+
+<span class="sd">        The returned expression may be used to find objects of the I{remote}</span>
+<span class="sd">        type referring to C{local}.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">local_variables</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_local_variables</span><span class="p">(</span><span class="n">local</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">variable</span> <span class="ow">in</span> <span class="n">local_variables</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">variable</span><span class="o">.</span><span class="n">is_defined</span><span class="p">():</span>
+                <span class="n">Store</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="n">local</span><span class="p">)</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+                <span class="k">break</span>
+        <span class="k">return</span> <span class="n">compare_columns</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">remote_key</span><span class="p">,</span> <span class="n">local_variables</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">get_where_for_local</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Generate a column comparison expression for reference properties.</span>
+
+<span class="sd">        The returned expression may be used to find objects of the I{local}</span>
+<span class="sd">        type referring to C{other}.</span>
+
+<span class="sd">        It handles the following cases::</span>
+
+<span class="sd">            Class.reference == obj</span>
+<span class="sd">            Class.reference == obj.id</span>
+<span class="sd">            Class.reference == (obj.id1, obj.id2)</span>
+
+<span class="sd">        Where the right-hand side is the C{other} object given.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">obj_info</span> <span class="o">=</span> <span class="n">get_obj_info</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">ClassInfoError</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">other</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="nb">tuple</span><span class="p">:</span>
+                <span class="n">remote_variables</span> <span class="o">=</span> <span class="p">(</span><span class="n">other</span><span class="p">,)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">remote_variables</span> <span class="o">=</span> <span class="n">other</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Don&#39;t use other here, as it might be</span>
+            <span class="c1"># security proxied or something.</span>
+            <span class="n">other</span> <span class="o">=</span> <span class="n">get_obj_info</span><span class="p">(</span><span class="n">other</span><span class="p">)</span><span class="o">.</span><span class="n">get_obj</span><span class="p">()</span>
+            <span class="n">remote_variables</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_remote_variables</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">compare_columns</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">local_key</span><span class="p">,</span> <span class="n">remote_variables</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">get_where_for_join</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">compare_columns</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">local_key</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">remote_key</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">get_local_variables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local</span><span class="p">):</span>
+        <span class="n">local_info</span> <span class="o">=</span> <span class="n">get_obj_info</span><span class="p">(</span><span class="n">local</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">local_info</span><span class="o">.</span><span class="n">variables</span><span class="p">[</span><span class="n">column</span><span class="p">]</span>
+                     <span class="k">for</span> <span class="n">column</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_local_columns</span><span class="p">(</span><span class="n">local</span><span class="o">.</span><span class="vm">__class__</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">local_variables_are_none</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return true if all variables of the local key have None values.&quot;&quot;&quot;</span>
+        <span class="n">local_info</span> <span class="o">=</span> <span class="n">get_obj_info</span><span class="p">(</span><span class="n">local</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">column</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_local_columns</span><span class="p">(</span><span class="n">local</span><span class="o">.</span><span class="vm">__class__</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">local_info</span><span class="o">.</span><span class="n">variables</span><span class="p">[</span><span class="n">column</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">get_remote_variables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">remote</span><span class="p">):</span>
+        <span class="n">remote_info</span> <span class="o">=</span> <span class="n">get_obj_info</span><span class="p">(</span><span class="n">remote</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">remote_info</span><span class="o">.</span><span class="n">variables</span><span class="p">[</span><span class="n">column</span><span class="p">]</span>
+                     <span class="k">for</span> <span class="n">column</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_remote_columns</span><span class="p">(</span><span class="n">remote</span><span class="o">.</span><span class="vm">__class__</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">link</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local</span><span class="p">,</span> <span class="n">remote</span><span class="p">,</span> <span class="n">setting</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Link objects to represent their relation.</span>
+
+<span class="sd">        @param local: Object representing the I{local} side of the reference.</span>
+
+<span class="sd">        @param remote: Object representing the I{remote} side of the reference,</span>
+<span class="sd">            or the actual value to be set as the local key.</span>
+
+<span class="sd">        @param setting: Pass true when the relationship is being newly created.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">local_info</span> <span class="o">=</span> <span class="n">get_obj_info</span><span class="p">(</span><span class="n">local</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">remote_info</span> <span class="o">=</span> <span class="n">get_obj_info</span><span class="p">(</span><span class="n">remote</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">ClassInfoError</span><span class="p">:</span>
+            <span class="c1"># Must be a plain key. Just set it.</span>
+            <span class="c1"># XXX I guess this is broken if self.on_remote is True.</span>
+            <span class="n">local_variables</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_local_variables</span><span class="p">(</span><span class="n">local</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">remote</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="nb">tuple</span><span class="p">:</span>
+                <span class="n">remote</span> <span class="o">=</span> <span class="p">(</span><span class="n">remote</span><span class="p">,)</span>
+            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">remote</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">local_variables</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">variable</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">iter_zip</span><span class="p">(</span><span class="n">local_variables</span><span class="p">,</span> <span class="n">remote</span><span class="p">):</span>
+                <span class="n">variable</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="n">local_store</span> <span class="o">=</span> <span class="n">Store</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="n">local</span><span class="p">)</span>
+        <span class="n">remote_store</span> <span class="o">=</span> <span class="n">Store</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="n">remote</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">setting</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">local_store</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">remote_store</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">local_info</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">hook</span><span class="p">(</span><span class="s2">&quot;added&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_add_all</span><span class="p">,</span> <span class="n">local_info</span><span class="p">)</span>
+                    <span class="n">remote_info</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">hook</span><span class="p">(</span><span class="s2">&quot;added&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_add_all</span><span class="p">,</span> <span class="n">local_info</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">remote_store</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">local</span><span class="p">)</span>
+                    <span class="n">local_store</span> <span class="o">=</span> <span class="n">remote_store</span>
+            <span class="k">elif</span> <span class="n">remote_store</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">local_store</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">remote</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">local_store</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">remote_store</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">WrongStoreError</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%r</span><span class="s2"> and </span><span class="si">%r</span><span class="s2"> cannot be linked because they &quot;</span>
+                                      <span class="s2">&quot;are in different stores.&quot;</span> <span class="o">%</span>
+                                      <span class="p">(</span><span class="n">local</span><span class="p">,</span> <span class="n">remote</span><span class="p">))</span>
+
+        <span class="c1"># In cases below, we maintain a reference to the remote object</span>
+        <span class="c1"># to make sure it won&#39;t get deallocated while the link is active.</span>
+        <span class="n">relation_data</span> <span class="o">=</span> <span class="n">local_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">many</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">relation_data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">relation_data</span> <span class="o">=</span> <span class="n">local_info</span><span class="p">[</span><span class="bp">self</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;remote&quot;</span><span class="p">:</span>
+                                                    <span class="p">{</span><span class="n">remote_info</span><span class="p">:</span> <span class="n">remote</span><span class="p">}}</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">relation_data</span><span class="p">[</span><span class="s2">&quot;remote&quot;</span><span class="p">][</span><span class="n">remote_info</span><span class="p">]</span> <span class="o">=</span> <span class="n">remote</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">relation_data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">relation_data</span> <span class="o">=</span> <span class="n">local_info</span><span class="p">[</span><span class="bp">self</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;remote&quot;</span><span class="p">:</span> <span class="n">remote</span><span class="p">}</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">old_remote</span> <span class="o">=</span> <span class="n">relation_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;remote&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">old_remote</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">local_info</span><span class="p">,</span> <span class="n">get_obj_info</span><span class="p">(</span><span class="n">old_remote</span><span class="p">))</span>
+                <span class="n">relation_data</span><span class="p">[</span><span class="s2">&quot;remote&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">remote</span>
+
+        <span class="k">if</span> <span class="n">setting</span><span class="p">:</span>
+            <span class="n">local_vars</span> <span class="o">=</span> <span class="n">local_info</span><span class="o">.</span><span class="n">variables</span>
+            <span class="n">remote_vars</span> <span class="o">=</span> <span class="n">remote_info</span><span class="o">.</span><span class="n">variables</span>
+            <span class="n">pairs</span> <span class="o">=</span> <span class="n">iter_zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_local_columns</span><span class="p">(</span><span class="n">local</span><span class="o">.</span><span class="vm">__class__</span><span class="p">),</span>
+                             <span class="bp">self</span><span class="o">.</span><span class="n">remote_key</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">on_remote</span><span class="p">:</span>
+                <span class="n">local_has_changed</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="k">for</span> <span class="n">local_column</span><span class="p">,</span> <span class="n">remote_column</span> <span class="ow">in</span> <span class="n">pairs</span><span class="p">:</span>
+                    <span class="n">local_var</span> <span class="o">=</span> <span class="n">local_vars</span><span class="p">[</span><span class="n">local_column</span><span class="p">]</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">local_var</span><span class="o">.</span><span class="n">is_defined</span><span class="p">():</span>
+                        <span class="n">remote_vars</span><span class="p">[</span><span class="n">remote_column</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">PendingReferenceValue</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">remote_vars</span><span class="p">[</span><span class="n">remote_column</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">local_var</span><span class="o">.</span><span class="n">get</span><span class="p">())</span>
+                    <span class="k">if</span> <span class="n">local_var</span><span class="o">.</span><span class="n">has_changed</span><span class="p">():</span>
+                        <span class="n">local_has_changed</span> <span class="o">=</span> <span class="kc">True</span>
+
+                <span class="k">if</span> <span class="n">local_has_changed</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_add_flush_order</span><span class="p">(</span><span class="n">local_info</span><span class="p">,</span> <span class="n">remote_info</span><span class="p">)</span>
+
+                <span class="n">local_info</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">hook</span><span class="p">(</span><span class="s2">&quot;changed&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_track_local_changes</span><span class="p">,</span>
+                                      <span class="n">remote_info</span><span class="p">)</span>
+                <span class="n">local_info</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">hook</span><span class="p">(</span><span class="s2">&quot;flushed&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_break_on_local_flushed</span><span class="p">,</span>
+                                      <span class="n">remote_info</span><span class="p">)</span>
+                <span class="c1">#local_info.event.hook(&quot;removed&quot;, self._break_on_local_removed,</span>
+                <span class="c1">#                      remote_info)</span>
+                <span class="n">remote_info</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">hook</span><span class="p">(</span><span class="s2">&quot;removed&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_break_on_remote_removed</span><span class="p">,</span>
+                                       <span class="n">weakref</span><span class="o">.</span><span class="n">ref</span><span class="p">(</span><span class="n">local_info</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">remote_has_changed</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="k">for</span> <span class="n">local_column</span><span class="p">,</span> <span class="n">remote_column</span> <span class="ow">in</span> <span class="n">pairs</span><span class="p">:</span>
+                    <span class="n">remote_var</span> <span class="o">=</span> <span class="n">remote_vars</span><span class="p">[</span><span class="n">remote_column</span><span class="p">]</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">remote_var</span><span class="o">.</span><span class="n">is_defined</span><span class="p">():</span>
+                        <span class="n">local_vars</span><span class="p">[</span><span class="n">local_column</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">PendingReferenceValue</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">local_vars</span><span class="p">[</span><span class="n">local_column</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">remote_var</span><span class="o">.</span><span class="n">get</span><span class="p">())</span>
+                    <span class="k">if</span> <span class="n">remote_var</span><span class="o">.</span><span class="n">has_changed</span><span class="p">():</span>
+                        <span class="n">remote_has_changed</span> <span class="o">=</span> <span class="kc">True</span>
+
+                <span class="k">if</span> <span class="n">remote_has_changed</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_add_flush_order</span><span class="p">(</span><span class="n">local_info</span><span class="p">,</span> <span class="n">remote_info</span><span class="p">,</span>
+                                          <span class="n">remote_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+                <span class="n">remote_info</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">hook</span><span class="p">(</span><span class="s2">&quot;changed&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_track_remote_changes</span><span class="p">,</span>
+                                       <span class="n">local_info</span><span class="p">)</span>
+                <span class="n">remote_info</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">hook</span><span class="p">(</span><span class="s2">&quot;flushed&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_break_on_remote_flushed</span><span class="p">,</span>
+                                       <span class="n">local_info</span><span class="p">)</span>
+                <span class="c1">#local_info.event.hook(&quot;removed&quot;, self._break_on_remote_removed,</span>
+                <span class="c1">#                      local_info)</span>
+
+                <span class="n">local_info</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">hook</span><span class="p">(</span><span class="s2">&quot;changed&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_break_on_local_diverged</span><span class="p">,</span>
+                                      <span class="n">remote_info</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">local_info</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">hook</span><span class="p">(</span><span class="s2">&quot;changed&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_break_on_local_diverged</span><span class="p">,</span>
+                                  <span class="n">remote_info</span><span class="p">)</span>
+            <span class="n">remote_info</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">hook</span><span class="p">(</span><span class="s2">&quot;changed&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_break_on_remote_diverged</span><span class="p">,</span>
+                                   <span class="n">weakref</span><span class="o">.</span><span class="n">ref</span><span class="p">(</span><span class="n">local_info</span><span class="p">))</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">on_remote</span><span class="p">:</span>
+                <span class="n">remote_info</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">hook</span><span class="p">(</span><span class="s2">&quot;removed&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_break_on_remote_removed</span><span class="p">,</span>
+                                       <span class="n">weakref</span><span class="o">.</span><span class="n">ref</span><span class="p">(</span><span class="n">local_info</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">unlink</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local_info</span><span class="p">,</span> <span class="n">remote_info</span><span class="p">,</span> <span class="n">setting</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Break the relation between the local and remote objects.</span>
+
+<span class="sd">        @param setting: If true objects will be changed to persist breakage.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">unhook</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">relation_data</span> <span class="o">=</span> <span class="n">local_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">relation_data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">many</span><span class="p">:</span>
+                <span class="n">remote_infos</span> <span class="o">=</span> <span class="n">relation_data</span><span class="p">[</span><span class="s2">&quot;remote&quot;</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">remote_info</span> <span class="ow">in</span> <span class="n">remote_infos</span><span class="p">:</span>
+                    <span class="n">remote_infos</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">remote_info</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+                    <span class="n">unhook</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">relation_data</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;remote&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">unhook</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="k">if</span> <span class="n">unhook</span><span class="p">:</span>
+            <span class="n">local_store</span> <span class="o">=</span> <span class="n">Store</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="n">local_info</span><span class="p">)</span>
+
+            <span class="n">local_info</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">unhook</span><span class="p">(</span><span class="s2">&quot;changed&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_track_local_changes</span><span class="p">,</span>
+                                    <span class="n">remote_info</span><span class="p">)</span>
+            <span class="n">local_info</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">unhook</span><span class="p">(</span><span class="s2">&quot;changed&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_break_on_local_diverged</span><span class="p">,</span>
+                                    <span class="n">remote_info</span><span class="p">)</span>
+            <span class="n">local_info</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">unhook</span><span class="p">(</span><span class="s2">&quot;flushed&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_break_on_local_flushed</span><span class="p">,</span>
+                                    <span class="n">remote_info</span><span class="p">)</span>
+
+            <span class="n">remote_info</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">unhook</span><span class="p">(</span><span class="s2">&quot;changed&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_track_remote_changes</span><span class="p">,</span>
+                                     <span class="n">local_info</span><span class="p">)</span>
+            <span class="n">remote_info</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">unhook</span><span class="p">(</span><span class="s2">&quot;changed&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_break_on_remote_diverged</span><span class="p">,</span>
+                                     <span class="n">weakref</span><span class="o">.</span><span class="n">ref</span><span class="p">(</span><span class="n">local_info</span><span class="p">))</span>
+            <span class="n">remote_info</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">unhook</span><span class="p">(</span><span class="s2">&quot;flushed&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_break_on_remote_flushed</span><span class="p">,</span>
+                                     <span class="n">local_info</span><span class="p">)</span>
+            <span class="n">remote_info</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">unhook</span><span class="p">(</span><span class="s2">&quot;removed&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_break_on_remote_removed</span><span class="p">,</span>
+                                     <span class="n">weakref</span><span class="o">.</span><span class="n">ref</span><span class="p">(</span><span class="n">local_info</span><span class="p">))</span>
+
+            <span class="k">if</span> <span class="n">local_store</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">many</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">remote_infos</span><span class="p">:</span>
+                    <span class="n">local_info</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">unhook</span><span class="p">(</span><span class="s2">&quot;added&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_add_all</span><span class="p">,</span> <span class="n">local_info</span><span class="p">)</span>
+                <span class="n">remote_info</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">unhook</span><span class="p">(</span><span class="s2">&quot;added&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_add_all</span><span class="p">,</span> <span class="n">local_info</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">flush_order</span> <span class="o">=</span> <span class="n">relation_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;flush_order&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">flush_order</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">remote_info</span> <span class="ow">in</span> <span class="n">flush_order</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">on_remote</span><span class="p">:</span>
+                        <span class="n">local_store</span><span class="o">.</span><span class="n">remove_flush_order</span><span class="p">(</span><span class="n">local_info</span><span class="p">,</span> <span class="n">remote_info</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">local_store</span><span class="o">.</span><span class="n">remove_flush_order</span><span class="p">(</span><span class="n">remote_info</span><span class="p">,</span> <span class="n">local_info</span><span class="p">)</span>
+                    <span class="n">flush_order</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">remote_info</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">setting</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">on_remote</span><span class="p">:</span>
+                <span class="n">remote_vars</span> <span class="o">=</span> <span class="n">remote_info</span><span class="o">.</span><span class="n">variables</span>
+                <span class="k">for</span> <span class="n">remote_column</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">remote_key</span><span class="p">:</span>
+                    <span class="n">remote_vars</span><span class="p">[</span><span class="n">remote_column</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">local_vars</span> <span class="o">=</span> <span class="n">local_info</span><span class="o">.</span><span class="n">variables</span>
+                <span class="n">local_cols</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_local_columns</span><span class="p">(</span><span class="n">local_info</span><span class="o">.</span><span class="n">cls_info</span><span class="o">.</span><span class="n">cls</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">local_column</span> <span class="ow">in</span> <span class="n">local_cols</span><span class="p">:</span>
+                    <span class="n">local_vars</span><span class="p">[</span><span class="n">local_column</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_add_flush_order</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local_info</span><span class="p">,</span> <span class="n">remote_info</span><span class="p">,</span> <span class="n">remote_first</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Tell the Store to flush objects in the specified order.</span>
+
+<span class="sd">        We need to conditionally remove the flush order in unlink() only</span>
+<span class="sd">        if we added it here.  Note that we can&#39;t just check if the Store</span>
+<span class="sd">        has ordering on the (local, remote) pair, since it may have more</span>
+<span class="sd">        than one request for ordering it, from different relations.</span>
+
+<span class="sd">        @param local_info: The object info for the local object.</span>
+<span class="sd">        @param remote_info: The object info for the remote object.</span>
+<span class="sd">        @param remote_first: If True, remote_info will be flushed</span>
+<span class="sd">                             before local_info.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">local_store</span> <span class="o">=</span> <span class="n">Store</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="n">local_info</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">local_store</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">flush_order</span> <span class="o">=</span> <span class="n">local_info</span><span class="p">[</span><span class="bp">self</span><span class="p">]</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;flush_order&quot;</span><span class="p">,</span> <span class="nb">set</span><span class="p">())</span>
+            <span class="k">if</span> <span class="n">remote_info</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">flush_order</span><span class="p">:</span>
+                <span class="n">flush_order</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">remote_info</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">remote_first</span><span class="p">:</span>
+                    <span class="n">local_store</span><span class="o">.</span><span class="n">add_flush_order</span><span class="p">(</span><span class="n">remote_info</span><span class="p">,</span> <span class="n">local_info</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">local_store</span><span class="o">.</span><span class="n">add_flush_order</span><span class="p">(</span><span class="n">local_info</span><span class="p">,</span> <span class="n">remote_info</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_track_local_changes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local_info</span><span class="p">,</span> <span class="n">local_variable</span><span class="p">,</span>
+                             <span class="n">old_value</span><span class="p">,</span> <span class="n">new_value</span><span class="p">,</span> <span class="n">fromdb</span><span class="p">,</span> <span class="n">remote_info</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Deliver changes in local to remote.</span>
+
+<span class="sd">        This hook ensures that the remote object will keep track of</span>
+<span class="sd">        changes done in the local object, either manually or at</span>
+<span class="sd">        flushing time.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">remote_column</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_remote_column</span><span class="p">(</span><span class="n">local_info</span><span class="o">.</span><span class="n">cls_info</span><span class="o">.</span><span class="n">cls</span><span class="p">,</span>
+                                                <span class="n">local_variable</span><span class="o">.</span><span class="n">column</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">remote_column</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">remote_info</span><span class="o">.</span><span class="n">variables</span><span class="p">[</span><span class="n">remote_column</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">new_value</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_add_flush_order</span><span class="p">(</span><span class="n">local_info</span><span class="p">,</span> <span class="n">remote_info</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_track_remote_changes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">remote_info</span><span class="p">,</span> <span class="n">remote_variable</span><span class="p">,</span>
+                              <span class="n">old_value</span><span class="p">,</span> <span class="n">new_value</span><span class="p">,</span> <span class="n">fromdb</span><span class="p">,</span> <span class="n">local_info</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Deliver changes in remote to local.</span>
+
+<span class="sd">        This hook ensures that the local object will keep track of</span>
+<span class="sd">        changes done in the remote object, either manually or at</span>
+<span class="sd">        flushing time.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">local_column</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_local_column</span><span class="p">(</span><span class="n">local_info</span><span class="o">.</span><span class="n">cls_info</span><span class="o">.</span><span class="n">cls</span><span class="p">,</span>
+                                              <span class="n">remote_variable</span><span class="o">.</span><span class="n">column</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">local_column</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">local_info</span><span class="o">.</span><span class="n">variables</span><span class="p">[</span><span class="n">local_column</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">new_value</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_add_flush_order</span><span class="p">(</span><span class="n">local_info</span><span class="p">,</span> <span class="n">remote_info</span><span class="p">,</span> <span class="n">remote_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_break_on_local_diverged</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local_info</span><span class="p">,</span> <span class="n">local_variable</span><span class="p">,</span>
+                                 <span class="n">old_value</span><span class="p">,</span> <span class="n">new_value</span><span class="p">,</span> <span class="n">fromdb</span><span class="p">,</span> <span class="n">remote_info</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Break the remote/local relationship on diverging changes.</span>
+
+<span class="sd">        This hook ensures that if the local object has an attribute</span>
+<span class="sd">        changed by hand in a way that diverges from the remote object,</span>
+<span class="sd">        it stops tracking changes.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">remote_column</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_remote_column</span><span class="p">(</span><span class="n">local_info</span><span class="o">.</span><span class="n">cls_info</span><span class="o">.</span><span class="n">cls</span><span class="p">,</span>
+                                                <span class="n">local_variable</span><span class="o">.</span><span class="n">column</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">remote_column</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">variable</span> <span class="o">=</span> <span class="n">remote_info</span><span class="o">.</span><span class="n">variables</span><span class="p">[</span><span class="n">remote_column</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">variable</span><span class="o">.</span><span class="n">get_lazy</span><span class="p">()</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">variable</span><span class="o">.</span><span class="n">get</span><span class="p">()</span> <span class="o">!=</span> <span class="n">new_value</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">local_info</span><span class="p">,</span> <span class="n">remote_info</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_break_on_remote_diverged</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">remote_info</span><span class="p">,</span> <span class="n">remote_variable</span><span class="p">,</span>
+                                  <span class="n">old_value</span><span class="p">,</span> <span class="n">new_value</span><span class="p">,</span> <span class="n">fromdb</span><span class="p">,</span> <span class="n">local_info_ref</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Break the remote/local relationship on diverging changes.</span>
+
+<span class="sd">        This hook ensures that if the remote object has an attribute</span>
+<span class="sd">        changed by hand in a way that diverges from the local object,</span>
+<span class="sd">        the relationship is undone.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">local_info</span> <span class="o">=</span> <span class="n">local_info_ref</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">local_info</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="n">local_column</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_local_column</span><span class="p">(</span><span class="n">local_info</span><span class="o">.</span><span class="n">cls_info</span><span class="o">.</span><span class="n">cls</span><span class="p">,</span>
+                                              <span class="n">remote_variable</span><span class="o">.</span><span class="n">column</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">local_column</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">local_value</span> <span class="o">=</span> <span class="n">local_info</span><span class="o">.</span><span class="n">variables</span><span class="p">[</span><span class="n">local_column</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">local_value</span> <span class="o">!=</span> <span class="n">new_value</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">local_info</span><span class="p">,</span> <span class="n">remote_info</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_break_on_local_flushed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local_info</span><span class="p">,</span> <span class="n">remote_info</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Break the remote/local relationship on flush.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">local_info</span><span class="p">,</span> <span class="n">remote_info</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_break_on_remote_flushed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">remote_info</span><span class="p">,</span> <span class="n">local_info</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Break the remote/local relationship on flush.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">local_info</span><span class="p">,</span> <span class="n">remote_info</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_break_on_remote_removed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">remote_info</span><span class="p">,</span> <span class="n">local_info_ref</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Break the remote relationship when the remote object is removed.&quot;&quot;&quot;</span>
+        <span class="n">local_info</span> <span class="o">=</span> <span class="n">local_info_ref</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">local_info</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">local_info</span><span class="p">,</span> <span class="n">remote_info</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_add_all</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj_info</span><span class="p">,</span> <span class="n">local_info</span><span class="p">):</span>
+        <span class="n">store</span> <span class="o">=</span> <span class="n">Store</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="n">obj_info</span><span class="p">)</span>
+        <span class="n">store</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">local_info</span><span class="p">)</span>
+        <span class="n">local_info</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">unhook</span><span class="p">(</span><span class="s2">&quot;added&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_add_all</span><span class="p">,</span> <span class="n">local_info</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="n">remote_info</span><span class="p">):</span>
+            <span class="n">remote_info</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">unhook</span><span class="p">(</span><span class="s2">&quot;added&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_add_all</span><span class="p">,</span> <span class="n">local_info</span><span class="p">)</span>
+            <span class="n">store</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">remote_info</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_add_flush_order</span><span class="p">(</span><span class="n">local_info</span><span class="p">,</span> <span class="n">remote_info</span><span class="p">,</span>
+                                  <span class="n">remote_first</span><span class="o">=</span><span class="p">(</span><span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">on_remote</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">many</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">remote_info</span> <span class="ow">in</span> <span class="n">local_info</span><span class="p">[</span><span class="bp">self</span><span class="p">][</span><span class="s2">&quot;remote&quot;</span><span class="p">]:</span>
+                <span class="n">add</span><span class="p">(</span><span class="n">remote_info</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">add</span><span class="p">(</span><span class="n">get_obj_info</span><span class="p">(</span><span class="n">local_info</span><span class="p">[</span><span class="bp">self</span><span class="p">][</span><span class="s2">&quot;remote&quot;</span><span class="p">]))</span>
+
+    <span class="k">def</span> <span class="nf">_get_remote_columns</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">remote_cls</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_remote_columns</span><span class="p">[</span><span class="n">remote_cls</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="n">columns</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">prop</span><span class="o">.</span><span class="fm">__get__</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">remote_cls</span><span class="p">)</span>
+                            <span class="k">for</span> <span class="n">prop</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">remote_key</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_remote_columns</span><span class="p">[</span><span class="n">remote_cls</span><span class="p">]</span> <span class="o">=</span> <span class="n">columns</span>
+            <span class="k">return</span> <span class="n">columns</span>
+
+    <span class="k">def</span> <span class="nf">_get_local_columns</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local_cls</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_local_columns</span><span class="p">[</span><span class="n">local_cls</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="n">columns</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">prop</span><span class="o">.</span><span class="fm">__get__</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">local_cls</span><span class="p">)</span>
+                            <span class="k">for</span> <span class="n">prop</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">local_key</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_local_columns</span><span class="p">[</span><span class="n">local_cls</span><span class="p">]</span> <span class="o">=</span> <span class="n">columns</span>
+            <span class="k">return</span> <span class="n">columns</span>
+
+    <span class="k">def</span> <span class="nf">_get_remote_column</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local_cls</span><span class="p">,</span> <span class="n">local_column</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_l_to_r</span><span class="p">[</span><span class="n">local_cls</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">local_column</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="nb">map</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">local_prop</span><span class="p">,</span> <span class="n">_remote_column</span> <span class="ow">in</span> <span class="n">iter_zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">local_key</span><span class="p">,</span>
+                                                       <span class="bp">self</span><span class="o">.</span><span class="n">remote_key</span><span class="p">):</span>
+                <span class="nb">map</span><span class="p">[</span><span class="n">local_prop</span><span class="o">.</span><span class="fm">__get__</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">local_cls</span><span class="p">)]</span> <span class="o">=</span> <span class="n">_remote_column</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_l_to_r</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">local_cls</span><span class="p">,</span> <span class="nb">map</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">local_column</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get_local_column</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local_cls</span><span class="p">,</span> <span class="n">remote_column</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_r_to_l</span><span class="p">[</span><span class="n">local_cls</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">remote_column</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="nb">map</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">local_prop</span><span class="p">,</span> <span class="n">_remote_column</span> <span class="ow">in</span> <span class="n">iter_zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">local_key</span><span class="p">,</span>
+                                                       <span class="bp">self</span><span class="o">.</span><span class="n">remote_key</span><span class="p">):</span>
+                <span class="nb">map</span><span class="p">[</span><span class="n">_remote_column</span><span class="p">]</span> <span class="o">=</span> <span class="n">local_prop</span><span class="o">.</span><span class="fm">__get__</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">local_cls</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_r_to_l</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">local_cls</span><span class="p">,</span> <span class="nb">map</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">remote_column</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">PropertyResolver</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Transform strings and pure properties (non-columns) into columns.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reference</span><span class="p">,</span> <span class="n">used_cls</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_reference</span> <span class="o">=</span> <span class="n">reference</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_used_cls</span> <span class="o">=</span> <span class="n">used_cls</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_namespace</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">resolve</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">properties</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">type</span><span class="p">(</span><span class="n">properties</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">tuple</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">resolve_one</span><span class="p">(</span><span class="n">properties</span><span class="p">),)</span>
+        <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">resolve_one</span><span class="p">(</span><span class="nb">property</span><span class="p">)</span> <span class="k">for</span> <span class="nb">property</span> <span class="ow">in</span> <span class="n">properties</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">resolve_one</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">property</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="nb">property</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">tuple</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="nb">property</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="nb">property</span><span class="p">,</span> <span class="n">string_types</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resolve_string</span><span class="p">(</span><span class="nb">property</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="nb">property</span><span class="p">,</span> <span class="n">SuffixExpr</span><span class="p">):</span>
+            <span class="c1"># XXX This covers cases like order_by=Desc(&quot;Bar.id&quot;), see #620369.</span>
+            <span class="c1"># Eventually we might want to add support for other types of</span>
+            <span class="c1"># expressions</span>
+            <span class="nb">property</span><span class="o">.</span><span class="n">expr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="nb">property</span><span class="o">.</span><span class="n">expr</span><span class="p">)</span>
+            <span class="k">return</span> <span class="nb">property</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="nb">property</span><span class="p">,</span> <span class="n">Column</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">_find_descriptor_obj</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_used_cls</span><span class="p">,</span> <span class="nb">property</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">property</span>
+
+    <span class="k">def</span> <span class="nf">_resolve_string</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">property_path</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_used_cls</span><span class="o">.</span><span class="n">_storm_property_registry</span>
+            <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;When using strings on references, &quot;</span>
+                                   <span class="s2">&quot;classes involved must be subclasses &quot;</span>
+                                   <span class="s2">&quot;of &#39;Storm&#39;&quot;</span><span class="p">)</span>
+            <span class="bp">cls</span> <span class="o">=</span> <span class="n">_find_descriptor_class</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_used_cls</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reference</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_namespace</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">.</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="vm">__module__</span><span class="p">,</span> <span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">property_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_namespace</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_find_descriptor_class</span><span class="p">(</span><span class="n">used_cls</span><span class="p">,</span> <span class="n">descr</span><span class="p">):</span>
+    <span class="k">for</span> <span class="bp">cls</span> <span class="ow">in</span> <span class="n">used_cls</span><span class="o">.</span><span class="vm">__mro__</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">attr</span><span class="p">,</span> <span class="n">_descr</span> <span class="ow">in</span> <span class="n">iter_items</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">_descr</span> <span class="ow">is</span> <span class="n">descr</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">cls</span>
+    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Reference used in an unknown class&quot;</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">_find_descriptor_obj</span><span class="p">(</span><span class="n">used_cls</span><span class="p">,</span> <span class="n">descr</span><span class="p">):</span>
+    <span class="k">for</span> <span class="bp">cls</span> <span class="ow">in</span> <span class="n">used_cls</span><span class="o">.</span><span class="vm">__mro__</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">attr</span><span class="p">,</span> <span class="n">_descr</span> <span class="ow">in</span> <span class="n">iter_items</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">_descr</span> <span class="ow">is</span> <span class="n">descr</span><span class="p">:</span>
+                <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Reference used in an unknown class&quot;</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Gustavo Niemeyer.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.4</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

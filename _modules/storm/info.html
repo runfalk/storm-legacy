@@ -1,0 +1,326 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>storm.info &#8212; Storm  documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for storm.info</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Copyright (c) 2006, 2007 Canonical</span>
+<span class="c1">#</span>
+<span class="c1"># Written by Gustavo Niemeyer &lt;gustavo@niemeyer.net&gt;</span>
+<span class="c1">#</span>
+<span class="c1"># This file is part of Storm Object Relational Mapper.</span>
+<span class="c1">#</span>
+<span class="c1"># Storm is free software; you can redistribute it and/or modify</span>
+<span class="c1"># it under the terms of the GNU Lesser General Public License as</span>
+<span class="c1"># published by the Free Software Foundation; either version 2.1 of</span>
+<span class="c1"># the License, or (at your option) any later version.</span>
+<span class="c1">#</span>
+<span class="c1"># Storm is distributed in the hope that it will be useful,</span>
+<span class="c1"># but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="c1"># MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="c1"># GNU Lesser General Public License for more details.</span>
+<span class="c1">#</span>
+<span class="c1"># You should have received a copy of the GNU Lesser General Public License</span>
+<span class="c1"># along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
+<span class="c1">#</span>
+<span class="kn">from</span> <span class="nn">weakref</span> <span class="k">import</span> <span class="n">ref</span>
+
+<span class="kn">from</span> <span class="nn">storm.compat</span> <span class="k">import</span> <span class="n">iter_values</span><span class="p">,</span> <span class="n">string_types</span>
+<span class="kn">from</span> <span class="nn">storm.exceptions</span> <span class="k">import</span> <span class="n">ClassInfoError</span>
+<span class="kn">from</span> <span class="nn">storm.expr</span> <span class="k">import</span> <span class="n">Column</span><span class="p">,</span> <span class="n">Desc</span><span class="p">,</span> <span class="n">TABLE</span>
+<span class="kn">from</span> <span class="nn">storm.expr</span> <span class="k">import</span> <span class="nb">compile</span><span class="p">,</span> <span class="n">Table</span>
+<span class="kn">from</span> <span class="nn">storm.event</span> <span class="k">import</span> <span class="n">EventSystem</span>
+<span class="kn">from</span> <span class="nn">storm</span> <span class="k">import</span> <span class="n">Undef</span><span class="p">,</span> <span class="n">has_cextensions</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;get_obj_info&quot;</span><span class="p">,</span> <span class="s2">&quot;set_obj_info&quot;</span><span class="p">,</span> <span class="s2">&quot;get_cls_info&quot;</span><span class="p">,</span>
+           <span class="s2">&quot;ClassInfo&quot;</span><span class="p">,</span> <span class="s2">&quot;ObjectInfo&quot;</span><span class="p">,</span> <span class="s2">&quot;ClassAlias&quot;</span><span class="p">]</span>
+
+
+<span class="k">def</span> <span class="nf">get_obj_info</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">obj</span><span class="o">.</span><span class="n">__storm_object_info__</span>
+    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+        <span class="c1"># Instantiate ObjectInfo first, so that it breaks gracefully,</span>
+        <span class="c1"># in case the object isn&#39;t a storm object.</span>
+        <span class="n">obj_info</span> <span class="o">=</span> <span class="n">ObjectInfo</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">obj</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;__storm_object_info__&quot;</span><span class="p">,</span> <span class="n">obj_info</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="set_obj_info"><a class="viewcode-back" href="../../store.html#storm.info.set_obj_info">[docs]</a><span class="k">def</span> <span class="nf">set_obj_info</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">obj_info</span><span class="p">):</span>
+    <span class="n">obj</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="s2">&quot;__storm_object_info__&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">obj_info</span></div>
+
+
+<div class="viewcode-block" id="get_cls_info"><a class="viewcode-back" href="../../store.html#storm.info.get_cls_info">[docs]</a><span class="k">def</span> <span class="nf">get_cls_info</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+    <span class="k">if</span> <span class="s2">&quot;__storm_class_info__&quot;</span> <span class="ow">in</span> <span class="bp">cls</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">:</span>
+        <span class="c1"># Can&#39;t use attribute access here, otherwise subclassing won&#39;t work.</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="s2">&quot;__storm_class_info__&quot;</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">__storm_class_info__</span> <span class="o">=</span> <span class="n">ClassInfo</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">__storm_class_info__</span></div>
+
+
+<div class="viewcode-block" id="ClassInfo"><a class="viewcode-back" href="../../store.html#storm.info.ClassInfo">[docs]</a><span class="k">class</span> <span class="nc">ClassInfo</span><span class="p">(</span><span class="nb">dict</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Persistent storm-related information of a class.</span>
+
+<span class="sd">    The following attributes are defined:</span>
+
+<span class="sd">    @ivar table: Expression from where columns will be looked up.</span>
+<span class="sd">    @ivar cls: Class which should be used to build objects.</span>
+<span class="sd">    @ivar columns: Tuple of column properties found in the class.</span>
+<span class="sd">    @ivar primary_key: Tuple of column properties used to form the primary key</span>
+<span class="sd">    @ivar primary_key_pos: Position of primary_key items in the columns tuple.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="bp">cls</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">table</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="s2">&quot;__storm_table__&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">table</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ClassInfoError</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">.__storm_table__ missing&quot;</span> <span class="o">%</span> <span class="nb">repr</span><span class="p">(</span><span class="bp">cls</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">cls</span> <span class="o">=</span> <span class="bp">cls</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">table</span><span class="p">,</span> <span class="n">string_types</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">table</span> <span class="o">=</span> <span class="n">Table</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">table</span><span class="p">)</span>
+
+        <span class="n">pairs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="nb">dir</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+            <span class="n">column</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">attr</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">column</span><span class="p">,</span> <span class="n">Column</span><span class="p">):</span>
+                <span class="n">pairs</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">attr</span><span class="p">,</span> <span class="n">column</span><span class="p">))</span>
+
+        <span class="n">pairs</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">pair</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">pair</span> <span class="ow">in</span> <span class="n">pairs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">pairs</span><span class="p">)</span>
+
+        <span class="n">storm_primary</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="s2">&quot;__storm_primary__&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">storm_primary</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">storm_primary</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="nb">tuple</span><span class="p">:</span>
+                <span class="n">storm_primary</span> <span class="o">=</span> <span class="p">(</span><span class="n">storm_primary</span><span class="p">,)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">primary_key</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="n">attr</span><span class="p">]</span>
+                                     <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">storm_primary</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">primary</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">primary_attrs</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">attr</span><span class="p">,</span> <span class="n">column</span> <span class="ow">in</span> <span class="n">pairs</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">column</span><span class="o">.</span><span class="n">primary</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">column</span><span class="o">.</span><span class="n">primary</span> <span class="ow">in</span> <span class="n">primary_attrs</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="n">ClassInfoError</span><span class="p">(</span>
+                            <span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> has two columns with the same primary id: &quot;</span>
+                            <span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> and </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span>
+                            <span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="bp">cls</span><span class="p">),</span> <span class="n">attr</span><span class="p">,</span> <span class="n">primary_attrs</span><span class="p">[</span><span class="n">column</span><span class="o">.</span><span class="n">primary</span><span class="p">]))</span>
+                    <span class="n">primary</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">column</span><span class="o">.</span><span class="n">primary</span><span class="p">,</span> <span class="n">column</span><span class="p">))</span>
+                    <span class="n">primary_attrs</span><span class="p">[</span><span class="n">column</span><span class="o">.</span><span class="n">primary</span><span class="p">]</span> <span class="o">=</span> <span class="n">attr</span>
+            <span class="n">primary</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">primary_key</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">column</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">column</span> <span class="ow">in</span> <span class="n">primary</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">primary_key</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ClassInfoError</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> has no primary key information&quot;</span> <span class="o">%</span>
+                                 <span class="nb">repr</span><span class="p">(</span><span class="bp">cls</span><span class="p">))</span>
+
+        <span class="c1"># columns have __eq__ implementations that do things we don&#39;t want - we</span>
+        <span class="c1"># want to look these up in a dict and use identity semantics</span>
+        <span class="n">id_positions</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">((</span><span class="nb">id</span><span class="p">(</span><span class="n">column</span><span class="p">),</span> <span class="n">i</span><span class="p">)</span>
+                             <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">column</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">columns</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">primary_key_idx</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">((</span><span class="nb">id</span><span class="p">(</span><span class="n">column</span><span class="p">),</span> <span class="n">i</span><span class="p">)</span>
+                                    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">column</span> <span class="ow">in</span>
+                                    <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">primary_key</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">primary_key_pos</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">id_positions</span><span class="p">[</span><span class="nb">id</span><span class="p">(</span><span class="n">column</span><span class="p">)]</span>
+                                     <span class="k">for</span> <span class="n">column</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">primary_key</span><span class="p">)</span>
+
+        <span class="n">__order__</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="s2">&quot;__storm_order__&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">__order__</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">default_order</span> <span class="o">=</span> <span class="n">Undef</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">__order__</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="nb">tuple</span><span class="p">:</span>
+                <span class="n">__order__</span> <span class="o">=</span> <span class="p">(</span><span class="n">__order__</span><span class="p">,)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">default_order</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">__order__</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">string_types</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">):</span>
+                        <span class="n">prop</span> <span class="o">=</span> <span class="n">Desc</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">item</span><span class="p">[</span><span class="mi">1</span><span class="p">:]))</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">prop</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">item</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">prop</span> <span class="o">=</span> <span class="n">item</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">default_order</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">prop</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span> <span class="ow">is</span> <span class="n">other</span>
+
+    <span class="k">def</span> <span class="nf">__ne__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">other</span></div>
+
+
+<div class="viewcode-block" id="ObjectInfo"><a class="viewcode-back" href="../../store.html#storm.info.ObjectInfo">[docs]</a><span class="k">class</span> <span class="nc">ObjectInfo</span><span class="p">(</span><span class="nb">dict</span><span class="p">):</span>
+
+    <span class="fm">__hash__</span> <span class="o">=</span> <span class="nb">object</span><span class="o">.</span><span class="fm">__hash__</span>
+
+    <span class="c1"># For get_obj_info(), an ObjectInfo is its own obj_info.</span>
+    <span class="n">__storm_object_info__</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="bp">self</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+        <span class="c1"># FASTPATH This method is part of the fast path.  Be careful when</span>
+        <span class="c1">#          changing it (try to profile any changes).</span>
+
+        <span class="c1"># First thing, try to create a ClassInfo for the object&#39;s class.</span>
+        <span class="c1"># This ensures that obj is the kind of object we expect.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cls_info</span> <span class="o">=</span> <span class="n">get_cls_info</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">obj</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_obj</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">event</span> <span class="o">=</span> <span class="n">event</span> <span class="o">=</span> <span class="n">EventSystem</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">variables</span> <span class="o">=</span> <span class="n">variables</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">for</span> <span class="n">column</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_info</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="n">variables</span><span class="p">[</span><span class="n">column</span><span class="p">]</span> <span class="o">=</span> \
+                <span class="n">column</span><span class="o">.</span><span class="n">variable_factory</span><span class="p">(</span><span class="n">column</span><span class="o">=</span><span class="n">column</span><span class="p">,</span>
+                                        <span class="n">event</span><span class="o">=</span><span class="n">event</span><span class="p">,</span>
+                                        <span class="n">validator_object_factory</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">get_obj</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">primary_vars</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">variables</span><span class="p">[</span><span class="n">column</span><span class="p">]</span>
+                                  <span class="k">for</span> <span class="n">column</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_info</span><span class="o">.</span><span class="n">primary_key</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span> <span class="ow">is</span> <span class="n">other</span>
+
+    <span class="k">def</span> <span class="nf">__ne__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">other</span>
+
+    <span class="k">def</span> <span class="nf">set_obj</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ref</span> <span class="o">=</span> <span class="n">ref</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_emit_object_deleted</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">get_obj</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ref</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_emit_object_deleted</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj_ref</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="s2">&quot;object-deleted&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">checkpoint</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">variable</span> <span class="ow">in</span> <span class="n">iter_values</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">variables</span><span class="p">):</span>
+            <span class="n">variable</span><span class="o">.</span><span class="n">checkpoint</span><span class="p">()</span></div>
+
+
+<span class="k">if</span> <span class="n">has_cextensions</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">storm.cextensions</span> <span class="k">import</span> <span class="n">ObjectInfo</span><span class="p">,</span> <span class="n">get_obj_info</span>
+
+
+<div class="viewcode-block" id="ClassAlias"><a class="viewcode-back" href="../../store.html#storm.info.ClassAlias">[docs]</a><span class="k">class</span> <span class="nc">ClassAlias</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Create a named alias for a Storm class for use in queries.</span>
+
+<span class="sd">    This is useful basically when the SQL &#39;AS&#39; feature is desired in code using</span>
+<span class="sd">    Storm queries.</span>
+
+<span class="sd">    ClassAliases which are explicitly named (i.e., when &#39;name&#39; is passed) are</span>
+<span class="sd">    cached for as long as the class exists, such that the alias returned from</span>
+<span class="sd">    C{ClassAlias(Foo, &#39;foo_alias&#39;)} will be the same object no matter how many</span>
+<span class="sd">    times it&#39;s called.</span>
+
+<span class="sd">    @param cls: The class to create the alias of.</span>
+<span class="sd">    @param name: If provided, specify the name of the alias to create.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">alias_count</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">def</span> <span class="nf">__new__</span><span class="p">(</span><span class="n">self_cls</span><span class="p">,</span> <span class="bp">cls</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">Undef</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">is</span> <span class="n">Undef</span><span class="p">:</span>
+            <span class="n">use_cache</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">ClassAlias</span><span class="o">.</span><span class="n">alias_count</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;_</span><span class="si">%x</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">ClassAlias</span><span class="o">.</span><span class="n">alias_count</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">use_cache</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">cache</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;_storm_alias_cache&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">cache</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">cls</span><span class="o">.</span><span class="n">_storm_alias_cache</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">elif</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">cache</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">cache</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+        <span class="n">alias_cls</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">+</span> <span class="s2">&quot;Alias&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">self_cls</span><span class="p">,),</span>
+                         <span class="p">{</span><span class="s2">&quot;__storm_table__&quot;</span><span class="p">:</span> <span class="n">name</span><span class="p">})</span>
+        <span class="n">alias_cls</span><span class="o">.</span><span class="vm">__bases__</span> <span class="o">=</span> <span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">self_cls</span><span class="p">)</span>
+        <span class="n">alias_cls_info</span> <span class="o">=</span> <span class="n">get_cls_info</span><span class="p">(</span><span class="n">alias_cls</span><span class="p">)</span>
+        <span class="n">alias_cls_info</span><span class="o">.</span><span class="n">cls</span> <span class="o">=</span> <span class="bp">cls</span>
+        <span class="k">if</span> <span class="n">use_cache</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_storm_alias_cache</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">alias_cls</span>
+        <span class="k">return</span> <span class="n">alias_cls</span></div>
+
+
+<span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="nb">type</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">compile_type</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+    <span class="n">cls_info</span> <span class="o">=</span> <span class="n">get_cls_info</span><span class="p">(</span><span class="n">expr</span><span class="p">)</span>
+    <span class="n">table</span> <span class="o">=</span> <span class="nb">compile</span><span class="p">(</span><span class="n">cls_info</span><span class="o">.</span><span class="n">table</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">state</span><span class="o">.</span><span class="n">context</span> <span class="ow">is</span> <span class="n">TABLE</span> <span class="ow">and</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">expr</span><span class="p">,</span> <span class="n">ClassAlias</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> AS </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">compile</span><span class="p">(</span><span class="n">cls_info</span><span class="o">.</span><span class="n">cls</span><span class="p">,</span> <span class="n">state</span><span class="p">),</span> <span class="n">table</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">table</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Gustavo Niemeyer.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.4</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

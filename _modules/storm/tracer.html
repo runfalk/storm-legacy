@@ -1,0 +1,310 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>storm.tracer &#8212; Storm  documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for storm.tracer</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">threading</span>
+
+<span class="c1"># Circular import: imported at the end of the module.</span>
+<span class="c1"># from storm.database import convert_param_marks</span>
+<span class="kn">from</span> <span class="nn">storm.compat</span> <span class="k">import</span> <span class="n">iter_range</span><span class="p">,</span> <span class="n">ustr</span>
+<span class="kn">from</span> <span class="nn">storm.exceptions</span> <span class="k">import</span> <span class="ne">TimeoutError</span>
+<span class="kn">from</span> <span class="nn">storm.expr</span> <span class="k">import</span> <span class="n">Variable</span>
+
+
+<div class="viewcode-block" id="DebugTracer"><a class="viewcode-back" href="../../events.html#storm.tracer.DebugTracer">[docs]</a><span class="k">class</span> <span class="nc">DebugTracer</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">stream</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">stream</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span> <span class="o">=</span> <span class="n">stream</span>
+
+<div class="viewcode-block" id="DebugTracer.connection_raw_execute"><a class="viewcode-back" href="../../events.html#storm.tracer.DebugTracer.connection_raw_execute">[docs]</a>    <span class="k">def</span> <span class="nf">connection_raw_execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">raw_cursor</span><span class="p">,</span> <span class="n">statement</span><span class="p">,</span>
+                               <span class="n">params</span><span class="p">):</span>
+        <span class="n">time</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()[</span><span class="mi">11</span><span class="p">:]</span>
+        <span class="n">raw_params</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">params</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="n">Variable</span><span class="p">):</span>
+                <span class="n">raw_params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">get</span><span class="p">())</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">raw_params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">param</span><span class="p">)</span>
+        <span class="n">raw_params</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">raw_params</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+            <span class="s2">&quot;[</span><span class="si">%s</span><span class="s2">] EXECUTE: </span><span class="si">%r</span><span class="s2">, </span><span class="si">%r</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">statement</span><span class="p">,</span> <span class="n">raw_params</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="DebugTracer.connection_raw_execute_error"><a class="viewcode-back" href="../../events.html#storm.tracer.DebugTracer.connection_raw_execute_error">[docs]</a>    <span class="k">def</span> <span class="nf">connection_raw_execute_error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">raw_cursor</span><span class="p">,</span>
+                                     <span class="n">statement</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">error</span><span class="p">):</span>
+        <span class="n">time</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()[</span><span class="mi">11</span><span class="p">:]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;[</span><span class="si">%s</span><span class="s2">] ERROR: </span><span class="si">%s</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">error</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="DebugTracer.connection_raw_execute_success"><a class="viewcode-back" href="../../events.html#storm.tracer.DebugTracer.connection_raw_execute_success">[docs]</a>    <span class="k">def</span> <span class="nf">connection_raw_execute_success</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">raw_cursor</span><span class="p">,</span>
+                                       <span class="n">statement</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+        <span class="n">time</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()[</span><span class="mi">11</span><span class="p">:]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;[</span><span class="si">%s</span><span class="s2">] DONE</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">time</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="DebugTracer.connection_commit"><a class="viewcode-back" href="../../events.html#storm.tracer.DebugTracer.connection_commit">[docs]</a>    <span class="k">def</span> <span class="nf">connection_commit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">xid</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">time</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()[</span><span class="mi">11</span><span class="p">:]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;[</span><span class="si">%s</span><span class="s2">] COMMIT xid=</span><span class="si">%s</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">xid</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="DebugTracer.connection_rollback"><a class="viewcode-back" href="../../events.html#storm.tracer.DebugTracer.connection_rollback">[docs]</a>    <span class="k">def</span> <span class="nf">connection_rollback</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">xid</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">time</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()[</span><span class="mi">11</span><span class="p">:]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;[</span><span class="si">%s</span><span class="s2">] ROLLBACK xid=</span><span class="si">%s</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">xid</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="TimeoutTracer"><a class="viewcode-back" href="../../events.html#storm.tracer.TimeoutTracer">[docs]</a><span class="k">class</span> <span class="nc">TimeoutTracer</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Provide a timeout facility for connections to prevent rogue operations.</span>
+
+<span class="sd">    This tracer must be subclassed by backend-specific implementations that</span>
+<span class="sd">    override C{connection_raw_execute_error}, C{set_statement_timeout} and</span>
+<span class="sd">    C{get_remaining_time} methods.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">granularity</span><span class="o">=</span><span class="mi">5</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">granularity</span> <span class="o">=</span> <span class="n">granularity</span>
+
+<div class="viewcode-block" id="TimeoutTracer.connection_raw_execute"><a class="viewcode-back" href="../../events.html#storm.tracer.TimeoutTracer.connection_raw_execute">[docs]</a>    <span class="k">def</span> <span class="nf">connection_raw_execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">raw_cursor</span><span class="p">,</span> <span class="n">statement</span><span class="p">,</span>
+                               <span class="n">params</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Check timeout conditions before a statement is executed.</span>
+
+<span class="sd">        @param connection: The L{Connection} to the database.</span>
+<span class="sd">        @param raw_cursor: A cursor object, specific to the backend being used.</span>
+<span class="sd">        @param statement: The SQL statement to execute.</span>
+<span class="sd">        @param params: The parameters to use with C{statement}.</span>
+<span class="sd">        @raises TimeoutError: Raised if there isn&#39;t enough time left to</span>
+<span class="sd">            execute C{statement}.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">remaining_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_remaining_time</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">remaining_time</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TimeoutError</span><span class="p">(</span>
+                <span class="n">statement</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span>
+                <span class="s2">&quot;</span><span class="si">%d</span><span class="s2"> seconds remaining in time budget&quot;</span> <span class="o">%</span> <span class="n">remaining_time</span><span class="p">)</span>
+
+        <span class="n">last_remaining_time</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">connection</span><span class="p">,</span>
+                                      <span class="s2">&quot;_timeout_tracer_remaining_time&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">remaining_time</span> <span class="o">&gt;</span> <span class="n">last_remaining_time</span> <span class="ow">or</span>
+            <span class="n">last_remaining_time</span> <span class="o">-</span> <span class="n">remaining_time</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">granularity</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">set_statement_timeout</span><span class="p">(</span><span class="n">raw_cursor</span><span class="p">,</span> <span class="n">remaining_time</span><span class="p">)</span>
+            <span class="n">connection</span><span class="o">.</span><span class="n">_timeout_tracer_remaining_time</span> <span class="o">=</span> <span class="n">remaining_time</span></div>
+
+<div class="viewcode-block" id="TimeoutTracer.connection_raw_execute_error"><a class="viewcode-back" href="../../events.html#storm.tracer.TimeoutTracer.connection_raw_execute_error">[docs]</a>    <span class="k">def</span> <span class="nf">connection_raw_execute_error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">raw_cursor</span><span class="p">,</span>
+                                     <span class="n">statement</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">error</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Raise TimeoutError if the given error was a timeout issue.</span>
+
+<span class="sd">        Must be specialized in the backend.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">.connection_raw_execute_error() must be &quot;</span>
+                                  <span class="s2">&quot;implemented&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TimeoutTracer.connection_commit"><a class="viewcode-back" href="../../events.html#storm.tracer.TimeoutTracer.connection_commit">[docs]</a>    <span class="k">def</span> <span class="nf">connection_commit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">xid</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Reset Connection._timeout_tracer_remaining_time.</span>
+
+<span class="sd">        @param connection: The L{Connection} to the database.</span>
+<span class="sd">        @param xid: Optionally the L{Xid} of a previously prepared</span>
+<span class="sd">             transaction to commit.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_reset_timeout_tracer_remaining_time</span><span class="p">(</span><span class="n">connection</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TimeoutTracer.connection_rollback"><a class="viewcode-back" href="../../events.html#storm.tracer.TimeoutTracer.connection_rollback">[docs]</a>    <span class="k">def</span> <span class="nf">connection_rollback</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">xid</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Reset Connection._timeout_tracer_remaining_time.</span>
+
+<span class="sd">        @param connection: The L{Connection} to the database.</span>
+<span class="sd">        @param xid: Optionally the L{Xid} of a previously prepared</span>
+<span class="sd">             transaction to rollback.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_reset_timeout_tracer_remaining_time</span><span class="p">(</span><span class="n">connection</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_reset_timeout_tracer_remaining_time</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set connection._timeout_tracer_remaining_time to 0.&quot;&quot;&quot;</span>
+        <span class="n">connection</span><span class="o">.</span><span class="n">_timeout_tracer_remaining_time</span> <span class="o">=</span> <span class="mi">0</span>
+
+<div class="viewcode-block" id="TimeoutTracer.set_statement_timeout"><a class="viewcode-back" href="../../events.html#storm.tracer.TimeoutTracer.set_statement_timeout">[docs]</a>    <span class="k">def</span> <span class="nf">set_statement_timeout</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_cursor</span><span class="p">,</span> <span class="n">remaining_time</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Perform the timeout setup in the raw cursor.</span>
+
+<span class="sd">        The database should raise an error if the next statement takes</span>
+<span class="sd">        more than the number of seconds provided in C{remaining_time}.</span>
+
+<span class="sd">        Must be specialized in the backend.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">.set_statement_timeout() must be &quot;</span>
+                                  <span class="s2">&quot;implemented&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TimeoutTracer.get_remaining_time"><a class="viewcode-back" href="../../events.html#storm.tracer.TimeoutTracer.get_remaining_time">[docs]</a>    <span class="k">def</span> <span class="nf">get_remaining_time</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Tells how much time the current context (HTTP request, etc) has.</span>
+
+<span class="sd">        Must be specialized with application logic.</span>
+
+<span class="sd">        @return: Number of seconds allowed for the next statement.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">.get_remaining_time() must be implemented&quot;</span>
+                                  <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="BaseStatementTracer"><a class="viewcode-back" href="../../events.html#storm.tracer.BaseStatementTracer">[docs]</a><span class="k">class</span> <span class="nc">BaseStatementTracer</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Storm tracer base class that does query interpolation.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="BaseStatementTracer.connection_raw_execute"><a class="viewcode-back" href="../../events.html#storm.tracer.BaseStatementTracer.connection_raw_execute">[docs]</a>    <span class="k">def</span> <span class="nf">connection_raw_execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">raw_cursor</span><span class="p">,</span>
+                               <span class="n">statement</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+        <span class="n">statement_to_log</span> <span class="o">=</span> <span class="n">statement</span>
+        <span class="k">if</span> <span class="n">params</span><span class="p">:</span>
+            <span class="c1"># There are some bind parameters so we want to insert them into</span>
+            <span class="c1"># the sql statement so we can log the statement.</span>
+            <span class="n">query_params</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">connection</span><span class="o">.</span><span class="n">to_database</span><span class="p">(</span><span class="n">params</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">connection</span><span class="o">.</span><span class="n">param_mark</span> <span class="o">==</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">:</span>
+                <span class="c1"># Double the %&#39;s in the string so that python string formatting</span>
+                <span class="c1"># can restore them to the correct number. Note that %s needs to</span>
+                <span class="c1"># be preserved as that is where we are substituting values in.</span>
+                <span class="n">quoted_statement</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span>
+                    <span class="s2">&quot;</span><span class="si">%%</span><span class="s2">%&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">%%%%</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s2">&quot;%([^s])&quot;</span><span class="p">,</span> <span class="sa">r</span><span class="s2">&quot;</span><span class="si">%%</span><span class="s2">\1&quot;</span><span class="p">,</span> <span class="n">statement</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Double all the %&#39;s in the statement so that python string</span>
+                <span class="c1"># formatting can restore them to the correct number. Any %s in</span>
+                <span class="c1"># the string should be preserved because the param_mark is not</span>
+                <span class="c1"># %s.</span>
+                <span class="n">quoted_statement</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s2">&quot;%&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">%%</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">statement</span><span class="p">)</span>
+                <span class="n">quoted_statement</span> <span class="o">=</span> <span class="n">convert_param_marks</span><span class="p">(</span>
+                    <span class="n">quoted_statement</span><span class="p">,</span> <span class="n">connection</span><span class="o">.</span><span class="n">param_mark</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="c1"># We need to massage the query parameters a little to deal with</span>
+            <span class="c1"># string parameters which represent encoded binary data.</span>
+            <span class="n">render_params</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">query_params</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="n">ustr</span><span class="p">):</span>
+                    <span class="n">render_params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">param</span><span class="p">)</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="sa">u</span><span class="s2">&quot;u&quot;</span><span class="p">))</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">render_params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">param</span><span class="p">)</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="sa">u</span><span class="s2">&quot;b&quot;</span><span class="p">))</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">statement_to_log</span> <span class="o">=</span> <span class="n">quoted_statement</span> <span class="o">%</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">render_params</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+                <span class="n">statement_to_log</span> <span class="o">=</span> \
+                    <span class="s2">&quot;Unformattable query: </span><span class="si">%r</span><span class="s2"> with params </span><span class="si">%r</span><span class="s2">.&quot;</span> <span class="o">%</span> <span class="p">(</span>
+                    <span class="n">statement</span><span class="p">,</span> <span class="n">query_params</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_expanded_raw_execute</span><span class="p">(</span><span class="n">connection</span><span class="p">,</span> <span class="n">raw_cursor</span><span class="p">,</span> <span class="n">statement_to_log</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_expanded_raw_execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">raw_cursor</span><span class="p">,</span> <span class="n">statement</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Called by connection_raw_execute after parameter substitution.&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_expanded_raw_execute</span><span class="p">)</span></div>
+
+
+<span class="n">_tracers</span> <span class="o">=</span> <span class="p">[]</span>
+
+
+<div class="viewcode-block" id="trace"><a class="viewcode-back" href="../../events.html#storm.tracer.trace">[docs]</a><span class="k">def</span> <span class="nf">trace</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">tracer</span> <span class="ow">in</span> <span class="n">_tracers</span><span class="p">:</span>
+        <span class="n">attr</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">tracer</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">attr</span><span class="p">:</span>
+            <span class="n">attr</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="install_tracer"><a class="viewcode-back" href="../../events.html#storm.tracer.install_tracer">[docs]</a><span class="k">def</span> <span class="nf">install_tracer</span><span class="p">(</span><span class="n">tracer</span><span class="p">):</span>
+    <span class="n">_tracers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tracer</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="get_tracers"><a class="viewcode-back" href="../../events.html#storm.tracer.get_tracers">[docs]</a><span class="k">def</span> <span class="nf">get_tracers</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">_tracers</span><span class="p">[:]</span></div>
+
+
+<div class="viewcode-block" id="remove_all_tracers"><a class="viewcode-back" href="../../events.html#storm.tracer.remove_all_tracers">[docs]</a><span class="k">def</span> <span class="nf">remove_all_tracers</span><span class="p">():</span>
+    <span class="k">del</span> <span class="n">_tracers</span><span class="p">[:]</span></div>
+
+
+<div class="viewcode-block" id="remove_tracer"><a class="viewcode-back" href="../../events.html#storm.tracer.remove_tracer">[docs]</a><span class="k">def</span> <span class="nf">remove_tracer</span><span class="p">(</span><span class="n">tracer</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">_tracers</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">tracer</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+        <span class="k">pass</span>  <span class="c1"># The tracer is not installed, succeed gracefully</span></div>
+
+
+<div class="viewcode-block" id="remove_tracer_type"><a class="viewcode-back" href="../../events.html#storm.tracer.remove_tracer_type">[docs]</a><span class="k">def</span> <span class="nf">remove_tracer_type</span><span class="p">(</span><span class="n">tracer_type</span><span class="p">):</span>
+    <span class="n">_tracers</span><span class="p">[:]</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">tracer</span> <span class="k">for</span> <span class="n">tracer</span> <span class="ow">in</span> <span class="n">_tracers</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">tracer</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">tracer_type</span>
+    <span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="debug"><a class="viewcode-back" href="../../events.html#storm.tracer.debug">[docs]</a><span class="k">def</span> <span class="nf">debug</span><span class="p">(</span><span class="n">flag</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="n">remove_tracer_type</span><span class="p">(</span><span class="n">DebugTracer</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">flag</span><span class="p">:</span>
+        <span class="n">install_tracer</span><span class="p">(</span><span class="n">DebugTracer</span><span class="p">(</span><span class="n">stream</span><span class="o">=</span><span class="n">stream</span><span class="p">))</span></div>
+
+
+<span class="c1"># Deal with circular import.</span>
+<span class="kn">from</span> <span class="nn">storm.database</span> <span class="k">import</span> <span class="n">convert_param_marks</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Gustavo Niemeyer.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.4</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

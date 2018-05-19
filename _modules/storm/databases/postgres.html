@@ -1,0 +1,556 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>storm.databases.postgres &#8212; Storm  documentation</title>
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for storm.databases.postgres</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Copyright (c) 2006-2009 Canonical</span>
+<span class="c1">#</span>
+<span class="c1"># Written by Gustavo Niemeyer &lt;gustavo@niemeyer.net&gt;</span>
+<span class="c1">#</span>
+<span class="c1"># This file is part of Storm Object Relational Mapper.</span>
+<span class="c1">#</span>
+<span class="c1"># Storm is free software; you can redistribute it and/or modify</span>
+<span class="c1"># it under the terms of the GNU Lesser General Public License as</span>
+<span class="c1"># published by the Free Software Foundation; either version 2.1 of</span>
+<span class="c1"># the License, or (at your option) any later version.</span>
+<span class="c1">#</span>
+<span class="c1"># Storm is distributed in the hope that it will be useful,</span>
+<span class="c1"># but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="c1"># MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="c1"># GNU Lesser General Public License for more details.</span>
+<span class="c1">#</span>
+<span class="c1"># You should have received a copy of the GNU Lesser General Public License</span>
+<span class="c1"># along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
+<span class="c1">#</span>
+
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">date</span><span class="p">,</span> <span class="n">time</span><span class="p">,</span> <span class="n">timedelta</span>
+<span class="kn">import</span> <span class="nn">json</span>
+
+<span class="kn">from</span> <span class="nn">storm.databases</span> <span class="k">import</span> <span class="n">dummy</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">psycopg2</span>
+    <span class="kn">import</span> <span class="nn">psycopg2.extensions</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="n">psycopg2</span> <span class="o">=</span> <span class="n">dummy</span>
+
+<span class="kn">from</span> <span class="nn">storm.compat</span> <span class="k">import</span> <span class="n">bstr</span><span class="p">,</span> <span class="n">iter_zip</span><span class="p">,</span> <span class="n">ustr</span>
+<span class="kn">from</span> <span class="nn">storm.expr</span> <span class="k">import</span> <span class="p">(</span>
+    <span class="n">Undef</span><span class="p">,</span> <span class="n">Expr</span><span class="p">,</span> <span class="n">SetExpr</span><span class="p">,</span> <span class="n">Select</span><span class="p">,</span> <span class="n">Insert</span><span class="p">,</span> <span class="n">Alias</span><span class="p">,</span> <span class="n">And</span><span class="p">,</span> <span class="n">Eq</span><span class="p">,</span> <span class="n">FuncExpr</span><span class="p">,</span> <span class="n">SQLRaw</span><span class="p">,</span>
+    <span class="n">Sequence</span><span class="p">,</span> <span class="n">Like</span><span class="p">,</span> <span class="n">SQLToken</span><span class="p">,</span> <span class="n">BinaryOper</span><span class="p">,</span> <span class="n">COLUMN</span><span class="p">,</span> <span class="n">COLUMN_NAME</span><span class="p">,</span> <span class="n">COLUMN_PREFIX</span><span class="p">,</span>
+    <span class="n">TABLE</span><span class="p">,</span> <span class="nb">compile</span><span class="p">,</span> <span class="n">compile_select</span><span class="p">,</span> <span class="n">compile_insert</span><span class="p">,</span> <span class="n">compile_set_expr</span><span class="p">,</span>
+    <span class="n">compile_like</span><span class="p">,</span> <span class="n">compile_sql_token</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">storm.variables</span> <span class="k">import</span> <span class="p">(</span>
+    <span class="n">Variable</span><span class="p">,</span> <span class="n">ListVariable</span><span class="p">,</span> <span class="n">JSONVariable</span> <span class="k">as</span> <span class="n">BaseJSONVariable</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">storm.properties</span> <span class="k">import</span> <span class="n">SimpleProperty</span>
+<span class="kn">from</span> <span class="nn">storm.database</span> <span class="k">import</span> <span class="n">Database</span><span class="p">,</span> <span class="n">Connection</span><span class="p">,</span> <span class="n">Result</span>
+<span class="kn">from</span> <span class="nn">storm.exceptions</span> <span class="k">import</span> <span class="p">(</span>
+    <span class="n">install_exceptions</span><span class="p">,</span> <span class="n">DatabaseError</span><span class="p">,</span> <span class="n">DatabaseModuleError</span><span class="p">,</span> <span class="n">InterfaceError</span><span class="p">,</span>
+    <span class="n">OperationalError</span><span class="p">,</span> <span class="n">ProgrammingError</span><span class="p">,</span> <span class="ne">TimeoutError</span><span class="p">,</span> <span class="n">Error</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">storm.tracer</span> <span class="k">import</span> <span class="n">TimeoutTracer</span>
+
+
+<span class="n">install_exceptions</span><span class="p">(</span><span class="n">psycopg2</span><span class="p">)</span>
+<span class="nb">compile</span> <span class="o">=</span> <span class="nb">compile</span><span class="o">.</span><span class="n">create_child</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="Returning"><a class="viewcode-back" href="../../../databases.html#storm.databases.postgres.Returning">[docs]</a><span class="k">class</span> <span class="nc">Returning</span><span class="p">(</span><span class="n">Expr</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Appends the &quot;RETURNING &lt;columns&gt;&quot; suffix to an INSERT or UPDATE.</span>
+
+<span class="sd">    @param expr: an L{Insert} or L{Update} expression.</span>
+<span class="sd">    @param columns: The columns to return, if C{None} then</span>
+<span class="sd">        C{expr.primary_columns} will be used.</span>
+
+<span class="sd">    This is only supported in PostgreSQL 8.2+.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">expr</span> <span class="o">=</span> <span class="n">expr</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="n">columns</span></div>
+
+<div class="viewcode-block" id="compile_returning"><a class="viewcode-back" href="../../../databases.html#storm.databases.postgres.compile_returning">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Returning</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">compile_returning</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+    <span class="n">state</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="s2">&quot;context&quot;</span><span class="p">,</span> <span class="n">COLUMN</span><span class="p">)</span>
+    <span class="n">columns</span> <span class="o">=</span> <span class="n">expr</span><span class="o">.</span><span class="n">columns</span> <span class="ow">or</span> <span class="n">expr</span><span class="o">.</span><span class="n">expr</span><span class="o">.</span><span class="n">primary_columns</span>
+    <span class="n">columns</span> <span class="o">=</span> <span class="nb">compile</span><span class="p">(</span><span class="n">columns</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+    <span class="n">state</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+    <span class="n">state</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="s2">&quot;precedence&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">expr</span> <span class="o">=</span> <span class="nb">compile</span><span class="p">(</span><span class="n">expr</span><span class="o">.</span><span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+    <span class="n">state</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+    <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> RETURNING </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">expr</span><span class="p">,</span> <span class="n">columns</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Case"><a class="viewcode-back" href="../../../databases.html#storm.databases.postgres.Case">[docs]</a><span class="k">class</span> <span class="nc">Case</span><span class="p">(</span><span class="n">Expr</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A CASE statement.</span>
+
+<span class="sd">    @params cases: a list of tuples of (condition, result) or (value, result),</span>
+<span class="sd">        if an expression is passed too.</span>
+<span class="sd">    @param expression: the expression to compare (if the simple form is used).</span>
+<span class="sd">    @param default: an optional default condition if no other case matches.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cases</span><span class="p">,</span> <span class="n">expression</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">Undef</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cases</span> <span class="o">=</span> <span class="n">cases</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">expression</span> <span class="o">=</span> <span class="n">expression</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">default</span> <span class="o">=</span> <span class="n">default</span></div>
+
+
+<div class="viewcode-block" id="compile_case"><a class="viewcode-back" href="../../../databases.html#storm.databases.postgres.compile_case">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Case</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">compile_case</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+    <span class="n">cases</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s2">&quot;WHEN </span><span class="si">%s</span><span class="s2"> THEN </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="nb">compile</span><span class="p">(</span><span class="n">condition</span><span class="p">,</span> <span class="n">state</span><span class="p">),</span> <span class="nb">compile</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">state</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">condition</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">expr</span><span class="o">.</span><span class="n">cases</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">expr</span><span class="o">.</span><span class="n">expression</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">Undef</span><span class="p">:</span>
+        <span class="n">expression</span> <span class="o">=</span> <span class="nb">compile</span><span class="p">(</span><span class="n">expr</span><span class="o">.</span><span class="n">expression</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot; &quot;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">expression</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">expr</span><span class="o">.</span><span class="n">default</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">Undef</span><span class="p">:</span>
+        <span class="n">default</span> <span class="o">=</span> <span class="s2">&quot; ELSE </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">compile</span><span class="p">(</span><span class="n">expr</span><span class="o">.</span><span class="n">default</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">default</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+    <span class="k">return</span> <span class="s2">&quot;CASE </span><span class="si">%s%s%s</span><span class="s2"> END&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">expression</span><span class="p">,</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cases</span><span class="p">),</span> <span class="n">default</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="currval"><a class="viewcode-back" href="../../../databases.html#storm.databases.postgres.currval">[docs]</a><span class="k">class</span> <span class="nc">currval</span><span class="p">(</span><span class="n">FuncExpr</span><span class="p">):</span>
+
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;currval&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">column</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">column</span> <span class="o">=</span> <span class="n">column</span></div>
+
+<div class="viewcode-block" id="compile_currval"><a class="viewcode-back" href="../../../databases.html#storm.databases.postgres.compile_currval">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">currval</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">compile_currval</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Compile a currval.</span>
+
+<span class="sd">    This is a bit involved because we have to get escaping right.  Here</span>
+<span class="sd">    are a few cases to keep in mind::</span>
+
+<span class="sd">        currval(&#39;thetable_thecolumn_seq&#39;)</span>
+<span class="sd">        currval(&#39;theschema.thetable_thecolumn_seq&#39;)</span>
+<span class="sd">        currval(&#39;&quot;the schema&quot;.thetable_thecolumn_seq&#39;)</span>
+<span class="sd">        currval(&#39;theschema.&quot;the table_thecolumn_seq&quot;&#39;)</span>
+<span class="sd">        currval(&#39;theschema.&quot;thetable_the column_seq&quot;&#39;)</span>
+<span class="sd">        currval(&#39;&quot;thetable_the column_seq&quot;&#39;)</span>
+<span class="sd">        currval(&#39;&quot;the schema&quot;.&quot;the table_the column_seq&quot;&#39;)</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">state</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="s2">&quot;context&quot;</span><span class="p">,</span> <span class="n">COLUMN_PREFIX</span><span class="p">)</span>
+    <span class="n">table</span> <span class="o">=</span> <span class="nb">compile</span><span class="p">(</span><span class="n">expr</span><span class="o">.</span><span class="n">column</span><span class="o">.</span><span class="n">table</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">token</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">state</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+    <span class="n">column_name</span> <span class="o">=</span> <span class="nb">compile</span><span class="p">(</span><span class="n">expr</span><span class="o">.</span><span class="n">column</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">token</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">table</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">):</span>
+        <span class="n">table</span> <span class="o">=</span> <span class="n">table</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">column_name</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">):</span>
+            <span class="n">column_name</span> <span class="o">=</span> <span class="n">column_name</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">return</span> <span class="s2">&quot;currval(&#39;</span><span class="si">%s</span><span class="s2">_</span><span class="si">%s</span><span class="s2">_seq</span><span class="se">\&quot;</span><span class="s2">&#39;)&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">column_name</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">column_name</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">):</span>
+        <span class="n">column_name</span> <span class="o">=</span> <span class="n">column_name</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s2">&quot;.&quot;</span> <span class="ow">in</span> <span class="n">table</span><span class="p">:</span>
+            <span class="n">schema</span><span class="p">,</span> <span class="n">table</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="k">return</span> <span class="s2">&quot;currval(&#39;</span><span class="si">%s</span><span class="s2">.</span><span class="se">\&quot;</span><span class="si">%s</span><span class="s2">_</span><span class="si">%s</span><span class="s2">_seq</span><span class="se">\&quot;</span><span class="s2">&#39;)&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">schema</span><span class="p">,</span> <span class="n">table</span><span class="p">,</span> <span class="n">column_name</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;currval(&#39;</span><span class="se">\&quot;</span><span class="si">%s</span><span class="s2">_</span><span class="si">%s</span><span class="s2">_seq</span><span class="se">\&quot;</span><span class="s2">&#39;)&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">column_name</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;currval(&#39;</span><span class="si">%s</span><span class="s2">_</span><span class="si">%s</span><span class="s2">_seq&#39;)&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">column_name</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="compile_list_variable"><a class="viewcode-back" href="../../../databases.html#storm.databases.postgres.compile_list_variable">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">ListVariable</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">compile_list_variable</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">list_variable</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+    <span class="n">elements</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">variables</span> <span class="o">=</span> <span class="n">list_variable</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">to_db</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">variables</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;NULL&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">variables</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;&#39;</span><span class="si">{}</span><span class="s2">&#39;&quot;</span>
+    <span class="k">for</span> <span class="n">variable</span> <span class="ow">in</span> <span class="n">variables</span><span class="p">:</span>
+        <span class="n">elements</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">compile</span><span class="p">(</span><span class="n">variable</span><span class="p">,</span> <span class="n">state</span><span class="p">))</span>
+    <span class="k">return</span> <span class="s2">&quot;ARRAY[</span><span class="si">%s</span><span class="s2">]&quot;</span> <span class="o">%</span> <span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">elements</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="compile_set_expr_postgres"><a class="viewcode-back" href="../../../databases.html#storm.databases.postgres.compile_set_expr_postgres">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">SetExpr</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">compile_set_expr_postgres</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">expr</span><span class="o">.</span><span class="n">order_by</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">Undef</span><span class="p">:</span>
+        <span class="c1"># The following statement breaks in postgres:</span>
+        <span class="c1">#     SELECT 1 AS id UNION SELECT 1 ORDER BY id+1</span>
+        <span class="c1"># With the error:</span>
+        <span class="c1">#     ORDER BY on a UNION/INTERSECT/EXCEPT result must</span>
+        <span class="c1">#     be on one of the result columns</span>
+        <span class="c1"># So we transform it into something close to:</span>
+        <span class="c1">#     SELECT * FROM (SELECT 1 AS id UNION SELECT 1) AS a ORDER BY id+1</span>
+
+        <span class="c1"># Build new set expression without arguments (order_by, etc).</span>
+        <span class="n">new_expr</span> <span class="o">=</span> <span class="n">expr</span><span class="o">.</span><span class="vm">__class__</span><span class="p">()</span>
+        <span class="n">new_expr</span><span class="o">.</span><span class="n">exprs</span> <span class="o">=</span> <span class="n">expr</span><span class="o">.</span><span class="n">exprs</span>
+        <span class="n">new_expr</span><span class="o">.</span><span class="n">all</span> <span class="o">=</span> <span class="n">expr</span><span class="o">.</span><span class="n">all</span>
+
+        <span class="c1"># Make sure that state.aliases isn&#39;t None, since we want them to</span>
+        <span class="c1"># compile our order_by statement below.</span>
+        <span class="n">no_aliases</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">aliases</span> <span class="ow">is</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">no_aliases</span><span class="p">:</span>
+            <span class="n">state</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="s2">&quot;aliases&quot;</span><span class="p">,</span> <span class="p">{})</span>
+
+        <span class="c1"># Build set expression, collecting aliases.</span>
+        <span class="n">set_stmt</span> <span class="o">=</span> <span class="n">SQLRaw</span><span class="p">(</span><span class="s2">&quot;(</span><span class="si">%s</span><span class="s2">)&quot;</span> <span class="o">%</span> <span class="n">compile_set_expr</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">new_expr</span><span class="p">,</span> <span class="n">state</span><span class="p">))</span>
+
+        <span class="c1"># Build order_by statement, using aliases.</span>
+        <span class="n">state</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="s2">&quot;context&quot;</span><span class="p">,</span> <span class="n">COLUMN_NAME</span><span class="p">)</span>
+        <span class="n">order_by_stmt</span> <span class="o">=</span> <span class="n">SQLRaw</span><span class="p">(</span><span class="nb">compile</span><span class="p">(</span><span class="n">expr</span><span class="o">.</span><span class="n">order_by</span><span class="p">,</span> <span class="n">state</span><span class="p">))</span>
+        <span class="n">state</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+
+        <span class="c1"># Discard aliases, if they were not being collected previously.</span>
+        <span class="k">if</span> <span class="n">no_aliases</span><span class="p">:</span>
+            <span class="n">state</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+
+        <span class="c1"># Build wrapping select statement.</span>
+        <span class="n">select</span> <span class="o">=</span> <span class="n">Select</span><span class="p">(</span><span class="n">SQLRaw</span><span class="p">(</span><span class="s2">&quot;*&quot;</span><span class="p">),</span> <span class="n">tables</span><span class="o">=</span><span class="n">Alias</span><span class="p">(</span><span class="n">set_stmt</span><span class="p">),</span> <span class="n">limit</span><span class="o">=</span><span class="n">expr</span><span class="o">.</span><span class="n">limit</span><span class="p">,</span>
+                        <span class="n">offset</span><span class="o">=</span><span class="n">expr</span><span class="o">.</span><span class="n">offset</span><span class="p">,</span> <span class="n">order_by</span><span class="o">=</span><span class="n">order_by_stmt</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">compile_select</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">select</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">compile_set_expr</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="compile_insert_postgres"><a class="viewcode-back" href="../../../databases.html#storm.databases.postgres.compile_insert_postgres">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Insert</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">compile_insert_postgres</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">insert</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+    <span class="c1"># PostgreSQL fails with INSERT INTO table VALUES (), so we transform</span>
+    <span class="c1"># that to INSERT INTO table (id) VALUES (DEFAULT).</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">insert</span><span class="o">.</span><span class="n">map</span> <span class="ow">and</span> <span class="n">insert</span><span class="o">.</span><span class="n">primary_columns</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">Undef</span><span class="p">:</span>
+        <span class="n">insert</span><span class="o">.</span><span class="n">map</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="nb">dict</span><span class="o">.</span><span class="n">fromkeys</span><span class="p">(</span><span class="n">insert</span><span class="o">.</span><span class="n">primary_columns</span><span class="p">,</span>
+                                        <span class="n">SQLRaw</span><span class="p">(</span><span class="s2">&quot;DEFAULT&quot;</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="n">compile_insert</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">insert</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="compile_sequence_postgres"><a class="viewcode-back" href="../../../databases.html#storm.databases.postgres.compile_sequence_postgres">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Sequence</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">compile_sequence_postgres</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">sequence</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s2">&quot;nextval(&#39;</span><span class="si">%s</span><span class="s2">&#39;)&quot;</span> <span class="o">%</span> <span class="n">sequence</span><span class="o">.</span><span class="n">name</span></div>
+
+
+<div class="viewcode-block" id="compile_like_postgres"><a class="viewcode-back" href="../../../databases.html#storm.databases.postgres.compile_like_postgres">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Like</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">compile_like_postgres</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">like</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">like</span><span class="o">.</span><span class="n">case_sensitive</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">compile_like</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">like</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">oper</span><span class="o">=</span><span class="s2">&quot; ILIKE &quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">compile_like</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">like</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="compile_sql_token_postgres"><a class="viewcode-back" href="../../../databases.html#storm.databases.postgres.compile_sql_token_postgres">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">SQLToken</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">compile_sql_token_postgres</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+    <span class="k">if</span> <span class="s2">&quot;.&quot;</span> <span class="ow">in</span> <span class="n">expr</span> <span class="ow">and</span> <span class="n">state</span><span class="o">.</span><span class="n">context</span> <span class="ow">in</span> <span class="p">(</span><span class="n">TABLE</span><span class="p">,</span> <span class="n">COLUMN_PREFIX</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">compile_sql_token</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">subexpr</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+                        <span class="k">for</span> <span class="n">subexpr</span> <span class="ow">in</span> <span class="n">expr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">compile_sql_token</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="PostgresResult"><a class="viewcode-back" href="../../../databases.html#storm.databases.postgres.PostgresResult">[docs]</a><span class="k">class</span> <span class="nc">PostgresResult</span><span class="p">(</span><span class="n">Result</span><span class="p">):</span>
+
+<div class="viewcode-block" id="PostgresResult.get_insert_identity"><a class="viewcode-back" href="../../../databases.html#storm.databases.postgres.PostgresResult.get_insert_identity">[docs]</a>    <span class="k">def</span> <span class="nf">get_insert_identity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">primary_key</span><span class="p">,</span> <span class="n">primary_variables</span><span class="p">):</span>
+        <span class="n">equals</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">column</span><span class="p">,</span> <span class="n">variable</span> <span class="ow">in</span> <span class="n">iter_zip</span><span class="p">(</span><span class="n">primary_key</span><span class="p">,</span> <span class="n">primary_variables</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">variable</span><span class="o">.</span><span class="n">is_defined</span><span class="p">():</span>
+                <span class="c1"># The Select here prevents PostgreSQL from going nuts and</span>
+                <span class="c1"># performing a sequential scan when there *is* an index.</span>
+                <span class="c1"># http://tinyurl.com/2n8mv3</span>
+                <span class="n">variable</span> <span class="o">=</span> <span class="n">Select</span><span class="p">(</span><span class="n">currval</span><span class="p">(</span><span class="n">column</span><span class="p">))</span>
+            <span class="n">equals</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Eq</span><span class="p">(</span><span class="n">column</span><span class="p">,</span> <span class="n">variable</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">And</span><span class="p">(</span><span class="o">*</span><span class="n">equals</span><span class="p">)</span></div></div>
+
+
+<span class="n">pg_connection_failure_codes</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">([</span>
+    <span class="s1">&#39;08006&#39;</span><span class="p">,</span>  <span class="c1"># CONNECTION FAILURE</span>
+    <span class="s1">&#39;08001&#39;</span><span class="p">,</span>  <span class="c1"># SQLCLIENT UNABLE TO ESTABLISH SQLCONNECTION</span>
+    <span class="s1">&#39;08004&#39;</span><span class="p">,</span>  <span class="c1"># SQLSERVER REJECTED ESTABLISHMENT OF SQLCONNECTION</span>
+    <span class="s1">&#39;53300&#39;</span><span class="p">,</span>  <span class="c1"># TOO MANY CONNECTIONS</span>
+    <span class="s1">&#39;57000&#39;</span><span class="p">,</span>  <span class="c1"># OPERATOR INTERVENTION</span>
+    <span class="s1">&#39;57P01&#39;</span><span class="p">,</span>  <span class="c1"># ADMIN SHUTDOWN</span>
+    <span class="s1">&#39;57P02&#39;</span><span class="p">,</span>  <span class="c1"># CRASH SHUTDOWN</span>
+    <span class="s1">&#39;57P03&#39;</span><span class="p">,</span>  <span class="c1"># CANNOT CONNECT NOW</span>
+    <span class="p">])</span>
+
+
+<div class="viewcode-block" id="PostgresConnection"><a class="viewcode-back" href="../../../databases.html#storm.databases.postgres.PostgresConnection">[docs]</a><span class="k">class</span> <span class="nc">PostgresConnection</span><span class="p">(</span><span class="n">Connection</span><span class="p">):</span>
+
+    <span class="n">result_factory</span> <span class="o">=</span> <span class="n">PostgresResult</span>
+    <span class="n">param_mark</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">&quot;</span>
+    <span class="nb">compile</span> <span class="o">=</span> <span class="nb">compile</span>
+
+<div class="viewcode-block" id="PostgresConnection.execute"><a class="viewcode-back" href="../../../databases.html#storm.databases.postgres.PostgresConnection.execute">[docs]</a>    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">statement</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">noresult</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Execute a statement with the given parameters.</span>
+
+<span class="sd">        This extends the L{Connection.execute} method to add support</span>
+<span class="sd">        for automatic retrieval of inserted primary keys to link</span>
+<span class="sd">        in-memory objects with their specific rows.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">statement</span><span class="p">,</span> <span class="n">Insert</span><span class="p">)</span> <span class="ow">and</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_database</span><span class="o">.</span><span class="n">_version</span> <span class="o">&gt;=</span> <span class="mi">80200</span> <span class="ow">and</span>
+            <span class="n">statement</span><span class="o">.</span><span class="n">primary_variables</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">Undef</span> <span class="ow">and</span>
+            <span class="n">statement</span><span class="o">.</span><span class="n">primary_columns</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">Undef</span><span class="p">):</span>
+
+            <span class="c1"># Here we decorate the Insert statement with a Returning</span>
+            <span class="c1"># expression, so that we get back in the result the values</span>
+            <span class="c1"># for the primary key just inserted.  This prevents a round</span>
+            <span class="c1"># trip to the database for obtaining these values.</span>
+
+            <span class="n">result</span> <span class="o">=</span> <span class="n">Connection</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">Returning</span><span class="p">(</span><span class="n">statement</span><span class="p">),</span> <span class="n">params</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">variable</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">iter_zip</span><span class="p">(</span><span class="n">statement</span><span class="o">.</span><span class="n">primary_variables</span><span class="p">,</span>
+                                            <span class="n">result</span><span class="o">.</span><span class="n">get_one</span><span class="p">()):</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">set_variable</span><span class="p">(</span><span class="n">variable</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">result</span>
+
+        <span class="k">return</span> <span class="n">Connection</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">statement</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">noresult</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PostgresConnection.raw_execute"><a class="viewcode-back" href="../../../databases.html#storm.databases.postgres.PostgresConnection.raw_execute">[docs]</a>    <span class="k">def</span> <span class="nf">raw_execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">statement</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Like L{Connection.raw_execute}, but encode the statement to</span>
+<span class="sd">        UTF-8 if it is unicode.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">statement</span><span class="p">)</span> <span class="ow">is</span> <span class="n">ustr</span><span class="p">:</span>
+            <span class="c1"># psycopg breaks with unicode statements.</span>
+            <span class="n">statement</span> <span class="o">=</span> <span class="n">statement</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;UTF-8&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Connection</span><span class="o">.</span><span class="n">raw_execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">statement</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PostgresConnection.to_database"><a class="viewcode-back" href="../../../databases.html#storm.databases.postgres.PostgresConnection.to_database">[docs]</a>    <span class="k">def</span> <span class="nf">to_database</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Like L{Connection.to_database}, but this converts datetime</span>
+<span class="sd">        types to strings, unicode to UTF-8 encoded strings, and</span>
+<span class="sd">        strings to L{psycopg2.Binary} instances.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">params</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="n">Variable</span><span class="p">):</span>
+                <span class="n">param</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">to_db</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="p">(</span><span class="n">datetime</span><span class="p">,</span> <span class="n">date</span><span class="p">,</span> <span class="n">time</span><span class="p">,</span> <span class="n">timedelta</span><span class="p">)):</span>
+                <span class="k">yield</span> <span class="n">ustr</span><span class="p">(</span><span class="n">param</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="n">ustr</span><span class="p">):</span>
+                <span class="k">yield</span> <span class="n">param</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;UTF-8&quot;</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="n">bstr</span><span class="p">):</span>
+                <span class="k">yield</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">Binary</span><span class="p">(</span><span class="n">param</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">yield</span> <span class="n">param</span></div>
+
+<div class="viewcode-block" id="PostgresConnection.is_disconnection_error"><a class="viewcode-back" href="../../../databases.html#storm.databases.postgres.PostgresConnection.is_disconnection_error">[docs]</a>    <span class="k">def</span> <span class="nf">is_disconnection_error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exc</span><span class="p">,</span> <span class="n">extra_disconnection_errors</span><span class="o">=</span><span class="p">()):</span>
+        <span class="c1"># Attempt to use pgcode to determine the nature of the error. This is</span>
+        <span class="c1"># more reliable than string matching because it is not affected by</span>
+        <span class="c1"># locale settings. Fall through if pgcode is not available.</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">exc</span><span class="p">,</span> <span class="n">Error</span><span class="p">):</span>
+            <span class="n">pgcode</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">exc</span><span class="p">,</span> <span class="s2">&quot;pgcode&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">pgcode</span> <span class="ow">in</span> <span class="n">pg_connection_failure_codes</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">True</span>
+
+        <span class="n">disconnection_errors</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">DatabaseError</span><span class="p">,</span> <span class="n">InterfaceError</span><span class="p">,</span> <span class="n">OperationalError</span><span class="p">,</span>
+            <span class="n">ProgrammingError</span><span class="p">,</span> <span class="n">extra_disconnection_errors</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">exc</span><span class="p">,</span> <span class="n">disconnection_errors</span><span class="p">):</span>
+            <span class="c1"># When the connection is closed by a termination of pgbouncer, a</span>
+            <span class="c1"># DatabaseError or subclass with no message (depending on</span>
+            <span class="c1"># psycopg2 version) is raised. If the raw connection is closed</span>
+            <span class="c1"># we assume it&#39;s actually a disconnection.</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">exc</span><span class="p">,</span> <span class="n">DatabaseError</span><span class="p">):</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_raw_connection</span><span class="o">.</span><span class="n">closed</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="kc">True</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="n">ustr</span><span class="p">(</span><span class="n">exc</span><span class="p">)</span>
+            <span class="k">return</span> <span class="p">(</span>
+                <span class="s2">&quot;SSL SYSCALL error&quot;</span> <span class="ow">in</span> <span class="n">msg</span> <span class="ow">or</span>
+                <span class="s2">&quot;EOF detected&quot;</span> <span class="ow">in</span> <span class="n">msg</span> <span class="ow">or</span>
+                <span class="s2">&quot;connection already closed&quot;</span> <span class="ow">in</span> <span class="n">msg</span> <span class="ow">or</span>
+                <span class="s2">&quot;connection not open&quot;</span> <span class="ow">in</span> <span class="n">msg</span> <span class="ow">or</span>
+                <span class="s2">&quot;could not connect to server&quot;</span> <span class="ow">in</span> <span class="n">msg</span> <span class="ow">or</span>
+                <span class="s2">&quot;could not receive data from server&quot;</span> <span class="ow">in</span> <span class="n">msg</span> <span class="ow">or</span>
+                <span class="s2">&quot;could not send data to server&quot;</span> <span class="ow">in</span> <span class="n">msg</span> <span class="ow">or</span>
+                <span class="s2">&quot;losed the connection unexpectedly&quot;</span> <span class="ow">in</span> <span class="n">msg</span> <span class="ow">or</span>
+                <span class="s2">&quot;no connection to the server&quot;</span> <span class="ow">in</span> <span class="n">msg</span> <span class="ow">or</span>
+                <span class="s2">&quot;server closed the connection unexpectedly&quot;</span> <span class="ow">in</span> <span class="n">msg</span> <span class="ow">or</span>
+                <span class="s2">&quot;terminating connection due to administrator&quot;</span> <span class="ow">in</span> <span class="n">msg</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="kc">False</span></div></div>
+
+
+<div class="viewcode-block" id="Postgres"><a class="viewcode-back" href="../../../databases.html#storm.databases.postgres.Postgres">[docs]</a><span class="k">class</span> <span class="nc">Postgres</span><span class="p">(</span><span class="n">Database</span><span class="p">):</span>
+
+    <span class="n">connection_factory</span> <span class="o">=</span> <span class="n">PostgresConnection</span>
+
+    <span class="c1"># An integer representing the server version.  If the server does</span>
+    <span class="c1"># not support the server_version_num variable, this will be set to</span>
+    <span class="c1"># 0.  In practice, this means the variable will be 0 or greater</span>
+    <span class="c1"># than or equal to 80200.</span>
+    <span class="n">_version</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uri</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Postgres</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">uri</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">psycopg2</span> <span class="ow">is</span> <span class="n">dummy</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">DatabaseModuleError</span><span class="p">(</span><span class="s2">&quot;psycopg2&gt;=2.5 not found&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dsn</span> <span class="o">=</span> <span class="n">make_dsn</span><span class="p">(</span><span class="n">uri</span><span class="p">)</span>
+        <span class="n">isolation</span> <span class="o">=</span> <span class="n">uri</span><span class="o">.</span><span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;isolation&quot;</span><span class="p">,</span> <span class="s2">&quot;repeatable-read&quot;</span><span class="p">)</span>
+        <span class="n">isolation_mapping</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;autocommit&quot;</span><span class="p">:</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">extensions</span><span class="o">.</span><span class="n">ISOLATION_LEVEL_AUTOCOMMIT</span><span class="p">,</span>
+            <span class="s2">&quot;serializable&quot;</span><span class="p">:</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">extensions</span><span class="o">.</span><span class="n">ISOLATION_LEVEL_SERIALIZABLE</span><span class="p">,</span>
+            <span class="s2">&quot;read-committed&quot;</span><span class="p">:</span>
+                <span class="n">psycopg2</span><span class="o">.</span><span class="n">extensions</span><span class="o">.</span><span class="n">ISOLATION_LEVEL_READ_COMMITTED</span><span class="p">,</span>
+            <span class="s2">&quot;repeatable-read&quot;</span><span class="p">:</span>
+                <span class="n">psycopg2</span><span class="o">.</span><span class="n">extensions</span><span class="o">.</span><span class="n">ISOLATION_LEVEL_REPEATABLE_READ</span><span class="p">,</span>
+            <span class="s2">&quot;read-uncommitted&quot;</span><span class="p">:</span>
+                <span class="n">psycopg2</span><span class="o">.</span><span class="n">extensions</span><span class="o">.</span><span class="n">ISOLATION_LEVEL_READ_UNCOMMITTED</span><span class="p">}</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_isolation</span> <span class="o">=</span> <span class="n">isolation_mapping</span><span class="p">[</span><span class="n">isolation</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Unknown serialization level </span><span class="si">%r</span><span class="s2">: expected one of &quot;</span>
+                <span class="s2">&quot;&#39;autocommit&#39;, &#39;serializable&#39;, &#39;read-committed&#39;&quot;</span> <span class="o">%</span>
+                <span class="p">(</span><span class="n">isolation</span><span class="p">,))</span>
+
+<div class="viewcode-block" id="Postgres.raw_connect"><a class="viewcode-back" href="../../../databases.html#storm.databases.postgres.Postgres.raw_connect">[docs]</a>    <span class="k">def</span> <span class="nf">raw_connect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">raw_connection</span> <span class="o">=</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dsn</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_version</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">cursor</span> <span class="o">=</span> <span class="n">raw_connection</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SHOW server_version_num&quot;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">ProgrammingError</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_version</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_version</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">raw_connection</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
+
+        <span class="n">raw_connection</span><span class="o">.</span><span class="n">set_client_encoding</span><span class="p">(</span><span class="s2">&quot;UTF8&quot;</span><span class="p">)</span>
+        <span class="n">raw_connection</span><span class="o">.</span><span class="n">set_isolation_level</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_isolation</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">raw_connection</span></div></div>
+
+
+<span class="n">create_from_uri</span> <span class="o">=</span> <span class="n">Postgres</span>
+
+
+<span class="k">if</span> <span class="n">psycopg2</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">dummy</span><span class="p">:</span>
+    <span class="n">psycopg2</span><span class="o">.</span><span class="n">extensions</span><span class="o">.</span><span class="n">register_type</span><span class="p">(</span><span class="n">psycopg2</span><span class="o">.</span><span class="n">extensions</span><span class="o">.</span><span class="n">UNICODE</span><span class="p">)</span>
+    <span class="n">psycopg2</span><span class="o">.</span><span class="n">extensions</span><span class="o">.</span><span class="n">register_type</span><span class="p">(</span><span class="n">psycopg2</span><span class="o">.</span><span class="n">_psycopg</span><span class="o">.</span><span class="n">UNICODEARRAY</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="make_dsn"><a class="viewcode-back" href="../../../databases.html#storm.databases.postgres.make_dsn">[docs]</a><span class="k">def</span> <span class="nf">make_dsn</span><span class="p">(</span><span class="n">uri</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Convert a URI object to a PostgreSQL DSN string.&quot;&quot;&quot;</span>
+    <span class="n">dsn</span> <span class="o">=</span> <span class="s2">&quot;dbname=</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">uri</span><span class="o">.</span><span class="n">database</span>
+    <span class="k">if</span> <span class="n">uri</span><span class="o">.</span><span class="n">host</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">dsn</span> <span class="o">+=</span> <span class="s2">&quot; host=</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">uri</span><span class="o">.</span><span class="n">host</span>
+    <span class="k">if</span> <span class="n">uri</span><span class="o">.</span><span class="n">port</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">dsn</span> <span class="o">+=</span> <span class="s2">&quot; port=</span><span class="si">%d</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">uri</span><span class="o">.</span><span class="n">port</span>
+    <span class="k">if</span> <span class="n">uri</span><span class="o">.</span><span class="n">username</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">dsn</span> <span class="o">+=</span> <span class="s2">&quot; user=</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">uri</span><span class="o">.</span><span class="n">username</span>
+    <span class="k">if</span> <span class="n">uri</span><span class="o">.</span><span class="n">password</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">dsn</span> <span class="o">+=</span> <span class="s2">&quot; password=</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">uri</span><span class="o">.</span><span class="n">password</span>
+    <span class="k">return</span> <span class="n">dsn</span></div>
+
+
+<div class="viewcode-block" id="PostgresTimeoutTracer"><a class="viewcode-back" href="../../../databases.html#storm.databases.postgres.PostgresTimeoutTracer">[docs]</a><span class="k">class</span> <span class="nc">PostgresTimeoutTracer</span><span class="p">(</span><span class="n">TimeoutTracer</span><span class="p">):</span>
+
+<div class="viewcode-block" id="PostgresTimeoutTracer.set_statement_timeout"><a class="viewcode-back" href="../../../databases.html#storm.databases.postgres.PostgresTimeoutTracer.set_statement_timeout">[docs]</a>    <span class="k">def</span> <span class="nf">set_statement_timeout</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_cursor</span><span class="p">,</span> <span class="n">remaining_time</span><span class="p">):</span>
+        <span class="n">raw_cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SET statement_timeout TO </span><span class="si">%d</span><span class="s2">&quot;</span> <span class="o">%</span>
+                           <span class="p">(</span><span class="n">remaining_time</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="PostgresTimeoutTracer.connection_raw_execute_error"><a class="viewcode-back" href="../../../databases.html#storm.databases.postgres.PostgresTimeoutTracer.connection_raw_execute_error">[docs]</a>    <span class="k">def</span> <span class="nf">connection_raw_execute_error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">raw_cursor</span><span class="p">,</span>
+                                     <span class="n">statement</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">error</span><span class="p">):</span>
+        <span class="c1"># This should just check for</span>
+        <span class="c1"># psycopg2.extensions.QueryCanceledError in the future.</span>
+        <span class="k">if</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">error</span><span class="p">,</span> <span class="n">DatabaseError</span><span class="p">)</span> <span class="ow">and</span>
+            <span class="s2">&quot;statement timeout&quot;</span> <span class="ow">in</span> <span class="n">ustr</span><span class="p">(</span><span class="n">error</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">TimeoutError</span><span class="p">(</span>
+                <span class="n">statement</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="s2">&quot;SQL server cancelled statement&quot;</span><span class="p">)</span></div></div>
+
+
+<span class="c1"># Postgres-specific operators</span>
+
+<div class="viewcode-block" id="JSONElement"><a class="viewcode-back" href="../../../databases.html#storm.databases.postgres.JSONElement">[docs]</a><span class="k">class</span> <span class="nc">JSONElement</span><span class="p">(</span><span class="n">BinaryOper</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return an element of a JSON value (by index or field name).&quot;&quot;&quot;</span>
+
+    <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot;-&gt;&quot;</span></div>
+
+
+<div class="viewcode-block" id="JSONTextElement"><a class="viewcode-back" href="../../../databases.html#storm.databases.postgres.JSONTextElement">[docs]</a><span class="k">class</span> <span class="nc">JSONTextElement</span><span class="p">(</span><span class="n">BinaryOper</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return an element of a JSON value (by index or field name) as text.&quot;&quot;&quot;</span>
+
+    <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot;-&gt;&gt;&quot;</span></div>
+
+
+<span class="c1"># Postgres-specific properties and variables</span>
+
+<div class="viewcode-block" id="JSONVariable"><a class="viewcode-back" href="../../../databases.html#storm.databases.postgres.JSONVariable">[docs]</a><span class="k">class</span> <span class="nc">JSONVariable</span><span class="p">(</span><span class="n">BaseJSONVariable</span><span class="p">):</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_loads</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="c1"># Since psycopg2 2.5 the value is decoded by the driver</span>
+        <span class="k">return</span> <span class="n">value</span></div>
+
+
+<div class="viewcode-block" id="JSON"><a class="viewcode-back" href="../../../databases.html#storm.databases.postgres.JSON">[docs]</a><span class="k">class</span> <span class="nc">JSON</span><span class="p">(</span><span class="n">SimpleProperty</span><span class="p">):</span>
+    <span class="n">variable_class</span> <span class="o">=</span> <span class="n">JSONVariable</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Gustavo Niemeyer.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.4</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,682 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Columns and types &#8212; Storm  documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Expressions" href="expr.html" />
+    <link rel="prev" title="Store" href="store.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-storm.properties">
+<span id="columns-and-types"></span><h1>Columns and types<a class="headerlink" href="#module-storm.properties" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="storm.properties.Property">
+<em class="property">class </em><code class="descclassname">storm.properties.</code><code class="descname">Property</code><span class="sig-paren">(</span><em>name=None</em>, <em>primary=False</em>, <em>variable_class=&lt;type 'storm.variables.Variable'&gt;</em>, <em>variable_kwargs={}</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/properties.html#Property"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.properties.Property" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="storm.properties.SimpleProperty">
+<em class="property">class </em><code class="descclassname">storm.properties.</code><code class="descname">SimpleProperty</code><span class="sig-paren">(</span><em>name=None</em>, <em>primary=False</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/properties.html#SimpleProperty"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.properties.SimpleProperty" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#storm.properties.Property" title="storm.properties.Property"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.properties.Property</span></code></a></p>
+<dl class="attribute">
+<dt id="storm.properties.SimpleProperty.variable_class">
+<code class="descname">variable_class</code><em class="property"> = None</em><a class="headerlink" href="#storm.properties.SimpleProperty.variable_class" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="storm.properties.Bool">
+<em class="property">class </em><code class="descclassname">storm.properties.</code><code class="descname">Bool</code><span class="sig-paren">(</span><em>name=None</em>, <em>primary=False</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/properties.html#Bool"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.properties.Bool" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#storm.properties.SimpleProperty" title="storm.properties.SimpleProperty"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.properties.SimpleProperty</span></code></a></p>
+<dl class="attribute">
+<dt id="storm.properties.Bool.variable_class">
+<code class="descname">variable_class</code><a class="headerlink" href="#storm.properties.Bool.variable_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="#storm.variables.BoolVariable" title="storm.variables.BoolVariable"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.variables.BoolVariable</span></code></a></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="storm.properties.Int">
+<em class="property">class </em><code class="descclassname">storm.properties.</code><code class="descname">Int</code><span class="sig-paren">(</span><em>name=None</em>, <em>primary=False</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/properties.html#Int"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.properties.Int" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#storm.properties.SimpleProperty" title="storm.properties.SimpleProperty"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.properties.SimpleProperty</span></code></a></p>
+<dl class="attribute">
+<dt id="storm.properties.Int.variable_class">
+<code class="descname">variable_class</code><a class="headerlink" href="#storm.properties.Int.variable_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="#storm.variables.IntVariable" title="storm.variables.IntVariable"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.variables.IntVariable</span></code></a></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="storm.properties.Float">
+<em class="property">class </em><code class="descclassname">storm.properties.</code><code class="descname">Float</code><span class="sig-paren">(</span><em>name=None</em>, <em>primary=False</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/properties.html#Float"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.properties.Float" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#storm.properties.SimpleProperty" title="storm.properties.SimpleProperty"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.properties.SimpleProperty</span></code></a></p>
+<dl class="attribute">
+<dt id="storm.properties.Float.variable_class">
+<code class="descname">variable_class</code><a class="headerlink" href="#storm.properties.Float.variable_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="#storm.variables.FloatVariable" title="storm.variables.FloatVariable"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.variables.FloatVariable</span></code></a></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="storm.properties.Decimal">
+<em class="property">class </em><code class="descclassname">storm.properties.</code><code class="descname">Decimal</code><span class="sig-paren">(</span><em>name=None</em>, <em>primary=False</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/properties.html#Decimal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.properties.Decimal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#storm.properties.SimpleProperty" title="storm.properties.SimpleProperty"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.properties.SimpleProperty</span></code></a></p>
+<dl class="attribute">
+<dt id="storm.properties.Decimal.variable_class">
+<code class="descname">variable_class</code><a class="headerlink" href="#storm.properties.Decimal.variable_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="#storm.variables.DecimalVariable" title="storm.variables.DecimalVariable"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.variables.DecimalVariable</span></code></a></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="storm.properties.RawStr">
+<em class="property">class </em><code class="descclassname">storm.properties.</code><code class="descname">RawStr</code><span class="sig-paren">(</span><em>name=None</em>, <em>primary=False</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/properties.html#RawStr"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.properties.RawStr" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#storm.properties.SimpleProperty" title="storm.properties.SimpleProperty"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.properties.SimpleProperty</span></code></a></p>
+<dl class="attribute">
+<dt id="storm.properties.RawStr.variable_class">
+<code class="descname">variable_class</code><a class="headerlink" href="#storm.properties.RawStr.variable_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="#storm.variables.RawStrVariable" title="storm.variables.RawStrVariable"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.variables.RawStrVariable</span></code></a></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="storm.properties.Unicode">
+<em class="property">class </em><code class="descclassname">storm.properties.</code><code class="descname">Unicode</code><span class="sig-paren">(</span><em>name=None</em>, <em>primary=False</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/properties.html#Unicode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.properties.Unicode" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#storm.properties.SimpleProperty" title="storm.properties.SimpleProperty"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.properties.SimpleProperty</span></code></a></p>
+<dl class="attribute">
+<dt id="storm.properties.Unicode.variable_class">
+<code class="descname">variable_class</code><a class="headerlink" href="#storm.properties.Unicode.variable_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="#storm.variables.UnicodeVariable" title="storm.variables.UnicodeVariable"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.variables.UnicodeVariable</span></code></a></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="storm.properties.DateTime">
+<em class="property">class </em><code class="descclassname">storm.properties.</code><code class="descname">DateTime</code><span class="sig-paren">(</span><em>name=None</em>, <em>primary=False</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/properties.html#DateTime"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.properties.DateTime" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#storm.properties.SimpleProperty" title="storm.properties.SimpleProperty"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.properties.SimpleProperty</span></code></a></p>
+<dl class="attribute">
+<dt id="storm.properties.DateTime.variable_class">
+<code class="descname">variable_class</code><a class="headerlink" href="#storm.properties.DateTime.variable_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="#storm.variables.DateTimeVariable" title="storm.variables.DateTimeVariable"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.variables.DateTimeVariable</span></code></a></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="storm.properties.Date">
+<em class="property">class </em><code class="descclassname">storm.properties.</code><code class="descname">Date</code><span class="sig-paren">(</span><em>name=None</em>, <em>primary=False</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/properties.html#Date"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.properties.Date" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#storm.properties.SimpleProperty" title="storm.properties.SimpleProperty"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.properties.SimpleProperty</span></code></a></p>
+<dl class="attribute">
+<dt id="storm.properties.Date.variable_class">
+<code class="descname">variable_class</code><a class="headerlink" href="#storm.properties.Date.variable_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="#storm.variables.DateVariable" title="storm.variables.DateVariable"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.variables.DateVariable</span></code></a></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="storm.properties.Time">
+<em class="property">class </em><code class="descclassname">storm.properties.</code><code class="descname">Time</code><span class="sig-paren">(</span><em>name=None</em>, <em>primary=False</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/properties.html#Time"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.properties.Time" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#storm.properties.SimpleProperty" title="storm.properties.SimpleProperty"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.properties.SimpleProperty</span></code></a></p>
+<dl class="attribute">
+<dt id="storm.properties.Time.variable_class">
+<code class="descname">variable_class</code><a class="headerlink" href="#storm.properties.Time.variable_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="#storm.variables.TimeVariable" title="storm.variables.TimeVariable"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.variables.TimeVariable</span></code></a></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="storm.properties.TimeDelta">
+<em class="property">class </em><code class="descclassname">storm.properties.</code><code class="descname">TimeDelta</code><span class="sig-paren">(</span><em>name=None</em>, <em>primary=False</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/properties.html#TimeDelta"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.properties.TimeDelta" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#storm.properties.SimpleProperty" title="storm.properties.SimpleProperty"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.properties.SimpleProperty</span></code></a></p>
+<dl class="attribute">
+<dt id="storm.properties.TimeDelta.variable_class">
+<code class="descname">variable_class</code><a class="headerlink" href="#storm.properties.TimeDelta.variable_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="#storm.variables.TimeDeltaVariable" title="storm.variables.TimeDeltaVariable"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.variables.TimeDeltaVariable</span></code></a></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="storm.properties.UUID">
+<em class="property">class </em><code class="descclassname">storm.properties.</code><code class="descname">UUID</code><span class="sig-paren">(</span><em>name=None</em>, <em>primary=False</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/properties.html#UUID"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.properties.UUID" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#storm.properties.SimpleProperty" title="storm.properties.SimpleProperty"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.properties.SimpleProperty</span></code></a></p>
+<dl class="attribute">
+<dt id="storm.properties.UUID.variable_class">
+<code class="descname">variable_class</code><a class="headerlink" href="#storm.properties.UUID.variable_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="#storm.variables.UUIDVariable" title="storm.variables.UUIDVariable"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.variables.UUIDVariable</span></code></a></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="storm.properties.Enum">
+<em class="property">class </em><code class="descclassname">storm.properties.</code><code class="descname">Enum</code><span class="sig-paren">(</span><em>name=None</em>, <em>primary=False</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/properties.html#Enum"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.properties.Enum" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#storm.properties.SimpleProperty" title="storm.properties.SimpleProperty"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.properties.SimpleProperty</span></code></a></p>
+<p>Enumeration property, allowing used values to differ from stored ones.</p>
+<p>For instance:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Class</span><span class="p">(</span><span class="n">Storm</span><span class="p">):</span>
+    <span class="n">prop</span> <span class="o">=</span> <span class="n">Enum</span><span class="p">(</span><span class="nb">map</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;one&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;two&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">})</span>
+
+<span class="n">obj</span><span class="o">.</span><span class="n">prop</span> <span class="o">=</span> <span class="s2">&quot;one&quot;</span>
+<span class="k">assert</span> <span class="n">obj</span><span class="o">.</span><span class="n">prop</span> <span class="o">==</span> <span class="s2">&quot;one&quot;</span>
+
+<span class="n">obj</span><span class="o">.</span><span class="n">prop</span> <span class="o">=</span> <span class="mi">1</span> <span class="c1"># Raises error.</span>
+</pre></div>
+</div>
+<p>Another example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Class</span><span class="p">(</span><span class="n">Storm</span><span class="p">):</span>
+    <span class="n">prop</span> <span class="o">=</span> <span class="n">Enum</span><span class="p">(</span><span class="nb">map</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;one&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;two&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">},</span> <span class="n">set_map</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;um&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">})</span>
+
+<span class="n">obj</span><span class="o">.</span><span class="n">prop</span> <span class="o">=</span> <span class="s2">&quot;um&quot;</span>
+<span class="k">assert</span> <span class="n">obj</span><span class="o">.</span><span class="n">prop</span> <span class="ow">is</span> <span class="s2">&quot;one&quot;</span>
+
+<span class="n">obj</span><span class="o">.</span><span class="n">prop</span> <span class="o">=</span> <span class="s2">&quot;one&quot;</span> <span class="c1"># Raises error.</span>
+</pre></div>
+</div>
+<dl class="attribute">
+<dt id="storm.properties.Enum.variable_class">
+<code class="descname">variable_class</code><a class="headerlink" href="#storm.properties.Enum.variable_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="#storm.variables.EnumVariable" title="storm.variables.EnumVariable"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.variables.EnumVariable</span></code></a></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="storm.properties.JSON">
+<em class="property">class </em><code class="descclassname">storm.properties.</code><code class="descname">JSON</code><span class="sig-paren">(</span><em>name=None</em>, <em>primary=False</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/properties.html#JSON"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.properties.JSON" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#storm.properties.SimpleProperty" title="storm.properties.SimpleProperty"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.properties.SimpleProperty</span></code></a></p>
+<dl class="attribute">
+<dt id="storm.properties.JSON.variable_class">
+<code class="descname">variable_class</code><a class="headerlink" href="#storm.properties.JSON.variable_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="#storm.variables.JSONVariable" title="storm.variables.JSONVariable"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.variables.JSONVariable</span></code></a></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="storm.properties.List">
+<em class="property">class </em><code class="descclassname">storm.properties.</code><code class="descname">List</code><span class="sig-paren">(</span><em>name=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/properties.html#List"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.properties.List" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#storm.properties.SimpleProperty" title="storm.properties.SimpleProperty"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.properties.SimpleProperty</span></code></a></p>
+<dl class="attribute">
+<dt id="storm.properties.List.variable_class">
+<code class="descname">variable_class</code><a class="headerlink" href="#storm.properties.List.variable_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="#storm.variables.ListVariable" title="storm.variables.ListVariable"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.variables.ListVariable</span></code></a></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="storm.properties.PropertyRegistry">
+<em class="property">class </em><code class="descclassname">storm.properties.</code><code class="descname">PropertyRegistry</code><a class="reference internal" href="_modules/storm/properties.html#PropertyRegistry"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.properties.PropertyRegistry" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>An object which remembers the Storm properties specified on
+classes, and is able to translate names to these properties.</p>
+<dl class="method">
+<dt id="storm.properties.PropertyRegistry.add_class">
+<code class="descname">add_class</code><span class="sig-paren">(</span><em>cls</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/properties.html#PropertyRegistry.add_class"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.properties.PropertyRegistry.add_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>Register properties of <code class="xref py py-obj docutils literal notranslate"><span class="pre">cls</span></code> so that they may be found by <a class="reference internal" href="#storm.properties.PropertyRegistry.get" title="storm.properties.PropertyRegistry.get"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get()</span></code></a>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="storm.properties.PropertyRegistry.add_property">
+<code class="descname">add_property</code><span class="sig-paren">(</span><em>cls</em>, <em>prop</em>, <em>attr_name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/properties.html#PropertyRegistry.add_property"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.properties.PropertyRegistry.add_property" title="Permalink to this definition">¶</a></dt>
+<dd><p>Register property of <code class="xref py py-obj docutils literal notranslate"><span class="pre">cls</span></code> so that it may be found by <a class="reference internal" href="#storm.properties.PropertyRegistry.get" title="storm.properties.PropertyRegistry.get"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get()</span></code></a>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="storm.properties.PropertyRegistry.clear">
+<code class="descname">clear</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/properties.html#PropertyRegistry.clear"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.properties.PropertyRegistry.clear" title="Permalink to this definition">¶</a></dt>
+<dd><p>Clean up all properties in the registry.</p>
+<p>Used by tests.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="storm.properties.PropertyRegistry.get">
+<code class="descname">get</code><span class="sig-paren">(</span><em>name</em>, <em>namespace=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/properties.html#PropertyRegistry.get"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.properties.PropertyRegistry.get" title="Permalink to this definition">¶</a></dt>
+<dd><p>Translate a property name path to the actual property.</p>
+<p>This method accepts a property name like <code class="xref py py-obj docutils literal notranslate"><span class="pre">&quot;id&quot;</span></code> or <code class="xref py py-obj docutils literal notranslate"><span class="pre">&quot;Class.id&quot;</span></code>
+or <code class="xref py py-obj docutils literal notranslate"><span class="pre">&quot;module.path.Class.id&quot;</span></code>, and tries to find a unique
+class/property with the given name.</p>
+<p>When the <code class="xref py py-obj docutils literal notranslate"><span class="pre">namespace</span></code> argument is given, the registry will be
+able to disambiguate names by choosing the one that is closer
+to the given namespace.  For instance <code class="xref py py-obj docutils literal notranslate"><span class="pre">get(&quot;Class.id&quot;,</span> <span class="pre">&quot;a.b.c&quot;)</span></code>
+will choose <code class="xref py py-obj docutils literal notranslate"><span class="pre">a.Class.id</span></code> rather than <code class="xref py py-obj docutils literal notranslate"><span class="pre">d.Class.id</span></code>.</p>
+</dd></dl>
+
+</dd></dl>
+
+<span class="target" id="module-storm.variables"></span><dl class="attribute">
+<dt id="storm.variables.VariableFactory">
+<code class="descclassname">storm.variables.</code><code class="descname">VariableFactory</code><a class="headerlink" href="#storm.variables.VariableFactory" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">functools.partial</span></code></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="storm.variables.Variable">
+<em class="property">class </em><code class="descclassname">storm.variables.</code><code class="descname">Variable</code><a class="reference internal" href="_modules/storm/variables.html#Variable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.Variable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="storm.variables.Variable.checkpoint">
+<code class="descname">checkpoint</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#storm.variables.Variable.checkpoint" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="storm.variables.Variable.column">
+<code class="descname">column</code><a class="headerlink" href="#storm.variables.Variable.column" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="storm.variables.Variable.copy">
+<code class="descname">copy</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#storm.variables.Variable.copy" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="storm.variables.Variable.delete">
+<code class="descname">delete</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#storm.variables.Variable.delete" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="storm.variables.Variable.event">
+<code class="descname">event</code><a class="headerlink" href="#storm.variables.Variable.event" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="storm.variables.Variable.get">
+<code class="descname">get</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#storm.variables.Variable.get" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="storm.variables.Variable.get_lazy">
+<code class="descname">get_lazy</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#storm.variables.Variable.get_lazy" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="storm.variables.Variable.get_state">
+<code class="descname">get_state</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#storm.variables.Variable.get_state" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="storm.variables.Variable.has_changed">
+<code class="descname">has_changed</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#storm.variables.Variable.has_changed" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="storm.variables.Variable.is_defined">
+<code class="descname">is_defined</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#storm.variables.Variable.is_defined" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="storm.variables.Variable.parse_get">
+<code class="descname">parse_get</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#storm.variables.Variable.parse_get" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="storm.variables.Variable.parse_set">
+<code class="descname">parse_set</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#storm.variables.Variable.parse_set" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="storm.variables.Variable.set">
+<code class="descname">set</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#storm.variables.Variable.set" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="storm.variables.Variable.set_state">
+<code class="descname">set_state</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#storm.variables.Variable.set_state" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="storm.variables.LazyValue">
+<em class="property">class </em><code class="descclassname">storm.variables.</code><code class="descname">LazyValue</code><a class="reference internal" href="_modules/storm/variables.html#LazyValue"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.LazyValue" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Marker to be used as a base class on lazily evaluated values.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="storm.variables.BoolVariable">
+<em class="property">class </em><code class="descclassname">storm.variables.</code><code class="descname">BoolVariable</code><a class="reference internal" href="_modules/storm/variables.html#BoolVariable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.BoolVariable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#storm.variables.Variable" title="storm.variables.Variable"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.variables.Variable</span></code></a></p>
+<dl class="method">
+<dt id="storm.variables.BoolVariable.parse_set">
+<code class="descname">parse_set</code><span class="sig-paren">(</span><em>value</em>, <em>from_db</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/variables.html#BoolVariable.parse_set"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.BoolVariable.parse_set" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="storm.variables.IntVariable">
+<em class="property">class </em><code class="descclassname">storm.variables.</code><code class="descname">IntVariable</code><a class="reference internal" href="_modules/storm/variables.html#IntVariable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.IntVariable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#storm.variables.Variable" title="storm.variables.Variable"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.variables.Variable</span></code></a></p>
+<dl class="method">
+<dt id="storm.variables.IntVariable.parse_set">
+<code class="descname">parse_set</code><span class="sig-paren">(</span><em>value</em>, <em>from_db</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/variables.html#IntVariable.parse_set"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.IntVariable.parse_set" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="storm.variables.FloatVariable">
+<em class="property">class </em><code class="descclassname">storm.variables.</code><code class="descname">FloatVariable</code><a class="reference internal" href="_modules/storm/variables.html#FloatVariable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.FloatVariable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#storm.variables.Variable" title="storm.variables.Variable"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.variables.Variable</span></code></a></p>
+<dl class="method">
+<dt id="storm.variables.FloatVariable.parse_set">
+<code class="descname">parse_set</code><span class="sig-paren">(</span><em>value</em>, <em>from_db</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/variables.html#FloatVariable.parse_set"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.FloatVariable.parse_set" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="storm.variables.DecimalVariable">
+<em class="property">class </em><code class="descclassname">storm.variables.</code><code class="descname">DecimalVariable</code><a class="reference internal" href="_modules/storm/variables.html#DecimalVariable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.DecimalVariable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#storm.variables.Variable" title="storm.variables.Variable"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.variables.Variable</span></code></a></p>
+<dl class="staticmethod">
+<dt id="storm.variables.DecimalVariable.parse_get">
+<em class="property">static </em><code class="descname">parse_get</code><span class="sig-paren">(</span><em>value</em>, <em>to_db</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/variables.html#DecimalVariable.parse_get"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.DecimalVariable.parse_get" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="storm.variables.DecimalVariable.parse_set">
+<em class="property">static </em><code class="descname">parse_set</code><span class="sig-paren">(</span><em>value</em>, <em>from_db</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/variables.html#DecimalVariable.parse_set"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.DecimalVariable.parse_set" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="storm.variables.RawStrVariable">
+<em class="property">class </em><code class="descclassname">storm.variables.</code><code class="descname">RawStrVariable</code><a class="reference internal" href="_modules/storm/variables.html#RawStrVariable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.RawStrVariable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#storm.variables.Variable" title="storm.variables.Variable"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.variables.Variable</span></code></a></p>
+<dl class="method">
+<dt id="storm.variables.RawStrVariable.parse_set">
+<code class="descname">parse_set</code><span class="sig-paren">(</span><em>value</em>, <em>from_db</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/variables.html#RawStrVariable.parse_set"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.RawStrVariable.parse_set" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="storm.variables.UnicodeVariable">
+<em class="property">class </em><code class="descclassname">storm.variables.</code><code class="descname">UnicodeVariable</code><a class="reference internal" href="_modules/storm/variables.html#UnicodeVariable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.UnicodeVariable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#storm.variables.Variable" title="storm.variables.Variable"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.variables.Variable</span></code></a></p>
+<dl class="method">
+<dt id="storm.variables.UnicodeVariable.parse_set">
+<code class="descname">parse_set</code><span class="sig-paren">(</span><em>value</em>, <em>from_db</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/variables.html#UnicodeVariable.parse_set"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.UnicodeVariable.parse_set" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="storm.variables.DateTimeVariable">
+<em class="property">class </em><code class="descclassname">storm.variables.</code><code class="descname">DateTimeVariable</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/variables.html#DateTimeVariable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.DateTimeVariable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#storm.variables.Variable" title="storm.variables.Variable"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.variables.Variable</span></code></a></p>
+<dl class="method">
+<dt id="storm.variables.DateTimeVariable.parse_set">
+<code class="descname">parse_set</code><span class="sig-paren">(</span><em>value</em>, <em>from_db</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/variables.html#DateTimeVariable.parse_set"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.DateTimeVariable.parse_set" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="storm.variables.DateVariable">
+<em class="property">class </em><code class="descclassname">storm.variables.</code><code class="descname">DateVariable</code><a class="reference internal" href="_modules/storm/variables.html#DateVariable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.DateVariable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#storm.variables.Variable" title="storm.variables.Variable"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.variables.Variable</span></code></a></p>
+<dl class="method">
+<dt id="storm.variables.DateVariable.parse_set">
+<code class="descname">parse_set</code><span class="sig-paren">(</span><em>value</em>, <em>from_db</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/variables.html#DateVariable.parse_set"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.DateVariable.parse_set" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="storm.variables.TimeVariable">
+<em class="property">class </em><code class="descclassname">storm.variables.</code><code class="descname">TimeVariable</code><a class="reference internal" href="_modules/storm/variables.html#TimeVariable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.TimeVariable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#storm.variables.Variable" title="storm.variables.Variable"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.variables.Variable</span></code></a></p>
+<dl class="method">
+<dt id="storm.variables.TimeVariable.parse_set">
+<code class="descname">parse_set</code><span class="sig-paren">(</span><em>value</em>, <em>from_db</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/variables.html#TimeVariable.parse_set"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.TimeVariable.parse_set" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="storm.variables.TimeDeltaVariable">
+<em class="property">class </em><code class="descclassname">storm.variables.</code><code class="descname">TimeDeltaVariable</code><a class="reference internal" href="_modules/storm/variables.html#TimeDeltaVariable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.TimeDeltaVariable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#storm.variables.Variable" title="storm.variables.Variable"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.variables.Variable</span></code></a></p>
+<dl class="method">
+<dt id="storm.variables.TimeDeltaVariable.parse_set">
+<code class="descname">parse_set</code><span class="sig-paren">(</span><em>value</em>, <em>from_db</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/variables.html#TimeDeltaVariable.parse_set"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.TimeDeltaVariable.parse_set" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="storm.variables.EnumVariable">
+<em class="property">class </em><code class="descclassname">storm.variables.</code><code class="descname">EnumVariable</code><span class="sig-paren">(</span><em>get_map</em>, <em>set_map</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/variables.html#EnumVariable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.EnumVariable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#storm.variables.Variable" title="storm.variables.Variable"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.variables.Variable</span></code></a></p>
+<dl class="method">
+<dt id="storm.variables.EnumVariable.parse_get">
+<code class="descname">parse_get</code><span class="sig-paren">(</span><em>value</em>, <em>to_db</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/variables.html#EnumVariable.parse_get"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.EnumVariable.parse_get" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="storm.variables.EnumVariable.parse_set">
+<code class="descname">parse_set</code><span class="sig-paren">(</span><em>value</em>, <em>from_db</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/variables.html#EnumVariable.parse_set"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.EnumVariable.parse_set" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="storm.variables.UUIDVariable">
+<em class="property">class </em><code class="descclassname">storm.variables.</code><code class="descname">UUIDVariable</code><a class="reference internal" href="_modules/storm/variables.html#UUIDVariable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.UUIDVariable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#storm.variables.Variable" title="storm.variables.Variable"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.variables.Variable</span></code></a></p>
+<dl class="method">
+<dt id="storm.variables.UUIDVariable.parse_get">
+<code class="descname">parse_get</code><span class="sig-paren">(</span><em>value</em>, <em>to_db</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/variables.html#UUIDVariable.parse_get"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.UUIDVariable.parse_get" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="storm.variables.UUIDVariable.parse_set">
+<code class="descname">parse_set</code><span class="sig-paren">(</span><em>value</em>, <em>from_db</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/variables.html#UUIDVariable.parse_set"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.UUIDVariable.parse_set" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="storm.variables.JSONVariable">
+<em class="property">class </em><code class="descclassname">storm.variables.</code><code class="descname">JSONVariable</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/variables.html#JSONVariable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.JSONVariable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">storm.variables.EncodedValueVariable</span></code></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="storm.variables.ListVariable">
+<em class="property">class </em><code class="descclassname">storm.variables.</code><code class="descname">ListVariable</code><span class="sig-paren">(</span><em>item_factory</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/variables.html#ListVariable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.ListVariable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">storm.variables.MutableValueVariable</span></code></p>
+<dl class="method">
+<dt id="storm.variables.ListVariable.get_state">
+<code class="descname">get_state</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/variables.html#ListVariable.get_state"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.ListVariable.get_state" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="storm.variables.ListVariable.parse_get">
+<code class="descname">parse_get</code><span class="sig-paren">(</span><em>value</em>, <em>to_db</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/variables.html#ListVariable.parse_get"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.ListVariable.parse_get" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="storm.variables.ListVariable.parse_set">
+<code class="descname">parse_set</code><span class="sig-paren">(</span><em>value</em>, <em>from_db</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/variables.html#ListVariable.parse_set"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.ListVariable.parse_set" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="storm.variables.ListVariable.set_state">
+<code class="descname">set_state</code><span class="sig-paren">(</span><em>state</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/variables.html#ListVariable.set_state"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.variables.ListVariable.set_state" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<span class="target" id="module-storm.references"></span><dl class="class">
+<dt id="storm.references.Reference">
+<em class="property">class </em><code class="descclassname">storm.references.</code><code class="descname">Reference</code><span class="sig-paren">(</span><em>local_key</em>, <em>remote_key</em>, <em>on_remote=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/references.html#Reference"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.references.Reference" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Descriptor for one-to-one relationships.</p>
+<p>This is typically used when the class that it is being defined on
+has a foreign key onto another table:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">OtherGuy</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="o">...</span>
+    <span class="nb">id</span> <span class="o">=</span> <span class="n">Int</span><span class="p">()</span>
+
+<span class="k">class</span> <span class="nc">MyGuy</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="o">...</span>
+    <span class="n">other_guy_id</span> <span class="o">=</span> <span class="n">Int</span><span class="p">()</span>
+    <span class="n">other_guy</span> <span class="o">=</span> <span class="n">Reference</span><span class="p">(</span><span class="n">other_guy_id</span><span class="p">,</span> <span class="n">OtherGuy</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>but can also be used for backwards references, where OtherGuy’s
+table has a foreign key onto the class that you want this property
+on:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">OtherGuy</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="o">...</span>
+    <span class="n">my_guy_id</span> <span class="o">=</span> <span class="n">Int</span><span class="p">()</span> <span class="c1"># in the database, a foreign key to my_guy.id</span>
+
+<span class="k">class</span> <span class="nc">MyGuy</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="o">...</span>
+    <span class="nb">id</span> <span class="o">=</span> <span class="n">Int</span><span class="p">()</span>
+    <span class="n">other_guy</span> <span class="o">=</span> <span class="n">Reference</span><span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="n">OtherGuy</span><span class="o">.</span><span class="n">my_guy_id</span><span class="p">,</span> <span class="n">on_remote</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>In both cases, <code class="xref py py-obj docutils literal notranslate"><span class="pre">MyGuy().other_guy</span></code> will resolve to the
+<code class="xref py py-obj docutils literal notranslate"><span class="pre">OtherGuy</span></code> instance which is linked to it. In the first case, it
+will be the <code class="xref py py-obj docutils literal notranslate"><span class="pre">OtherGuy</span></code> instance whose <code class="xref py py-obj docutils literal notranslate"><span class="pre">id</span></code> is equivalent to the
+<code class="xref py py-obj docutils literal notranslate"><span class="pre">MyGuy</span></code>’s <code class="xref py py-obj docutils literal notranslate"><span class="pre">other_guy_id</span></code>; in the second, it’ll be the
+<code class="xref py py-obj docutils literal notranslate"><span class="pre">OtherGuy</span></code> instance whose <code class="xref py py-obj docutils literal notranslate"><span class="pre">my_guy_id</span></code> is equivalent to the
+<code class="xref py py-obj docutils literal notranslate"><span class="pre">MyGuy</span></code>’s <code class="xref py py-obj docutils literal notranslate"><span class="pre">id</span></code>.</p>
+<p>Assigning to the property, for example with C{MyGuy().other_guy =
+OtherGuy()}, will link the objects and update either
+<code class="xref py py-obj docutils literal notranslate"><span class="pre">MyGuy.other_guy_id</span></code> or <code class="xref py py-obj docutils literal notranslate"><span class="pre">OtherGuy.my_guy_id</span></code> accordingly.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="storm.references.ReferenceSet">
+<em class="property">class </em><code class="descclassname">storm.references.</code><code class="descname">ReferenceSet</code><span class="sig-paren">(</span><em>local_key1</em>, <em>remote_key1</em>, <em>remote_key2=None</em>, <em>local_key2=None</em>, <em>order_by=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/references.html#ReferenceSet"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.references.ReferenceSet" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="storm.references.Proxy">
+<em class="property">class </em><code class="descclassname">storm.references.</code><code class="descname">Proxy</code><span class="sig-paren">(</span><em>reference</em>, <em>remote_prop</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/references.html#Proxy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.references.Proxy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="expr.html#storm.expr.ComparableExpr" title="storm.expr.ComparableExpr"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.expr.ComparableExpr</span></code></a></p>
+<p>Proxy exposes a referred object’s column as a local column.</p>
+<p>For example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Foo</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="n">bar_id</span> <span class="o">=</span> <span class="n">Int</span><span class="p">()</span>
+    <span class="n">bar</span> <span class="o">=</span> <span class="n">Reference</span><span class="p">(</span><span class="n">bar_id</span><span class="p">,</span> <span class="n">Bar</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+    <span class="n">bar_title</span> <span class="o">=</span> <span class="n">Proxy</span><span class="p">(</span><span class="n">bar</span><span class="p">,</span> <span class="n">Bar</span><span class="o">.</span><span class="n">title</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>For most uses, Foo.bar_title should behave as if it were
+a native property of Foo.</p>
+<dl class="class">
+<dt id="storm.references.Proxy.RemoteProp">
+<em class="property">class </em><code class="descname">RemoteProp</code><a class="reference internal" href="_modules/storm/references.html#Proxy.RemoteProp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.references.Proxy.RemoteProp" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>This descriptor will resolve and set the _remote_prop attribute
+when it’s first used. It avoids having a test at every single
+place where the attribute is touched.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="storm.references.Proxy.variable_factory">
+<code class="descname">variable_factory</code><a class="headerlink" href="#storm.references.Proxy.variable_factory" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="store.html" title="previous chapter">Store</a></li>
+      <li>Next: <a href="expr.html" title="next chapter">Expressions</a></li>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/columns.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Gustavo Niemeyer.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.4</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+      |
+      <a href="_sources/columns.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

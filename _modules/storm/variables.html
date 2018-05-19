@@ -1,0 +1,833 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>storm.variables &#8212; Storm  documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for storm.variables</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Copyright (c) 2006, 2007 Canonical</span>
+<span class="c1">#</span>
+<span class="c1"># Written by Gustavo Niemeyer &lt;gustavo@niemeyer.net&gt;</span>
+<span class="c1">#</span>
+<span class="c1"># This file is part of Storm Object Relational Mapper.</span>
+<span class="c1">#</span>
+<span class="c1"># Storm is free software; you can redistribute it and/or modify</span>
+<span class="c1"># it under the terms of the GNU Lesser General Public License as</span>
+<span class="c1"># published by the Free Software Foundation; either version 2.1 of</span>
+<span class="c1"># the License, or (at your option) any later version.</span>
+<span class="c1">#</span>
+<span class="c1"># Storm is distributed in the hope that it will be useful,</span>
+<span class="c1"># but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="c1"># MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="c1"># GNU Lesser General Public License for more details.</span>
+<span class="c1">#</span>
+<span class="c1"># You should have received a copy of the GNU Lesser General Public License</span>
+<span class="c1"># along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
+<span class="c1">#</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">uuid</span>
+
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">date</span><span class="p">,</span> <span class="n">time</span><span class="p">,</span> <span class="n">timedelta</span>
+<span class="kn">from</span> <span class="nn">decimal</span> <span class="k">import</span> <span class="n">Decimal</span>
+
+<span class="kn">from</span> <span class="nn">storm.compat</span> <span class="k">import</span> <span class="n">buffer</span><span class="p">,</span> <span class="n">bstr</span><span class="p">,</span> <span class="n">long_int</span><span class="p">,</span> <span class="n">pickle</span><span class="p">,</span> <span class="n">string_types</span><span class="p">,</span> <span class="n">ustr</span>
+<span class="kn">from</span> <span class="nn">storm.exceptions</span> <span class="k">import</span> <span class="n">NoneError</span>
+<span class="kn">from</span> <span class="nn">storm</span> <span class="k">import</span> <span class="n">Undef</span><span class="p">,</span> <span class="n">has_cextensions</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;VariableFactory&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Variable&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;LazyValue&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;BoolVariable&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;IntVariable&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;FloatVariable&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;DecimalVariable&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;RawStrVariable&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;UnicodeVariable&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;DateTimeVariable&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;DateVariable&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;TimeVariable&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;TimeDeltaVariable&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;EnumVariable&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;UUIDVariable&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;JSONVariable&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ListVariable&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
+
+<span class="n">numeric_types</span> <span class="o">=</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">long_int</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="n">Decimal</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="LazyValue"><a class="viewcode-back" href="../../columns.html#storm.properties.LazyValue">[docs]</a><span class="k">class</span> <span class="nc">LazyValue</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Marker to be used as a base class on lazily evaluated values.&quot;&quot;&quot;</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span></div>
+
+
+<span class="k">def</span> <span class="nf">raise_none_error</span><span class="p">(</span><span class="n">column</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">column</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">NoneError</span><span class="p">(</span><span class="s2">&quot;None isn&#39;t acceptable as a value&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="kn">from</span> <span class="nn">storm.expr</span> <span class="k">import</span> <span class="nb">compile</span><span class="p">,</span> <span class="n">CompileError</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="n">column</span><span class="o">.</span><span class="n">name</span>
+        <span class="k">if</span> <span class="n">column</span><span class="o">.</span><span class="n">table</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">Undef</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">table</span> <span class="o">=</span> <span class="nb">compile</span><span class="p">(</span><span class="n">column</span><span class="o">.</span><span class="n">table</span><span class="p">)</span>
+                <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">.</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">CompileError</span><span class="p">:</span>
+                <span class="k">pass</span>
+        <span class="k">raise</span> <span class="n">NoneError</span><span class="p">(</span><span class="s2">&quot;None isn&#39;t acceptable as a value for </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">name</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">VariableFactory</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="o">**</span><span class="n">old_kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Build cls with kwargs of constructor updated by kwargs of call.</span>
+
+<span class="sd">    This is really an implementation of partial/curry functions, and</span>
+<span class="sd">    is replaced by &#39;partial&#39; when 2.5+ is in use.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">variable_factory</span><span class="p">(</span><span class="o">**</span><span class="n">new_kwargs</span><span class="p">):</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="n">old_kwargs</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">new_kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">variable_factory</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">functools</span> <span class="k">import</span> <span class="n">partial</span> <span class="k">as</span> <span class="n">VariableFactory</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="k">pass</span>
+
+
+<div class="viewcode-block" id="Variable"><a class="viewcode-back" href="../../columns.html#storm.properties.Variable">[docs]</a><span class="k">class</span> <span class="nc">Variable</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Basic representation of a database value in Python.</span>
+
+<span class="sd">    @type column: L{storm.expr.Column}</span>
+<span class="sd">    @ivar column: The column this variable represents.</span>
+<span class="sd">    @type event: L{storm.event.EventSystem}</span>
+<span class="sd">    @ivar event: The event system on which to broadcast events. If</span>
+<span class="sd">        None, no events will be emitted.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">_value</span> <span class="o">=</span> <span class="n">Undef</span>
+    <span class="n">_lazy_value</span> <span class="o">=</span> <span class="n">Undef</span>
+    <span class="n">_checkpoint_state</span> <span class="o">=</span> <span class="n">Undef</span>
+    <span class="n">_allow_none</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">_validator</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">_validator_object_factory</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">_validator_attribute</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="n">column</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">event</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">value_factory</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">from_db</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                 <span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">column</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">event</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">validator</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">validator_object_factory</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">validator_attribute</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        @param value: The initial value of this variable. The default</span>
+<span class="sd">            behavior is for the value to stay undefined until it is</span>
+<span class="sd">            set with L{set}.</span>
+<span class="sd">        @param value_factory: If specified, this will immediately be</span>
+<span class="sd">            called to get the initial value.</span>
+<span class="sd">        @param from_db: A boolean value indicating where the initial</span>
+<span class="sd">            value comes from, if C{value} or C{value_factory} are</span>
+<span class="sd">            specified.</span>
+<span class="sd">        @param allow_none: A boolean indicating whether None should be</span>
+<span class="sd">            allowed to be set as the value of this variable.</span>
+<span class="sd">        @param validator: Validation function called whenever trying to</span>
+<span class="sd">            set the variable to a non-db value.  The function should</span>
+<span class="sd">            look like validator(object, attr, value), where the first and</span>
+<span class="sd">            second arguments are the result of validator_object_factory()</span>
+<span class="sd">            (or None, if this parameter isn&#39;t provided) and the value of</span>
+<span class="sd">            validator_attribute, respectively.  When called, the function</span>
+<span class="sd">            should raise an error if the value is unacceptable, or return</span>
+<span class="sd">            the value to be used in place of the original value otherwise.</span>
+<span class="sd">        @type column: L{storm.expr.Column}</span>
+<span class="sd">        @param column: The column that this variable represents. It&#39;s</span>
+<span class="sd">            used for reporting better error messages.</span>
+<span class="sd">        @type event: L{EventSystem}</span>
+<span class="sd">        @param event: The event system to broadcast messages with. If</span>
+<span class="sd">            not specified, then no events will be broadcast.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">allow_none</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_allow_none</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">Undef</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">from_db</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">value_factory</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">Undef</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">value_factory</span><span class="p">(),</span> <span class="n">from_db</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">validator</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_validator</span> <span class="o">=</span> <span class="n">validator</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_validator_object_factory</span> <span class="o">=</span> <span class="n">validator_object_factory</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_validator_attribute</span> <span class="o">=</span> <span class="n">validator_attribute</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">column</span> <span class="o">=</span> <span class="n">column</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">event</span> <span class="o">=</span> <span class="n">event</span>
+
+    <span class="k">def</span> <span class="nf">get_lazy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get the current L{LazyValue} without resolving its value.</span>
+
+<span class="sd">        @param default: If no L{LazyValue} was previously specified,</span>
+<span class="sd">            return this value. Defaults to None.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lazy_value</span> <span class="ow">is</span> <span class="n">Undef</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">default</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lazy_value</span>
+
+    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">to_db</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get the value, resolving it from a L{LazyValue} if necessary.</span>
+
+<span class="sd">        If the current value is an instance of L{LazyValue}, then the</span>
+<span class="sd">        C{resolve-lazy-value} event will be emitted, to give third</span>
+<span class="sd">        parties the chance to resolve the lazy value to a real value.</span>
+
+<span class="sd">        @param default: Returned if no value has been set.</span>
+<span class="sd">        @param to_db: A boolean flag indicating whether this value is</span>
+<span class="sd">            destined for the database.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lazy_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">Undef</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">event</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="s2">&quot;resolve-lazy-value&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lazy_value</span><span class="p">)</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_value</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="n">Undef</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">default</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">parse_get</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">to_db</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">from_db</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set a new value.</span>
+
+<span class="sd">        Generally this will be called when an attribute was set in</span>
+<span class="sd">        Python, or data is being loaded from the database.</span>
+
+<span class="sd">        If the value is different from the previous value (or it is a</span>
+<span class="sd">        L{LazyValue}), then the C{changed} event will be emitted.</span>
+
+<span class="sd">        @param value: The value to set. If this is an instance of</span>
+<span class="sd">            L{LazyValue}, then later calls to L{get} will try to</span>
+<span class="sd">            resolve the value.</span>
+<span class="sd">        @param from_db: A boolean indicating whether this value has</span>
+<span class="sd">            come from the database.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># FASTPATH This method is part of the fast path.  Be careful when</span>
+        <span class="c1">#          changing it (try to profile any changes).</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">LazyValue</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_lazy_value</span> <span class="o">=</span> <span class="n">value</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint_state</span> <span class="o">=</span> <span class="n">new_value</span> <span class="o">=</span> <span class="n">Undef</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">from_db</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validator</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="c1"># We use a factory rather than the object itself to prevent</span>
+                <span class="c1"># the cycle object =&gt; obj_info =&gt; variable =&gt; object</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validator</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_validator_object_factory</span> <span class="ow">and</span>
+                                        <span class="bp">self</span><span class="o">.</span><span class="n">_validator_object_factory</span><span class="p">(),</span>
+                                        <span class="bp">self</span><span class="o">.</span><span class="n">_validator_attribute</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_lazy_value</span> <span class="o">=</span> <span class="n">Undef</span>
+            <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_allow_none</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+                    <span class="n">raise_none_error</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">column</span><span class="p">)</span>
+                <span class="n">new_value</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">new_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parse_set</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">from_db</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">from_db</span><span class="p">:</span>
+                    <span class="c1"># Prepare it for being used by the hook below.</span>
+                    <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parse_get</span><span class="p">(</span><span class="n">new_value</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="n">old_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_value</span> <span class="o">=</span> <span class="n">new_value</span>
+        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">event</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span>
+            <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_lazy_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">Undef</span> <span class="ow">or</span> <span class="n">new_value</span> <span class="o">!=</span> <span class="n">old_value</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="n">old_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">old_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">Undef</span><span class="p">:</span>
+                <span class="n">old_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parse_get</span><span class="p">(</span><span class="n">old_value</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="s2">&quot;changed&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="n">old_value</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">from_db</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">delete</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Delete the internal value.</span>
+
+<span class="sd">        If there was a value set, then emit the C{changed} event.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">old_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_value</span>
+        <span class="k">if</span> <span class="n">old_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">Undef</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_value</span> <span class="o">=</span> <span class="n">Undef</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">event</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">old_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">old_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">Undef</span><span class="p">:</span>
+                    <span class="n">old_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parse_get</span><span class="p">(</span><span class="n">old_value</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="s2">&quot;changed&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="n">old_value</span><span class="p">,</span> <span class="n">Undef</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">is_defined</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Check whether there is currently a value.</span>
+
+<span class="sd">        @return: boolean indicating whether there is currently a value</span>
+<span class="sd">            for this variable. Note that if a L{LazyValue} was</span>
+<span class="sd">            previously set, this returns False; it only returns True if</span>
+<span class="sd">            there is currently a real value set.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">Undef</span>
+
+    <span class="k">def</span> <span class="nf">has_changed</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Check whether the value has changed.</span>
+
+<span class="sd">        @return: boolean indicating whether the value has changed</span>
+<span class="sd">            since the last call to L{checkpoint}.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_lazy_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">Undef</span> <span class="ow">or</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">get_state</span><span class="p">()</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint_state</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">get_state</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get the internal state of this object.</span>
+
+<span class="sd">        @return: A value which can later be passed to L{set_state}.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_lazy_value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_value</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">set_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set the internal state of this object.</span>
+
+<span class="sd">        @param state: A result from a previous call to</span>
+<span class="sd">            L{get_state}. The internal state of this variable will be set</span>
+<span class="sd">            to the state of the variable which get_state was called on.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lazy_value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_value</span> <span class="o">=</span> <span class="n">state</span>
+
+    <span class="k">def</span> <span class="nf">checkpoint</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;&quot;Checkpoint&quot; the internal state.</span>
+
+<span class="sd">        See L{has_changed}.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_state</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Make a new copy of this Variable with the same internal state.&quot;&quot;&quot;</span>
+        <span class="n">variable</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="fm">__new__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">)</span>
+        <span class="n">variable</span><span class="o">.</span><span class="n">set_state</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_state</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">variable</span>
+
+    <span class="k">def</span> <span class="nf">parse_get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">to_db</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Convert the internal value to an external value.</span>
+
+<span class="sd">        Get a representation of this value either for Python or for</span>
+<span class="sd">        the database. This method is only intended to be overridden</span>
+<span class="sd">        in subclasses, not called from external code.</span>
+
+<span class="sd">        @param value: The value to be converted.</span>
+<span class="sd">        @param to_db: Whether or not this value is destined for the</span>
+<span class="sd">            database.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">value</span>
+
+    <span class="k">def</span> <span class="nf">parse_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">from_db</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Convert an external value to an internal value.</span>
+
+<span class="sd">        A value is being set either from Python code or from the</span>
+<span class="sd">        database. Parse it into its internal representation.  This</span>
+<span class="sd">        method is only intended to be overridden in subclasses, not</span>
+<span class="sd">        called from external code.</span>
+
+<span class="sd">        @param value: The value, either from Python code setting an</span>
+<span class="sd">            attribute or from a column in a database.</span>
+<span class="sd">        @param from_db: A boolean flag indicating whether this value</span>
+<span class="sd">            is from the database.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">value</span></div>
+
+
+<span class="k">if</span> <span class="n">has_cextensions</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">storm.cextensions</span> <span class="k">import</span> <span class="n">Variable</span>
+
+
+<div class="viewcode-block" id="BoolVariable"><a class="viewcode-back" href="../../columns.html#storm.properties.BoolVariable">[docs]</a><span class="k">class</span> <span class="nc">BoolVariable</span><span class="p">(</span><span class="n">Variable</span><span class="p">):</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
+
+<div class="viewcode-block" id="BoolVariable.parse_set"><a class="viewcode-back" href="../../columns.html#storm.properties.BoolVariable.parse_set">[docs]</a>    <span class="k">def</span> <span class="nf">parse_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">from_db</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">numeric_types</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Expected bool, found </span><span class="si">%r</span><span class="s2">: </span><span class="si">%r</span><span class="s2">&quot;</span>
+                            <span class="o">%</span> <span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">),</span> <span class="n">value</span><span class="p">))</span>
+        <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="IntVariable"><a class="viewcode-back" href="../../columns.html#storm.properties.IntVariable">[docs]</a><span class="k">class</span> <span class="nc">IntVariable</span><span class="p">(</span><span class="n">Variable</span><span class="p">):</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
+
+<div class="viewcode-block" id="IntVariable.parse_set"><a class="viewcode-back" href="../../columns.html#storm.properties.IntVariable.parse_set">[docs]</a>    <span class="k">def</span> <span class="nf">parse_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">from_db</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">numeric_types</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Expected int, found </span><span class="si">%r</span><span class="s2">: </span><span class="si">%r</span><span class="s2">&quot;</span>
+                            <span class="o">%</span> <span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">),</span> <span class="n">value</span><span class="p">))</span>
+        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="FloatVariable"><a class="viewcode-back" href="../../columns.html#storm.properties.FloatVariable">[docs]</a><span class="k">class</span> <span class="nc">FloatVariable</span><span class="p">(</span><span class="n">Variable</span><span class="p">):</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
+
+<div class="viewcode-block" id="FloatVariable.parse_set"><a class="viewcode-back" href="../../columns.html#storm.properties.FloatVariable.parse_set">[docs]</a>    <span class="k">def</span> <span class="nf">parse_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">from_db</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">numeric_types</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Expected float, found </span><span class="si">%r</span><span class="s2">: </span><span class="si">%r</span><span class="s2">&quot;</span>
+                            <span class="o">%</span> <span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">),</span> <span class="n">value</span><span class="p">))</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="DecimalVariable"><a class="viewcode-back" href="../../columns.html#storm.properties.DecimalVariable">[docs]</a><span class="k">class</span> <span class="nc">DecimalVariable</span><span class="p">(</span><span class="n">Variable</span><span class="p">):</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
+
+<div class="viewcode-block" id="DecimalVariable.parse_set"><a class="viewcode-back" href="../../columns.html#storm.properties.DecimalVariable.parse_set">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">parse_set</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">from_db</span><span class="p">):</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">from_db</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">string_types</span><span class="p">)</span> <span class="ow">or</span>
+            <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">long_int</span><span class="p">))):</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">Decimal</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">Decimal</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Expected Decimal, found </span><span class="si">%r</span><span class="s2">: </span><span class="si">%r</span><span class="s2">&quot;</span>
+                            <span class="o">%</span> <span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">),</span> <span class="n">value</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">value</span></div>
+
+<div class="viewcode-block" id="DecimalVariable.parse_get"><a class="viewcode-back" href="../../columns.html#storm.properties.DecimalVariable.parse_get">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">parse_get</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">to_db</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">to_db</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">ustr</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">value</span></div></div>
+
+
+<div class="viewcode-block" id="RawStrVariable"><a class="viewcode-back" href="../../columns.html#storm.properties.RawStrVariable">[docs]</a><span class="k">class</span> <span class="nc">RawStrVariable</span><span class="p">(</span><span class="n">Variable</span><span class="p">):</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
+
+<div class="viewcode-block" id="RawStrVariable.parse_set"><a class="viewcode-back" href="../../columns.html#storm.properties.RawStrVariable.parse_set">[docs]</a>    <span class="k">def</span> <span class="nf">parse_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">from_db</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">buffer</span><span class="p">):</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">bstr</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">bstr</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Expected bytes, found </span><span class="si">%r</span><span class="s2">: </span><span class="si">%r</span><span class="s2">&quot;</span>
+                            <span class="o">%</span> <span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">),</span> <span class="n">value</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">value</span></div></div>
+
+
+<div class="viewcode-block" id="UnicodeVariable"><a class="viewcode-back" href="../../columns.html#storm.properties.UnicodeVariable">[docs]</a><span class="k">class</span> <span class="nc">UnicodeVariable</span><span class="p">(</span><span class="n">Variable</span><span class="p">):</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
+
+<div class="viewcode-block" id="UnicodeVariable.parse_set"><a class="viewcode-back" href="../../columns.html#storm.properties.UnicodeVariable.parse_set">[docs]</a>    <span class="k">def</span> <span class="nf">parse_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">from_db</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">ustr</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Expected unicode, found </span><span class="si">%r</span><span class="s2">: </span><span class="si">%r</span><span class="s2">&quot;</span>
+                            <span class="o">%</span> <span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">),</span> <span class="n">value</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">value</span></div></div>
+
+
+<div class="viewcode-block" id="DateTimeVariable"><a class="viewcode-back" href="../../columns.html#storm.properties.DateTimeVariable">[docs]</a><span class="k">class</span> <span class="nc">DateTimeVariable</span><span class="p">(</span><span class="n">Variable</span><span class="p">):</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;_tzinfo&quot;</span><span class="p">,)</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tzinfo</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;tzinfo&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">DateTimeVariable</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="DateTimeVariable.parse_set"><a class="viewcode-back" href="../../columns.html#storm.properties.DateTimeVariable.parse_set">[docs]</a>    <span class="k">def</span> <span class="nf">parse_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">from_db</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">from_db</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">datetime</span><span class="p">):</span>
+                <span class="k">pass</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">string_types</span><span class="p">):</span>
+                <span class="k">if</span> <span class="s2">&quot; &quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">value</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Unknown date/time format: </span><span class="si">%r</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">value</span><span class="p">)</span>
+                <span class="n">date_str</span><span class="p">,</span> <span class="n">time_str</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="n">datetime</span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="n">_parse_date</span><span class="p">(</span><span class="n">date_str</span><span class="p">)</span> <span class="o">+</span>
+                                   <span class="n">_parse_time</span><span class="p">(</span><span class="n">time_str</span><span class="p">)))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Expected datetime, found </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">repr</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tzinfo</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">value</span><span class="o">.</span><span class="n">tzinfo</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">value</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">tzinfo</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_tzinfo</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">value</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">astimezone</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_tzinfo</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="ow">in</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">long_int</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcfromtimestamp</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">datetime</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Expected datetime, found </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">repr</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tzinfo</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="c1"># Since Python 3.6 you can use astimezone on naive datetime</span>
+                <span class="c1"># instances. This assumes the current timezone is the one on</span>
+                <span class="c1"># the system. This may not be what we want since the DB can</span>
+                <span class="c1"># run on a separate machine with a different timezone.</span>
+                <span class="k">if</span> <span class="n">value</span><span class="o">.</span><span class="n">tzinfo</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="s2">&quot;Tried to use a naive datetime in a timezone aware&quot;</span>
+                        <span class="s2">&quot;DataTimeVariable&quot;</span>
+                    <span class="p">)</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">astimezone</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_tzinfo</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">value</span></div></div>
+
+
+<div class="viewcode-block" id="DateVariable"><a class="viewcode-back" href="../../columns.html#storm.properties.DateVariable">[docs]</a><span class="k">class</span> <span class="nc">DateVariable</span><span class="p">(</span><span class="n">Variable</span><span class="p">):</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
+
+<div class="viewcode-block" id="DateVariable.parse_set"><a class="viewcode-back" href="../../columns.html#storm.properties.DateVariable.parse_set">[docs]</a>    <span class="k">def</span> <span class="nf">parse_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">from_db</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">from_db</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">datetime</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">value</span><span class="o">.</span><span class="n">date</span><span class="p">()</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">date</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">value</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">string_types</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Expected date, found </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">repr</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+            <span class="k">if</span> <span class="s2">&quot; &quot;</span> <span class="ow">in</span> <span class="n">value</span><span class="p">:</span>
+                <span class="n">value</span><span class="p">,</span> <span class="n">time_str</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">date</span><span class="p">(</span><span class="o">*</span><span class="n">_parse_date</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">datetime</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">value</span><span class="o">.</span><span class="n">date</span><span class="p">()</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">date</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Expected date, found </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">repr</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">value</span></div></div>
+
+
+<div class="viewcode-block" id="TimeVariable"><a class="viewcode-back" href="../../columns.html#storm.properties.TimeVariable">[docs]</a><span class="k">class</span> <span class="nc">TimeVariable</span><span class="p">(</span><span class="n">Variable</span><span class="p">):</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
+
+<div class="viewcode-block" id="TimeVariable.parse_set"><a class="viewcode-back" href="../../columns.html#storm.properties.TimeVariable.parse_set">[docs]</a>    <span class="k">def</span> <span class="nf">parse_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">from_db</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">from_db</span><span class="p">:</span>
+            <span class="c1"># XXX Can None ever get here, considering that set() checks for it?</span>
+            <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">time</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">value</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">string_types</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Expected time, found </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">repr</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+            <span class="k">if</span> <span class="s2">&quot; &quot;</span> <span class="ow">in</span> <span class="n">value</span><span class="p">:</span>
+                <span class="n">date_str</span><span class="p">,</span> <span class="n">value</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">time</span><span class="p">(</span><span class="o">*</span><span class="n">_parse_time</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">datetime</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">value</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">time</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Expected time, found </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">repr</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">value</span></div></div>
+
+
+<div class="viewcode-block" id="TimeDeltaVariable"><a class="viewcode-back" href="../../columns.html#storm.properties.TimeDeltaVariable">[docs]</a><span class="k">class</span> <span class="nc">TimeDeltaVariable</span><span class="p">(</span><span class="n">Variable</span><span class="p">):</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
+
+<div class="viewcode-block" id="TimeDeltaVariable.parse_set"><a class="viewcode-back" href="../../columns.html#storm.properties.TimeDeltaVariable.parse_set">[docs]</a>    <span class="k">def</span> <span class="nf">parse_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">from_db</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">from_db</span><span class="p">:</span>
+            <span class="c1"># XXX Can None ever get here, considering that set() checks for it?</span>
+            <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">timedelta</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">value</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">string_types</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Expected timedelta, found </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">repr</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">_parse_interval</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">timedelta</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Expected timedelta, found </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">repr</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">value</span></div></div>
+
+
+<div class="viewcode-block" id="UUIDVariable"><a class="viewcode-back" href="../../columns.html#storm.properties.UUIDVariable">[docs]</a><span class="k">class</span> <span class="nc">UUIDVariable</span><span class="p">(</span><span class="n">Variable</span><span class="p">):</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
+
+<div class="viewcode-block" id="UUIDVariable.parse_set"><a class="viewcode-back" href="../../columns.html#storm.properties.UUIDVariable.parse_set">[docs]</a>    <span class="k">def</span> <span class="nf">parse_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">from_db</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="n">uuid</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;The uuid module was not found.&quot;</span>
+        <span class="k">if</span> <span class="n">from_db</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">string_types</span><span class="p">):</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">uuid</span><span class="o">.</span><span class="n">UUID</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">uuid</span><span class="o">.</span><span class="n">UUID</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Expected UUID, found </span><span class="si">%r</span><span class="s2">: </span><span class="si">%r</span><span class="s2">&quot;</span>
+                            <span class="o">%</span> <span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">),</span> <span class="n">value</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">value</span></div>
+
+<div class="viewcode-block" id="UUIDVariable.parse_get"><a class="viewcode-back" href="../../columns.html#storm.properties.UUIDVariable.parse_get">[docs]</a>    <span class="k">def</span> <span class="nf">parse_get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">to_db</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">to_db</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">ustr</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">value</span></div></div>
+
+
+<div class="viewcode-block" id="EnumVariable"><a class="viewcode-back" href="../../columns.html#storm.properties.EnumVariable">[docs]</a><span class="k">class</span> <span class="nc">EnumVariable</span><span class="p">(</span><span class="n">Variable</span><span class="p">):</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;_get_map&quot;</span><span class="p">,</span> <span class="s2">&quot;_set_map&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">get_map</span><span class="p">,</span> <span class="n">set_map</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_get_map</span> <span class="o">=</span> <span class="n">get_map</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_map</span> <span class="o">=</span> <span class="n">set_map</span>
+        <span class="n">Variable</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="EnumVariable.parse_set"><a class="viewcode-back" href="../../columns.html#storm.properties.EnumVariable.parse_set">[docs]</a>    <span class="k">def</span> <span class="nf">parse_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">from_db</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">from_db</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">value</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_set_map</span><span class="p">[</span><span class="n">value</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid enum value: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">repr</span><span class="p">(</span><span class="n">value</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="EnumVariable.parse_get"><a class="viewcode-back" href="../../columns.html#storm.properties.EnumVariable.parse_get">[docs]</a>    <span class="k">def</span> <span class="nf">parse_get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">to_db</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">to_db</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">value</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_map</span><span class="p">[</span><span class="n">value</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid enum value: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">repr</span><span class="p">(</span><span class="n">value</span><span class="p">))</span></div></div>
+
+
+<span class="k">class</span> <span class="nc">MutableValueVariable</span><span class="p">(</span><span class="n">Variable</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A variable which contains a reference to mutable content. For this kind</span>
+<span class="sd">    of variable, we can&#39;t simply detect when a modification has been made, so</span>
+<span class="sd">    we have to synchronize the content of the variable when the store is</span>
+<span class="sd">    flushing current objects, to check if the state has changed.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;_event_system&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_event_system</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">Variable</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">event</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">hook</span><span class="p">(</span><span class="s2">&quot;start-tracking-changes&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start_tracking</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">hook</span><span class="p">(</span><span class="s2">&quot;object-deleted&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_detect_changes_and_stop</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_start_tracking</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj_info</span><span class="p">,</span> <span class="n">event_system</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_event_system</span> <span class="o">=</span> <span class="n">event_system</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">hook</span><span class="p">(</span><span class="s2">&quot;stop-tracking-changes&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stop_tracking</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_stop_tracking</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj_info</span><span class="p">,</span> <span class="n">event_system</span><span class="p">):</span>
+        <span class="n">event_system</span><span class="o">.</span><span class="n">unhook</span><span class="p">(</span><span class="s2">&quot;flush&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_detect_changes</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_event_system</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">_detect_changes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj_info</span><span class="p">):</span>
+        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint_state</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">Undef</span> <span class="ow">and</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">get_state</span><span class="p">()</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint_state</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="s2">&quot;changed&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_value</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_detect_changes_and_stop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj_info</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_detect_changes</span><span class="p">(</span><span class="n">obj_info</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_event_system</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_stop_tracking</span><span class="p">(</span><span class="n">obj_info</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_event_system</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">to_db</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_event_system</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_event_system</span><span class="o">.</span><span class="n">hook</span><span class="p">(</span><span class="s2">&quot;flush&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_detect_changes</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">MutableValueVariable</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">default</span><span class="p">,</span> <span class="n">to_db</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">from_db</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_event_system</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">LazyValue</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_event_system</span><span class="o">.</span><span class="n">unhook</span><span class="p">(</span><span class="s2">&quot;flush&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_detect_changes</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_event_system</span><span class="o">.</span><span class="n">hook</span><span class="p">(</span><span class="s2">&quot;flush&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_detect_changes</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">MutableValueVariable</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">from_db</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">EncodedValueVariable</span><span class="p">(</span><span class="n">MutableValueVariable</span><span class="p">):</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">parse_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">from_db</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">from_db</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">buffer</span><span class="p">):</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="n">bstr</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_loads</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">value</span>
+
+    <span class="k">def</span> <span class="nf">parse_get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">to_db</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">to_db</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dumps</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">value</span>
+
+    <span class="k">def</span> <span class="nf">get_state</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_lazy_value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dumps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_value</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">set_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lazy_value</span> <span class="o">=</span> <span class="n">state</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_loads</span><span class="p">(</span><span class="n">state</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+
+<div class="viewcode-block" id="JSONVariable"><a class="viewcode-back" href="../../columns.html#storm.properties.JSONVariable">[docs]</a><span class="k">class</span> <span class="nc">JSONVariable</span><span class="p">(</span><span class="n">EncodedValueVariable</span><span class="p">):</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">JSONVariable</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_loads</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="n">json_openers</span> <span class="o">=</span> <span class="p">(</span><span class="sa">u</span><span class="s2">&quot;[&quot;</span><span class="p">,</span> <span class="sa">u</span><span class="s2">&quot;{&quot;</span><span class="p">,</span> <span class="sa">u</span><span class="s2">&quot;&#39;&quot;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;&quot;&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">bstr</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                <span class="s2">&quot;Cannot safely assume encoding of byte string </span><span class="si">%r</span><span class="s2">.&quot;</span> <span class="o">%</span> <span class="n">value</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">ustr</span><span class="p">)</span> <span class="ow">and</span> <span class="n">value</span><span class="o">.</span><span class="n">lstrip</span><span class="p">()</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">json_openers</span><span class="p">):</span>
+            <span class="c1"># For databases like SQLite the data is not automatically decoded</span>
+            <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">value</span>
+
+    <span class="k">def</span> <span class="nf">_dumps</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="c1"># http://www.ietf.org/rfc/rfc4627.txt states that JSON is text-based</span>
+        <span class="c1"># and so we treat it as such here. In other words, this method returns</span>
+        <span class="c1"># unicode and never str.</span>
+        <span class="n">dump</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">ensure_ascii</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dump</span><span class="p">,</span> <span class="n">ustr</span><span class="p">):</span>
+            <span class="c1"># json.dumps() does not always return unicode. See</span>
+            <span class="c1"># http://code.google.com/p/simplejson/issues/detail?id=40 for one</span>
+            <span class="c1"># of many discussions of str/unicode handling in simplejson.</span>
+            <span class="n">dump</span> <span class="o">=</span> <span class="n">dump</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">dump</span></div>
+
+
+<div class="viewcode-block" id="ListVariable"><a class="viewcode-back" href="../../columns.html#storm.properties.ListVariable">[docs]</a><span class="k">class</span> <span class="nc">ListVariable</span><span class="p">(</span><span class="n">MutableValueVariable</span><span class="p">):</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;_item_factory&quot;</span><span class="p">,)</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item_factory</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_item_factory</span> <span class="o">=</span> <span class="n">item_factory</span>
+        <span class="n">MutableValueVariable</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ListVariable.parse_set"><a class="viewcode-back" href="../../columns.html#storm.properties.ListVariable.parse_set">[docs]</a>    <span class="k">def</span> <span class="nf">parse_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">from_db</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">from_db</span><span class="p">:</span>
+            <span class="n">item_factory</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_item_factory</span>
+            <span class="k">return</span> <span class="p">[</span><span class="n">item_factory</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">val</span><span class="p">,</span> <span class="n">from_db</span><span class="o">=</span><span class="n">from_db</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+                    <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">value</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">value</span></div>
+
+<div class="viewcode-block" id="ListVariable.parse_get"><a class="viewcode-back" href="../../columns.html#storm.properties.ListVariable.parse_get">[docs]</a>    <span class="k">def</span> <span class="nf">parse_get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">to_db</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">to_db</span><span class="p">:</span>
+            <span class="n">item_factory</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_item_factory</span>
+            <span class="k">return</span> <span class="p">[</span><span class="n">item_factory</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">val</span><span class="p">,</span> <span class="n">from_db</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">value</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">value</span></div>
+
+<div class="viewcode-block" id="ListVariable.get_state"><a class="viewcode-back" href="../../columns.html#storm.properties.ListVariable.get_state">[docs]</a>    <span class="k">def</span> <span class="nf">get_state</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_lazy_value</span><span class="p">,</span> <span class="n">pickle</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_value</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="ListVariable.set_state"><a class="viewcode-back" href="../../columns.html#storm.properties.ListVariable.set_state">[docs]</a>    <span class="k">def</span> <span class="nf">set_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lazy_value</span> <span class="o">=</span> <span class="n">state</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_value</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">state</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span></div></div>
+
+
+<span class="k">def</span> <span class="nf">_parse_time</span><span class="p">(</span><span class="n">time_str</span><span class="p">):</span>
+    <span class="c1"># TODO Add support for timezones.</span>
+    <span class="n">colons</span> <span class="o">=</span> <span class="n">time_str</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="mi">1</span> <span class="o">&lt;=</span> <span class="n">colons</span> <span class="o">&lt;=</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Unknown time format: </span><span class="si">%r</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">time_str</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">colons</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="n">hour</span><span class="p">,</span> <span class="n">minute</span><span class="p">,</span> <span class="n">second</span> <span class="o">=</span> <span class="n">time_str</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">hour</span><span class="p">,</span> <span class="n">minute</span> <span class="o">=</span> <span class="n">time_str</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">)</span>
+        <span class="n">second</span> <span class="o">=</span> <span class="s2">&quot;0&quot;</span>
+    <span class="k">if</span> <span class="s2">&quot;.&quot;</span> <span class="ow">in</span> <span class="n">second</span><span class="p">:</span>
+        <span class="n">second</span><span class="p">,</span> <span class="n">microsecond</span> <span class="o">=</span> <span class="n">second</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
+        <span class="n">second</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">second</span><span class="p">)</span>
+        <span class="n">microsecond</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">microsecond</span><span class="p">)</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">**</span> <span class="p">(</span><span class="mi">6</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">microsecond</span><span class="p">)))</span>
+        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">hour</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">minute</span><span class="p">),</span> <span class="n">second</span><span class="p">,</span> <span class="n">microsecond</span>
+    <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">hour</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">minute</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">second</span><span class="p">),</span> <span class="mi">0</span>
+
+<span class="k">def</span> <span class="nf">_parse_date</span><span class="p">(</span><span class="n">date_str</span><span class="p">):</span>
+    <span class="k">if</span> <span class="s2">&quot;-&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">date_str</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Unknown date format: </span><span class="si">%r</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">date_str</span><span class="p">)</span>
+    <span class="n">year</span><span class="p">,</span> <span class="n">month</span><span class="p">,</span> <span class="n">day</span> <span class="o">=</span> <span class="n">date_str</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">year</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">month</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">day</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_parse_interval_table</span><span class="p">():</span>
+    <span class="n">table</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">units</span><span class="p">,</span> <span class="n">delta</span> <span class="ow">in</span> <span class="p">(</span>
+        <span class="p">(</span><span class="s2">&quot;d day days&quot;</span><span class="p">,</span> <span class="n">timedelta</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;h hour hours&quot;</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">hours</span><span class="o">=</span><span class="n">x</span><span class="p">)),</span>
+        <span class="p">(</span><span class="s2">&quot;m min minute minutes&quot;</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">minutes</span><span class="o">=</span><span class="n">x</span><span class="p">)),</span>
+        <span class="p">(</span><span class="s2">&quot;s sec second seconds&quot;</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="n">x</span><span class="p">)),</span>
+        <span class="p">(</span><span class="s2">&quot;ms millisecond milliseconds&quot;</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">milliseconds</span><span class="o">=</span><span class="n">x</span><span class="p">)),</span>
+        <span class="p">(</span><span class="s2">&quot;microsecond microseconds&quot;</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">microseconds</span><span class="o">=</span><span class="n">x</span><span class="p">))</span>
+        <span class="p">):</span>
+        <span class="k">for</span> <span class="n">unit</span> <span class="ow">in</span> <span class="n">units</span><span class="o">.</span><span class="n">split</span><span class="p">():</span>
+            <span class="n">table</span><span class="p">[</span><span class="n">unit</span><span class="p">]</span> <span class="o">=</span> <span class="n">delta</span>
+    <span class="k">return</span> <span class="n">table</span>
+
+<span class="n">_parse_interval_table</span> <span class="o">=</span> <span class="n">_parse_interval_table</span><span class="p">()</span>
+
+<span class="n">_parse_interval_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;[\s,]*&quot;</span>
+                                <span class="sa">r</span><span class="s2">&quot;([-+]?(?:\d\d?:\d\d?(?::\d\d?)?(?:\.\d+)?&quot;</span>
+                                <span class="sa">r</span><span class="s2">&quot;|\d+(?:\.\d+)?))&quot;</span>
+                                <span class="sa">r</span><span class="s2">&quot;[\s,]*&quot;</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">_parse_interval</span><span class="p">(</span><span class="n">interval</span><span class="p">):</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">timedelta</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">for</span> <span class="n">token</span> <span class="ow">in</span> <span class="n">_parse_interval_re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">interval</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">token</span><span class="p">:</span>
+            <span class="k">pass</span>
+        <span class="k">elif</span> <span class="s2">&quot;:&quot;</span> <span class="ow">in</span> <span class="n">token</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">result</span> <span class="o">+=</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="n">value</span><span class="p">)</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">h</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">ms</span> <span class="o">=</span> <span class="n">_parse_time</span><span class="p">(</span><span class="n">token</span><span class="p">)</span>
+            <span class="n">result</span> <span class="o">+=</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">hours</span><span class="o">=</span><span class="n">h</span><span class="p">,</span> <span class="n">minutes</span><span class="o">=</span><span class="n">m</span><span class="p">,</span> <span class="n">seconds</span><span class="o">=</span><span class="n">s</span><span class="p">,</span> <span class="n">microseconds</span><span class="o">=</span><span class="n">ms</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">token</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Expected an interval value rather than &quot;</span>
+                                 <span class="s2">&quot;</span><span class="si">%r</span><span class="s2"> in interval </span><span class="si">%r</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">token</span><span class="p">,</span> <span class="n">interval</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">unit</span> <span class="o">=</span> <span class="n">_parse_interval_table</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">token</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">unit</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Unsupported interval unit </span><span class="si">%r</span><span class="s2"> in interval </span><span class="si">%r</span><span class="s2">&quot;</span>
+                                 <span class="o">%</span> <span class="p">(</span><span class="n">token</span><span class="p">,</span> <span class="n">interval</span><span class="p">))</span>
+            <span class="n">result</span> <span class="o">+=</span> <span class="n">unit</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">result</span> <span class="o">+=</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">result</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Gustavo Niemeyer.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.4</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
