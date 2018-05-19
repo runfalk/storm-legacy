@@ -24,5 +24,6 @@ deploy:
   github-token: $GH_TOKEN
   keep-history: true
   committer-from-gh: true
+  local-dir: doc-build
   on:
     branch: master
