@@ -1,6 +1,7 @@
 import datetime
 import os
 import sys
+from freezegun import freeze_time
 from unittest import TestCase
 
 from tests import has_fixtures
@@ -14,7 +15,7 @@ else:
     TestWithFixtures = object
 
 
-from storm.compat import ustr
+from storm.compat import StringIO, ustr
 from storm.tracer import (trace, install_tracer, get_tracers, remove_tracer,
                           remove_tracer_type, remove_all_tracers, debug,
                           BaseStatementTracer, DebugTracer, TimeoutTracer,
@@ -111,7 +112,6 @@ class TracerTest(TestHelper):
 
 
 class MockVariable(Variable):
-
     def __init__(self, value):
         self._value = value
 
@@ -119,17 +119,12 @@ class MockVariable(Variable):
         return self._value
 
 
+@freeze_time(datetime.datetime(1, 2, 3, 4, 5, 6, 7))
 class DebugTracerTest(TestHelper):
-
     def setUp(self):
         super(DebugTracerTest, self).setUp()
-        self.stream = self.mocker.mock(file)
+        self.stream = StringIO()
         self.tracer = DebugTracer(self.stream)
-
-        datetime_mock = self.mocker.replace("datetime.datetime")
-        datetime_mock.now()
-        self.mocker.result(datetime.datetime(1, 2, 3, 4, 5, 6, 7))
-        self.mocker.count(0, 1)
 
         self.variable = MockVariable("PARAM")
 
@@ -138,24 +133,15 @@ class DebugTracerTest(TestHelper):
         super(DebugTracerTest, self).tearDown()
 
     def test_wb_debug_tracer_uses_stderr_by_default(self):
-        self.mocker.replay()
-
         tracer = DebugTracer()
         self.assertEqual(tracer._stream, sys.stderr)
 
     def test_wb_debug_tracer_uses_first_arg_as_stream(self):
-        self.mocker.replay()
-
         marker = object()
         tracer = DebugTracer(marker)
         self.assertEqual(tracer._stream, marker)
 
     def test_connection_raw_execute(self):
-        self.stream.write(
-            "[04:05:06.000007] EXECUTE: 'STATEMENT', ('PARAM',)\n")
-        self.stream.flush()
-        self.mocker.replay()
-
         connection = "CONNECTION"
         raw_cursor = "RAW_CURSOR"
         statement = "STATEMENT"
@@ -163,13 +149,12 @@ class DebugTracerTest(TestHelper):
 
         self.tracer.connection_raw_execute(connection, raw_cursor,
                                            statement, params)
+        self.assertEquals(
+            "[04:05:06.000007] EXECUTE: 'STATEMENT', ('PARAM',)\n",
+            self.stream.getvalue(),
+        )
 
     def test_connection_raw_execute_with_non_variable(self):
-        self.stream.write(
-            "[04:05:06.000007] EXECUTE: 'STATEMENT', ('PARAM', 1)\n")
-        self.stream.flush()
-        self.mocker.replay()
-
         connection = "CONNECTION"
         raw_cursor = "RAW_CURSOR"
         statement = "STATEMENT"
@@ -177,12 +162,12 @@ class DebugTracerTest(TestHelper):
 
         self.tracer.connection_raw_execute(connection, raw_cursor,
                                            statement, params)
+        self.assertEquals(
+            "[04:05:06.000007] EXECUTE: 'STATEMENT', ('PARAM', 1)\n",
+            self.stream.getvalue(),
+        )
 
     def test_connection_raw_execute_error(self):
-        self.stream.write("[04:05:06.000007] ERROR: ERROR\n")
-        self.stream.flush()
-        self.mocker.replay()
-
         connection = "CONNECTION"
         raw_cursor = "RAW_CURSOR"
         statement = "STATEMENT"
@@ -191,12 +176,12 @@ class DebugTracerTest(TestHelper):
 
         self.tracer.connection_raw_execute_error(connection, raw_cursor,
                                                  statement, params, error)
+        self.assertEquals(
+            "[04:05:06.000007] ERROR: ERROR\n",
+            self.stream.getvalue(),
+        )
 
     def test_connection_raw_execute_success(self):
-        self.stream.write("[04:05:06.000007] DONE\n")
-        self.stream.flush()
-        self.mocker.replay()
-
         connection = "CONNECTION"
         raw_cursor = "RAW_CURSOR"
         statement = "STATEMENT"
@@ -204,24 +189,28 @@ class DebugTracerTest(TestHelper):
 
         self.tracer.connection_raw_execute_success(connection, raw_cursor,
                                                    statement, params)
+        self.assertEquals(
+            "[04:05:06.000007] DONE\n",
+            self.stream.getvalue(),
+        )
 
     def test_connection_commit(self):
-        self.stream.write("[04:05:06.000007] COMMIT xid=None\n")
-        self.stream.flush()
-        self.mocker.replay()
-
         connection = "CONNECTION"
 
         self.tracer.connection_commit(connection)
+        self.assertEquals(
+            "[04:05:06.000007] COMMIT xid=None\n",
+            self.stream.getvalue(),
+        )
 
     def test_connection_rollback(self):
-        self.stream.write("[04:05:06.000007] ROLLBACK xid=None\n")
-        self.stream.flush()
-        self.mocker.replay()
-
         connection = "CONNECTION"
 
         self.tracer.connection_rollback(connection)
+        self.assertEquals(
+            "[04:05:06.000007] ROLLBACK xid=None\n",
+            self.stream.getvalue(),
+        )
 
 
 class TimeoutTracerTestBase(TestHelper):

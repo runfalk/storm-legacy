@@ -33,6 +33,7 @@ setup(
         ],
         "dev": [
             "fixtures>=0.3.5",
+            "freezegun",
             "psycopg2-binary>=2.5",
             "pytest>=3",
             "testresources>=0.2.4",
