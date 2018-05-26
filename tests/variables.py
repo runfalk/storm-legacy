@@ -890,9 +890,16 @@ class EncodedValueVariableTestMixin(object):
 
 
 class JSONVariableTest(EncodedValueVariableTestMixin, TestHelper):
-
-    encode = staticmethod(lambda data: json.dumps(data).decode("utf-8"))
     variable_type = JSONVariable
+
+    @staticmethod
+    def encode(data):
+        json_data = json.dumps(data)
+
+        # On Python 2 json_data will be a byte string. We want unicode
+        if isinstance(json_data, bstr):
+            return json_data.decode("utf-8")
+        return json_data
 
     def is_supported(self):
         return json is not None
