@@ -1,4 +1,3 @@
-PYTHON_VERSION = 2.7
 STORM_POSTGRES_URI ?= postgres:storm_test
 export STORM_POSTGRES_URI
 
@@ -7,8 +6,8 @@ build:
 
 develop:
 	[ ! -d "venv" ]
-	virtualenv --python=python$(PYTHON_VERSION) --prompt="(storm)" venv
-	venv/bin/pip install --upgrade pip setuptools
+	virtualenv --prompt="(storm)" venv
+	curl https://bootstrap.pypa.io/get-pip.py | venv/bin/python
 	venv/bin/pip install -e .[doc,dev]
 
 clean-build:
@@ -16,8 +15,8 @@ clean-build:
 	rm -rf doc-build/
 
 clean-pyc:
-	find . -type f -name "*.pyc" -exec rm -f {} \;
-	find . -type d -name "__pycache__" -exec rmdir {} \;
+	find storm tests -type f -name "*.pyc" -exec rm -f {} \;
+	find storm tests -type d -name "__pycache__" -exec rmdir {} \;
 
 clean: clean-build clean-pyc
 
