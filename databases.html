@@ -9,7 +9,7 @@
     <title>Databases &#8212; Storm  documentation</title>
     <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-    <script type="text/javascript" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
     <script type="text/javascript" src="_static/jquery.js"></script>
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
@@ -572,13 +572,6 @@ exception values are used to represent this condition.</p>
 <code class="descname">param_mark</code><em class="property"> = '%s'</em><a class="headerlink" href="#storm.databases.postgres.PostgresConnection.param_mark" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="method">
-<dt id="storm.databases.postgres.PostgresConnection.raw_execute">
-<code class="descname">raw_execute</code><span class="sig-paren">(</span><em>statement</em>, <em>params</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/databases/postgres.html#PostgresConnection.raw_execute"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.databases.postgres.PostgresConnection.raw_execute" title="Permalink to this definition">¶</a></dt>
-<dd><p>Like <code class="xref py py-obj docutils literal notranslate"><span class="pre">Connection.raw_execute</span></code>, but encode the statement to
-UTF-8 if it is unicode.</p>
-</dd></dl>
-
 <dl class="attribute">
 <dt id="storm.databases.postgres.PostgresConnection.result_factory">
 <code class="descname">result_factory</code><a class="headerlink" href="#storm.databases.postgres.PostgresConnection.result_factory" title="Permalink to this definition">¶</a></dt>
@@ -588,9 +581,8 @@ UTF-8 if it is unicode.</p>
 <dl class="method">
 <dt id="storm.databases.postgres.PostgresConnection.to_database">
 <code class="descname">to_database</code><span class="sig-paren">(</span><em>params</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/databases/postgres.html#PostgresConnection.to_database"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.databases.postgres.PostgresConnection.to_database" title="Permalink to this definition">¶</a></dt>
-<dd><p>Like <code class="xref py py-obj docutils literal notranslate"><span class="pre">Connection.to_database</span></code>, but this converts datetime
-types to strings, unicode to UTF-8 encoded strings, and
-strings to <code class="xref py py-obj docutils literal notranslate"><span class="pre">psycopg2.Binary</span></code> instances.</p>
+<dd><p>Like <code class="xref py py-obj docutils literal notranslate"><span class="pre">Connection.to_database</span></code>, but this converts datetime types
+to strings and byte strings to <code class="xref py py-obj docutils literal notranslate"><span class="pre">psycopg2.Binary</span></code> instances.</p>
 </dd></dl>
 
 </dd></dl>
@@ -944,7 +936,7 @@ to strings.</p>
       &copy;2018, Gustavo Niemeyer.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.4</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
       
       |
