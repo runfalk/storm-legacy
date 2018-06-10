@@ -1,10 +1,16 @@
 0.21 (XXXX-XX-XX)
 =================
 
-This release only works on Python 2.7 and later.
+This release contains lots of breaking changes:
+
+- The minimum Python 2 version is now 2.7
+
+- psycopg2<2.5 is no longer supported
 
 Improvements
 ------------
+
+- Python 3 is now supported. Only versions later than 3.3 are supported.
 
 - A new storm.schema.sharding.Sharding class has been added to the schema
   package, which can apply patches "in parallel" against a set of stores. See

@@ -295,29 +295,16 @@ class PostgresConnection(Connection):
 
         return Connection.execute(self, statement, params, noresult)
 
-    def raw_execute(self, statement, params):
-        """
-        Like L{Connection.raw_execute}, but encode the statement to
-        UTF-8 if it is unicode.
-        """
-        if type(statement) is ustr:
-            # psycopg breaks with unicode statements.
-            statement = statement.encode("UTF-8")
-        return Connection.raw_execute(self, statement, params)
-
     def to_database(self, params):
         """
-        Like L{Connection.to_database}, but this converts datetime
-        types to strings, unicode to UTF-8 encoded strings, and
-        strings to L{psycopg2.Binary} instances.
+        Like L{Connection.to_database}, but this converts datetime types
+        to strings and byte strings to L{psycopg2.Binary} instances.
         """
         for param in params:
             if isinstance(param, Variable):
                 param = param.get(to_db=True)
             if isinstance(param, (datetime, date, time, timedelta)):
                 yield ustr(param)
-            elif isinstance(param, ustr):
-                yield param.encode("UTF-8")
             elif isinstance(param, bstr):
                 yield psycopg2.Binary(param)
             else:

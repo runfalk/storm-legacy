@@ -19,10 +19,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 from datetime import timedelta
-import time
 import os
+import time
+import unittest
 
-from storm.compat import ustr
+from storm.compat import is_python2, ustr
 from storm.exceptions import OperationalError
 from storm.databases.sqlite import SQLite
 from storm.database import create_database
@@ -104,6 +105,8 @@ class SQLiteFileTest(SQLiteMemoryTest):
         self.assertTrue(isinstance(database, SQLite))
         self.assertEquals(database._filename, filename)
 
+    @unittest.skipIf(not is_python2,
+                     "Virtual base classes can't be used in except clauses")
     def test_timeout(self):
         database = create_database("sqlite:%s?timeout=0.3" % self.get_path())
         connection1 = database.connect()
@@ -120,6 +123,8 @@ class SQLiteFileTest(SQLiteMemoryTest):
         else:
             self.fail("OperationalError not raised")
 
+    @unittest.skipIf(not is_python2,
+                     "Virtual base classes can't be used in except clauses")
     def test_commit_timeout(self):
         """Regression test for commit observing the timeout.
 

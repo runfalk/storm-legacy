@@ -22,7 +22,7 @@ from datetime import date, time, timedelta
 import os
 import json
 
-from storm.compat import ustr
+from storm.compat import bstr, ustr
 from storm.databases.postgres import (
     Postgres, compile, currval, Returning, Case, PostgresTimeoutTracer,
     make_dsn, JSONElement, JSONTextElement, JSON)
@@ -150,7 +150,7 @@ class PostgresTest(DatabaseTest, TestHelper):
         uni_str = raw_str.decode("UTF-8")
 
         connection = self.database.connect()
-        connection.execute("INSERT INTO test VALUES (1, '%s')" % raw_str)
+        connection.execute("INSERT INTO test VALUES (1, '%s')" % uni_str)
 
         result = connection.execute("SELECT title FROM test WHERE id=1")
         title = result.get_one()[0]
@@ -163,7 +163,7 @@ class PostgresTest(DatabaseTest, TestHelper):
         uni_str = raw_str.decode("UTF-8")
 
         connection = self.database.connect()
-        result = connection.execute("""SELECT '{"%s"}'::TEXT[]""" % raw_str)
+        result = connection.execute("""SELECT '{"%s"}'::TEXT[]""" % uni_str)
         self.assertEquals(result.get_one()[0], [uni_str])
         result = connection.execute("""SELECT ?::TEXT[]""", ([uni_str],))
         self.assertEquals(result.get_one()[0], [uni_str])
@@ -678,7 +678,11 @@ class PostgresTest(DatabaseTest, TestHelper):
 
         connection = self.database.connect()
         value = {"a": 3, "b": "foo", "c": None}
-        db_value = json.dumps(value).decode("utf-8")
+
+        db_value = json.dumps(value)
+        if isinstance(db_value, bstr):
+            db_value = db_value.decode("utf-8")
+
         connection.execute(
             "INSERT INTO json_test (json) VALUES (?)", (db_value,))
         connection.commit()
