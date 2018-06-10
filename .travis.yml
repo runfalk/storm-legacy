@@ -2,6 +2,10 @@ language: python
 cache: pip
 python:
   - "2.7"
+  - "3.3"
+  - "3.4"
+  - "3.5"
+  - "3.6"
 addons:
   postgresql: "10"
   apt:
@@ -11,13 +15,15 @@ addons:
 env:
   global:
     - PGPORT=5433
+    - STORM_POSTGRES_URI="postgres://travis:travis@localhost:5433/travis"
 install:
-  - make develop
+  - pip install -e .[dev,doc]
 before_script:
   - psql -c "ALTER USER travis WITH PASSWORD 'travis';"
 script:
-  - STORM_POSTGRES_URI="postgres://travis:travis@localhost:5433/travis" make full-test
-  - make doc
+  - STORM_CEXTENSIONS=0 pytest
+  - STORM_CEXTENSIONS=1 pytest
+  - sphinx-build doc/ doc-build/
 deploy:
   provider: pages
   skip-cleanup: true

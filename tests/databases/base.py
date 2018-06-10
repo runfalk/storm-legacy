@@ -21,11 +21,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 from datetime import datetime, date, time, timedelta
+import os
 import shutil
 import sys
-import os
+import unittest
 
-from storm.compat import ustr
+from storm.compat import is_python2, ustr
 from storm.uri import URI
 from storm.expr import Select, Column, SQLToken, SQLRaw, Count, Alias
 from storm.variables import (Variable, RawStrVariable, DecimalVariable,
@@ -745,6 +746,8 @@ class DatabaseDisconnectionTest(DatabaseDisconnectionMixin):
         self.proxy.restart()
         self.assertRaises(DisconnectionError, self.connection.commit)
 
+    @unittest.skipIf(not is_python2,
+                     "Virtual base classes can't be used in except clauses")
     def test_wb_catch_already_disconnected_on_rollback(self):
         """Connection.rollback() swallows disconnection errors.
 
@@ -778,6 +781,8 @@ class DatabaseDisconnectionTest(DatabaseDisconnectionMixin):
         # though.
         self.connection.rollback()
 
+    @unittest.skipIf(not is_python2,
+                     "Virtual base classes can't be used in except clauses")
     def test_wb_catch_already_disconnected(self):
         """Storm detects connections that have already been disconnected.
 
@@ -821,6 +826,8 @@ class DatabaseDisconnectionTest(DatabaseDisconnectionMixin):
         result = self.connection.execute("SELECT 1")
         self.assertTrue(result.get_one())
 
+    @unittest.skipIf(not is_python2,
+                     "Virtual base classes can't be used in except clauses")
     def test_catch_disconnect_on_reconnect(self):
         """Test that reconnection failures result in DisconnectionError."""
         result = self.connection.execute("SELECT 1")
@@ -844,7 +851,8 @@ class DatabaseDisconnectionTest(DatabaseDisconnectionMixin):
 
 
 class TwoPhaseCommitDisconnectionTest(object):
-
+    @unittest.skipIf(not is_python2,
+                     "Virtual base classes can't be used in except clauses")
     def test_begin_after_rollback_with_disconnection_error(self):
         """
         If a rollback fails because of a disconnection error, the two-phase
