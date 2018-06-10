@@ -55,7 +55,7 @@
 <span class="kn">from</span> <span class="nn">weakref</span> <span class="k">import</span> <span class="n">WeakKeyDictionary</span>
 <span class="k">try</span><span class="p">:</span>
     <span class="kn">from</span> <span class="nn">_thread</span> <span class="k">import</span> <span class="n">RLock</span>
-<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+<span class="k">except</span><span class="p">:</span>
     <span class="k">class</span> <span class="nc">RLock</span><span class="p">:</span>
         <span class="s1">&#39;Dummy reentrant lock for builds without threads&#39;</span>
         <span class="k">def</span> <span class="nf">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="k">pass</span>
@@ -126,109 +126,108 @@
 <span class="c1"># infinite recursion that could occur when the operator dispatch logic</span>
 <span class="c1"># detects a NotImplemented result and then calls a reflected method.</span>
 
-<span class="k">def</span> <span class="nf">_gt_from_lt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">,</span> <span class="bp">NotImplemented</span><span class="o">=</span><span class="bp">NotImplemented</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">_gt_from_lt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
     <span class="s1">&#39;Return a &gt; b.  Computed by @total_ordering from (not a &lt; b) and (a != b).&#39;</span>
     <span class="n">op_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__lt__</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">op_result</span> <span class="ow">is</span> <span class="bp">NotImplemented</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">op_result</span>
+        <span class="k">return</span> <span class="bp">NotImplemented</span>
     <span class="k">return</span> <span class="ow">not</span> <span class="n">op_result</span> <span class="ow">and</span> <span class="bp">self</span> <span class="o">!=</span> <span class="n">other</span>
 
-<span class="k">def</span> <span class="nf">_le_from_lt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">,</span> <span class="bp">NotImplemented</span><span class="o">=</span><span class="bp">NotImplemented</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">_le_from_lt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
     <span class="s1">&#39;Return a &lt;= b.  Computed by @total_ordering from (a &lt; b) or (a == b).&#39;</span>
     <span class="n">op_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__lt__</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">op_result</span> <span class="ow">or</span> <span class="bp">self</span> <span class="o">==</span> <span class="n">other</span>
 
-<span class="k">def</span> <span class="nf">_ge_from_lt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">,</span> <span class="bp">NotImplemented</span><span class="o">=</span><span class="bp">NotImplemented</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">_ge_from_lt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
     <span class="s1">&#39;Return a &gt;= b.  Computed by @total_ordering from (not a &lt; b).&#39;</span>
     <span class="n">op_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__lt__</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">op_result</span> <span class="ow">is</span> <span class="bp">NotImplemented</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">op_result</span>
+        <span class="k">return</span> <span class="bp">NotImplemented</span>
     <span class="k">return</span> <span class="ow">not</span> <span class="n">op_result</span>
 
-<span class="k">def</span> <span class="nf">_ge_from_le</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">,</span> <span class="bp">NotImplemented</span><span class="o">=</span><span class="bp">NotImplemented</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">_ge_from_le</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
     <span class="s1">&#39;Return a &gt;= b.  Computed by @total_ordering from (not a &lt;= b) or (a == b).&#39;</span>
     <span class="n">op_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__le__</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">op_result</span> <span class="ow">is</span> <span class="bp">NotImplemented</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">op_result</span>
+        <span class="k">return</span> <span class="bp">NotImplemented</span>
     <span class="k">return</span> <span class="ow">not</span> <span class="n">op_result</span> <span class="ow">or</span> <span class="bp">self</span> <span class="o">==</span> <span class="n">other</span>
 
-<span class="k">def</span> <span class="nf">_lt_from_le</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">,</span> <span class="bp">NotImplemented</span><span class="o">=</span><span class="bp">NotImplemented</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">_lt_from_le</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
     <span class="s1">&#39;Return a &lt; b.  Computed by @total_ordering from (a &lt;= b) and (a != b).&#39;</span>
     <span class="n">op_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__le__</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">op_result</span> <span class="ow">is</span> <span class="bp">NotImplemented</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">op_result</span>
+        <span class="k">return</span> <span class="bp">NotImplemented</span>
     <span class="k">return</span> <span class="n">op_result</span> <span class="ow">and</span> <span class="bp">self</span> <span class="o">!=</span> <span class="n">other</span>
 
-<span class="k">def</span> <span class="nf">_gt_from_le</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">,</span> <span class="bp">NotImplemented</span><span class="o">=</span><span class="bp">NotImplemented</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">_gt_from_le</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
     <span class="s1">&#39;Return a &gt; b.  Computed by @total_ordering from (not a &lt;= b).&#39;</span>
     <span class="n">op_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__le__</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">op_result</span> <span class="ow">is</span> <span class="bp">NotImplemented</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">op_result</span>
+        <span class="k">return</span> <span class="bp">NotImplemented</span>
     <span class="k">return</span> <span class="ow">not</span> <span class="n">op_result</span>
 
-<span class="k">def</span> <span class="nf">_lt_from_gt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">,</span> <span class="bp">NotImplemented</span><span class="o">=</span><span class="bp">NotImplemented</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">_lt_from_gt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
     <span class="s1">&#39;Return a &lt; b.  Computed by @total_ordering from (not a &gt; b) and (a != b).&#39;</span>
     <span class="n">op_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__gt__</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">op_result</span> <span class="ow">is</span> <span class="bp">NotImplemented</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">op_result</span>
+        <span class="k">return</span> <span class="bp">NotImplemented</span>
     <span class="k">return</span> <span class="ow">not</span> <span class="n">op_result</span> <span class="ow">and</span> <span class="bp">self</span> <span class="o">!=</span> <span class="n">other</span>
 
-<span class="k">def</span> <span class="nf">_ge_from_gt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">,</span> <span class="bp">NotImplemented</span><span class="o">=</span><span class="bp">NotImplemented</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">_ge_from_gt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
     <span class="s1">&#39;Return a &gt;= b.  Computed by @total_ordering from (a &gt; b) or (a == b).&#39;</span>
     <span class="n">op_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__gt__</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">op_result</span> <span class="ow">or</span> <span class="bp">self</span> <span class="o">==</span> <span class="n">other</span>
 
-<span class="k">def</span> <span class="nf">_le_from_gt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">,</span> <span class="bp">NotImplemented</span><span class="o">=</span><span class="bp">NotImplemented</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">_le_from_gt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
     <span class="s1">&#39;Return a &lt;= b.  Computed by @total_ordering from (not a &gt; b).&#39;</span>
     <span class="n">op_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__gt__</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">op_result</span> <span class="ow">is</span> <span class="bp">NotImplemented</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">op_result</span>
+        <span class="k">return</span> <span class="bp">NotImplemented</span>
     <span class="k">return</span> <span class="ow">not</span> <span class="n">op_result</span>
 
-<span class="k">def</span> <span class="nf">_le_from_ge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">,</span> <span class="bp">NotImplemented</span><span class="o">=</span><span class="bp">NotImplemented</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">_le_from_ge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
     <span class="s1">&#39;Return a &lt;= b.  Computed by @total_ordering from (not a &gt;= b) or (a == b).&#39;</span>
     <span class="n">op_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__ge__</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">op_result</span> <span class="ow">is</span> <span class="bp">NotImplemented</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">op_result</span>
+        <span class="k">return</span> <span class="bp">NotImplemented</span>
     <span class="k">return</span> <span class="ow">not</span> <span class="n">op_result</span> <span class="ow">or</span> <span class="bp">self</span> <span class="o">==</span> <span class="n">other</span>
 
-<span class="k">def</span> <span class="nf">_gt_from_ge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">,</span> <span class="bp">NotImplemented</span><span class="o">=</span><span class="bp">NotImplemented</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">_gt_from_ge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
     <span class="s1">&#39;Return a &gt; b.  Computed by @total_ordering from (a &gt;= b) and (a != b).&#39;</span>
     <span class="n">op_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__ge__</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">op_result</span> <span class="ow">is</span> <span class="bp">NotImplemented</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">op_result</span>
+        <span class="k">return</span> <span class="bp">NotImplemented</span>
     <span class="k">return</span> <span class="n">op_result</span> <span class="ow">and</span> <span class="bp">self</span> <span class="o">!=</span> <span class="n">other</span>
 
-<span class="k">def</span> <span class="nf">_lt_from_ge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">,</span> <span class="bp">NotImplemented</span><span class="o">=</span><span class="bp">NotImplemented</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">_lt_from_ge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
     <span class="s1">&#39;Return a &lt; b.  Computed by @total_ordering from (not a &gt;= b).&#39;</span>
     <span class="n">op_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__ge__</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">op_result</span> <span class="ow">is</span> <span class="bp">NotImplemented</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">op_result</span>
+        <span class="k">return</span> <span class="bp">NotImplemented</span>
     <span class="k">return</span> <span class="ow">not</span> <span class="n">op_result</span>
-
-<span class="n">_convert</span> <span class="o">=</span> <span class="p">{</span>
-    <span class="s1">&#39;__lt__&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;__gt__&#39;</span><span class="p">,</span> <span class="n">_gt_from_lt</span><span class="p">),</span>
-               <span class="p">(</span><span class="s1">&#39;__le__&#39;</span><span class="p">,</span> <span class="n">_le_from_lt</span><span class="p">),</span>
-               <span class="p">(</span><span class="s1">&#39;__ge__&#39;</span><span class="p">,</span> <span class="n">_ge_from_lt</span><span class="p">)],</span>
-    <span class="s1">&#39;__le__&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;__ge__&#39;</span><span class="p">,</span> <span class="n">_ge_from_le</span><span class="p">),</span>
-               <span class="p">(</span><span class="s1">&#39;__lt__&#39;</span><span class="p">,</span> <span class="n">_lt_from_le</span><span class="p">),</span>
-               <span class="p">(</span><span class="s1">&#39;__gt__&#39;</span><span class="p">,</span> <span class="n">_gt_from_le</span><span class="p">)],</span>
-    <span class="s1">&#39;__gt__&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;__lt__&#39;</span><span class="p">,</span> <span class="n">_lt_from_gt</span><span class="p">),</span>
-               <span class="p">(</span><span class="s1">&#39;__ge__&#39;</span><span class="p">,</span> <span class="n">_ge_from_gt</span><span class="p">),</span>
-               <span class="p">(</span><span class="s1">&#39;__le__&#39;</span><span class="p">,</span> <span class="n">_le_from_gt</span><span class="p">)],</span>
-    <span class="s1">&#39;__ge__&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;__le__&#39;</span><span class="p">,</span> <span class="n">_le_from_ge</span><span class="p">),</span>
-               <span class="p">(</span><span class="s1">&#39;__gt__&#39;</span><span class="p">,</span> <span class="n">_gt_from_ge</span><span class="p">),</span>
-               <span class="p">(</span><span class="s1">&#39;__lt__&#39;</span><span class="p">,</span> <span class="n">_lt_from_ge</span><span class="p">)]</span>
-<span class="p">}</span>
 
 <span class="k">def</span> <span class="nf">total_ordering</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Class decorator that fills in missing ordering methods&quot;&quot;&quot;</span>
+    <span class="n">convert</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;__lt__&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;__gt__&#39;</span><span class="p">,</span> <span class="n">_gt_from_lt</span><span class="p">),</span>
+                   <span class="p">(</span><span class="s1">&#39;__le__&#39;</span><span class="p">,</span> <span class="n">_le_from_lt</span><span class="p">),</span>
+                   <span class="p">(</span><span class="s1">&#39;__ge__&#39;</span><span class="p">,</span> <span class="n">_ge_from_lt</span><span class="p">)],</span>
+        <span class="s1">&#39;__le__&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;__ge__&#39;</span><span class="p">,</span> <span class="n">_ge_from_le</span><span class="p">),</span>
+                   <span class="p">(</span><span class="s1">&#39;__lt__&#39;</span><span class="p">,</span> <span class="n">_lt_from_le</span><span class="p">),</span>
+                   <span class="p">(</span><span class="s1">&#39;__gt__&#39;</span><span class="p">,</span> <span class="n">_gt_from_le</span><span class="p">)],</span>
+        <span class="s1">&#39;__gt__&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;__lt__&#39;</span><span class="p">,</span> <span class="n">_lt_from_gt</span><span class="p">),</span>
+                   <span class="p">(</span><span class="s1">&#39;__ge__&#39;</span><span class="p">,</span> <span class="n">_ge_from_gt</span><span class="p">),</span>
+                   <span class="p">(</span><span class="s1">&#39;__le__&#39;</span><span class="p">,</span> <span class="n">_le_from_gt</span><span class="p">)],</span>
+        <span class="s1">&#39;__ge__&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;__le__&#39;</span><span class="p">,</span> <span class="n">_le_from_ge</span><span class="p">),</span>
+                   <span class="p">(</span><span class="s1">&#39;__gt__&#39;</span><span class="p">,</span> <span class="n">_gt_from_ge</span><span class="p">),</span>
+                   <span class="p">(</span><span class="s1">&#39;__lt__&#39;</span><span class="p">,</span> <span class="n">_lt_from_ge</span><span class="p">)]</span>
+    <span class="p">}</span>
     <span class="c1"># Find user-defined comparisons (not those inherited from object).</span>
-    <span class="n">roots</span> <span class="o">=</span> <span class="p">[</span><span class="n">op</span> <span class="k">for</span> <span class="n">op</span> <span class="ow">in</span> <span class="n">_convert</span> <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">op</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="nb">getattr</span><span class="p">(</span><span class="nb">object</span><span class="p">,</span> <span class="n">op</span><span class="p">,</span> <span class="kc">None</span><span class="p">)]</span>
+    <span class="n">roots</span> <span class="o">=</span> <span class="p">[</span><span class="n">op</span> <span class="k">for</span> <span class="n">op</span> <span class="ow">in</span> <span class="n">convert</span> <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">op</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="nb">getattr</span><span class="p">(</span><span class="nb">object</span><span class="p">,</span> <span class="n">op</span><span class="p">,</span> <span class="kc">None</span><span class="p">)]</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">roots</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;must define at least one ordering operation: &lt; &gt; &lt;= &gt;=&#39;</span><span class="p">)</span>
     <span class="n">root</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">roots</span><span class="p">)</span>       <span class="c1"># prefer __lt__ to __le__ to __gt__ to __ge__</span>
-    <span class="k">for</span> <span class="n">opname</span><span class="p">,</span> <span class="n">opfunc</span> <span class="ow">in</span> <span class="n">_convert</span><span class="p">[</span><span class="n">root</span><span class="p">]:</span>
+    <span class="k">for</span> <span class="n">opname</span><span class="p">,</span> <span class="n">opfunc</span> <span class="ow">in</span> <span class="n">convert</span><span class="p">[</span><span class="n">root</span><span class="p">]:</span>
         <span class="k">if</span> <span class="n">opname</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">roots</span><span class="p">:</span>
             <span class="n">opfunc</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">=</span> <span class="n">opname</span>
             <span class="nb">setattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">opname</span><span class="p">,</span> <span class="n">opfunc</span><span class="p">)</span>
@@ -255,6 +254,8 @@
             <span class="k">return</span> <span class="n">mycmp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">obj</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">obj</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">0</span>
         <span class="k">def</span> <span class="nf">__ge__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
             <span class="k">return</span> <span class="n">mycmp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">obj</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">obj</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">0</span>
+        <span class="k">def</span> <span class="nf">__ne__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">mycmp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">obj</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">obj</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span>
         <span class="fm">__hash__</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="k">return</span> <span class="n">K</span>
 
@@ -273,14 +274,6 @@
     <span class="sd">&quot;&quot;&quot;New function with partial application of the given arguments</span>
 <span class="sd">    and keywords.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="s1">&#39;func&#39;</span><span class="p">):</span>
-        <span class="n">args</span> <span class="o">=</span> <span class="n">func</span><span class="o">.</span><span class="n">args</span> <span class="o">+</span> <span class="n">args</span>
-        <span class="n">tmpkw</span> <span class="o">=</span> <span class="n">func</span><span class="o">.</span><span class="n">keywords</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-        <span class="n">tmpkw</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">keywords</span><span class="p">)</span>
-        <span class="n">keywords</span> <span class="o">=</span> <span class="n">tmpkw</span>
-        <span class="k">del</span> <span class="n">tmpkw</span>
-        <span class="n">func</span> <span class="o">=</span> <span class="n">func</span><span class="o">.</span><span class="n">func</span>
-
     <span class="k">def</span> <span class="nf">newfunc</span><span class="p">(</span><span class="o">*</span><span class="n">fargs</span><span class="p">,</span> <span class="o">**</span><span class="n">fkeywords</span><span class="p">):</span>
         <span class="n">newkeywords</span> <span class="o">=</span> <span class="n">keywords</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
         <span class="n">newkeywords</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">fkeywords</span><span class="p">)</span>
@@ -330,7 +323,7 @@
                                  <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">keywords</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
         <span class="n">format_string</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{module}</span><span class="s2">.</span><span class="si">{cls}</span><span class="s2">(</span><span class="si">{func}</span><span class="s2">, </span><span class="si">{args}</span><span class="s2">, </span><span class="si">{keywords}</span><span class="s2">)&quot;</span>
         <span class="k">return</span> <span class="n">format_string</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">module</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__module__</span><span class="p">,</span>
-                                    <span class="bp">cls</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__qualname__</span><span class="p">,</span>
+                                    <span class="bp">cls</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
                                     <span class="n">func</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">func</span><span class="p">,</span>
                                     <span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">,</span>
                                     <span class="n">keywords</span><span class="o">=</span><span class="n">keywords</span><span class="p">)</span>
@@ -451,131 +444,120 @@
     <span class="k">if</span> <span class="n">maxsize</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">maxsize</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Expected maxsize to be an integer or None&#39;</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">decorating_function</span><span class="p">(</span><span class="n">user_function</span><span class="p">):</span>
-        <span class="n">wrapper</span> <span class="o">=</span> <span class="n">_lru_cache_wrapper</span><span class="p">(</span><span class="n">user_function</span><span class="p">,</span> <span class="n">maxsize</span><span class="p">,</span> <span class="n">typed</span><span class="p">,</span> <span class="n">_CacheInfo</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">update_wrapper</span><span class="p">(</span><span class="n">wrapper</span><span class="p">,</span> <span class="n">user_function</span><span class="p">)</span>
-
-    <span class="k">return</span> <span class="n">decorating_function</span>
-
-<span class="k">def</span> <span class="nf">_lru_cache_wrapper</span><span class="p">(</span><span class="n">user_function</span><span class="p">,</span> <span class="n">maxsize</span><span class="p">,</span> <span class="n">typed</span><span class="p">,</span> <span class="n">_CacheInfo</span><span class="p">):</span>
     <span class="c1"># Constants shared by all lru cache instances:</span>
     <span class="n">sentinel</span> <span class="o">=</span> <span class="nb">object</span><span class="p">()</span>          <span class="c1"># unique object used to signal cache misses</span>
     <span class="n">make_key</span> <span class="o">=</span> <span class="n">_make_key</span>         <span class="c1"># build a key from the function arguments</span>
     <span class="n">PREV</span><span class="p">,</span> <span class="n">NEXT</span><span class="p">,</span> <span class="n">KEY</span><span class="p">,</span> <span class="n">RESULT</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span>   <span class="c1"># names for the link fields</span>
 
-    <span class="n">cache</span> <span class="o">=</span> <span class="p">{}</span>
-    <span class="n">hits</span> <span class="o">=</span> <span class="n">misses</span> <span class="o">=</span> <span class="mi">0</span>
-    <span class="n">full</span> <span class="o">=</span> <span class="kc">False</span>
-    <span class="n">cache_get</span> <span class="o">=</span> <span class="n">cache</span><span class="o">.</span><span class="n">get</span>    <span class="c1"># bound method to lookup a key or return None</span>
-    <span class="n">lock</span> <span class="o">=</span> <span class="n">RLock</span><span class="p">()</span>           <span class="c1"># because linkedlist updates aren&#39;t threadsafe</span>
-    <span class="n">root</span> <span class="o">=</span> <span class="p">[]</span>                <span class="c1"># root of the circular doubly linked list</span>
-    <span class="n">root</span><span class="p">[:]</span> <span class="o">=</span> <span class="p">[</span><span class="n">root</span><span class="p">,</span> <span class="n">root</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>     <span class="c1"># initialize by pointing to self</span>
+    <span class="k">def</span> <span class="nf">decorating_function</span><span class="p">(</span><span class="n">user_function</span><span class="p">):</span>
+        <span class="n">cache</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">hits</span> <span class="o">=</span> <span class="n">misses</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">full</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">cache_get</span> <span class="o">=</span> <span class="n">cache</span><span class="o">.</span><span class="n">get</span>    <span class="c1"># bound method to lookup a key or return None</span>
+        <span class="n">lock</span> <span class="o">=</span> <span class="n">RLock</span><span class="p">()</span>           <span class="c1"># because linkedlist updates aren&#39;t threadsafe</span>
+        <span class="n">root</span> <span class="o">=</span> <span class="p">[]</span>                <span class="c1"># root of the circular doubly linked list</span>
+        <span class="n">root</span><span class="p">[:]</span> <span class="o">=</span> <span class="p">[</span><span class="n">root</span><span class="p">,</span> <span class="n">root</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>     <span class="c1"># initialize by pointing to self</span>
 
-    <span class="k">if</span> <span class="n">maxsize</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">maxsize</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
 
-        <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwds</span><span class="p">):</span>
-            <span class="c1"># No caching -- just a statistics update after a successful call</span>
-            <span class="k">nonlocal</span> <span class="n">misses</span>
-            <span class="n">result</span> <span class="o">=</span> <span class="n">user_function</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwds</span><span class="p">)</span>
-            <span class="n">misses</span> <span class="o">+=</span> <span class="mi">1</span>
-            <span class="k">return</span> <span class="n">result</span>
-
-    <span class="k">elif</span> <span class="n">maxsize</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-
-        <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwds</span><span class="p">):</span>
-            <span class="c1"># Simple caching without ordering or size limit</span>
-            <span class="k">nonlocal</span> <span class="n">hits</span><span class="p">,</span> <span class="n">misses</span>
-            <span class="n">key</span> <span class="o">=</span> <span class="n">make_key</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">kwds</span><span class="p">,</span> <span class="n">typed</span><span class="p">)</span>
-            <span class="n">result</span> <span class="o">=</span> <span class="n">cache_get</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">sentinel</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">result</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">sentinel</span><span class="p">:</span>
-                <span class="n">hits</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwds</span><span class="p">):</span>
+                <span class="c1"># No caching -- just a statistics update after a successful call</span>
+                <span class="k">nonlocal</span> <span class="n">misses</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">user_function</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwds</span><span class="p">)</span>
+                <span class="n">misses</span> <span class="o">+=</span> <span class="mi">1</span>
                 <span class="k">return</span> <span class="n">result</span>
-            <span class="n">result</span> <span class="o">=</span> <span class="n">user_function</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwds</span><span class="p">)</span>
-            <span class="n">cache</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span>
-            <span class="n">misses</span> <span class="o">+=</span> <span class="mi">1</span>
-            <span class="k">return</span> <span class="n">result</span>
 
-    <span class="k">else</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="n">maxsize</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
 
-        <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwds</span><span class="p">):</span>
-            <span class="c1"># Size limited caching that tracks accesses by recency</span>
-            <span class="k">nonlocal</span> <span class="n">root</span><span class="p">,</span> <span class="n">hits</span><span class="p">,</span> <span class="n">misses</span><span class="p">,</span> <span class="n">full</span>
-            <span class="n">key</span> <span class="o">=</span> <span class="n">make_key</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">kwds</span><span class="p">,</span> <span class="n">typed</span><span class="p">)</span>
-            <span class="k">with</span> <span class="n">lock</span><span class="p">:</span>
-                <span class="n">link</span> <span class="o">=</span> <span class="n">cache_get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
-                <span class="k">if</span> <span class="n">link</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                    <span class="c1"># Move the link to the front of the circular queue</span>
-                    <span class="n">link_prev</span><span class="p">,</span> <span class="n">link_next</span><span class="p">,</span> <span class="n">_key</span><span class="p">,</span> <span class="n">result</span> <span class="o">=</span> <span class="n">link</span>
-                    <span class="n">link_prev</span><span class="p">[</span><span class="n">NEXT</span><span class="p">]</span> <span class="o">=</span> <span class="n">link_next</span>
-                    <span class="n">link_next</span><span class="p">[</span><span class="n">PREV</span><span class="p">]</span> <span class="o">=</span> <span class="n">link_prev</span>
-                    <span class="n">last</span> <span class="o">=</span> <span class="n">root</span><span class="p">[</span><span class="n">PREV</span><span class="p">]</span>
-                    <span class="n">last</span><span class="p">[</span><span class="n">NEXT</span><span class="p">]</span> <span class="o">=</span> <span class="n">root</span><span class="p">[</span><span class="n">PREV</span><span class="p">]</span> <span class="o">=</span> <span class="n">link</span>
-                    <span class="n">link</span><span class="p">[</span><span class="n">PREV</span><span class="p">]</span> <span class="o">=</span> <span class="n">last</span>
-                    <span class="n">link</span><span class="p">[</span><span class="n">NEXT</span><span class="p">]</span> <span class="o">=</span> <span class="n">root</span>
+            <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwds</span><span class="p">):</span>
+                <span class="c1"># Simple caching without ordering or size limit</span>
+                <span class="k">nonlocal</span> <span class="n">hits</span><span class="p">,</span> <span class="n">misses</span>
+                <span class="n">key</span> <span class="o">=</span> <span class="n">make_key</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">kwds</span><span class="p">,</span> <span class="n">typed</span><span class="p">)</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">cache_get</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">sentinel</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">result</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">sentinel</span><span class="p">:</span>
                     <span class="n">hits</span> <span class="o">+=</span> <span class="mi">1</span>
                     <span class="k">return</span> <span class="n">result</span>
-            <span class="n">result</span> <span class="o">=</span> <span class="n">user_function</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwds</span><span class="p">)</span>
-            <span class="k">with</span> <span class="n">lock</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">cache</span><span class="p">:</span>
-                    <span class="c1"># Getting here means that this same key was added to the</span>
-                    <span class="c1"># cache while the lock was released.  Since the link</span>
-                    <span class="c1"># update is already done, we need only return the</span>
-                    <span class="c1"># computed result and update the count of misses.</span>
-                    <span class="k">pass</span>
-                <span class="k">elif</span> <span class="n">full</span><span class="p">:</span>
-                    <span class="c1"># Use the old root to store the new key and result.</span>
-                    <span class="n">oldroot</span> <span class="o">=</span> <span class="n">root</span>
-                    <span class="n">oldroot</span><span class="p">[</span><span class="n">KEY</span><span class="p">]</span> <span class="o">=</span> <span class="n">key</span>
-                    <span class="n">oldroot</span><span class="p">[</span><span class="n">RESULT</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span>
-                    <span class="c1"># Empty the oldest link and make it the new root.</span>
-                    <span class="c1"># Keep a reference to the old key and old result to</span>
-                    <span class="c1"># prevent their ref counts from going to zero during the</span>
-                    <span class="c1"># update. That will prevent potentially arbitrary object</span>
-                    <span class="c1"># clean-up code (i.e. __del__) from running while we&#39;re</span>
-                    <span class="c1"># still adjusting the links.</span>
-                    <span class="n">root</span> <span class="o">=</span> <span class="n">oldroot</span><span class="p">[</span><span class="n">NEXT</span><span class="p">]</span>
-                    <span class="n">oldkey</span> <span class="o">=</span> <span class="n">root</span><span class="p">[</span><span class="n">KEY</span><span class="p">]</span>
-                    <span class="n">oldresult</span> <span class="o">=</span> <span class="n">root</span><span class="p">[</span><span class="n">RESULT</span><span class="p">]</span>
-                    <span class="n">root</span><span class="p">[</span><span class="n">KEY</span><span class="p">]</span> <span class="o">=</span> <span class="n">root</span><span class="p">[</span><span class="n">RESULT</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-                    <span class="c1"># Now update the cache dictionary.</span>
-                    <span class="k">del</span> <span class="n">cache</span><span class="p">[</span><span class="n">oldkey</span><span class="p">]</span>
-                    <span class="c1"># Save the potentially reentrant cache[key] assignment</span>
-                    <span class="c1"># for last, after the root and links have been put in</span>
-                    <span class="c1"># a consistent state.</span>
-                    <span class="n">cache</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">oldroot</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="c1"># Put result in a new link at the front of the queue.</span>
-                    <span class="n">last</span> <span class="o">=</span> <span class="n">root</span><span class="p">[</span><span class="n">PREV</span><span class="p">]</span>
-                    <span class="n">link</span> <span class="o">=</span> <span class="p">[</span><span class="n">last</span><span class="p">,</span> <span class="n">root</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">result</span><span class="p">]</span>
-                    <span class="n">last</span><span class="p">[</span><span class="n">NEXT</span><span class="p">]</span> <span class="o">=</span> <span class="n">root</span><span class="p">[</span><span class="n">PREV</span><span class="p">]</span> <span class="o">=</span> <span class="n">cache</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">link</span>
-                    <span class="c1"># Use the __len__() method instead of the len() function</span>
-                    <span class="c1"># which could potentially be wrapped in an lru_cache itself.</span>
-                    <span class="n">full</span> <span class="o">=</span> <span class="p">(</span><span class="n">cache</span><span class="o">.</span><span class="fm">__len__</span><span class="p">()</span> <span class="o">&gt;=</span> <span class="n">maxsize</span><span class="p">)</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">user_function</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwds</span><span class="p">)</span>
+                <span class="n">cache</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span>
                 <span class="n">misses</span> <span class="o">+=</span> <span class="mi">1</span>
-            <span class="k">return</span> <span class="n">result</span>
+                <span class="k">return</span> <span class="n">result</span>
 
-    <span class="k">def</span> <span class="nf">cache_info</span><span class="p">():</span>
-        <span class="sd">&quot;&quot;&quot;Report cache statistics&quot;&quot;&quot;</span>
-        <span class="k">with</span> <span class="n">lock</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">_CacheInfo</span><span class="p">(</span><span class="n">hits</span><span class="p">,</span> <span class="n">misses</span><span class="p">,</span> <span class="n">maxsize</span><span class="p">,</span> <span class="n">cache</span><span class="o">.</span><span class="fm">__len__</span><span class="p">())</span>
+        <span class="k">else</span><span class="p">:</span>
 
-    <span class="k">def</span> <span class="nf">cache_clear</span><span class="p">():</span>
-        <span class="sd">&quot;&quot;&quot;Clear the cache and cache statistics&quot;&quot;&quot;</span>
-        <span class="k">nonlocal</span> <span class="n">hits</span><span class="p">,</span> <span class="n">misses</span><span class="p">,</span> <span class="n">full</span>
-        <span class="k">with</span> <span class="n">lock</span><span class="p">:</span>
-            <span class="n">cache</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
-            <span class="n">root</span><span class="p">[:]</span> <span class="o">=</span> <span class="p">[</span><span class="n">root</span><span class="p">,</span> <span class="n">root</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
-            <span class="n">hits</span> <span class="o">=</span> <span class="n">misses</span> <span class="o">=</span> <span class="mi">0</span>
-            <span class="n">full</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwds</span><span class="p">):</span>
+                <span class="c1"># Size limited caching that tracks accesses by recency</span>
+                <span class="k">nonlocal</span> <span class="n">root</span><span class="p">,</span> <span class="n">hits</span><span class="p">,</span> <span class="n">misses</span><span class="p">,</span> <span class="n">full</span>
+                <span class="n">key</span> <span class="o">=</span> <span class="n">make_key</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">kwds</span><span class="p">,</span> <span class="n">typed</span><span class="p">)</span>
+                <span class="k">with</span> <span class="n">lock</span><span class="p">:</span>
+                    <span class="n">link</span> <span class="o">=</span> <span class="n">cache_get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">link</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="c1"># Move the link to the front of the circular queue</span>
+                        <span class="n">link_prev</span><span class="p">,</span> <span class="n">link_next</span><span class="p">,</span> <span class="n">_key</span><span class="p">,</span> <span class="n">result</span> <span class="o">=</span> <span class="n">link</span>
+                        <span class="n">link_prev</span><span class="p">[</span><span class="n">NEXT</span><span class="p">]</span> <span class="o">=</span> <span class="n">link_next</span>
+                        <span class="n">link_next</span><span class="p">[</span><span class="n">PREV</span><span class="p">]</span> <span class="o">=</span> <span class="n">link_prev</span>
+                        <span class="n">last</span> <span class="o">=</span> <span class="n">root</span><span class="p">[</span><span class="n">PREV</span><span class="p">]</span>
+                        <span class="n">last</span><span class="p">[</span><span class="n">NEXT</span><span class="p">]</span> <span class="o">=</span> <span class="n">root</span><span class="p">[</span><span class="n">PREV</span><span class="p">]</span> <span class="o">=</span> <span class="n">link</span>
+                        <span class="n">link</span><span class="p">[</span><span class="n">PREV</span><span class="p">]</span> <span class="o">=</span> <span class="n">last</span>
+                        <span class="n">link</span><span class="p">[</span><span class="n">NEXT</span><span class="p">]</span> <span class="o">=</span> <span class="n">root</span>
+                        <span class="n">hits</span> <span class="o">+=</span> <span class="mi">1</span>
+                        <span class="k">return</span> <span class="n">result</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">user_function</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwds</span><span class="p">)</span>
+                <span class="k">with</span> <span class="n">lock</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">cache</span><span class="p">:</span>
+                        <span class="c1"># Getting here means that this same key was added to the</span>
+                        <span class="c1"># cache while the lock was released.  Since the link</span>
+                        <span class="c1"># update is already done, we need only return the</span>
+                        <span class="c1"># computed result and update the count of misses.</span>
+                        <span class="k">pass</span>
+                    <span class="k">elif</span> <span class="n">full</span><span class="p">:</span>
+                        <span class="c1"># Use the old root to store the new key and result.</span>
+                        <span class="n">oldroot</span> <span class="o">=</span> <span class="n">root</span>
+                        <span class="n">oldroot</span><span class="p">[</span><span class="n">KEY</span><span class="p">]</span> <span class="o">=</span> <span class="n">key</span>
+                        <span class="n">oldroot</span><span class="p">[</span><span class="n">RESULT</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span>
+                        <span class="c1"># Empty the oldest link and make it the new root.</span>
+                        <span class="c1"># Keep a reference to the old key and old result to</span>
+                        <span class="c1"># prevent their ref counts from going to zero during the</span>
+                        <span class="c1"># update. That will prevent potentially arbitrary object</span>
+                        <span class="c1"># clean-up code (i.e. __del__) from running while we&#39;re</span>
+                        <span class="c1"># still adjusting the links.</span>
+                        <span class="n">root</span> <span class="o">=</span> <span class="n">oldroot</span><span class="p">[</span><span class="n">NEXT</span><span class="p">]</span>
+                        <span class="n">oldkey</span> <span class="o">=</span> <span class="n">root</span><span class="p">[</span><span class="n">KEY</span><span class="p">]</span>
+                        <span class="n">oldresult</span> <span class="o">=</span> <span class="n">root</span><span class="p">[</span><span class="n">RESULT</span><span class="p">]</span>
+                        <span class="n">root</span><span class="p">[</span><span class="n">KEY</span><span class="p">]</span> <span class="o">=</span> <span class="n">root</span><span class="p">[</span><span class="n">RESULT</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+                        <span class="c1"># Now update the cache dictionary.</span>
+                        <span class="k">del</span> <span class="n">cache</span><span class="p">[</span><span class="n">oldkey</span><span class="p">]</span>
+                        <span class="c1"># Save the potentially reentrant cache[key] assignment</span>
+                        <span class="c1"># for last, after the root and links have been put in</span>
+                        <span class="c1"># a consistent state.</span>
+                        <span class="n">cache</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">oldroot</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="c1"># Put result in a new link at the front of the queue.</span>
+                        <span class="n">last</span> <span class="o">=</span> <span class="n">root</span><span class="p">[</span><span class="n">PREV</span><span class="p">]</span>
+                        <span class="n">link</span> <span class="o">=</span> <span class="p">[</span><span class="n">last</span><span class="p">,</span> <span class="n">root</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">result</span><span class="p">]</span>
+                        <span class="n">last</span><span class="p">[</span><span class="n">NEXT</span><span class="p">]</span> <span class="o">=</span> <span class="n">root</span><span class="p">[</span><span class="n">PREV</span><span class="p">]</span> <span class="o">=</span> <span class="n">cache</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">link</span>
+                        <span class="n">full</span> <span class="o">=</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cache</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">maxsize</span><span class="p">)</span>
+                    <span class="n">misses</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">return</span> <span class="n">result</span>
 
-    <span class="n">wrapper</span><span class="o">.</span><span class="n">cache_info</span> <span class="o">=</span> <span class="n">cache_info</span>
-    <span class="n">wrapper</span><span class="o">.</span><span class="n">cache_clear</span> <span class="o">=</span> <span class="n">cache_clear</span>
-    <span class="k">return</span> <span class="n">wrapper</span>
+        <span class="k">def</span> <span class="nf">cache_info</span><span class="p">():</span>
+            <span class="sd">&quot;&quot;&quot;Report cache statistics&quot;&quot;&quot;</span>
+            <span class="k">with</span> <span class="n">lock</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">_CacheInfo</span><span class="p">(</span><span class="n">hits</span><span class="p">,</span> <span class="n">misses</span><span class="p">,</span> <span class="n">maxsize</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">cache</span><span class="p">))</span>
 
-<span class="k">try</span><span class="p">:</span>
-    <span class="kn">from</span> <span class="nn">_functools</span> <span class="k">import</span> <span class="n">_lru_cache_wrapper</span>
-<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
-    <span class="k">pass</span>
+        <span class="k">def</span> <span class="nf">cache_clear</span><span class="p">():</span>
+            <span class="sd">&quot;&quot;&quot;Clear the cache and cache statistics&quot;&quot;&quot;</span>
+            <span class="k">nonlocal</span> <span class="n">hits</span><span class="p">,</span> <span class="n">misses</span><span class="p">,</span> <span class="n">full</span>
+            <span class="k">with</span> <span class="n">lock</span><span class="p">:</span>
+                <span class="n">cache</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+                <span class="n">root</span><span class="p">[:]</span> <span class="o">=</span> <span class="p">[</span><span class="n">root</span><span class="p">,</span> <span class="n">root</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
+                <span class="n">hits</span> <span class="o">=</span> <span class="n">misses</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="n">full</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="n">wrapper</span><span class="o">.</span><span class="n">cache_info</span> <span class="o">=</span> <span class="n">cache_info</span>
+        <span class="n">wrapper</span><span class="o">.</span><span class="n">cache_clear</span> <span class="o">=</span> <span class="n">cache_clear</span>
+        <span class="k">return</span> <span class="n">update_wrapper</span><span class="p">(</span><span class="n">wrapper</span><span class="p">,</span> <span class="n">user_function</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">decorating_function</span>
 
 
 <span class="c1">################################################################################</span>
