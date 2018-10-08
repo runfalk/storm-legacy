@@ -197,11 +197,11 @@ auto_table entries injected by compiling the given expression.</p>
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Variables:</th><td class="field-body"><ul class="first last simple">
 <li><a class="reference internal" href="#storm.expr.Sequence.name" title="storm.expr.Sequence.name"><strong>name</strong></a> – Column name.</li>
-<li><a class="reference internal" href="#storm.expr.Update.table" title="storm.expr.Update.table"><strong>table</strong></a> – Column table (maybe another expression).</li>
+<li><a class="reference internal" href="#storm.expr.Delete.table" title="storm.expr.Delete.table"><strong>table</strong></a> – Column table (maybe another expression).</li>
 <li><a class="reference internal" href="#storm.expr.Column.primary" title="storm.expr.Column.primary"><strong>primary</strong></a> – Integer representing the primary key position of
 this column, or 0 if it’s not a primary key. May be provided as
 a bool.</li>
-<li><a class="reference internal" href="#storm.expr.Column.variable_factory" title="storm.expr.Column.variable_factory"><strong>variable_factory</strong></a> – Factory producing <code class="xref py py-obj docutils literal notranslate"><span class="pre">Variable</span></code> instances typed
+<li><a class="reference internal" href="columns.html#storm.references.Proxy.variable_factory" title="storm.references.Proxy.variable_factory"><strong>variable_factory</strong></a> – Factory producing <code class="xref py py-obj docutils literal notranslate"><span class="pre">Variable</span></code> instances typed
 according to this column.</li>
 </ul>
 </td>
@@ -461,15 +461,9 @@ being compiled in a given context.</p>
 <dl class="attribute">
 <dt id="storm.expr.Func.name">
 <code class="descname">name</code><a class="headerlink" href="#storm.expr.Func.name" title="Permalink to this definition">¶</a></dt>
-<dd><p>str(object=’‘) -&gt; str
-str(bytes_or_buffer[, encoding[, errors]]) -&gt; str</p>
-<p>Create a new string object from the given object. If encoding or
-errors is specified, then the object must expose a data buffer
-that will be decoded using the given encoding and error handler.
-Otherwise, returns the result of object.__str__() (if defined)
-or repr(object).
-encoding defaults to sys.getdefaultencoding().
-errors defaults to ‘strict’.</p>
+<dd><p>str(object=’‘) -&gt; string</p>
+<p>Return a nice string representation of the object.
+If the argument is a string, the return value is the same object.</p>
 </dd></dl>
 
 </dd></dl>
@@ -530,7 +524,7 @@ errors defaults to ‘strict’.</p>
 <tr class="field-odd field"><th class="field-name">Variables:</th><td class="field-body"><ul class="first last simple">
 <li><a class="reference internal" href="#storm.expr.Update.map" title="storm.expr.Update.map"><strong>map</strong></a> – Dictionary mapping columns to values, or a sequence of columns
 for a bulk insert.</li>
-<li><a class="reference internal" href="#storm.expr.Update.table" title="storm.expr.Update.table"><strong>table</strong></a> – Table where the row should be inserted.</li>
+<li><a class="reference internal" href="#storm.expr.Delete.table" title="storm.expr.Delete.table"><strong>table</strong></a> – Table where the row should be inserted.</li>
 <li><a class="reference internal" href="#storm.expr.Update.default_table" title="storm.expr.Update.default_table"><strong>default_table</strong></a> – Table to use if no table is explicitly provided, and
 no tables may be inferred from provided columns.</li>
 <li><a class="reference internal" href="#storm.expr.Insert.primary_columns" title="storm.expr.Insert.primary_columns"><strong>primary_columns</strong></a> – Tuple of columns forming the primary key of the
@@ -1449,7 +1443,7 @@ instead. If neither <code class="xref py py-obj docutils literal notranslate"><s
 <dl class="function">
 <dt id="storm.expr.is_safe_token">
 <code class="descclassname">storm.expr.</code><code class="descname">is_safe_token</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#storm.expr.is_safe_token" title="Permalink to this definition">¶</a></dt>
-<dd><p>match(string[, pos[, endpos]]) -&gt; match object or None.
+<dd><p>match(string[, pos[, endpos]]) –&gt; match object or None.
 Matches zero or more characters at the beginning of the string</p>
 </dd></dl>
 
