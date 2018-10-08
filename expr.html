@@ -531,7 +531,7 @@ errors defaults to ‘strict’.</p>
 <li><a class="reference internal" href="#storm.expr.Insert.map" title="storm.expr.Insert.map"><strong>map</strong></a> – Dictionary mapping columns to values, or a sequence of columns
 for a bulk insert.</li>
 <li><a class="reference internal" href="#storm.expr.Column.table" title="storm.expr.Column.table"><strong>table</strong></a> – Table where the row should be inserted.</li>
-<li><a class="reference internal" href="#storm.expr.Update.default_table" title="storm.expr.Update.default_table"><strong>default_table</strong></a> – Table to use if no table is explicitly provided, and
+<li><a class="reference internal" href="#storm.expr.Delete.default_table" title="storm.expr.Delete.default_table"><strong>default_table</strong></a> – Table to use if no table is explicitly provided, and
 no tables may be inferred from provided columns.</li>
 <li><a class="reference internal" href="#storm.expr.Insert.primary_columns" title="storm.expr.Insert.primary_columns"><strong>primary_columns</strong></a> – Tuple of columns forming the primary key of the
 table where the row will be inserted.  This is a hint used by backends
@@ -1449,8 +1449,7 @@ instead. If neither <code class="xref py py-obj docutils literal notranslate"><s
 <dl class="function">
 <dt id="storm.expr.is_safe_token">
 <code class="descclassname">storm.expr.</code><code class="descname">is_safe_token</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#storm.expr.is_safe_token" title="Permalink to this definition">¶</a></dt>
-<dd><p>match(string[, pos[, endpos]]) -&gt; match object or None.
-Matches zero or more characters at the beginning of the string</p>
+<dd><p>Matches zero or more characters at the beginning of the string.</p>
 </dd></dl>
 
 </div>
