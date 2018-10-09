@@ -49,7 +49,7 @@ supported in modules in <code class="xref py py-obj docutils literal notranslate
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Variables:</th><td class="field-body"><a class="reference internal" href="#storm.databases.sqlite.SQLite.connection_factory" title="storm.databases.sqlite.SQLite.connection_factory"><strong>connection_factory</strong></a> – A callable which will take this database
+<tr class="field-odd field"><th class="field-name">Variables:</th><td class="field-body"><a class="reference internal" href="#storm.database.Database.connection_factory" title="storm.database.Database.connection_factory"><strong>connection_factory</strong></a> – A callable which will take this database
 and should return an instance of <a class="reference internal" href="#storm.database.Connection" title="storm.database.Connection"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Connection</span></code></a>.</td>
 </tr>
 </tbody>
@@ -114,10 +114,10 @@ database-specific connection setup.</p>
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Variables:</th><td class="field-body"><ul class="first last simple">
-<li><a class="reference internal" href="#storm.databases.sqlite.SQLiteConnection.result_factory" title="storm.databases.sqlite.SQLiteConnection.result_factory"><strong>result_factory</strong></a> – A callable which takes this <a class="reference internal" href="#storm.database.Connection" title="storm.database.Connection"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Connection</span></code></a>
+<li><a class="reference internal" href="#storm.database.Connection.result_factory" title="storm.database.Connection.result_factory"><strong>result_factory</strong></a> – A callable which takes this <a class="reference internal" href="#storm.database.Connection" title="storm.database.Connection"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Connection</span></code></a>
 and the backend cursor and returns an instance of <a class="reference internal" href="#storm.database.Result" title="storm.database.Result"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Result</span></code></a>.</li>
 <li><a class="reference internal" href="#storm.database.Connection.param_mark" title="storm.database.Connection.param_mark"><strong>param_mark</strong></a> – The dbapi paramstyle that the database backend expects.</li>
-<li><a class="reference internal" href="#storm.databases.sqlite.SQLiteConnection.compile" title="storm.databases.sqlite.SQLiteConnection.compile"><strong>compile</strong></a> – The compiler to use for connections of this type.</li>
+<li><a class="reference internal" href="#storm.database.Connection.compile" title="storm.database.Connection.compile"><strong>compile</strong></a> – The compiler to use for connections of this type.</li>
 </ul>
 </td>
 </tr>
