@@ -35,6 +35,7 @@ setup(
         "dev": [
             "fixtures>=0.3.5",
             "freezegun",
+            "mock>=2.0.0",
             "psycopg2-binary>=2.5",
             "pytest>=3",
             "testresources>=0.2.4",
