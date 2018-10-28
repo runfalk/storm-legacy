@@ -30,7 +30,7 @@ before_script:
 script:
   - STORM_CEXTENSIONS=0 pytest
   - STORM_CEXTENSIONS=1 pytest
-  - sphinx-build doc/ doc-build/
+  - if [[ $TRAVIS_PYTHON_VERSION == "2.7" ]]; then sphinx-build doc/ doc-build/; fi
 deploy:
   provider: pages
   skip-cleanup: true
@@ -40,3 +40,4 @@ deploy:
   local-dir: doc-build
   on:
     branch: master
+    condition: $TRAVIS_PYTHON_VERSION == "2.7"
