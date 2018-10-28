@@ -22,7 +22,7 @@ from datetime import date, time, timedelta
 import os
 import json
 
-from storm.compat import bstr, ustr
+from storm.compat import bstr, iter_range, ustr
 from storm.databases.postgres import (
     Postgres, compile, currval, Returning, Case, PostgresTimeoutTracer,
     make_dsn, JSONElement, JSONTextElement, JSON)
@@ -33,23 +33,24 @@ from storm.variables import DateTimeVariable, RawStrVariable
 from storm.variables import ListVariable, IntVariable, Variable
 from storm.properties import Int
 from storm.exceptions import DisconnectionError, OperationalError
-from storm.expr import (Union, Select, Insert, Update, Alias, SQLRaw, State,
-                        Sequence, Like, Column, COLUMN, Cast, Func)
+from storm.expr import (
+    Union, Select, Insert, Update, Alias, SQLRaw, SQLToken, State, Sequence,
+    Like, Column, COLUMN, Cast, Func, FromExpr,
+)
 from storm.tracer import install_tracer, TimeoutError
 from storm.uri import URI
 
 # We need the info to register the 'type' compiler.  In normal
 # circumstances this is naturally imported.
 import storm.info
-storm  # Silence lint.
 
 from tests import has_fixtures, has_subunit
 from tests.databases.base import (
     DatabaseTest, DatabaseDisconnectionTest, UnsupportedDatabaseTest,
     TwoPhaseCommitTest, TwoPhaseCommitDisconnectionTest)
-from tests.expr import column1, column2, column3, elem1, table1, TrackContext
 from tests.tracer import TimeoutTracerTestBase
 from tests.helper import TestHelper
+
 
 try:
     import pgbouncer
@@ -57,6 +58,28 @@ except ImportError:
     has_pgbouncer = False
 else:
     has_pgbouncer = True
+
+
+# Create columnN, tableN, and elemN variables.
+for i in iter_range(10):
+    for name in ["column", "elem"]:
+        exec("%s%d = SQLToken('%s%d')" % (name, i, name, i))
+    for name in ["table"]:
+        exec("%s%d = '%s %d'" % (name, i, name, i))
+
+
+class TrackContext(FromExpr):
+    context = None
+
+
+@compile.when(TrackContext)
+def compile_track_context(compile, expr, state):
+    expr.context = state.context
+    return ""
+
+
+def track_contexts(n):
+    return [TrackContext() for i in iter_range(n)]
 
 
 def terminate_other_backends(connection):
