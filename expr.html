@@ -196,7 +196,7 @@ auto_table entries injected by compiling the given expression.</p>
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Variables:</th><td class="field-body"><ul class="first last simple">
-<li><a class="reference internal" href="databases.html#storm.databases.postgres.currval.name" title="storm.databases.postgres.currval.name"><strong>name</strong></a> – Column name.</li>
+<li><a class="reference internal" href="#storm.expr.Alias.name" title="storm.expr.Alias.name"><strong>name</strong></a> – Column name.</li>
 <li><a class="reference internal" href="#storm.expr.Column.table" title="storm.expr.Column.table"><strong>table</strong></a> – Column table (maybe another expression).</li>
 <li><a class="reference internal" href="#storm.expr.Column.primary" title="storm.expr.Column.primary"><strong>primary</strong></a> – Integer representing the primary key position of
 this column, or 0 if it’s not a primary key. May be provided as
@@ -528,7 +528,7 @@ errors defaults to ‘strict’.</p>
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Variables:</th><td class="field-body"><ul class="first last simple">
-<li><a class="reference internal" href="#storm.expr.Insert.map" title="storm.expr.Insert.map"><strong>map</strong></a> – Dictionary mapping columns to values, or a sequence of columns
+<li><a class="reference internal" href="#storm.expr.Update.map" title="storm.expr.Update.map"><strong>map</strong></a> – Dictionary mapping columns to values, or a sequence of columns
 for a bulk insert.</li>
 <li><a class="reference internal" href="#storm.expr.Column.table" title="storm.expr.Column.table"><strong>table</strong></a> – Table where the row should be inserted.</li>
 <li><a class="reference internal" href="#storm.expr.Delete.default_table" title="storm.expr.Delete.default_table"><strong>default_table</strong></a> – Table to use if no table is explicitly provided, and
@@ -539,7 +539,7 @@ to process the insertion of rows.</li>
 <li><a class="reference internal" href="#storm.expr.Insert.primary_variables" title="storm.expr.Insert.primary_variables"><strong>primary_variables</strong></a> – Tuple of variables with values for the primary
 key of the table where the row will be inserted.  This is a hint used
 by backends to process the insertion of rows.</li>
-<li><a class="reference internal" href="#storm.expr.Insert.values" title="storm.expr.Insert.values"><strong>values</strong></a> – Expression or sequence of tuples of values for bulk
+<li><a class="reference internal" href="store.html#storm.store.EmptyResultSet.values" title="storm.store.EmptyResultSet.values"><strong>values</strong></a> – Expression or sequence of tuples of values for bulk
 insertion.</li>
 </ul>
 </td>
@@ -1449,7 +1449,8 @@ instead. If neither <code class="xref py py-obj docutils literal notranslate"><s
 <dl class="function">
 <dt id="storm.expr.is_safe_token">
 <code class="descclassname">storm.expr.</code><code class="descname">is_safe_token</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#storm.expr.is_safe_token" title="Permalink to this definition">¶</a></dt>
-<dd><p>Matches zero or more characters at the beginning of the string.</p>
+<dd><p>match(string[, pos[, endpos]]) -&gt; match object or None.
+Matches zero or more characters at the beginning of the string</p>
 </dd></dl>
 
 </div>
