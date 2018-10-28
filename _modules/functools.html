@@ -54,9 +54,16 @@
     <span class="k">pass</span>
 <span class="kn">from</span> <span class="nn">abc</span> <span class="k">import</span> <span class="n">get_cache_token</span>
 <span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">namedtuple</span>
-<span class="c1"># import types, weakref  # Deferred to single_dispatch()</span>
+<span class="kn">from</span> <span class="nn">types</span> <span class="k">import</span> <span class="n">MappingProxyType</span>
+<span class="kn">from</span> <span class="nn">weakref</span> <span class="k">import</span> <span class="n">WeakKeyDictionary</span>
 <span class="kn">from</span> <span class="nn">reprlib</span> <span class="k">import</span> <span class="n">recursive_repr</span>
-<span class="kn">from</span> <span class="nn">_thread</span> <span class="k">import</span> <span class="n">RLock</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">_thread</span> <span class="k">import</span> <span class="n">RLock</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="k">class</span> <span class="nc">RLock</span><span class="p">:</span>
+        <span class="s1">&#39;Dummy reentrant lock for builds without threads&#39;</span>
+        <span class="k">def</span> <span class="nf">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="k">pass</span>
+        <span class="k">def</span> <span class="nf">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exctype</span><span class="p">,</span> <span class="n">excinst</span><span class="p">,</span> <span class="n">exctb</span><span class="p">):</span> <span class="k">pass</span>
 
 
 <span class="c1">################################################################################</span>
@@ -221,7 +228,7 @@
 <span class="k">def</span> <span class="nf">total_ordering</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Class decorator that fills in missing ordering methods&quot;&quot;&quot;</span>
     <span class="c1"># Find user-defined comparisons (not those inherited from object).</span>
-    <span class="n">roots</span> <span class="o">=</span> <span class="p">{</span><span class="n">op</span> <span class="k">for</span> <span class="n">op</span> <span class="ow">in</span> <span class="n">_convert</span> <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">op</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="nb">getattr</span><span class="p">(</span><span class="nb">object</span><span class="p">,</span> <span class="n">op</span><span class="p">,</span> <span class="kc">None</span><span class="p">)}</span>
+    <span class="n">roots</span> <span class="o">=</span> <span class="p">[</span><span class="n">op</span> <span class="k">for</span> <span class="n">op</span> <span class="ow">in</span> <span class="n">_convert</span> <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">op</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="nb">getattr</span><span class="p">(</span><span class="nb">object</span><span class="p">,</span> <span class="n">op</span><span class="p">,</span> <span class="kc">None</span><span class="p">)]</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">roots</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;must define at least one ordering operation: &lt; &gt; &lt;= &gt;=&#39;</span><span class="p">)</span>
     <span class="n">root</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">roots</span><span class="p">)</span>       <span class="c1"># prefer __lt__ to __le__ to __gt__ to __ge__</span>
@@ -460,10 +467,6 @@
 <span class="sd">    saves space and improves lookup speed.</span>
 
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="c1"># All of code below relies on kwds preserving the order input by the user.</span>
-    <span class="c1"># Formerly, we sorted() the kwds before looping.  The new way is *much*</span>
-    <span class="c1"># faster; however, it means that f(x=1, y=2) will now be treated as a</span>
-    <span class="c1"># distinct call from f(y=2, x=1) which will be cached separately.</span>
     <span class="n">key</span> <span class="o">=</span> <span class="n">args</span>
     <span class="k">if</span> <span class="n">kwds</span><span class="p">:</span>
         <span class="n">key</span> <span class="o">+=</span> <span class="n">kwd_mark</span>
@@ -787,14 +790,10 @@
 <span class="sd">    function acts as the default implementation, and additional</span>
 <span class="sd">    implementations can be registered using the register() attribute of the</span>
 <span class="sd">    generic function.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="c1"># There are many programs that use functools without singledispatch, so we</span>
-    <span class="c1"># trade-off making singledispatch marginally slower for the benefit of</span>
-    <span class="c1"># making start-up of such applications slightly faster.</span>
-    <span class="kn">import</span> <span class="nn">types</span><span class="o">,</span> <span class="nn">weakref</span>
 
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">registry</span> <span class="o">=</span> <span class="p">{}</span>
-    <span class="n">dispatch_cache</span> <span class="o">=</span> <span class="n">weakref</span><span class="o">.</span><span class="n">WeakKeyDictionary</span><span class="p">()</span>
+    <span class="n">dispatch_cache</span> <span class="o">=</span> <span class="n">WeakKeyDictionary</span><span class="p">()</span>
     <span class="n">cache_token</span> <span class="o">=</span> <span class="kc">None</span>
 
     <span class="k">def</span> <span class="nf">dispatch</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
@@ -828,23 +827,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">nonlocal</span> <span class="n">cache_token</span>
         <span class="k">if</span> <span class="n">func</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="nb">type</span><span class="p">):</span>
-                <span class="k">return</span> <span class="k">lambda</span> <span class="n">f</span><span class="p">:</span> <span class="n">register</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
-            <span class="n">ann</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="s1">&#39;__annotations__&#39;</span><span class="p">,</span> <span class="p">{})</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">ann</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
-                    <span class="n">f</span><span class="s2">&quot;Invalid first argument to `register()`: </span><span class="si">{cls!r}</span><span class="s2">. &quot;</span>
-                    <span class="n">f</span><span class="s2">&quot;Use either `@register(some_class)` or plain `@register` &quot;</span>
-                    <span class="n">f</span><span class="s2">&quot;on an annotated function.&quot;</span>
-                <span class="p">)</span>
-            <span class="n">func</span> <span class="o">=</span> <span class="bp">cls</span>
-
-            <span class="c1"># only import typing if annotation parsing is necessary</span>
-            <span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">get_type_hints</span>
-            <span class="n">argname</span><span class="p">,</span> <span class="bp">cls</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">get_type_hints</span><span class="p">(</span><span class="n">func</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">()))</span>
-            <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="nb">type</span><span class="p">),</span> <span class="p">(</span>
-                <span class="n">f</span><span class="s2">&quot;Invalid annotation for </span><span class="si">{argname!r}</span><span class="s2">. </span><span class="si">{cls!r}</span><span class="s2"> is not a class.&quot;</span>
-            <span class="p">)</span>
+            <span class="k">return</span> <span class="k">lambda</span> <span class="n">f</span><span class="p">:</span> <span class="n">register</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
         <span class="n">registry</span><span class="p">[</span><span class="bp">cls</span><span class="p">]</span> <span class="o">=</span> <span class="n">func</span>
         <span class="k">if</span> <span class="n">cache_token</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="s1">&#39;__abstractmethods__&#39;</span><span class="p">):</span>
             <span class="n">cache_token</span> <span class="o">=</span> <span class="n">get_cache_token</span><span class="p">()</span>
@@ -852,17 +835,12 @@
         <span class="k">return</span> <span class="n">func</span>
 
     <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kw</span><span class="p">):</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;</span><span class="si">{funcname}</span><span class="s1"> requires at least &#39;</span>
-                            <span class="s1">&#39;1 positional argument&#39;</span><span class="p">)</span>
-
         <span class="k">return</span> <span class="n">dispatch</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="vm">__class__</span><span class="p">)(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kw</span><span class="p">)</span>
 
-    <span class="n">funcname</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="s1">&#39;__name__&#39;</span><span class="p">,</span> <span class="s1">&#39;singledispatch function&#39;</span><span class="p">)</span>
     <span class="n">registry</span><span class="p">[</span><span class="nb">object</span><span class="p">]</span> <span class="o">=</span> <span class="n">func</span>
     <span class="n">wrapper</span><span class="o">.</span><span class="n">register</span> <span class="o">=</span> <span class="n">register</span>
     <span class="n">wrapper</span><span class="o">.</span><span class="n">dispatch</span> <span class="o">=</span> <span class="n">dispatch</span>
-    <span class="n">wrapper</span><span class="o">.</span><span class="n">registry</span> <span class="o">=</span> <span class="n">types</span><span class="o">.</span><span class="n">MappingProxyType</span><span class="p">(</span><span class="n">registry</span><span class="p">)</span>
+    <span class="n">wrapper</span><span class="o">.</span><span class="n">registry</span> <span class="o">=</span> <span class="n">MappingProxyType</span><span class="p">(</span><span class="n">registry</span><span class="p">)</span>
     <span class="n">wrapper</span><span class="o">.</span><span class="n">_clear_cache</span> <span class="o">=</span> <span class="n">dispatch_cache</span><span class="o">.</span><span class="n">clear</span>
     <span class="n">update_wrapper</span><span class="p">(</span><span class="n">wrapper</span><span class="p">,</span> <span class="n">func</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">wrapper</span>
