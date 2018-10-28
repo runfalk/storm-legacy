@@ -1,33 +1,50 @@
 What is this fork?
 ==================
-I use Storm in a private project and the code base is pretty big,
-so switching to SQLAlchemy will be a long and windy road. I'll
-maintain this fork until I've replaced Storm. This will hopefully
-happen before Python 2 EOL in 2020. Unless I decide it's easier to
-patch Storm to support Python 3.
+I use Storm in a big private project and due to Storm I have
+been stuck with Python 2.7. This forks fixes that by adding
+support for Python 3.3 and later. To do that I removed
+functionality that I don't use myself, and feel is outdated. In
+the long run I think completely switching to
+[SQLAlchemy](https://www.sqlalchemy.org/) is the only correct
+choice. But since it was easier to port Storm I decided to go
+with that approach for now.
+
+I'll maintain this fork until I've replaced Storm, which likely
+won't happen for years.
 
 The reason for forking is that Storm hasn't seen a release in
 almost five years; the last release was 0.20 2013-06-28. I forked
 the current trunk on 2018-05-04 which had quite a few fixes for
-things that are broken in 0.20.
-
-I decided to remove a lot of features that I don't personally use,
-since I have no intention of maintaining them.
-
-List of removed features:
-
- * MySQL support
- * Pickle column type (use JSON or re-implement it yourself)
- * Python 2.6 and earlier support
- * Schema management
- * SQLObject support
- * Twisted integration
- * WSGI debug timeline
- * Zope integration
+things that are broken in 0.20. The trunk revision at the time
+was [#484](http://bazaar.launchpad.net/~storm/storm/trunk/files/484?start_revid=484).
 
 
-Description
-===========
+Changelog
+---------
+
+### Version 0.1.0 (alpha)
+Released on 8th October 2018
+
+This release mostly removes features. The release is mostly a test
+of how well it works with other applications.
+
+ * Added support for Python 3.3
+ * Added support for Python 3.4
+ * Added support for Python 3.5
+ * Added support for Python 3.6
+ * Added support for Python 3.7
+ * Removed MySQL support
+ * Removed Pickle column type (use JSON or re-implement it yourself)
+ * Removed Python 2.6 and earlier support
+ * Removed Schema management
+ * Removed SQLObject support
+ * Removed Twisted integration
+ * Removed WSGI debug timeline
+ * Removed Zope integration
+
+
+Original description
+====================
 
 Storm is an Object Relational Mapper for Python developed at
 Canonical.  API docs, a manual, and a tutorial are available from:
@@ -78,7 +95,7 @@ Features:
    with Storm is clean and simple.
  * Storm works very well connecting to several databases and using
    the same Python types (or different ones) with all of them.
- * Storm can handle obj.attr = <A SQL expression> assignments, when
+ * Storm can handle `obj.attr = <An SQL expression>` assignments, when
    that's really needed (the expression is executed at INSERT/UPDATE
    time).
  * Storm handles relationships between objects even before they were

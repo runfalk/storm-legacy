@@ -7,24 +7,25 @@ from setuptools import setup, Extension, find_packages
 
 BUILD_CEXTENSIONS = True
 
-
-VERSION = re.search('version = "([^"]+)"',
-                    open("storm/__init__.py").read()).group(1)
-
+readme = None
+with open("README.md") as f:
+    readme = f.read()
 
 setup(
-    name="storm",
-    version=VERSION,
+    name="storm-legacy",
+    version="0.1.3",
     description=(
-        "Storm is an object-relational mapper (ORM) for Python "
-        "developed at Canonical."),
+        "Storm is an object-relational mapper (ORM) for Python developed at "
+        "Canonical. This is a fork maintained by Andreas Runfalk"),
+    long_description=readme,
+    long_description_content_type="text/markdown",
     author="Gustavo Niemeyer",
     author_email="gustavo@niemeyer.net",
-    maintainer="Storm Developers",
-    maintainer_email="storm@lists.canonical.com",
+    maintainer="Andreas Runfalk",
+    maintainer_email="andreas@runfalk.se",
     license="LGPL",
-    url="https://storm.canonical.com",
-    download_url="https://launchpad.net/storm/+download",
+    url="https://github.com/runfalk/storm-legacy",
+    download_url="https://pypi.org/project/storm-legacy/",
     packages=find_packages(exclude=["tests", "tests.*"]),
     extras_require={
         "doc": [
@@ -47,6 +48,11 @@ setup(
          "Lesser General Public License (LGPL)"),
         "Programming Language :: Python",
         "Programming Language :: Python :: 2.7",
+        "Programming Language :: Python :: 3.3",
+        "Programming Language :: Python :: 3.4",
+        "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
         "Topic :: Database",
         "Topic :: Database :: Front-Ends",
         "Topic :: Software Development :: Libraries :: Python Modules",

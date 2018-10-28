@@ -22,10 +22,6 @@
 import os
 
 
-version = "0.21.0"
-version_info = tuple([int(x) for x in version.split(".")])
-
-
 class UndefType(object):
 
     def __repr__(self):
