@@ -46,3 +46,11 @@ class BaseTest(TestHelper):
         del obj
         gc.collect()
         self.assertEquals(obj_ref(), None)
+
+
+class Wrapper(object):
+    def __init__(self, obj):
+        self.obj = obj
+
+    __storm_object_info__ = property(lambda self:
+                                     self.obj.__storm_object_info__)

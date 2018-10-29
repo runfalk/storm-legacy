@@ -44,7 +44,7 @@ from storm.cache import Cache
 from storm.store import AutoReload, EmptyResultSet, Store, ResultSet
 from storm.tracer import debug
 
-from tests.info import Wrapper
+from tests.base import Wrapper
 from tests.helper import TestHelper
 
 

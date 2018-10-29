@@ -33,7 +33,7 @@ from storm.variables import *
 from storm.info import get_obj_info
 from storm.expr import Column, Select, compile, State, SQLRaw
 
-from tests.info import Wrapper
+from tests.base import Wrapper
 from tests.helper import TestHelper
 
 
