@@ -22,6 +22,7 @@
 #
 from datetime import datetime, date, time, timedelta
 import os
+import pytest
 import shutil
 import sys
 import unittest
@@ -101,90 +102,88 @@ class DatabaseTest(object):
         pass
 
     def test_create(self):
-        self.assertTrue(isinstance(self.database, Database))
+        assert isinstance(self.database, Database)
 
     def test_get_uri(self):
         """
         The get_uri() method returns the URI the database with created with.
         """
         uri = self.database.get_uri()
-        self.assertIsNotNone(uri.scheme)
+        assert uri.scheme is not None
 
     def test_connection(self):
-        self.assertTrue(isinstance(self.connection, Connection))
+        assert isinstance(self.connection, Connection)
 
     def test_rollback(self):
         self.connection.execute("INSERT INTO test VALUES (30, 'Title 30')")
         self.connection.rollback()
         result = self.connection.execute("SELECT id FROM test WHERE id=30")
-        self.assertFalse(result.get_one())
+        assert not result.get_one()
 
     def test_rollback_twice(self):
         self.connection.execute("INSERT INTO test VALUES (30, 'Title 30')")
         self.connection.rollback()
         self.connection.rollback()
         result = self.connection.execute("SELECT id FROM test WHERE id=30")
-        self.assertFalse(result.get_one())
+        assert not result.get_one()
 
     def test_commit(self):
         self.connection.execute("INSERT INTO test VALUES (30, 'Title 30')")
         self.connection.commit()
         self.connection.rollback()
         result = self.connection.execute("SELECT id FROM test WHERE id=30")
-        self.assertTrue(result.get_one())
+        assert result.get_one()
 
     def test_commit_twice(self):
         self.connection.execute("INSERT INTO test VALUES (30, 'Title 30')")
         self.connection.commit()
         self.connection.commit()
         result = self.connection.execute("SELECT id FROM test WHERE id=30")
-        self.assertTrue(result.get_one())
+        assert result.get_one()
 
     def test_execute_result(self):
         result = self.connection.execute("SELECT 1")
-        self.assertTrue(isinstance(result, Result))
-        self.assertTrue(result.get_one())
+        assert isinstance(result, Result)
+        assert result.get_one()
 
     def test_execute_unicode_result(self):
         result = self.connection.execute(u"SELECT title FROM test")
-        self.assertTrue(isinstance(result, Result))
+        assert isinstance(result, Result)
         row = result.get_one()
-        self.assertEquals(row, ("Title 10",))
-        self.assertTrue(isinstance(row[0], ustr))
+        assert row == ("Title 10",)
+        assert isinstance(row[0], ustr)
 
     def test_execute_params(self):
         result = self.connection.execute("SELECT one FROM number "
                                          "WHERE 1=?", (1,))
-        self.assertTrue(result.get_one())
+        assert result.get_one()
         result = self.connection.execute("SELECT one FROM number "
                                          "WHERE 1=?", (2,))
-        self.assertFalse(result.get_one())
+        assert not result.get_one()
 
     def test_execute_empty_params(self):
         result = self.connection.execute("SELECT one FROM number", ())
-        self.assertTrue(result.get_one())
+        assert result.get_one()
 
     def test_execute_expression(self):
         result = self.connection.execute(Select(1))
-        self.assertTrue(result.get_one(), (1,))
+        assert result.get_one(), (1,)
 
     def test_execute_expression_empty_params(self):
         result = self.connection.execute(Select(SQLRaw("1")))
-        self.assertTrue(result.get_one(), (1,))
+        assert result.get_one(), (1,)
 
     def test_get_one(self):
         result = self.connection.execute("SELECT * FROM test ORDER BY id")
-        self.assertEquals(result.get_one(), (10, "Title 10"))
+        assert result.get_one() == (10, "Title 10")
 
     def test_get_all(self):
         result = self.connection.execute("SELECT * FROM test ORDER BY id")
-        self.assertEquals(result.get_all(),
-                          [(10, "Title 10"), (20, "Title 20")])
+        assert result.get_all() == [(10, "Title 10"), (20, "Title 20")]
 
     def test_iter(self):
         result = self.connection.execute("SELECT * FROM test ORDER BY id")
-        self.assertEquals([item for item in result],
-                          [(10, "Title 10"), (20, "Title 20")])
+        assert [item for item in result] == [(10, "Title 10"), (20, "Title 20")]
 
     def test_simultaneous_iter(self):
         result1 = self.connection.execute("SELECT * FROM test "
@@ -193,12 +192,14 @@ class DatabaseTest(object):
                                           "ORDER BY id DESC")
         iter1 = iter(result1)
         iter2 = iter(result2)
-        self.assertEquals(next(iter1), (10, "Title 10"))
-        self.assertEquals(next(iter2), (20, "Title 20"))
-        self.assertEquals(next(iter1), (20, "Title 20"))
-        self.assertEquals(next(iter2), (10, "Title 10"))
-        self.assertRaises(StopIteration, lambda: next(iter1))
-        self.assertRaises(StopIteration, lambda: next(iter2))
+        assert next(iter1) == (10, "Title 10")
+        assert next(iter2) == (20, "Title 20")
+        assert next(iter1) == (20, "Title 20")
+        assert next(iter2) == (10, "Title 10")
+        with pytest.raises(StopIteration):
+            next(iter1)
+        with pytest.raises(StopIteration):
+            next(iter2)
 
     def test_get_insert_identity(self):
         result = self.connection.execute("INSERT INTO test (title) "
@@ -208,7 +209,7 @@ class DatabaseTest(object):
         expr = result.get_insert_identity(primary_key, primary_variables)
         select = Select(Column("title", SQLToken("test")), expr)
         result = self.connection.execute(select)
-        self.assertEquals(result.get_one(), ("Title 30",))
+        assert result.get_one() == ("Title 30",)
 
     def test_get_insert_identity_composed(self):
         result = self.connection.execute("INSERT INTO test (title) "
@@ -219,7 +220,7 @@ class DatabaseTest(object):
         expr = result.get_insert_identity(primary_key, primary_variables)
         select = Select(Column("title", SQLToken("test")), expr)
         result = self.connection.execute(select)
-        self.assertEquals(result.get_one(), ("Title 30",))
+        assert result.get_one() == ("Title 30",)
 
     def test_datetime(self):
         value = datetime(1977, 4, 5, 12, 34, 56, 78)
@@ -230,7 +231,7 @@ class DatabaseTest(object):
         result.set_variable(variable, result.get_one()[0])
         if not self.supports_microseconds:
             value = value.replace(microsecond=0)
-        self.assertEquals(variable.get(), value)
+        assert variable.get() == value
 
     def test_date(self):
         value = date(1977, 4, 5)
@@ -239,7 +240,7 @@ class DatabaseTest(object):
         result = self.connection.execute("SELECT d FROM datetime_test")
         variable = DateVariable()
         result.set_variable(variable, result.get_one()[0])
-        self.assertEquals(variable.get(), value)
+        assert variable.get() == value
 
     def test_time(self):
         value = time(12, 34, 56, 78)
@@ -250,7 +251,7 @@ class DatabaseTest(object):
         result.set_variable(variable, result.get_one()[0])
         if not self.supports_microseconds:
             value = value.replace(microsecond=0)
-        self.assertEquals(variable.get(), value)
+        assert variable.get() == value
 
     def test_timedelta(self):
         value = timedelta(12, 34, 56)
@@ -259,7 +260,7 @@ class DatabaseTest(object):
         result = self.connection.execute("SELECT td FROM datetime_test")
         variable = TimeDeltaVariable()
         result.set_variable(variable, result.get_one()[0])
-        self.assertEquals(variable.get(), value)
+        assert variable.get() == value
 
     def test_binary(self):
         """Ensure database works with high bits and embedded zeros."""
@@ -269,7 +270,7 @@ class DatabaseTest(object):
         result = self.connection.execute("SELECT b FROM bin_test")
         variable = RawStrVariable()
         result.set_variable(variable, result.get_one()[0])
-        self.assertEquals(variable.get(), value)
+        assert variable.get() == value
 
     def test_binary_ascii(self):
         """Some databases like pysqlite2 may return unicode for strings."""
@@ -278,7 +279,7 @@ class DatabaseTest(object):
         variable = RawStrVariable()
         # If the following doesn't raise a TypeError we're good.
         result.set_variable(variable, result.get_one()[0])
-        self.assertEquals(variable.get(), b"Value")
+        assert variable.get() == b"Value"
 
     def test_order_by_group_by(self):
         self.connection.execute("INSERT INTO test VALUES (100, 'Title 10')")
@@ -287,7 +288,7 @@ class DatabaseTest(object):
         title = Column("title", "test")
         expr = Select(Count(id), group_by=title, order_by=Count(id))
         result = self.connection.execute(expr)
-        self.assertEquals(result.get_all(), [(1,), (3,)])
+        assert result.get_all() == [(1,), (3,)]
 
     def test_set_decimal_variable_from_str_column(self):
         self.connection.execute("INSERT INTO test VALUES (40, '40.5')")
@@ -300,7 +301,7 @@ class DatabaseTest(object):
         variable.set("40.5", from_db=True)
         self.connection.execute("INSERT INTO test VALUES (40, ?)", (variable,))
         result = self.connection.execute("SELECT title FROM test WHERE id=40")
-        self.assertEquals(result.get_one()[0], "40.5")
+        assert result.get_one()[0] == "40.5"
 
     def test_quoting(self):
         # FIXME "with'quote" should be in the list below, but it doesn't
@@ -310,7 +311,7 @@ class DatabaseTest(object):
             expr = Select(reserved_name,
                           tables=Alias(Select(Alias(1, reserved_name))))
             result = self.connection.execute(expr)
-            self.assertEquals(result.get_one(), (1,))
+            assert result.get_one() == (1,)
 
     def test_concurrent_behavior(self):
         """The default behavior should be to handle transactions in isolation.
@@ -330,21 +331,21 @@ class DatabaseTest(object):
         connection2 = self.database.connect()
         try:
             result = connection1.execute("SELECT title FROM test WHERE id=10")
-            self.assertEquals(result.get_one(), ("Title 10",))
+            assert result.get_one() == ("Title 10",)
             try:
                 connection2.execute("UPDATE test SET title='Title 100' "
                                     "WHERE id=10")
                 connection2.commit()
             except OperationalError as e:
-                self.assertEquals(ustr(e), "database is locked") # SQLite blocks
+                assert "locked" in ustr(e)  # SQLite blocks
             result = connection1.execute("SELECT title FROM test WHERE id=10")
-            self.assertEquals(result.get_one(), ("Title 10",))
+            assert result.get_one() == ("Title 10",)
         finally:
             connection1.rollback()
 
     def test_wb_connect_sets_event_system(self):
         connection = self.database.connect(marker)
-        self.assertEqual(connection._event, marker)
+        assert connection._event == marker
 
     def test_execute_sends_event(self):
         event = EventSystem(marker)
@@ -355,8 +356,8 @@ class DatabaseTest(object):
 
         connection = self.database.connect(event)
         connection.execute("SELECT 1")
-        self.assertEqual(len(calls), 1)
-        self.assertEqual(calls[0], marker)
+        assert len(calls) == 1
+        assert calls[0] == marker
 
     def from_database(self, row):
         return [int(item)+1 for item in row]
@@ -364,34 +365,34 @@ class DatabaseTest(object):
     def test_wb_result_get_one_goes_through_from_database(self):
         result = self.connection.execute("SELECT one, two FROM number")
         result.from_database = self.from_database
-        self.assertEquals(result.get_one(), (2, 3))
+        assert result.get_one() == (2, 3)
 
     def test_wb_result_get_all_goes_through_from_database(self):
         result = self.connection.execute("SELECT one, two FROM number")
         result.from_database = self.from_database
-        self.assertEquals(result.get_all(), [(2, 3)])
+        assert result.get_all() == [(2, 3)]
 
     def test_wb_result_iter_goes_through_from_database(self):
         result = self.connection.execute("SELECT one, two FROM number")
         result.from_database = self.from_database
-        self.assertEquals(next(iter(result)), (2, 3))
+        assert next(iter(result)) == (2, 3)
 
     def test_rowcount_insert(self):
         # All supported backends support rowcount, so far.
         result = self.connection.execute(
             "INSERT INTO test VALUES (999, '999')")
-        self.assertEquals(result.rowcount, 1)
+        assert result.rowcount == 1
 
     def test_rowcount_delete(self):
         # All supported backends support rowcount, so far.
         result = self.connection.execute("DELETE FROM test")
-        self.assertEquals(result.rowcount, 2)
+        assert result.rowcount == 2
 
     def test_rowcount_update(self):
         # All supported backends support rowcount, so far.
         result = self.connection.execute(
             "UPDATE test SET title='whatever'")
-        self.assertEquals(result.rowcount, 2)
+        assert result.rowcount == 2
 
     def test_expr_startswith(self):
         self.connection.execute("INSERT INTO test VALUES (30, '!!_%blah')")
@@ -400,7 +401,7 @@ class DatabaseTest(object):
         title = Column("title", SQLToken("test"))
         expr = Select(id, title.startswith(u"!!_%"))
         result = list(self.connection.execute(expr))
-        self.assertEquals(result, [(30,)])
+        assert result == [(30,)]
 
     def test_expr_endswith(self):
         self.connection.execute("INSERT INTO test VALUES (30, 'blah_%!!')")
@@ -409,7 +410,7 @@ class DatabaseTest(object):
         title = Column("title", SQLToken("test"))
         expr = Select(id, title.endswith(u"_%!!"))
         result = list(self.connection.execute(expr))
-        self.assertEquals(result, [(30,)])
+        assert result == [(30,)]
 
     def test_expr_contains_string(self):
         self.connection.execute("INSERT INTO test VALUES (30, 'blah_%!!x')")
@@ -418,15 +419,16 @@ class DatabaseTest(object):
         title = Column("title", SQLToken("test"))
         expr = Select(id, title.contains_string(u"_%!!"))
         result = list(self.connection.execute(expr))
-        self.assertEquals(result, [(30,)])
+        assert result == [(30,)]
 
     def test_block_access(self):
         """Access to the connection is blocked by block_access()."""
         self.connection.execute("SELECT 1")
         self.connection.block_access()
-        self.assertRaises(ConnectionBlockedError,
-                          self.connection.execute, "SELECT 1")
-        self.assertRaises(ConnectionBlockedError, self.connection.commit)
+        with pytest.raises(ConnectionBlockedError):
+            self.connection.execute("SELECT 1")
+        with pytest.raises(ConnectionBlockedError):
+            self.connection.commit()
         # Allow rolling back a blocked connection.
         self.connection.rollback()
         # Unblock the connection, allowing access again.
@@ -478,7 +480,7 @@ class TwoPhaseCommitTest(object):
         self.connection.commit()
         self.connection.rollback()
         result = self.connection.execute("SELECT id FROM test WHERE id=30")
-        self.assertTrue(result.get_one())
+        assert result.get_one()
 
     def test_begin_inside_a_two_phase_transaction(self):
         """
@@ -487,7 +489,8 @@ class TwoPhaseCommitTest(object):
         xid1 = Xid(0, "foo", "bar")
         self.connection.begin(xid1)
         xid2 = Xid(1, "egg", "baz")
-        self.assertRaises(ProgrammingError, self.connection.begin, xid2)
+        with pytest.raises(ProgrammingError):
+            self.connection.begin(xid2)
 
     def test_begin_after_commit(self):
         """
@@ -499,7 +502,7 @@ class TwoPhaseCommitTest(object):
         self.connection.commit()
         self.connection.begin(xid)
         result = self.connection.execute("SELECT id FROM test WHERE id=30")
-        self.assertTrue(result.get_one())
+        assert result.get_one()
 
     def test_begin_after_rollback(self):
         """
@@ -511,13 +514,14 @@ class TwoPhaseCommitTest(object):
         self.connection.rollback()
         self.connection.begin(xid)
         result = self.connection.execute("SELECT id FROM test WHERE id=30")
-        self.assertFalse(result.get_one())
+        assert not result.get_one()
 
     def test_prepare_outside_a_two_phase_transaction(self):
         """
         prepare() can't be used if a two-phase transaction has not begun yet.
         """
-        self.assertRaises(ProgrammingError, self.connection.prepare)
+        with pytest.raises(ProgrammingError):
+            self.connection.prepare()
 
     def test_rollback_after_prepare(self):
         """
@@ -529,7 +533,7 @@ class TwoPhaseCommitTest(object):
         self.connection.prepare()
         self.connection.rollback()
         result = self.connection.execute("SELECT id FROM test WHERE id=30")
-        self.assertFalse(result.get_one())
+        assert not result.get_one()
 
     def test_mixing_standard_and_two_phase_commits(self):
         """
@@ -545,7 +549,7 @@ class TwoPhaseCommitTest(object):
         self.connection.commit()
         result = self.connection.execute("SELECT id FROM test "
                                          "WHERE id IN (30, 40)")
-        self.assertEqual([(30,), (40,)], result.get_all())
+        assert [(30,), (40,)] == result.get_all()
 
     def test_recover_and_commit(self):
         """
@@ -563,19 +567,19 @@ class TwoPhaseCommitTest(object):
         self.addCleanup(connection2.close)
         result = connection2.execute("SELECT id FROM test WHERE id=30")
         connection2.rollback()
-        self.assertFalse(result.get_one())
+        assert not result.get_one()
         [xid] = connection2.recover()
-        self.assertEqual(0, xid.format_id)
-        self.assertEqual("foo", xid.global_transaction_id)
-        self.assertEqual("bar", xid.branch_qualifier)
+        assert 0 == xid.format_id
+        assert "foo" == xid.global_transaction_id
+        assert "bar" == xid.branch_qualifier
         connection2.commit(xid)
-        self.assertEqual([], connection2.recover())
+        assert [] == connection2.recover()
 
         # Reconnect, changes are be visible
         self.connection.close()
         self.connection = self.database.connect()
         result = self.connection.execute("SELECT id FROM test WHERE id=30")
-        self.assertTrue(result.get_one())
+        assert result.get_one()
 
     def test_recover_and_rollback(self):
         """
@@ -592,17 +596,17 @@ class TwoPhaseCommitTest(object):
         connection2 = self.database.connect()
         self.addCleanup(connection2.close)
         [xid] = connection2.recover()
-        self.assertEqual(0, xid.format_id)
-        self.assertEqual("foo", xid.global_transaction_id)
-        self.assertEqual("bar", xid.branch_qualifier)
+        assert 0 == xid.format_id
+        assert "foo" == xid.global_transaction_id
+        assert "bar" == xid.branch_qualifier
         connection2.rollback(xid)
-        self.assertEqual([], connection2.recover())
+        assert [] == connection2.recover()
 
         # Reconnect, changes were rolled back
         self.connection.close()
         self.connection = self.database.connect()
         result = self.connection.execute("SELECT id FROM test WHERE id=30")
-        self.assertFalse(result.get_one())
+        assert not result.get_one()
 
 
 class UnsupportedDatabaseTest(object):
@@ -651,8 +655,8 @@ class UnsupportedDatabaseTest(object):
         uri = URI("_fake_://db")
 
         try:
-            self.assertRaises(DatabaseModuleError,
-                              _fake_.create_from_uri, uri)
+            with pytest.raises(DatabaseModuleError):
+                _fake_.create_from_uri(uri)
         finally:
             # Unhack the environment.
             del sys.path[0]
@@ -729,22 +733,23 @@ class DatabaseDisconnectionTest(DatabaseDisconnectionMixin):
     def test_proxy_works(self):
         """Ensure that we can talk to the database through the proxy."""
         result = self.connection.execute("SELECT 1")
-        self.assertEqual(result.get_one(), (1,))
+        assert result.get_one() == (1,)
 
     def test_catch_disconnect_on_execute(self):
         """Test that database disconnections get caught on execute()."""
         result = self.connection.execute("SELECT 1")
-        self.assertTrue(result.get_one())
+        assert result.get_one()
         self.proxy.restart()
-        self.assertRaises(DisconnectionError,
-                          self.connection.execute, "SELECT 1")
+        with pytest.raises(DisconnectionError):
+            self.connection.execute("SELECT 1")
 
     def test_catch_disconnect_on_commit(self):
         """Test that database disconnections get caught on commit()."""
         result = self.connection.execute("SELECT 1")
-        self.assertTrue(result.get_one())
+        assert result.get_one()
         self.proxy.restart()
-        self.assertRaises(DisconnectionError, self.connection.commit)
+        with pytest.raises(DisconnectionError):
+            self.connection.commit()
 
     @unittest.skipIf(not is_python2,
                      "Virtual base classes can't be used in except clauses")
@@ -756,7 +761,7 @@ class DatabaseDisconnectionTest(DatabaseDisconnectionMixin):
         It should be able to recover from this situation though.
         """
         result = self.connection.execute("SELECT 1")
-        self.assertTrue(result.get_one())
+        assert result.get_one()
         self.proxy.restart()
         # Perform an action that should result in a disconnection.
         try:
@@ -764,7 +769,7 @@ class DatabaseDisconnectionTest(DatabaseDisconnectionMixin):
             cursor.execute("SELECT 1")
             cursor.fetchone()
         except Error as exc:
-            self.assertTrue(self.connection.is_disconnection_error(exc))
+            assert self.connection.is_disconnection_error(exc)
         else:
             self.fail("Disconnection was not caught.")
 
@@ -773,7 +778,7 @@ class DatabaseDisconnectionTest(DatabaseDisconnectionMixin):
         try:
             self.connection._raw_connection.rollback()
         except Error as exc:
-            self.assertTrue(self.connection.is_disconnection_error(exc))
+            assert self.connection.is_disconnection_error(exc)
         else:
             self.fail("Disconnection was not raised.")
 
@@ -791,7 +796,7 @@ class DatabaseDisconnectionTest(DatabaseDisconnectionMixin):
         It should be able to recover from this situation though.
         """
         result = self.connection.execute("SELECT 1")
-        self.assertTrue(result.get_one())
+        assert result.get_one()
         self.proxy.restart()
         # Perform an action that should result in a disconnection.
         try:
@@ -799,54 +804,54 @@ class DatabaseDisconnectionTest(DatabaseDisconnectionMixin):
             cursor.execute("SELECT 1")
             cursor.fetchone()
         except DatabaseError as exc:
-            self.assertTrue(self.connection.is_disconnection_error(exc))
+            assert self.connection.is_disconnection_error(exc)
         else:
             self.fail("Disconnection was not caught.")
-        self.assertRaises(DisconnectionError,
-                          self.connection.execute, "SELECT 1")
+        with pytest.raises(DisconnectionError):
+            self.connection.execute("SELECT 1")
 
     def test_connection_stays_disconnected_in_transaction(self):
         """Test that connection does not immediately reconnect."""
         result = self.connection.execute("SELECT 1")
-        self.assertTrue(result.get_one())
+        assert result.get_one()
         self.proxy.restart()
-        self.assertRaises(DisconnectionError,
-                          self.connection.execute, "SELECT 1")
-        self.assertRaises(DisconnectionError,
-                          self.connection.execute, "SELECT 1")
+        with pytest.raises(DisconnectionError):
+            self.connection.execute("SELECT 1")
+        with pytest.raises(DisconnectionError):
+            self.connection.execute("SELECT 1")
 
     def test_reconnect_after_rollback(self):
         """Test that we reconnect after rolling back the connection."""
         result = self.connection.execute("SELECT 1")
-        self.assertTrue(result.get_one())
+        assert result.get_one()
         self.proxy.restart()
-        self.assertRaises(DisconnectionError,
-                          self.connection.execute, "SELECT 1")
+        with pytest.raises(DisconnectionError):
+            self.connection.execute("SELECT 1")
         self.connection.rollback()
         result = self.connection.execute("SELECT 1")
-        self.assertTrue(result.get_one())
+        assert result.get_one()
 
     @unittest.skipIf(not is_python2,
                      "Virtual base classes can't be used in except clauses")
     def test_catch_disconnect_on_reconnect(self):
         """Test that reconnection failures result in DisconnectionError."""
         result = self.connection.execute("SELECT 1")
-        self.assertTrue(result.get_one())
+        assert result.get_one()
         self.proxy.stop()
-        self.assertRaises(DisconnectionError,
-                          self.connection.execute, "SELECT 1")
+        with pytest.raises(DisconnectionError):
+            self.connection.execute("SELECT 1")
         # Rollback the connection, but because the proxy is still
         # down, we get a DisconnectionError again.
         self.connection.rollback()
-        self.assertRaises(DisconnectionError,
-                          self.connection.execute, "SELECT 1")
+        with pytest.raises(DisconnectionError):
+            self.connection.execute("SELECT 1")
 
     def test_close_connection_after_disconnect(self):
         result = self.connection.execute("SELECT 1")
-        self.assertTrue(result.get_one())
+        assert result.get_one()
         self.proxy.stop()
-        self.assertRaises(DisconnectionError,
-                          self.connection.execute, "SELECT 1")
+        with pytest.raises(DisconnectionError):
+            self.connection.execute("SELECT 1")
         self.connection.close()
 
 
@@ -867,7 +872,7 @@ class TwoPhaseCommitDisconnectionTest(object):
         xid2 = Xid(0, "egg", "baz")
         self.connection.begin(xid2)
         result = self.connection.execute("SELECT 1")
-        self.assertTrue(result.get_one())
+        assert result.get_one()
 
     def test_begin_after_with_statement_disconnection_error_and_rollback(self):
         """
@@ -877,11 +882,11 @@ class TwoPhaseCommitDisconnectionTest(object):
         xid1 = Xid(0, "foo", "bar")
         self.connection.begin(xid1)
         self.proxy.close()
-        self.assertRaises(DisconnectionError,
-                          self.connection.execute, "SELECT 1")
+        with pytest.raises(DisconnectionError):
+            self.connection.execute("SELECT 1")
         self.connection.rollback()
         self.proxy.start()
         xid2 = Xid(0, "egg", "baz")
         self.connection.begin(xid2)
         result = self.connection.execute("SELECT 1")
-        self.assertTrue(result.get_one())
+        assert result.get_one()

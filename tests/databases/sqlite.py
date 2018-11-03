@@ -20,6 +20,7 @@
 #
 from datetime import timedelta
 import os
+import pytest
 import time
 import unittest
 
@@ -59,8 +60,8 @@ class SQLiteMemoryTest(DatabaseTest, TestHelper):
 
     def test_wb_create_database(self):
         database = create_database("sqlite:")
-        self.assertTrue(isinstance(database, SQLite))
-        self.assertEquals(database._filename, ":memory:")
+        assert isinstance(database, SQLite)
+        assert database._filename == ":memory:"
 
     def test_concurrent_behavior(self):
         pass # We can't connect to the in-memory database twice, so we can't
@@ -73,8 +74,7 @@ class SQLiteMemoryTest(DatabaseTest, TestHelper):
                                   (self.get_path(), value)))
             connection = database.connect()
             result = connection.execute("PRAGMA synchronous")
-            self.assertEquals(result.get_one()[0],
-                              synchronous_values[value])
+            assert result.get_one()[0] == synchronous_values[value]
 
     def test_sqlite_specific_reserved_words(self):
         """Check sqlite-specific reserved words are recognized.
@@ -90,8 +90,7 @@ class SQLiteMemoryTest(DatabaseTest, TestHelper):
             row savepoint temp trigger vacuum virtual
             """.split()
         for word in reserved_words:
-            self.assertTrue(self.connection.compile.is_reserved_word(word),
-                            "Word missing: %s" % (word,))
+            assert self.connection.compile.is_reserved_word(word)
 
 
 class SQLiteFileTest(SQLiteMemoryTest):
@@ -102,8 +101,8 @@ class SQLiteFileTest(SQLiteMemoryTest):
     def test_wb_create_database(self):
         filename = self.make_path()
         database = create_database("sqlite:%s" % filename)
-        self.assertTrue(isinstance(database, SQLite))
-        self.assertEquals(database._filename, filename)
+        assert isinstance(database, SQLite)
+        assert database._filename == filename
 
     @unittest.skipIf(not is_python2,
                      "Virtual base classes can't be used in except clauses")
@@ -118,8 +117,8 @@ class SQLiteFileTest(SQLiteMemoryTest):
         try:
             connection2.execute("INSERT INTO test VALUES (2)")
         except OperationalError as exception:
-            self.assertEquals(ustr(exception), "database is locked")
-            self.assertTrue(time.time()-started >= 0.3)
+            assert ustr(exception) == "database is locked"
+            assert time.time()-started >= 0.3
         else:
             self.fail("OperationalError not raised")
 
@@ -147,16 +146,16 @@ class SQLiteFileTest(SQLiteMemoryTest):
         try:
             connection1.commit()
         except OperationalError as exception:
-            self.assertEquals(ustr(exception), "database is locked")
+            assert ustr(exception) == "database is locked"
             # In 0.10, the next assertion failed because the timeout wasn't
             # enforced for the "COMMIT" statement.
-            self.assertTrue(time.time()-started >= 0.3)
+            assert time.time()-started >= 0.3
         else:
             self.fail("OperationalError not raised")
 
     def test_recover_after_timeout(self):
         """Regression test for recovering from database locked exception.
-        
+
         In 0.10, connection.commit() would forget that a transaction was in
         progress if an exception was raised, such as an OperationalError due to
         another connection being open.  As a result, a subsequent modification
@@ -175,7 +174,8 @@ class SQLiteFileTest(SQLiteMemoryTest):
         connection1.execute("INSERT INTO test VALUES (1)")
         connection2 = database.connect()
         connection2.execute("SELECT id FROM test")
-        self.assertRaises(OperationalError, connection1.commit)
+        with pytest.raises(OperationalError):
+            connection1.commit()
 
         # Close the second connection - it should now be possible to commit.
         connection2.close()
@@ -186,8 +186,10 @@ class SQLiteFileTest(SQLiteMemoryTest):
         connection1.commit()
 
         # Check that the correct data is present
-        self.assertEquals(connection1.execute("SELECT id FROM test").get_all(),
-                          [(1,), (2,)])
+        assert connection1.execute("SELECT id FROM test").get_all() == [
+            (1,),
+            (2,),
+        ]
 
     def test_journal(self):
         journal_values = {"DELETE": u'delete', "TRUNCATE": u'truncate',
@@ -198,8 +200,7 @@ class SQLiteFileTest(SQLiteMemoryTest):
                                   (self.get_path(), value)))
             connection = database.connect()
             result = connection.execute("PRAGMA journal_mode").get_one()[0]
-            self.assertEquals(result,
-                              journal_values[value])
+            assert result == journal_values[value]
 
     def test_journal_persistency_to_rollback(self):
         journal_values = {"DELETE": u'delete', "TRUNCATE": u'truncate',
@@ -212,8 +213,7 @@ class SQLiteFileTest(SQLiteMemoryTest):
             connection.execute("CREATE TABLE test (id INTEGER PRIMARY KEY)")
             connection.rollback()
             result = connection.execute("PRAGMA journal_mode").get_one()[0]
-            self.assertEquals(result,
-                              journal_values[value])
+            assert result == journal_values[value]
 
     def test_foreign_keys(self):
         foreign_keys_values = {"ON": 1, "OFF": 0}
@@ -222,8 +222,7 @@ class SQLiteFileTest(SQLiteMemoryTest):
                                   (self.get_path(), value)))
             connection = database.connect()
             result = connection.execute("PRAGMA foreign_keys").get_one()[0]
-            self.assertEquals(result,
-                              foreign_keys_values[value])
+            assert result == foreign_keys_values[value]
 
     def test_foreign_keys_persistency_to_rollback(self):
         foreign_keys_values = {"ON": 1, "OFF": 0}
@@ -234,8 +233,7 @@ class SQLiteFileTest(SQLiteMemoryTest):
             connection.execute("CREATE TABLE test (id INTEGER PRIMARY KEY)")
             connection.rollback()
             result = connection.execute("PRAGMA foreign_keys").get_one()[0]
-            self.assertEquals(result,
-                              foreign_keys_values[value])
+            assert result == foreign_keys_values[value]
 
 class SQLiteUnsupportedTest(UnsupportedDatabaseTest, TestHelper):
  
