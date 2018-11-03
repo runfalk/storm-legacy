@@ -38,6 +38,7 @@ setup(
             "mock>=2.0.0",
             "psycopg2-binary>=2.5",
             "pytest>=3",
+            "pytest-lazy-fixture",
             "testresources>=0.2.4",
             "testtools>=0.9.8",
         ],

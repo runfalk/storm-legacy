@@ -320,6 +320,8 @@ class PropertyRegistry(object):
 
     def add_class(self, cls):
         """Register properties of C{cls} so that they may be found by C{get()}.
+
+        This method may also be used as a class decorator.
         """
         suffix = cls.__module__.split(".")
         suffix.append(cls.__name__)
@@ -332,6 +334,7 @@ class PropertyRegistry(object):
             pair = (attr+suffix, prop_ref)
             prop_ref.key = pair
             insort_left(self._properties, pair)
+        return cls
 
     def add_property(self, cls, prop, attr_name):
         """Register property of C{cls} so that it may be found by C{get()}.

@@ -28,6 +28,7 @@ version. I've decided to restart the version numbering.
 ### Version 0.2.0 (alpha)
 Released on (unreleased)
 
+ * Made `PropertyRegistry.add_class` optionally work as a decorator
  * Removed `CaptureTracer` support
  * Removed `TimeoutTracer` support
  * Refactored test suite to use pytest. This solves a lot of
