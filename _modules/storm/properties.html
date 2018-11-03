@@ -355,6 +355,8 @@
 
 <div class="viewcode-block" id="PropertyRegistry.add_class"><a class="viewcode-back" href="../../columns.html#storm.properties.PropertyRegistry.add_class">[docs]</a>    <span class="k">def</span> <span class="nf">add_class</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="bp">cls</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Register properties of C{cls} so that they may be found by C{get()}.</span>
+
+<span class="sd">        This method may also be used as a class decorator.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">suffix</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="vm">__module__</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
         <span class="n">suffix</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
@@ -366,7 +368,8 @@
             <span class="n">prop_ref</span> <span class="o">=</span> <span class="n">weakref</span><span class="o">.</span><span class="n">KeyedRef</span><span class="p">(</span><span class="n">prop</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_remove</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
             <span class="n">pair</span> <span class="o">=</span> <span class="p">(</span><span class="n">attr</span><span class="o">+</span><span class="n">suffix</span><span class="p">,</span> <span class="n">prop_ref</span><span class="p">)</span>
             <span class="n">prop_ref</span><span class="o">.</span><span class="n">key</span> <span class="o">=</span> <span class="n">pair</span>
-            <span class="n">insort_left</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_properties</span><span class="p">,</span> <span class="n">pair</span><span class="p">)</span></div>
+            <span class="n">insort_left</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_properties</span><span class="p">,</span> <span class="n">pair</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">cls</span></div>
 
 <div class="viewcode-block" id="PropertyRegistry.add_property"><a class="viewcode-back" href="../../columns.html#storm.properties.PropertyRegistry.add_property">[docs]</a>    <span class="k">def</span> <span class="nf">add_property</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="bp">cls</span><span class="p">,</span> <span class="n">prop</span><span class="p">,</span> <span class="n">attr_name</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Register property of C{cls} so that it may be found by C{get()}.</span>
