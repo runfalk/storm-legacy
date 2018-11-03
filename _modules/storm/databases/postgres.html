@@ -78,7 +78,6 @@
 <span class="kn">from</span> <span class="nn">storm.exceptions</span> <span class="k">import</span> <span class="p">(</span>
     <span class="n">install_exceptions</span><span class="p">,</span> <span class="n">DatabaseError</span><span class="p">,</span> <span class="n">DatabaseModuleError</span><span class="p">,</span> <span class="n">InterfaceError</span><span class="p">,</span>
     <span class="n">OperationalError</span><span class="p">,</span> <span class="n">ProgrammingError</span><span class="p">,</span> <span class="ne">TimeoutError</span><span class="p">,</span> <span class="n">Error</span><span class="p">)</span>
-<span class="kn">from</span> <span class="nn">storm.tracer</span> <span class="k">import</span> <span class="n">TimeoutTracer</span>
 
 
 <span class="n">install_exceptions</span><span class="p">(</span><span class="n">psycopg2</span><span class="p">)</span>
@@ -455,22 +454,6 @@
     <span class="k">if</span> <span class="n">uri</span><span class="o">.</span><span class="n">password</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">dsn</span> <span class="o">+=</span> <span class="s2">&quot; password=</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">uri</span><span class="o">.</span><span class="n">password</span>
     <span class="k">return</span> <span class="n">dsn</span></div>
-
-
-<div class="viewcode-block" id="PostgresTimeoutTracer"><a class="viewcode-back" href="../../../databases.html#storm.databases.postgres.PostgresTimeoutTracer">[docs]</a><span class="k">class</span> <span class="nc">PostgresTimeoutTracer</span><span class="p">(</span><span class="n">TimeoutTracer</span><span class="p">):</span>
-
-<div class="viewcode-block" id="PostgresTimeoutTracer.set_statement_timeout"><a class="viewcode-back" href="../../../databases.html#storm.databases.postgres.PostgresTimeoutTracer.set_statement_timeout">[docs]</a>    <span class="k">def</span> <span class="nf">set_statement_timeout</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_cursor</span><span class="p">,</span> <span class="n">remaining_time</span><span class="p">):</span>
-        <span class="n">raw_cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SET statement_timeout TO </span><span class="si">%d</span><span class="s2">&quot;</span> <span class="o">%</span>
-                           <span class="p">(</span><span class="n">remaining_time</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">))</span></div>
-
-<div class="viewcode-block" id="PostgresTimeoutTracer.connection_raw_execute_error"><a class="viewcode-back" href="../../../databases.html#storm.databases.postgres.PostgresTimeoutTracer.connection_raw_execute_error">[docs]</a>    <span class="k">def</span> <span class="nf">connection_raw_execute_error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">raw_cursor</span><span class="p">,</span>
-                                     <span class="n">statement</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">error</span><span class="p">):</span>
-        <span class="c1"># This should just check for</span>
-        <span class="c1"># psycopg2.extensions.QueryCanceledError in the future.</span>
-        <span class="k">if</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">error</span><span class="p">,</span> <span class="n">DatabaseError</span><span class="p">)</span> <span class="ow">and</span>
-            <span class="s2">&quot;statement timeout&quot;</span> <span class="ow">in</span> <span class="n">ustr</span><span class="p">(</span><span class="n">error</span><span class="p">)):</span>
-            <span class="k">raise</span> <span class="ne">TimeoutError</span><span class="p">(</span>
-                <span class="n">statement</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="s2">&quot;SQL server cancelled statement&quot;</span><span class="p">)</span></div></div>
 
 
 <span class="c1"># Postgres-specific operators</span>

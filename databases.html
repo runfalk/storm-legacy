@@ -612,28 +612,6 @@ to strings and byte strings to <code class="xref py py-obj docutils literal notr
 </dd></dl>
 
 <dl class="class">
-<dt id="storm.databases.postgres.PostgresTimeoutTracer">
-<em class="property">class </em><code class="descclassname">storm.databases.postgres.</code><code class="descname">PostgresTimeoutTracer</code><span class="sig-paren">(</span><em>granularity=5</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/databases/postgres.html#PostgresTimeoutTracer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.databases.postgres.PostgresTimeoutTracer" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference internal" href="events.html#storm.tracer.TimeoutTracer" title="storm.tracer.TimeoutTracer"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.tracer.TimeoutTracer</span></code></a></p>
-<dl class="method">
-<dt id="storm.databases.postgres.PostgresTimeoutTracer.connection_raw_execute_error">
-<code class="descname">connection_raw_execute_error</code><span class="sig-paren">(</span><em>connection</em>, <em>raw_cursor</em>, <em>statement</em>, <em>params</em>, <em>error</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/databases/postgres.html#PostgresTimeoutTracer.connection_raw_execute_error"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.databases.postgres.PostgresTimeoutTracer.connection_raw_execute_error" title="Permalink to this definition">¶</a></dt>
-<dd><p>Raise TimeoutError if the given error was a timeout issue.</p>
-<p>Must be specialized in the backend.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="storm.databases.postgres.PostgresTimeoutTracer.set_statement_timeout">
-<code class="descname">set_statement_timeout</code><span class="sig-paren">(</span><em>raw_cursor</em>, <em>remaining_time</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/databases/postgres.html#PostgresTimeoutTracer.set_statement_timeout"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.databases.postgres.PostgresTimeoutTracer.set_statement_timeout" title="Permalink to this definition">¶</a></dt>
-<dd><p>Perform the timeout setup in the raw cursor.</p>
-<p>The database should raise an error if the next statement takes
-more than the number of seconds provided in <code class="xref py py-obj docutils literal notranslate"><span class="pre">remaining_time</span></code>.</p>
-<p>Must be specialized in the backend.</p>
-</dd></dl>
-
-</dd></dl>
-
-<dl class="class">
 <dt id="storm.databases.postgres.Returning">
 <em class="property">class </em><code class="descclassname">storm.databases.postgres.</code><code class="descname">Returning</code><span class="sig-paren">(</span><em>expr</em>, <em>columns=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/storm/databases/postgres.html#Returning"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#storm.databases.postgres.Returning" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference internal" href="expr.html#storm.expr.Expr" title="storm.expr.Expr"><code class="xref py py-class docutils literal notranslate"><span class="pre">storm.expr.Expr</span></code></a></p>
