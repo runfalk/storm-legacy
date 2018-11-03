@@ -21,6 +21,18 @@ was [#484](http://bazaar.launchpad.net/~storm/storm/trunk/files/484?start_revid=
 
 Changelog
 ---------
+The `CHANGELOG` file will not be updated as it is from the unforked
+version. I've decided to restart the version numbering.
+
+
+### Version 0.2.0 (alpha)
+Released on (unreleased)
+
+ * Removed `CaptureTracer` support
+ * Removed `TimeoutTracer` support
+ * Refactored test suite to use pytest. This solves a lot of
+   warnings during tests.
+
 
 ### Version 0.1.0 (alpha)
 Released on 8th October 2018
@@ -33,6 +45,7 @@ of how well it works with other applications.
  * Added support for Python 3.5
  * Added support for Python 3.6
  * Added support for Python 3.7
+ * Changed test runner to pytest
  * Removed MySQL support
  * Removed Pickle column type (use JSON or re-implement it yourself)
  * Removed Python 2.6 and earlier support

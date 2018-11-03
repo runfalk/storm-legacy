@@ -24,7 +24,7 @@ import json
 
 from storm.compat import bstr, iter_range, ustr
 from storm.databases.postgres import (
-    Postgres, compile, currval, Returning, Case, PostgresTimeoutTracer,
+    Postgres, compile, currval, Returning, Case,
     make_dsn, JSONElement, JSONTextElement, JSON)
 from storm.database import create_database
 from storm.store import Store
@@ -37,7 +37,6 @@ from storm.expr import (
     Union, Select, Insert, Update, Alias, SQLRaw, SQLToken, State, Sequence,
     Like, Column, COLUMN, Cast, Func, FromExpr,
 )
-from storm.tracer import install_tracer, TimeoutError
 from storm.uri import URI
 
 # We need the info to register the 'type' compiler.  In normal
@@ -48,7 +47,6 @@ from tests import has_fixtures, has_subunit
 from tests.databases.base import (
     DatabaseTest, DatabaseDisconnectionTest, UnsupportedDatabaseTest,
     TwoPhaseCommitTest, TwoPhaseCommitDisconnectionTest)
-from tests.tracer import TimeoutTracerTestBase
 from tests.helper import TestHelper
 
 
@@ -877,35 +875,3 @@ if has_fixtures:
     class PostgresDisconnectionTestWithPGBouncer(
         PostgresDisconnectionTestWithPGBouncerBase,
         TestWithFixtures, TestHelper): pass
-
-
-class PostgresTimeoutTracerTest(TimeoutTracerTestBase):
-
-    tracer_class = PostgresTimeoutTracer
-
-    def is_supported(self):
-        return bool(os.environ.get("STORM_POSTGRES_URI"))
-
-    def setUp(self):
-        super(PostgresTimeoutTracerTest, self).setUp()
-        self.database = create_database(os.environ["STORM_POSTGRES_URI"])
-        self.connection = self.database.connect()
-        install_tracer(self.tracer)
-        self.tracer.get_remaining_time = lambda: self.remaining_time
-        self.remaining_time = 10.5
-
-    def test_set_statement_timeout(self):
-        result = self.connection.execute("SHOW statement_timeout")
-        self.assertEquals(result.get_one(), ("10500ms",))
-
-    def test_connection_raw_execute_error(self):
-        statement = "SELECT pg_sleep(0.5)"
-        self.remaining_time = 0.001
-        try:
-            self.connection.execute(statement)
-        except TimeoutError as e:
-            self.assertEqual("SQL server cancelled statement", e.message)
-            self.assertEqual(statement, e.statement)
-            self.assertEqual((), e.params)
-        else:
-            self.fail("TimeoutError not raised")
