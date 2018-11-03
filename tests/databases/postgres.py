@@ -50,14 +50,6 @@ from tests.databases.base import (
 from tests.helper import TestHelper
 
 
-try:
-    import pgbouncer
-except ImportError:
-    has_pgbouncer = False
-else:
-    has_pgbouncer = True
-
-
 # Create columnN, tableN, and elemN variables.
 for i in iter_range(10):
     for name in ["column", "elem"]:
@@ -794,84 +786,14 @@ class PostgresDisconnectionTestWithoutProxyBase(object):
             DisconnectionError, connection.execute,
             "SELECT current_database()")
 
-
-if has_subunit:
-    # Some of the following tests are prone to segfaults, presumably in
-    # _psycopg.so. Run them in a subprocess if possible.
-    from subunit import IsolatedTestCase
-    class MisbehavingTestCase(TestHelper, IsolatedTestCase):
-        pass
-else:
-    # If we can't run them in a subprocess we still want to create tests, but
-    # prevent them from running, so that the skip is reported
-    class MisbehavingTestCase(TestHelper):
-        def is_supported(self):
-            return False
-
-
 class PostgresDisconnectionTestWithoutProxyUnixSockets(
-    PostgresDisconnectionTestWithoutProxyBase, MisbehavingTestCase):
+    PostgresDisconnectionTestWithoutProxyBase):
     """Disconnection tests using Unix sockets."""
 
     database_uri = os.environ.get("STORM_POSTGRES_URI")
 
 class PostgresDisconnectionTestWithoutProxyTCPSockets(
-    PostgresDisconnectionTestWithoutProxyBase, MisbehavingTestCase):
+    PostgresDisconnectionTestWithoutProxyBase):
     """Disconnection tests using TCP sockets."""
 
     database_uri = os.environ.get("STORM_POSTGRES_HOST_URI")
-
-
-class PostgresDisconnectionTestWithPGBouncerBase(object):
-    # Connecting via pgbouncer <http://pgfoundry.org/projects/pgbouncer>
-    # introduces new possible causes of disconnections.
-
-    def is_supported(self):
-        return (
-            has_fixtures and has_pgbouncer and
-            bool(os.environ.get("STORM_POSTGRES_HOST_URI")))
-
-    def setUp(self):
-        super(PostgresDisconnectionTestWithPGBouncerBase, self).setUp()
-        database_uri = URI(os.environ["STORM_POSTGRES_HOST_URI"])
-        database_user = database_uri.username or os.environ['USER']
-        database_dsn = make_dsn(database_uri)
-        # Create a pgbouncer fixture.
-        self.pgbouncer = pgbouncer.fixture.PGBouncerFixture()
-        self.pgbouncer.databases[database_uri.database] = database_dsn
-        self.pgbouncer.users[database_user] = "trusted"
-        self.pgbouncer.admin_users = [database_user]
-        self.useFixture(self.pgbouncer)
-        # Create a Database that uses pgbouncer.
-        pgbouncer_uri = database_uri.copy()
-        pgbouncer_uri.host = self.pgbouncer.host
-        pgbouncer_uri.port = self.pgbouncer.port
-        self.database = create_database(pgbouncer_uri)
-
-    def test_terminated_backend(self):
-        # The error raised when trying to use a connection through pgbouncer
-        # that has been terminated at the server is considered a disconnection
-        # error.
-        connection = self.database.connect()
-        terminate_all_backends(self.database)
-        self.assertRaises(
-            DisconnectionError, connection.execute,
-            "SELECT current_database()")
-
-    def test_pgbouncer_stopped(self):
-        # The error raised from a connection that is no longer connected
-        # because pgbouncer has been immediately shutdown (via SIGTERM; see
-        # man 1 pgbouncer) is considered a disconnection error.
-        connection = self.database.connect()
-        self.pgbouncer.stop()
-        self.assertRaises(
-            DisconnectionError, connection.execute,
-            "SELECT current_database()")
-
-
-if has_fixtures:
-    # Upgrade to full test case class with fixtures.
-    from fixtures import TestWithFixtures
-    class PostgresDisconnectionTestWithPGBouncer(
-        PostgresDisconnectionTestWithPGBouncerBase,
-        TestWithFixtures, TestHelper): pass
