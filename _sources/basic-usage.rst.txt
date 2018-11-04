@@ -678,11 +678,11 @@ Let's play with it. We'll define a temporary subclass of Person for that.
 
     class PersonWithHook(Person):
         def __init__(self, name):
-            print "Creating %s" % name
+            print("Creating %s" % name)
             self.name = name
 
         def __storm_loaded__(self):
-            print "Loaded %s" % self.name
+            print("Loaded %s" % self.name)
 
     # Prints: Creating Earl Easton
     earl = store.add(PersonWithHook(u"Earl Easton"))  
