@@ -6,6 +6,8 @@ This is the documentation for Storm legacy.
     :maxdepth: 2
     :caption: Contents:
 
+    basic-usage.rst
+    infoheritance.rst
     store.rst
     columns.rst
     expr.rst
@@ -16,7 +18,6 @@ This is the documentation for Storm legacy.
 
 Indices and tables
 ==================
-
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`

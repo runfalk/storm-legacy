@@ -539,12 +539,13 @@ def create_database(uri):
     """Create a database instance.
 
     @param uri: An URI instance, or a string describing the URI. Some examples:
-        - "sqlite:" An in memory sqlite database.
-        - "sqlite:example.db" A SQLite database called example.db
-        - "postgres:test" The database 'test' from the local postgres server.
-        - "postgres://user:password@host/test" The database test on machine host
+
+        - ``sqlite:`` An in memory sqlite database.
+        - ``sqlite:example.db`` A SQLite database called example.db
+        - ``postgres:test`` The database 'test' from the local postgres server.
+        - ``postgres://user:password@host/test`` The database test on machine host
           with supplied user credentials, using postgres.
-        - "anything:..." Where 'anything' has previously been registered
+        - ``anything:...`` Where 'anything' has previously been registered
           with L{register_scheme}.
     """
     if isinstance(uri, string_types):

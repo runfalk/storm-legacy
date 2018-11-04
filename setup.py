@@ -33,6 +33,7 @@ setup(
             "sphinx_epytext",
         ],
         "dev": [
+            "docutils",
             "fixtures>=0.3.5",
             "freezegun",
             "mock>=2.0.0",
