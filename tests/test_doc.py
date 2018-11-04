@@ -1,5 +1,4 @@
 import ast
-import importlib
 import pytest
 
 from _pytest.assertion.rewrite import AssertionRewriter
@@ -30,3 +29,4 @@ def test_rst(path):
     mod = ast.Module(body=ast_parts)
     AssertionRewriter(path, None).run(mod)
     exec(compile(mod, path, "exec"), {})
+
