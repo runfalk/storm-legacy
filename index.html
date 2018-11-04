@@ -16,7 +16,7 @@
     <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Store" href="store.html" />
+    <link rel="next" title="Basic usage" href="basic-usage.html" />
    
   <link rel="stylesheet" href="_static/custom.css" type="text/css" />
   
@@ -39,6 +39,42 @@
 <div class="toctree-wrapper compound">
 <p class="caption"><span class="caption-text">Contents:</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="basic-usage.html">Basic usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="basic-usage.html#basic-definition">Basic definition</a></li>
+<li class="toctree-l2"><a class="reference internal" href="basic-usage.html#creating-a-database-and-the-store">Creating a database and the store</a></li>
+<li class="toctree-l2"><a class="reference internal" href="basic-usage.html#creating-an-object">Creating an object</a></li>
+<li class="toctree-l2"><a class="reference internal" href="basic-usage.html#the-store-of-an-object">The store of an object</a></li>
+<li class="toctree-l2"><a class="reference internal" href="basic-usage.html#finding-an-object">Finding an object</a></li>
+<li class="toctree-l2"><a class="reference internal" href="basic-usage.html#caching-behavior">Caching behavior</a></li>
+<li class="toctree-l2"><a class="reference internal" href="basic-usage.html#flushing">Flushing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="basic-usage.html#changing-objects-with-the-store">Changing objects with the Store</a></li>
+<li class="toctree-l2"><a class="reference internal" href="basic-usage.html#persisting-changes">Persisting changes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="basic-usage.html#constructors">Constructors</a></li>
+<li class="toctree-l2"><a class="reference internal" href="basic-usage.html#references-and-subclassing">References and subclassing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="basic-usage.html#many-to-one-reference-sets">Many-to-one reference sets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="basic-usage.html#many-to-many-reference-sets-and-composed-keys">Many-to-many reference sets and composed keys</a></li>
+<li class="toctree-l2"><a class="reference internal" href="basic-usage.html#joins">Joins</a></li>
+<li class="toctree-l2"><a class="reference internal" href="basic-usage.html#sub-selects">Sub-selects</a></li>
+<li class="toctree-l2"><a class="reference internal" href="basic-usage.html#ordering-and-limiting-results">Ordering and limiting results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="basic-usage.html#multiple-types-with-one-query">Multiple types with one query</a></li>
+<li class="toctree-l2"><a class="reference internal" href="basic-usage.html#the-storm-base-class">The Storm base class</a></li>
+<li class="toctree-l2"><a class="reference internal" href="basic-usage.html#loading-hook">Loading hook</a></li>
+<li class="toctree-l2"><a class="reference internal" href="basic-usage.html#executing-expressions">Executing expressions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="basic-usage.html#auto-reloading-values">Auto-reloading values</a></li>
+<li class="toctree-l2"><a class="reference internal" href="basic-usage.html#expression-values">Expression values</a></li>
+<li class="toctree-l2"><a class="reference internal" href="basic-usage.html#aliases">Aliases</a></li>
+<li class="toctree-l2"><a class="reference internal" href="basic-usage.html#debugging">Debugging</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="infoheritance.html">Infoheritance</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="infoheritance.html#defining-a-sample-model">Defining a sample model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="infoheritance.html#the-infoheritance-pattern">The infoheritance pattern</a></li>
+<li class="toctree-l2"><a class="reference internal" href="infoheritance.html#registering-info-classes">Registering info classes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="infoheritance.html#creating-info-classes">Creating info classes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="infoheritance.html#retrieving-info-classes">Retrieving info classes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="infoheritance.html#in-memory-info-objects">In-memory info objects</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="store.html">Store</a></li>
 <li class="toctree-l1"><a class="reference internal" href="columns.html">Columns and types</a></li>
 <li class="toctree-l1"><a class="reference internal" href="expr.html">Expressions</a></li>
@@ -76,6 +112,8 @@
 <h3>Navigation</h3>
 <p class="caption"><span class="caption-text">Contents:</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="basic-usage.html">Basic usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="infoheritance.html">Infoheritance</a></li>
 <li class="toctree-l1"><a class="reference internal" href="store.html">Store</a></li>
 <li class="toctree-l1"><a class="reference internal" href="columns.html">Columns and types</a></li>
 <li class="toctree-l1"><a class="reference internal" href="expr.html">Expressions</a></li>
@@ -88,7 +126,7 @@
 <h3>Related Topics</h3>
 <ul>
   <li><a href="#">Documentation overview</a><ul>
-      <li>Next: <a href="store.html" title="next chapter">Store</a></li>
+      <li>Next: <a href="basic-usage.html" title="next chapter">Basic usage</a></li>
   </ul></li>
 </ul>
 </div>

@@ -574,12 +574,13 @@
     <span class="sd">&quot;&quot;&quot;Create a database instance.</span>
 
 <span class="sd">    @param uri: An URI instance, or a string describing the URI. Some examples:</span>
-<span class="sd">        - &quot;sqlite:&quot; An in memory sqlite database.</span>
-<span class="sd">        - &quot;sqlite:example.db&quot; A SQLite database called example.db</span>
-<span class="sd">        - &quot;postgres:test&quot; The database &#39;test&#39; from the local postgres server.</span>
-<span class="sd">        - &quot;postgres://user:password@host/test&quot; The database test on machine host</span>
+
+<span class="sd">        - ``sqlite:`` An in memory sqlite database.</span>
+<span class="sd">        - ``sqlite:example.db`` A SQLite database called example.db</span>
+<span class="sd">        - ``postgres:test`` The database &#39;test&#39; from the local postgres server.</span>
+<span class="sd">        - ``postgres://user:password@host/test`` The database test on machine host</span>
 <span class="sd">          with supplied user credentials, using postgres.</span>
-<span class="sd">        - &quot;anything:...&quot; Where &#39;anything&#39; has previously been registered</span>
+<span class="sd">        - ``anything:...`` Where &#39;anything&#39; has previously been registered</span>
 <span class="sd">          with L{register_scheme}.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">uri</span><span class="p">,</span> <span class="n">string_types</span><span class="p">):</span>
@@ -613,6 +614,8 @@
 <h3>Navigation</h3>
 <p class="caption"><span class="caption-text">Contents:</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../basic-usage.html">Basic usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../infoheritance.html">Infoheritance</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../store.html">Store</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../columns.html">Columns and types</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../expr.html">Expressions</a></li>

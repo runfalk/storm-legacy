@@ -1,0 +1,347 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Infoheritance &#8212; Storm  documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Store" href="store.html" />
+    <link rel="prev" title="Basic usage" href="basic-usage.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="infoheritance">
+<h1>Infoheritance<a class="headerlink" href="#infoheritance" title="Permalink to this headline">¶</a></h1>
+<p>Storm doesn’t support classes that have columns in multiple tables. This makes
+using inheritance rather difficult. The infoheritance pattern described here
+provides a way to get the benefits of inheritance without running into the
+problems Storm has with multi-table classes.</p>
+<div class="section" id="defining-a-sample-model">
+<h2>Defining a sample model<a class="headerlink" href="#defining-a-sample-model" title="Permalink to this headline">¶</a></h2>
+<p>Let’s consider an inheritance hierarchy to migrate to Storm.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Person</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+
+
+<span class="k">class</span> <span class="nc">SecretAgent</span><span class="p">(</span><span class="n">Person</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">passcode</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">SecretAgent</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">passcode</span> <span class="o">=</span> <span class="n">passcode</span>
+
+
+<span class="k">class</span> <span class="nc">Teacher</span><span class="p">(</span><span class="n">Person</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">school</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Employee</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">school</span> <span class="o">=</span> <span class="n">school</span>
+</pre></div>
+</div>
+<p>We want to use three tables to store data for these objects: <cite>person</cite>,
+<cite>secret_agent</cite> and <cite>teacher</cite>. We can’t simply convert instance attributes to
+Storm properties and add <cite>__storm_table__</cite> definitions because a single object
+may not have columns that come from more than one table. We can’t have
+<cite>Teacher</cite> getting it’s <cite>name</cite> column from the <cite>person</cite> table and it’s <cite>school</cite>
+column from the <cite>teacher</cite> table, for example.</p>
+</div>
+<div class="section" id="the-infoheritance-pattern">
+<h2>The infoheritance pattern<a class="headerlink" href="#the-infoheritance-pattern" title="Permalink to this headline">¶</a></h2>
+<p>The infoheritance pattern uses composition instead of inheritance to work
+around the multiple table limitation. A base Storm class is used to represent
+all objects in the hierarchy. Each instance of this base class has an info
+property that yields an instance of a specific info class. An info class
+provides the additional data and behaviour you’d normally implement in a
+subclass. Following is the design from above converted to use the pattern.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">storm.locals</span> <span class="kn">import</span> <span class="n">Storm</span><span class="p">,</span> <span class="n">Store</span><span class="p">,</span> <span class="n">Int</span><span class="p">,</span> <span class="n">Unicode</span><span class="p">,</span> <span class="n">Reference</span>
+
+<span class="n">person_info_types</span> <span class="o">=</span> <span class="p">{}</span>
+
+<span class="k">def</span> <span class="nf">register_person_info_type</span><span class="p">(</span><span class="n">info_type</span><span class="p">,</span> <span class="n">info_class</span><span class="p">):</span>
+    <span class="n">existing_info_class</span> <span class="o">=</span> <span class="n">person_info_types</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">info_type</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">existing_info_class</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%r</span><span class="s2"> has the same info_type of </span><span class="si">%r</span><span class="s2">&quot;</span> <span class="o">%</span>
+                           <span class="p">(</span><span class="n">info_class</span><span class="p">,</span> <span class="n">existing_info_class</span><span class="p">))</span>
+    <span class="n">person_info_types</span><span class="p">[</span><span class="n">info_type</span><span class="p">]</span> <span class="o">=</span> <span class="n">info_class</span>
+    <span class="n">info_class</span><span class="o">.</span><span class="n">info_type</span> <span class="o">=</span> <span class="n">info_type</span>
+
+
+<span class="k">class</span> <span class="nc">Person</span><span class="p">(</span><span class="n">Storm</span><span class="p">):</span>
+    <span class="n">__storm_table__</span> <span class="o">=</span> <span class="s2">&quot;person&quot;</span>
+
+    <span class="nb">id</span> <span class="o">=</span> <span class="n">Int</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">primary</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">Unicode</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+    <span class="n">info_type</span> <span class="o">=</span> <span class="n">Int</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+    <span class="n">_info</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">store</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">info_class</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">info_type</span> <span class="o">=</span> <span class="n">info_class</span><span class="o">.</span><span class="n">info_type</span>
+        <span class="n">store</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_info</span> <span class="o">=</span> <span class="n">info_class</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">info</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_info</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_info</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
+        <span class="n">info_class</span> <span class="o">=</span> <span class="n">person_info_types</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">info_type</span><span class="p">]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">info_class</span><span class="p">,</span> <span class="s2">&quot;__storm_table__&quot;</span><span class="p">):</span>
+            <span class="n">info</span> <span class="o">=</span> <span class="n">info_class</span><span class="o">.</span><span class="fm">__new__</span><span class="p">(</span><span class="n">info_class</span><span class="p">)</span>
+            <span class="n">info</span><span class="o">.</span><span class="n">person</span> <span class="o">=</span> <span class="bp">self</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">info</span> <span class="o">=</span> <span class="n">Store</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">info_class</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_info</span> <span class="o">=</span> <span class="n">info</span>
+        <span class="k">return</span> <span class="n">info</span>
+
+
+<span class="k">class</span> <span class="nc">PersonInfo</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">person</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">person</span> <span class="o">=</span> <span class="n">person</span>
+
+
+<span class="k">class</span> <span class="nc">StoredPersonInfo</span><span class="p">(</span><span class="n">PersonInfo</span><span class="p">):</span>
+    <span class="n">person_id</span> <span class="o">=</span> <span class="n">Int</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">primary</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">person</span> <span class="o">=</span> <span class="n">Reference</span><span class="p">(</span><span class="n">person_id</span><span class="p">,</span> <span class="n">Person</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">SecretAgent</span><span class="p">(</span><span class="n">StoredPersonInfo</span><span class="p">):</span>
+    <span class="n">__storm_table__</span> <span class="o">=</span> <span class="s2">&quot;secret_agent&quot;</span>
+
+    <span class="n">passcode</span> <span class="o">=</span> <span class="n">Unicode</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">person</span><span class="p">,</span> <span class="n">passcode</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">SecretAgent</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">person</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">passcode</span> <span class="o">=</span> <span class="n">passcode</span>
+
+
+<span class="k">class</span> <span class="nc">Teacher</span><span class="p">(</span><span class="n">StoredPersonInfo</span><span class="p">):</span>
+    <span class="n">__storm_table__</span> <span class="o">=</span> <span class="s2">&quot;teacher&quot;</span>
+
+    <span class="n">school</span> <span class="o">=</span> <span class="n">Unicode</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">person</span><span class="p">,</span> <span class="n">school</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Teacher</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">person</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">school</span> <span class="o">=</span> <span class="n">school</span>
+</pre></div>
+</div>
+<p>The pattern works by having a base class, <cite>Person</cite>, keep a reference to an
+info class, <cite>PersonInfo</cite>. Info classes need to be registered so that <cite>Person</cite>
+can discover them and load them when necessary. Note that info types have the
+same ID as their parent object. This isn’t strictly necessary, but it makes
+certain things easy, such as being able to look up info objects directly by ID
+when given a person object. <cite>Person</cite> objects are required to be in a store to
+ensure that an ID is available and can used by the info class.</p>
+</div>
+<div class="section" id="registering-info-classes">
+<h2>Registering info classes<a class="headerlink" href="#registering-info-classes" title="Permalink to this headline">¶</a></h2>
+<p>Let’s register our info classes. Each class must be registered with a unique
+info type key. This key is stored in the database, so be sure to use a stable
+value.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">register_person_info_type</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">SecretAgent</span><span class="p">)</span>
+<span class="n">register_person_info_type</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">Teacher</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Let’s create a database to store person objects before we continue.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">storm.locals</span> <span class="kn">import</span> <span class="n">create_database</span>
+
+<span class="n">database</span> <span class="o">=</span> <span class="n">create_database</span><span class="p">(</span><span class="s2">&quot;sqlite:&quot;</span><span class="p">)</span>
+<span class="n">store</span> <span class="o">=</span> <span class="n">Store</span><span class="p">(</span><span class="n">database</span><span class="p">)</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">    CREATE TABLE person (</span>
+<span class="s2">        id INTEGER PRIMARY KEY,</span>
+<span class="s2">        info_type INTEGER NOT NULL,</span>
+<span class="s2">        name TEXT NOT NULL)</span>
+<span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">    CREATE TABLE secret_agent (</span>
+<span class="s2">        person_id INTEGER PRIMARY KEY,</span>
+<span class="s2">        passcode TEXT NOT NULL)</span>
+<span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">    CREATE TABLE teacher (</span>
+<span class="s2">        person_id INTEGER PRIMARY KEY,</span>
+<span class="s2">        school TEXT NOT NULL)</span>
+<span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="creating-info-classes">
+<h2>Creating info classes<a class="headerlink" href="#creating-info-classes" title="Permalink to this headline">¶</a></h2>
+<p>We can easily create person objects now.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">secret_agent</span> <span class="o">=</span> <span class="n">Person</span><span class="p">(</span><span class="n">store</span><span class="p">,</span> <span class="sa">u</span><span class="s2">&quot;Dick Tracy&quot;</span><span class="p">,</span>
+                      <span class="n">SecretAgent</span><span class="p">,</span> <span class="n">passcode</span><span class="o">=</span><span class="sa">u</span><span class="s2">&quot;secret!&quot;</span><span class="p">)</span>
+<span class="n">teacher</span> <span class="o">=</span> <span class="n">Person</span><span class="p">(</span><span class="n">store</span><span class="p">,</span> <span class="sa">u</span><span class="s2">&quot;Mrs. Cohen&quot;</span><span class="p">,</span>
+                 <span class="n">Teacher</span><span class="p">,</span> <span class="n">school</span><span class="o">=</span><span class="sa">u</span><span class="s2">&quot;Cameron Elementary School&quot;</span><span class="p">)</span>
+<span class="n">store</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>And we can easily find them again.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">infos</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="nb">type</span><span class="p">(</span><span class="n">person</span><span class="o">.</span><span class="n">info</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">person</span> <span class="ow">in</span> <span class="n">store</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">Person</span><span class="p">)</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">Person</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+<span class="p">]</span>
+<span class="c1"># info == [&lt;class &#39;...SecretAgent&#39;&gt;, &lt;class &#39;...Teacher&#39;&gt;]</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="retrieving-info-classes">
+<h2>Retrieving info classes<a class="headerlink" href="#retrieving-info-classes" title="Permalink to this headline">¶</a></h2>
+<p>Now that we have our basic hierarchy in place we’re going to want to retrieve
+objects by info type.  Let’s implement a function to make finding <cite>Person</cite>
+objects easier.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">get_persons</span><span class="p">(</span><span class="n">store</span><span class="p">,</span> <span class="n">info_classes</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="n">where</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">info_classes</span><span class="p">:</span>
+        <span class="n">info_types</span> <span class="o">=</span> <span class="p">[</span><span class="n">info_class</span><span class="o">.</span><span class="n">info_type</span> <span class="k">for</span> <span class="n">info_class</span> <span class="ow">in</span> <span class="n">info_classes</span><span class="p">]</span>
+        <span class="n">where</span> <span class="o">=</span> <span class="p">[</span><span class="n">Person</span><span class="o">.</span><span class="n">info_type</span><span class="o">.</span><span class="n">is_in</span><span class="p">(</span><span class="n">info_types</span><span class="p">)]</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">Person</span><span class="p">,</span> <span class="o">*</span><span class="n">where</span><span class="p">)</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">Person</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">result</span>
+
+<span class="n">secret_agent</span> <span class="o">=</span> <span class="n">get_persons</span><span class="p">(</span><span class="n">store</span><span class="p">,</span> <span class="n">info_classes</span><span class="o">=</span><span class="p">[</span><span class="n">SecretAgent</span><span class="p">])</span><span class="o">.</span><span class="n">one</span><span class="p">()</span>
+<span class="k">assert</span> <span class="n">secret_agent</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="sa">u</span><span class="s2">&quot;Dick Tracy&quot;</span>
+<span class="k">assert</span> <span class="n">secret_agent</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">passcode</span> <span class="o">==</span> <span class="sa">u</span><span class="s2">&quot;secret!&quot;</span>
+
+<span class="n">teacher</span> <span class="o">=</span> <span class="n">get_persons</span><span class="p">(</span><span class="n">store</span><span class="p">,</span> <span class="n">info_classes</span><span class="o">=</span><span class="p">[</span><span class="n">Teacher</span><span class="p">])</span><span class="o">.</span><span class="n">one</span><span class="p">()</span>
+<span class="k">assert</span> <span class="n">teacher</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="sa">u</span><span class="s2">&quot;Mrs. Cohen&quot;</span>
+<span class="k">assert</span> <span class="n">teacher</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">school</span> <span class="o">==</span> <span class="sa">u</span><span class="s2">&quot;Cameron Elementary School&quot;</span>
+</pre></div>
+</div>
+<p>Great, we can easily find different kinds of <cite>Person</cite> objects.</p>
+</div>
+<div class="section" id="in-memory-info-objects">
+<h2>In-memory info objects<a class="headerlink" href="#in-memory-info-objects" title="Permalink to this headline">¶</a></h2>
+<p>This design also allows for in-memory info objects.  Let’s add one to our
+hierarchy.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Ghost</span><span class="p">(</span><span class="n">PersonInfo</span><span class="p">):</span>
+    <span class="n">friendly</span> <span class="o">=</span> <span class="bp">True</span>
+
+<span class="n">register_person_info_type</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="n">Ghost</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>We create and load in-memory objects the same way we do stored ones.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ghost</span> <span class="o">=</span> <span class="n">Person</span><span class="p">(</span><span class="n">store</span><span class="p">,</span> <span class="sa">u</span><span class="s2">&quot;Casper&quot;</span><span class="p">,</span> <span class="n">Ghost</span><span class="p">)</span>
+<span class="n">store</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+<span class="k">del</span> <span class="n">ghost</span>
+<span class="n">store</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
+
+<span class="n">ghost</span> <span class="o">=</span> <span class="n">get_persons</span><span class="p">(</span><span class="n">store</span><span class="p">,</span> <span class="n">info_classes</span><span class="o">=</span><span class="p">[</span><span class="n">Ghost</span><span class="p">])</span><span class="o">.</span><span class="n">one</span><span class="p">()</span>
+<span class="k">assert</span> <span class="n">ghost</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="sa">u</span><span class="s2">&quot;Casper&quot;</span>
+<span class="k">assert</span> <span class="n">ghost</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">friendly</span>
+</pre></div>
+</div>
+<p>This pattern is very handy when using Storm with code that would naturally be
+implemented using inheritance.</p>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">Storm</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="basic-usage.html">Basic usage</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Infoheritance</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#defining-a-sample-model">Defining a sample model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#the-infoheritance-pattern">The infoheritance pattern</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#registering-info-classes">Registering info classes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#creating-info-classes">Creating info classes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#retrieving-info-classes">Retrieving info classes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#in-memory-info-objects">In-memory info objects</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="store.html">Store</a></li>
+<li class="toctree-l1"><a class="reference internal" href="columns.html">Columns and types</a></li>
+<li class="toctree-l1"><a class="reference internal" href="expr.html">Expressions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="databases.html">Databases</a></li>
+<li class="toctree-l1"><a class="reference internal" href="events.html">Hooks and events</a></li>
+<li class="toctree-l1"><a class="reference internal" href="miscellaneous.html">Miscellaneous libraries</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="basic-usage.html" title="previous chapter">Basic usage</a></li>
+      <li>Next: <a href="store.html" title="next chapter">Store</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Gustavo Niemeyer.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/infoheritance.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

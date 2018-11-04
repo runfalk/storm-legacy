@@ -1,0 +1,822 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Basic usage &#8212; Storm  documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Infoheritance" href="infoheritance.html" />
+    <link rel="prev" title="Storm legacy" href="index.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="basic-usage">
+<h1>Basic usage<a class="headerlink" href="#basic-usage" title="Permalink to this headline">¶</a></h1>
+<p>Let’s start by importing some names into the namespace.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">storm.locals</span> <span class="kn">import</span> <span class="o">*</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">storm.locals</span></code> is a convenience module that exports most useful parts of the
+Storm API.</p>
+<div class="section" id="basic-definition">
+<h2>Basic definition<a class="headerlink" href="#basic-definition" title="Permalink to this headline">¶</a></h2>
+<p>Now we define a type with some properties describing the information
+we’re about to map.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Person</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="n">__storm_table__</span> <span class="o">=</span> <span class="s2">&quot;person&quot;</span>
+    <span class="nb">id</span> <span class="o">=</span> <span class="n">Int</span><span class="p">(</span><span class="n">primary</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">Unicode</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Notice that this has no Storm-defined base class or constructor. The
+<code class="docutils literal notranslate"><span class="pre">storm_table</span></code> attribute helps Storm resolve which database table that is
+associated with this class.</p>
+</div>
+<div class="section" id="creating-a-database-and-the-store">
+<h2>Creating a database and the store<a class="headerlink" href="#creating-a-database-and-the-store" title="Permalink to this headline">¶</a></h2>
+<p>We still don’t have anyone to talk to, so let’s define an in-memory SQLite
+database to play with, and a store using that database.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">database</span> <span class="o">=</span> <span class="n">create_database</span><span class="p">(</span><span class="s2">&quot;sqlite:&quot;</span><span class="p">)</span>
+<span class="n">store</span> <span class="o">=</span> <span class="n">Store</span><span class="p">(</span><span class="n">database</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Two databases are supported at the moment: SQLite and PostgreSQL.
+The parameter passed to <a class="reference internal" href="databases.html#storm.database.create_database" title="storm.database.create_database"><code class="xref py py-func docutils literal notranslate"><span class="pre">create_database()</span></code></a> is an URI,
+as follows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># URI format</span>
+<span class="c1"># database = create_database(&quot;scheme://user:password@hostname:port/dbname&quot;)</span>
+
+<span class="c1"># To connect to a PostgreSQL UNIX socket without password</span>
+<span class="c1"># database = create_database(&quot;postgres://user@/dbname&quot;)</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">scheme</span></code> may be either <code class="docutils literal notranslate"><span class="pre">sqlite</span></code> or <code class="docutils literal notranslate"><span class="pre">postgres</span></code>.</p>
+<p>Now we have to create the table that will actually hold the data for our class.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">store</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">    CREATE TABLE person(</span>
+<span class="s2">        id INTEGER PRIMARY KEY,</span>
+<span class="s2">        name VARCHAR</span>
+<span class="s2">    )</span>
+<span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><a class="reference internal" href="store.html#storm.store.Store.execute" title="storm.store.Store.execute"><code class="xref py py-meth docutils literal notranslate"><span class="pre">execute()</span></code></a> returns a result, but we don’t care
+about it for now. We could also use <code class="docutils literal notranslate"><span class="pre">noresult=True</span></code> to avoid the result
+entirely.</p>
+</div>
+<div class="section" id="creating-an-object">
+<h2>Creating an object<a class="headerlink" href="#creating-an-object" title="Permalink to this headline">¶</a></h2>
+<p>Let’s create an object of the defined class.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">joe</span> <span class="o">=</span> <span class="n">Person</span><span class="p">()</span>
+<span class="n">joe</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="sa">u</span><span class="s2">&quot;Joe Johnes&quot;</span>
+
+<span class="k">assert</span> <span class="n">joe</span><span class="o">.</span><span class="n">id</span> <span class="ow">is</span> <span class="bp">None</span>
+<span class="k">assert</span> <span class="n">joe</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="sa">u</span><span class="s2">&quot;Joe Johnes&quot;</span>
+</pre></div>
+</div>
+<p>So far this object has no connection to a database. Let’s add it to the store
+we’ve created above.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">store</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">joe</span><span class="p">)</span>
+<span class="k">assert</span> <span class="n">joe</span><span class="o">.</span><span class="n">id</span> <span class="ow">is</span> <span class="bp">None</span>
+<span class="k">assert</span> <span class="n">joe</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="sa">u</span><span class="s2">&quot;Joe Johnes&quot;</span>
+</pre></div>
+</div>
+<p>Notice that the object wasn’t changed, even after being added to the store.
+That’s because it hasn’t been flushed to the database yet.</p>
+</div>
+<div class="section" id="the-store-of-an-object">
+<h2>The store of an object<a class="headerlink" href="#the-store-of-an-object" title="Permalink to this headline">¶</a></h2>
+<p>Once an object is added to a store, or retrieved from a store, it’s relation
+to that store is known.  We can easily verify which store an object is bound.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">assert</span> <span class="n">Store</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="n">joe</span><span class="p">)</span> <span class="ow">is</span> <span class="n">store</span>
+<span class="k">assert</span> <span class="n">Store</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="n">Person</span><span class="p">())</span> <span class="ow">is</span> <span class="bp">None</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="finding-an-object">
+<h2>Finding an object<a class="headerlink" href="#finding-an-object" title="Permalink to this headline">¶</a></h2>
+<p>Now, what would happen if we actually asked the store to give us the person
+named <em>Joe Johnes</em>?</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">person</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">Person</span><span class="p">,</span> <span class="n">Person</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="sa">u</span><span class="s2">&quot;Joe Johnes&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">one</span><span class="p">()</span>
+<span class="k">assert</span> <span class="n">person</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="mi">1</span>
+<span class="k">assert</span> <span class="n">person</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="sa">u</span><span class="s2">&quot;Joe Johnes&quot;</span>
+</pre></div>
+</div>
+<p>The person is there! Yeah, ok, you were expecting it. :-)</p>
+<p>Using <a class="reference internal" href="store.html#storm.store.Store.get" title="storm.store.Store.get"><code class="xref py py-meth docutils literal notranslate"><span class="pre">get()</span></code></a> we can also retrieve the object using
+its primary key.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">assert</span> <span class="n">store</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">Person</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="sa">u</span><span class="s2">&quot;Joe Johnes&quot;</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="caching-behavior">
+<h2>Caching behavior<a class="headerlink" href="#caching-behavior" title="Permalink to this headline">¶</a></h2>
+<p>One interesting thing is that this person is actually Joe, right? We’ve just
+added this object, so there’s only one Joe, why would there be two different
+objects? They are actually the same!</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">assert</span> <span class="n">person</span> <span class="ow">is</span> <span class="n">joe</span>
+</pre></div>
+</div>
+<p>What’s going on behind the scenes is that each store has an object cache. When
+an object is linked to a store, it will be cached by the store for as long as
+there’s a reference to the object somewhere, or while the object is dirty (has
+unflushed changes).</p>
+<p>Storm ensures that at least a certain number of recently used objects will stay
+in memory inside the transaction, so that frequently used objects are not
+retrieved from the database too often.</p>
+</div>
+<div class="section" id="flushing">
+<h2>Flushing<a class="headerlink" href="#flushing" title="Permalink to this headline">¶</a></h2>
+<p>When we tried to find Joe in the database for the first time, we’ve noticed
+that the <code class="docutils literal notranslate"><span class="pre">id</span></code> property was magically assigned. This happened because the
+object was flushed implicitly so that the operation would affect any pending
+changes as well.</p>
+<p>It is possible to manually force a flush using
+<a class="reference internal" href="store.html#storm.store.Store.flush" title="storm.store.Store.flush"><code class="xref py py-meth docutils literal notranslate"><span class="pre">flush()</span></code></a>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">mary</span> <span class="o">=</span> <span class="n">Person</span><span class="p">()</span>
+<span class="n">mary</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="sa">u</span><span class="s2">&quot;Mary Margaret&quot;</span>
+<span class="n">store</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">mary</span><span class="p">)</span>
+
+<span class="c1"># Mary has not yet been flushed</span>
+<span class="k">assert</span> <span class="n">mary</span><span class="o">.</span><span class="n">id</span> <span class="ow">is</span> <span class="bp">None</span>
+
+<span class="n">store</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+<span class="k">assert</span> <span class="n">mary</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="mi">2</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="changing-objects-with-the-store">
+<h2>Changing objects with the Store<a class="headerlink" href="#changing-objects-with-the-store" title="Permalink to this headline">¶</a></h2>
+<p>Besides changing objects as usual, we can also benefit from the fact that
+objects are tied to a database to change them using expressions.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">store</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">Person</span><span class="p">,</span> <span class="n">Person</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="sa">u</span><span class="s2">&quot;Mary Margaret&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="sa">u</span><span class="s2">&quot;Mary Maggie&quot;</span><span class="p">)</span>
+<span class="k">assert</span> <span class="n">mary</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="sa">u</span><span class="s2">&quot;Mary Maggie&quot;</span>
+</pre></div>
+</div>
+<p>This operation will touch every matching object in the database, and also
+objects that are alive in memory.</p>
+</div>
+<div class="section" id="persisting-changes">
+<h2>Persisting changes<a class="headerlink" href="#persisting-changes" title="Permalink to this headline">¶</a></h2>
+<p>Everything we’ve done so far is inside a transaction. At this point, we can
+either make these changes and any pending uncommitted changes persistent by
+committing them, or we can undo everything by rolling them back.</p>
+<p>We’ll commit them, with something as simple as</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">store</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>That was straightforward. Everything is still the way it was, but now changes
+are there “for real”.</p>
+<p>Aborting changes is very straightforward as well.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">joe</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="sa">u</span><span class="s2">&quot;Tom Thomas&quot;</span>
+</pre></div>
+</div>
+<p>Let’s see if these changes are really being considered by Storm
+and by the database.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">person</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">Person</span><span class="p">,</span> <span class="n">Person</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="sa">u</span><span class="s2">&quot;Tom Thomas&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">one</span><span class="p">()</span>
+<span class="k">assert</span> <span class="n">person</span> <span class="ow">is</span> <span class="n">joe</span>
+</pre></div>
+</div>
+<p>Yes, they are. Now, for the magic step (suspense music, please).</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">store</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Erm.. nothing happened? Actually, something happened with Joe. He’s back!</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">assert</span> <span class="n">joe</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="sa">u</span><span class="s2">&quot;Joe Johnes&quot;</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="constructors">
+<h2>Constructors<a class="headerlink" href="#constructors" title="Permalink to this headline">¶</a></h2>
+<p>So, we’ve been working for too long with people only. Let’s introduce a new
+kind of data in our model: companies.  For the company, we’ll use a
+constructor, just for the fun of it.  It will be the simplest company class
+you’ve ever seen:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Company</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="n">__storm_table__</span> <span class="o">=</span> <span class="s2">&quot;company&quot;</span>
+    <span class="nb">id</span> <span class="o">=</span> <span class="n">Int</span><span class="p">(</span><span class="n">primary</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">Unicode</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+</pre></div>
+</div>
+<p>Notice that the constructor parameter isn’t optional. It could be optional, if
+we wanted, but our companies always have names.</p>
+<p>Let’s add the table for it.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">store</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;CREATE TABLE company &quot;</span>
+              <span class="s2">&quot;(id INTEGER PRIMARY KEY, name VARCHAR)&quot;</span><span class="p">,</span> <span class="n">noresult</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Then, create a new company.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">circus</span> <span class="o">=</span> <span class="n">Company</span><span class="p">(</span><span class="sa">u</span><span class="s2">&quot;Circus Inc.&quot;</span><span class="p">)</span>
+<span class="k">assert</span> <span class="n">circus</span><span class="o">.</span><span class="n">id</span> <span class="ow">is</span> <span class="bp">None</span>
+<span class="k">assert</span> <span class="n">circus</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="sa">u</span><span class="s2">&quot;Circus Inc.&quot;</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">id</span></code> is still undefined because we haven’t flushed it. In fact, we
+haven’t even <em>added</em> the company to the store. We’ll do that soon.</p>
+</div>
+<div class="section" id="references-and-subclassing">
+<h2>References and subclassing<a class="headerlink" href="#references-and-subclassing" title="Permalink to this headline">¶</a></h2>
+<p>Now we want to assign some employees to our company.  Rather than redoing the
+Person definition, we’ll keep it as it is, since it’s general, and will create
+a new subclass of it for employees, which include one extra field: the company
+id.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Employee</span><span class="p">(</span><span class="n">Person</span><span class="p">):</span>
+    <span class="n">__storm_table__</span> <span class="o">=</span> <span class="s2">&quot;employee&quot;</span>
+    <span class="n">company_id</span> <span class="o">=</span> <span class="n">Int</span><span class="p">()</span>
+    <span class="n">company</span> <span class="o">=</span> <span class="n">Reference</span><span class="p">(</span><span class="n">company_id</span><span class="p">,</span> <span class="n">Company</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+</pre></div>
+</div>
+<p>Pay attention to that definiton for a moment. Notice that it doesn’t define
+what’s already in person, and introduces the <code class="docutils literal notranslate"><span class="pre">company_id</span></code>, and a <code class="docutils literal notranslate"><span class="pre">company</span></code>
+property, which is a reference to another class.  It also has a constructor,
+but which leaves the company alone.</p>
+<p>As usual, we need a table. SQLite has no idea of what a foreign key is, so
+we’ll not bother to define it.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">store</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;CREATE TABLE employee &quot;</span>
+              <span class="s2">&quot;(id INTEGER PRIMARY KEY, name VARCHAR, company_id INTEGER)&quot;</span><span class="p">,</span>
+              <span class="n">noresult</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Let’s give life to Ben now.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ben</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">Employee</span><span class="p">(</span><span class="sa">u</span><span class="s2">&quot;Ben Bill&quot;</span><span class="p">))</span>
+<span class="k">assert</span> <span class="n">ben</span><span class="o">.</span><span class="n">id</span> <span class="ow">is</span> <span class="bp">None</span>
+<span class="k">assert</span> <span class="n">ben</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="sa">u</span><span class="s2">&quot;Ben Bill&quot;</span>
+<span class="k">assert</span> <span class="n">ben</span><span class="o">.</span><span class="n">company_id</span> <span class="ow">is</span> <span class="bp">None</span>
+</pre></div>
+</div>
+<p>We can see that they were not flushed yet. Even then, we can say that Bill
+works on Circus.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ben</span><span class="o">.</span><span class="n">company</span> <span class="o">=</span> <span class="n">circus</span>
+<span class="k">assert</span> <span class="n">ben</span><span class="o">.</span><span class="n">company_id</span> <span class="ow">is</span> <span class="bp">None</span>
+<span class="k">assert</span> <span class="n">ben</span><span class="o">.</span><span class="n">company</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="sa">u</span><span class="s2">&quot;Circus Inc.&quot;</span>
+</pre></div>
+</div>
+<p>Of course, we still don’t know the company id since it was not flushed to the
+database yet, and we didn’t assign an id explicitly.  Storm is keeping the
+relationship even then.</p>
+<p>If whatever is pending is flushed to the database (implicitly or explicitly),
+objects will get their ids, and any references are updated as well (before
+being flushed!).</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">store</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+<span class="k">assert</span> <span class="n">ben</span><span class="o">.</span><span class="n">company_id</span> <span class="o">==</span> <span class="mi">1</span>
+<span class="k">assert</span> <span class="n">circus</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="mi">1</span>
+</pre></div>
+</div>
+<p>They’re both flushed to the database. Now, notice that the Circus company
+wasn’t added to the store explicitly in any moment. Storm will do that
+automatically for referenced objects, for both objects (the referenced and the
+referencing one).</p>
+<p>Let’s create another company to check something. This time we’ll flush the
+store just after adding it.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">sweets</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">Company</span><span class="p">(</span><span class="sa">u</span><span class="s2">&quot;Sweets Inc.&quot;</span><span class="p">))</span>
+<span class="n">store</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+<span class="k">assert</span> <span class="n">sweets</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="mi">2</span>
+</pre></div>
+</div>
+<p>Nice, we’ve already got the id of the new company. So, what would happen if we
+changed <em>just the id</em> for Ben’s company?</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ben</span><span class="o">.</span><span class="n">company_id</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="k">assert</span> <span class="n">ben</span><span class="o">.</span><span class="n">company</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="sa">u</span><span class="s2">&quot;Sweets Inc.&quot;</span>
+<span class="k">assert</span> <span class="n">ben</span><span class="o">.</span><span class="n">company</span> <span class="ow">is</span> <span class="n">sweets</span>
+</pre></div>
+</div>
+<p>Hah! <em>That</em> wasn’t expected, was it? ;-)</p>
+<p>Let’s commit everything.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">store</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="many-to-one-reference-sets">
+<h2>Many-to-one reference sets<a class="headerlink" href="#many-to-one-reference-sets" title="Permalink to this headline">¶</a></h2>
+<p>So, while our model says that employees work for a single company (we only
+design normal people here), companies may of course have multiple employees.
+We represent that in Storm using reference sets.</p>
+<p>We won’t define the company again. Instead, we’ll add a new attribute to the
+class.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">Company</span><span class="o">.</span><span class="n">employees</span> <span class="o">=</span> <span class="n">ReferenceSet</span><span class="p">(</span><span class="n">Company</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">Employee</span><span class="o">.</span><span class="n">company_id</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Without any further work, we can already see which employees are working for a
+given company.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">assert</span> <span class="n">sweets</span><span class="o">.</span><span class="n">employees</span><span class="o">.</span><span class="n">count</span><span class="p">()</span> <span class="o">==</span> <span class="mi">1</span>
+
+<span class="c1"># NOTE: We can us asserts within the loop body since there is only one</span>
+<span class="c1">#       employee</span>
+<span class="k">for</span> <span class="n">employee</span> <span class="ow">in</span> <span class="n">sweets</span><span class="o">.</span><span class="n">employees</span><span class="p">:</span>
+    <span class="k">assert</span> <span class="n">employee</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="k">assert</span> <span class="n">employee</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="sa">u</span><span class="s2">&quot;Ben Bill&quot;</span>
+    <span class="k">assert</span> <span class="n">employee</span> <span class="ow">is</span> <span class="n">ben</span>
+</pre></div>
+</div>
+<p>Let’s create another employee, and add him to the company, rather than setting
+the company in the employee (it sounds better, at least).</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">mike</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">Employee</span><span class="p">(</span><span class="sa">u</span><span class="s2">&quot;Mike Mayer&quot;</span><span class="p">))</span>
+<span class="n">sweets</span><span class="o">.</span><span class="n">employees</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">mike</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>That, of course, means that Mike’s working for a company, and so it should be
+reflected elsewhere.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">assert</span> <span class="n">mike</span><span class="o">.</span><span class="n">company_id</span> <span class="o">==</span> <span class="mi">2</span>
+<span class="k">assert</span> <span class="n">mike</span><span class="o">.</span><span class="n">company</span> <span class="ow">is</span> <span class="n">sweets</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="many-to-many-reference-sets-and-composed-keys">
+<h2>Many-to-many reference sets and composed keys<a class="headerlink" href="#many-to-many-reference-sets-and-composed-keys" title="Permalink to this headline">¶</a></h2>
+<p>We want to represent accountants in our model as well.  Companies have
+accountants, but accountants may also attend several companies, so we’ll
+represent that using a many-to-many relationship.</p>
+<p>Let’s create a simple class to use with accountants, and the relationship
+class.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Accountant</span><span class="p">(</span><span class="n">Person</span><span class="p">):</span>
+    <span class="n">__storm_table__</span> <span class="o">=</span> <span class="s2">&quot;accountant&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+
+<span class="k">class</span> <span class="nc">CompanyAccountant</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="n">__storm_table__</span> <span class="o">=</span> <span class="s2">&quot;company_accountant&quot;</span>
+    <span class="n">__storm_primary__</span> <span class="o">=</span> <span class="s2">&quot;company_id&quot;</span><span class="p">,</span> <span class="s2">&quot;accountant_id&quot;</span>
+    <span class="n">company_id</span> <span class="o">=</span> <span class="n">Int</span><span class="p">()</span>
+    <span class="n">accountant_id</span> <span class="o">=</span> <span class="n">Int</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Hey, we’ve just declared a class with a composite key!</p>
+<p>Now, let’s use it to declare the many-to-many relationship in the company.
+Once more, we’ll just stick the new attribute in the existent object. It may
+easily be defined at class definition time. Later we’ll see another way to do
+that as well.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">Company</span><span class="o">.</span><span class="n">accountants</span> <span class="o">=</span> <span class="n">ReferenceSet</span><span class="p">(</span><span class="n">Company</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+                                   <span class="n">CompanyAccountant</span><span class="o">.</span><span class="n">company_id</span><span class="p">,</span>
+                                   <span class="n">CompanyAccountant</span><span class="o">.</span><span class="n">accountant_id</span><span class="p">,</span>
+                                   <span class="n">Accountant</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Done! The order in which attributes were defined is important, but the logic
+should be pretty obvious.</p>
+<p>We’re missing some tables, at this point.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">store</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">    CREATE TABLE accountant(</span>
+<span class="s2">        id INTEGER PRIMARY KEY,</span>
+<span class="s2">        name VARCHAR</span>
+<span class="s2">    )</span>
+<span class="s2">&quot;&quot;&quot;</span><span class="p">,</span> <span class="n">noresult</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<span class="n">store</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">    CREATE TABLE company_accountant(</span>
+<span class="s2">        company_id INTEGER,</span>
+<span class="s2">        accountant_id INTEGER,</span>
+<span class="s2">        PRIMARY KEY(company_id, accountant_id)</span>
+<span class="s2">    )</span>
+<span class="s2">&quot;&quot;&quot;</span><span class="p">,</span> <span class="n">noresult</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Let’s give life to a couple of accountants, and register them in both
+companies.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">karl</span> <span class="o">=</span> <span class="n">Accountant</span><span class="p">(</span><span class="sa">u</span><span class="s2">&quot;Karl Kent&quot;</span><span class="p">)</span>
+<span class="n">frank</span> <span class="o">=</span> <span class="n">Accountant</span><span class="p">(</span><span class="sa">u</span><span class="s2">&quot;Frank Fourt&quot;</span><span class="p">)</span>
+
+<span class="n">sweets</span><span class="o">.</span><span class="n">accountants</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">karl</span><span class="p">)</span>
+<span class="n">sweets</span><span class="o">.</span><span class="n">accountants</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">frank</span><span class="p">)</span>
+
+<span class="n">circus</span><span class="o">.</span><span class="n">accountants</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">frank</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>That’s it! Really!  Notice that we didn’t even have to add them to the store,
+since it happens implicitly by linking to the other object which is already in
+the store, and that we didn’t have to declare the relationship object, since
+that’s known to the reference set.</p>
+<p>We can now check them.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">assert</span> <span class="n">sweets</span><span class="o">.</span><span class="n">accountants</span><span class="o">.</span><span class="n">count</span><span class="p">()</span> <span class="o">==</span> <span class="mi">2</span>
+<span class="k">assert</span> <span class="n">circus</span><span class="o">.</span><span class="n">accountants</span><span class="o">.</span><span class="n">count</span><span class="p">()</span> <span class="o">==</span> <span class="mi">1</span>
+</pre></div>
+</div>
+<p>Even though we didn’t use the <code class="docutils literal notranslate"><span class="pre">CompanyAccountant</span></code> object explicitly, we can
+check it if we’re really curious.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">store</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">CompanyAccountant</span><span class="p">,</span> <span class="p">(</span><span class="n">sweets</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">frank</span><span class="o">.</span><span class="n">id</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>Notice that we pass a tuple for the <a class="reference internal" href="store.html#storm.store.Store.get" title="storm.store.Store.get"><code class="xref py py-meth docutils literal notranslate"><span class="pre">get()</span></code></a> method,
+due to the composite key.</p>
+<p>If we wanted to know for which companies accountants are working, we could
+easily define a reversed relationship:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">Accountant</span><span class="o">.</span><span class="n">companies</span> <span class="o">=</span> <span class="n">ReferenceSet</span><span class="p">(</span><span class="n">Accountant</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+                                    <span class="n">CompanyAccountant</span><span class="o">.</span><span class="n">accountant_id</span><span class="p">,</span>
+                                    <span class="n">CompanyAccountant</span><span class="o">.</span><span class="n">company_id</span><span class="p">,</span>
+                                    <span class="n">Company</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+
+<span class="k">assert</span> <span class="nb">sorted</span><span class="p">([</span><span class="n">company</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">company</span> <span class="ow">in</span> <span class="n">frank</span><span class="o">.</span><span class="n">companies</span><span class="p">])</span> <span class="o">==</span> <span class="p">[</span>
+    <span class="sa">u</span><span class="s2">&quot;Circus Inc.&quot;</span><span class="p">,</span>
+    <span class="sa">u</span><span class="s2">&quot;Sweets Inc.&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+<span class="k">assert</span> <span class="p">[</span><span class="n">company</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">company</span> <span class="ow">in</span> <span class="n">karl</span><span class="o">.</span><span class="n">companies</span><span class="p">]</span> <span class="o">==</span> <span class="p">[</span><span class="sa">u</span><span class="s1">&#39;Sweets Inc.&#39;</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="joins">
+<h2>Joins<a class="headerlink" href="#joins" title="Permalink to this headline">¶</a></h2>
+<p>Since we’ve got some nice data to play with, let’s try to make a few
+interesting queries.</p>
+<p>Let’s start by checking which companies have at least one employee named Ben.
+We have at least two ways to do it.</p>
+<p>First, with an implicit join.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">Company</span><span class="p">,</span>
+                    <span class="n">Employee</span><span class="o">.</span><span class="n">company_id</span> <span class="o">==</span> <span class="n">Company</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+                    <span class="n">Employee</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">like</span><span class="p">(</span><span class="sa">u</span><span class="s2">&quot;Ben %&quot;</span><span class="p">))</span>
+<span class="k">assert</span> <span class="p">[</span><span class="n">company</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">company</span> <span class="ow">in</span> <span class="n">result</span><span class="p">]</span> <span class="o">==</span> <span class="p">[</span><span class="sa">u</span><span class="s2">&quot;Sweets Inc.&quot;</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>Then, we can also do an explicit join.  This is interesting for mapping complex
+SQL joins to Storm queries.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">origin</span> <span class="o">=</span> <span class="p">[</span><span class="n">Company</span><span class="p">,</span> <span class="n">Join</span><span class="p">(</span><span class="n">Employee</span><span class="p">,</span> <span class="n">Employee</span><span class="o">.</span><span class="n">company_id</span> <span class="o">==</span> <span class="n">Company</span><span class="o">.</span><span class="n">id</span><span class="p">)]</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">using</span><span class="p">(</span><span class="o">*</span><span class="n">origin</span><span class="p">)</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">Company</span><span class="p">,</span> <span class="n">Employee</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">like</span><span class="p">(</span><span class="sa">u</span><span class="s2">&quot;Ben %&quot;</span><span class="p">))</span>
+<span class="k">assert</span> <span class="p">[</span><span class="n">company</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">company</span> <span class="ow">in</span> <span class="n">result</span><span class="p">]</span> <span class="o">==</span> <span class="p">[</span><span class="sa">u</span><span class="s2">&quot;Sweets Inc.&quot;</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>If we already had the company, and wanted to know which of his employees
+were named Ben, that’d have been easier.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">sweets</span><span class="o">.</span><span class="n">employees</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">Employee</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">like</span><span class="p">(</span><span class="sa">u</span><span class="s2">&quot;Ben %&quot;</span><span class="p">))</span>
+<span class="k">assert</span> <span class="p">[</span><span class="n">employee</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">employee</span> <span class="ow">in</span> <span class="n">result</span><span class="p">]</span> <span class="o">==</span> <span class="p">[</span><span class="sa">u</span><span class="s2">&quot;Ben Bill&quot;</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="sub-selects">
+<h2>Sub-selects<a class="headerlink" href="#sub-selects" title="Permalink to this headline">¶</a></h2>
+<p>Suppose we want to find all accountants that aren’t associated with a company.
+We can use a sub-select to get the data we want.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">laura</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">Accountant</span><span class="p">(</span><span class="sa">u</span><span class="s2">&quot;Laura Montgomery&quot;</span><span class="p">))</span>
+<span class="n">subselect</span> <span class="o">=</span> <span class="n">Select</span><span class="p">(</span><span class="n">CompanyAccountant</span><span class="o">.</span><span class="n">accountant_id</span><span class="p">,</span> <span class="n">distinct</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">Accountant</span><span class="p">,</span> <span class="n">Not</span><span class="p">(</span><span class="n">Accountant</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">is_in</span><span class="p">(</span><span class="n">subselect</span><span class="p">)))</span>
+<span class="k">assert</span> <span class="n">result</span><span class="o">.</span><span class="n">one</span><span class="p">()</span> <span class="ow">is</span> <span class="n">laura</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="ordering-and-limiting-results">
+<h2>Ordering and limiting results<a class="headerlink" href="#ordering-and-limiting-results" title="Permalink to this headline">¶</a></h2>
+<p>Ordering and limiting results obtained are certainly among the simplest and yet
+most wanted features for such tools, so we want to make them very easy to
+understand and use, of course.</p>
+<p>A code of line is worth a thousand words, so here are a few examples that
+demonstrate how it works:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">garry</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">Employee</span><span class="p">(</span><span class="sa">u</span><span class="s2">&quot;Garry Glare&quot;</span><span class="p">))</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">Employee</span><span class="p">)</span>
+
+<span class="k">assert</span> <span class="p">[</span><span class="n">employee</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">employee</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">Employee</span><span class="o">.</span><span class="n">name</span><span class="p">)]</span> <span class="o">==</span> <span class="p">[</span>
+    <span class="sa">u</span><span class="s1">&#39;Ben Bill&#39;</span><span class="p">,</span>
+    <span class="sa">u</span><span class="s1">&#39;Garry Glare&#39;</span><span class="p">,</span>
+    <span class="sa">u</span><span class="s1">&#39;Mike Mayer&#39;</span><span class="p">,</span>
+<span class="p">]</span>
+
+<span class="c1"># Order descending</span>
+<span class="k">assert</span> <span class="p">[</span>
+    <span class="n">employee</span><span class="o">.</span><span class="n">name</span>
+    <span class="k">for</span> <span class="n">employee</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">Desc</span><span class="p">(</span><span class="n">Employee</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+<span class="p">]</span> <span class="o">==</span> <span class="p">[</span>
+    <span class="sa">u</span><span class="s1">&#39;Mike Mayer&#39;</span><span class="p">,</span>
+    <span class="sa">u</span><span class="s1">&#39;Garry Glare&#39;</span><span class="p">,</span>
+    <span class="sa">u</span><span class="s1">&#39;Ben Bill&#39;</span><span class="p">,</span>
+<span class="p">]</span>
+
+<span class="c1"># Limiting</span>
+<span class="k">assert</span> <span class="p">[</span>
+    <span class="n">employee</span><span class="o">.</span><span class="n">name</span>
+    <span class="k">for</span> <span class="n">employee</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">Employee</span><span class="o">.</span><span class="n">name</span><span class="p">)[:</span><span class="mi">2</span><span class="p">]</span>
+<span class="p">]</span> <span class="o">==</span> <span class="p">[</span>
+    <span class="sa">u</span><span class="s1">&#39;Ben Bill&#39;</span><span class="p">,</span>
+    <span class="sa">u</span><span class="s1">&#39;Garry Glare&#39;</span><span class="p">,</span>
+<span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="multiple-types-with-one-query">
+<h2>Multiple types with one query<a class="headerlink" href="#multiple-types-with-one-query" title="Permalink to this headline">¶</a></h2>
+<p>Sometimes, it may be interesting to retrieve more than one object involved in a
+given query. Imagine, for instance, that besides knowing which companies have
+an employee named Ben, we also want to know who is the employee. This may be
+achieved with a query like follows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">find</span><span class="p">((</span><span class="n">Company</span><span class="p">,</span> <span class="n">Employee</span><span class="p">),</span>
+                    <span class="n">Employee</span><span class="o">.</span><span class="n">company_id</span> <span class="o">==</span> <span class="n">Company</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+                    <span class="n">Employee</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">like</span><span class="p">(</span><span class="sa">u</span><span class="s2">&quot;Ben %&quot;</span><span class="p">))</span>
+
+<span class="k">assert</span> <span class="p">[(</span><span class="n">company</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">employee</span><span class="o">.</span><span class="n">name</span><span class="p">)</span> <span class="k">for</span> <span class="n">company</span><span class="p">,</span> <span class="n">employee</span> <span class="ow">in</span> <span class="n">result</span><span class="p">]</span> <span class="o">==</span> <span class="p">[</span>
+    <span class="p">(</span><span class="sa">u</span><span class="s1">&#39;Sweets Inc.&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;Ben Bill&#39;</span><span class="p">),</span>
+<span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="the-storm-base-class">
+<h2>The Storm base class<a class="headerlink" href="#the-storm-base-class" title="Permalink to this headline">¶</a></h2>
+<p>So far we’ve been defining our references and reference sets using classes and
+their properties.  This has some advantages, like being easier to debug, but
+also has some disadvantages, such as requiring classes to be present in the
+local scope, what potentially leads to circular import issues.</p>
+<p>To prevent that kind of situation, Storm supports defining these references
+using the stringified version of the class and property names.  The only
+inconvenience of doing so is that all involved classes must inherit from the
+<a class="reference internal" href="miscellaneous.html#storm.base.Storm" title="storm.base.Storm"><code class="xref py py-class docutils literal notranslate"><span class="pre">Storm</span></code></a> base class.</p>
+<p>Let’s define some new classes to show that.  To expose the point, we’ll refer
+to a class before it’s actually defined.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Country</span><span class="p">(</span><span class="n">Storm</span><span class="p">):</span>
+    <span class="n">__storm_table__</span> <span class="o">=</span> <span class="s2">&quot;country&quot;</span>
+    <span class="nb">id</span> <span class="o">=</span> <span class="n">Int</span><span class="p">(</span><span class="n">primary</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">Unicode</span><span class="p">()</span>
+    <span class="n">currency_id</span> <span class="o">=</span> <span class="n">Int</span><span class="p">()</span>
+    <span class="n">currency</span> <span class="o">=</span> <span class="n">Reference</span><span class="p">(</span><span class="n">currency_id</span><span class="p">,</span> <span class="s2">&quot;Currency.id&quot;</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">Currency</span><span class="p">(</span><span class="n">Storm</span><span class="p">):</span>
+    <span class="n">__storm_table__</span> <span class="o">=</span> <span class="s2">&quot;currency&quot;</span>
+    <span class="nb">id</span> <span class="o">=</span> <span class="n">Int</span><span class="p">(</span><span class="n">primary</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">symbol</span> <span class="o">=</span> <span class="n">Unicode</span><span class="p">()</span>
+
+<span class="n">store</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;CREATE TABLE country &quot;</span>
+              <span class="s2">&quot;(id INTEGER PRIMARY KEY, name VARCHAR, currency_id INTEGER)&quot;</span><span class="p">,</span>
+              <span class="n">noresult</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+<span class="n">store</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;CREATE TABLE currency &quot;</span>
+              <span class="s2">&quot;(id INTEGER PRIMARY KEY, symbol VARCHAR)&quot;</span><span class="p">,</span> <span class="n">noresult</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Now, let’s see if it works.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">real</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">Currency</span><span class="p">())</span>
+<span class="n">real</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">real</span><span class="o">.</span><span class="n">symbol</span> <span class="o">=</span> <span class="sa">u</span><span class="s2">&quot;BRL&quot;</span>
+
+<span class="n">brazil</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">Country</span><span class="p">())</span>
+<span class="n">brazil</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="sa">u</span><span class="s2">&quot;Brazil&quot;</span>
+<span class="n">brazil</span><span class="o">.</span><span class="n">currency_id</span> <span class="o">=</span> <span class="mi">1</span>
+
+<span class="k">assert</span> <span class="n">brazil</span><span class="o">.</span><span class="n">currency</span><span class="o">.</span><span class="n">symbol</span> <span class="o">==</span> <span class="sa">u</span><span class="s2">&quot;BRL&quot;</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="loading-hook">
+<h2>Loading hook<a class="headerlink" href="#loading-hook" title="Permalink to this headline">¶</a></h2>
+<p>Storm allows classes to define a few different hooks are called to act when
+certain things happen. One of the interesting hooks available is the
+<code class="docutils literal notranslate"><span class="pre">__storm_loaded__</span></code> one.</p>
+<p>Let’s play with it. We’ll define a temporary subclass of Person for that.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">PersonWithHook</span><span class="p">(</span><span class="n">Person</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">print</span> <span class="s2">&quot;Creating </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+
+    <span class="k">def</span> <span class="nf">__storm_loaded__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">print</span> <span class="s2">&quot;Loaded </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+
+<span class="c1"># Prints: Creating Earl Easton</span>
+<span class="n">earl</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">PersonWithHook</span><span class="p">(</span><span class="sa">u</span><span class="s2">&quot;Earl Easton&quot;</span><span class="p">))</span>
+<span class="n">earl</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">PersonWithHook</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="sa">u</span><span class="s2">&quot;Earl Easton&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">one</span><span class="p">()</span>
+
+<span class="c1"># Remove all references to earl to ensure we fetch it from the databse next</span>
+<span class="c1"># time we try to access it</span>
+<span class="n">store</span><span class="o">.</span><span class="n">invalidate</span><span class="p">(</span><span class="n">earl</span><span class="p">)</span>
+<span class="k">del</span> <span class="n">earl</span>
+<span class="kn">import</span> <span class="nn">gc</span>
+<span class="n">collected</span> <span class="o">=</span> <span class="n">gc</span><span class="o">.</span><span class="n">collect</span><span class="p">()</span>
+
+<span class="c1"># Loaded Earl Easton</span>
+<span class="n">earl</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">PersonWithHook</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="sa">u</span><span class="s2">&quot;Earl Easton&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">one</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Note that in the first find, nothing was called, since the object was still in
+memory and cached.  Then, we invalidated the object from Storm’s internal cache
+and ensured that it was out-of-memory by triggering a garbage collection.
+After that, the object had to be retrieved from the database again, and thus
+the hook was called (and not the constructor!).</p>
+</div>
+<div class="section" id="executing-expressions">
+<h2>Executing expressions<a class="headerlink" href="#executing-expressions" title="Permalink to this headline">¶</a></h2>
+<p>Storm also offers a way to execute expressions in a database-agnostic way, when
+that’s necessary.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">Select</span><span class="p">(</span><span class="n">Person</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">Person</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="mi">1</span><span class="p">))</span>
+<span class="k">assert</span> <span class="n">result</span><span class="o">.</span><span class="n">get_one</span><span class="p">()</span> <span class="o">==</span> <span class="p">(</span><span class="sa">u</span><span class="s2">&quot;Joe Johnes&quot;</span><span class="p">,)</span>
+</pre></div>
+</div>
+<p>This mechanism is used internally by Storm itself to implement the higher level
+features.</p>
+</div>
+<div class="section" id="auto-reloading-values">
+<h2>Auto-reloading values<a class="headerlink" href="#auto-reloading-values" title="Permalink to this headline">¶</a></h2>
+<p>Storm offers some special values that may be assigned to attributes under its
+control. One of these values is <code class="xref py py-class docutils literal notranslate"><span class="pre">AutoReload</span></code>. When used,
+it will make the object automatically reload the value from the database when
+touched. Even primary keys may benefit from its use, as shown below.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">storm.locals</span> <span class="kn">import</span> <span class="n">AutoReload</span>
+
+<span class="n">ruy</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">Person</span><span class="p">())</span>
+<span class="n">ruy</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="sa">u</span><span class="s2">&quot;Ruy&quot;</span>
+<span class="k">assert</span> <span class="n">ruy</span><span class="o">.</span><span class="n">id</span> <span class="ow">is</span> <span class="bp">None</span>
+
+<span class="n">ruy</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="n">AutoReload</span>
+<span class="k">assert</span> <span class="n">ruy</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="mi">4</span>
+</pre></div>
+</div>
+<p>This may be set as the default value for any attribute, making the object be
+automatically flushed if necessary.</p>
+</div>
+<div class="section" id="expression-values">
+<h2>Expression values<a class="headerlink" href="#expression-values" title="Permalink to this headline">¶</a></h2>
+<p>Besides auto-reloading, it’s also possible to assign what we call a “lazy
+expression” to an attribute.  Such expressions are flushed to the database when
+the attribute is accessed, or when the object is flushed to the database
+(INSERT/UPDATE time).</p>
+<p>For instance:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">storm.locals</span> <span class="kn">import</span> <span class="n">SQL</span>
+
+<span class="n">ruy</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">SQL</span><span class="p">(</span><span class="s2">&quot;(SELECT name || ? FROM person WHERE id=4)&quot;</span><span class="p">,</span> <span class="p">(</span><span class="s2">&quot; Ritcher&quot;</span><span class="p">,))</span>
+<span class="k">assert</span> <span class="n">ruy</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="sa">u</span><span class="s2">&quot;Ruy Ritcher&quot;</span>
+</pre></div>
+</div>
+<p>Notice that this is just an example of what <em>may</em> be done.  There’s no need to
+write SQL statements this way, if you don’t want to.  You may also use
+class-based SQL expressions provided in Storm, or even not use lazy expressions
+at all.</p>
+</div>
+<div class="section" id="aliases">
+<h2>Aliases<a class="headerlink" href="#aliases" title="Permalink to this headline">¶</a></h2>
+<p>So now let’s say that we want to find every pair of people that work for the
+same company.  I have no idea about why one would <em>want</em> to do that, but that’s
+a good case for us to exercise aliases.</p>
+<p>First, we import <a class="reference internal" href="store.html#storm.info.ClassAlias" title="storm.info.ClassAlias"><code class="xref py py-class docutils literal notranslate"><span class="pre">ClassAlias</span></code></a> into the local namespace
+(<em>mental note: this should be in storm.locals as well</em>), and create a
+reference to it.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">storm.info</span> <span class="kn">import</span> <span class="n">ClassAlias</span>
+<span class="n">AnotherEmployee</span> <span class="o">=</span> <span class="n">ClassAlias</span><span class="p">(</span><span class="n">Employee</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Nice, isn’t it? Now we can easily make the query we want, in a straightforward
+way:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">find</span><span class="p">((</span><span class="n">Employee</span><span class="p">,</span> <span class="n">AnotherEmployee</span><span class="p">),</span>
+                    <span class="n">Employee</span><span class="o">.</span><span class="n">company_id</span> <span class="o">==</span> <span class="n">AnotherEmployee</span><span class="o">.</span><span class="n">company_id</span><span class="p">,</span>
+                    <span class="n">Employee</span><span class="o">.</span><span class="n">id</span> <span class="o">&gt;</span> <span class="n">AnotherEmployee</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+
+<span class="k">assert</span> <span class="p">[(</span><span class="n">e1</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">e2</span><span class="o">.</span><span class="n">name</span><span class="p">)</span> <span class="k">for</span> <span class="n">e1</span><span class="p">,</span> <span class="n">e2</span> <span class="ow">in</span> <span class="n">result</span><span class="p">]</span> <span class="o">==</span> <span class="p">[</span>
+    <span class="p">(</span><span class="sa">u</span><span class="s1">&#39;Mike Mayer&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;Ben Bill&#39;</span><span class="p">)</span>
+
+<span class="p">]</span>
+</pre></div>
+</div>
+<p>Woah! Mike and Ben work for the same company!</p>
+<p>(Quiz for the attent reader: why is <em>greater than</em> being used in the query
+above?)</p>
+</div>
+<div class="section" id="debugging">
+<h2>Debugging<a class="headerlink" href="#debugging" title="Permalink to this headline">¶</a></h2>
+<p>Sometimes you just need to see which statements Storm is executing. A debug
+tracer built on top of Storm’s tracing system can be used to see what’s going
+on under the hood. A tracer is an object that gets notified when interesting
+events occur, such as when Storm executes a statement. A function to enable and
+disable statement tracing is provided. Statements are logged to sys.stderr by
+default, but a custom stream may also be used.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">from</span> <span class="nn">storm.tracer</span> <span class="kn">import</span> <span class="n">debug</span>
+
+<span class="n">debug</span><span class="p">(</span><span class="bp">True</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="p">)</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">find</span><span class="p">((</span><span class="n">Employee</span><span class="p">,</span> <span class="n">AnotherEmployee</span><span class="p">),</span>
+                    <span class="n">Employee</span><span class="o">.</span><span class="n">company_id</span> <span class="o">==</span> <span class="n">AnotherEmployee</span><span class="o">.</span><span class="n">company_id</span><span class="p">,</span>
+                    <span class="n">Employee</span><span class="o">.</span><span class="n">id</span> <span class="o">&gt;</span> <span class="n">AnotherEmployee</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+<span class="n">data</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+<span class="c1"># [...] EXECUTE: u&#39;SELECT employee.company_id, employee.id, employee.name, &quot;...&quot;.company_id, &quot;...&quot;.id, &quot;...&quot;.name FROM employee, employee AS &quot;...&quot; WHERE employee.company_id = &quot;...&quot;.company_id AND employee.id &gt; &quot;...&quot;.id&#39;, ()</span>
+<span class="c1"># [...] DONE</span>
+
+<span class="c1"># Turning off debugging makes it so we no longer print statements</span>
+<span class="n">debug</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+<span class="nb">list</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">Storm</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Basic usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#basic-definition">Basic definition</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#creating-a-database-and-the-store">Creating a database and the store</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#creating-an-object">Creating an object</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#the-store-of-an-object">The store of an object</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#finding-an-object">Finding an object</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#caching-behavior">Caching behavior</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#flushing">Flushing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#changing-objects-with-the-store">Changing objects with the Store</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#persisting-changes">Persisting changes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#constructors">Constructors</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#references-and-subclassing">References and subclassing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#many-to-one-reference-sets">Many-to-one reference sets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#many-to-many-reference-sets-and-composed-keys">Many-to-many reference sets and composed keys</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#joins">Joins</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#sub-selects">Sub-selects</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#ordering-and-limiting-results">Ordering and limiting results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#multiple-types-with-one-query">Multiple types with one query</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#the-storm-base-class">The Storm base class</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#loading-hook">Loading hook</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#executing-expressions">Executing expressions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#auto-reloading-values">Auto-reloading values</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#expression-values">Expression values</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#aliases">Aliases</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#debugging">Debugging</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="infoheritance.html">Infoheritance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="store.html">Store</a></li>
+<li class="toctree-l1"><a class="reference internal" href="columns.html">Columns and types</a></li>
+<li class="toctree-l1"><a class="reference internal" href="expr.html">Expressions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="databases.html">Databases</a></li>
+<li class="toctree-l1"><a class="reference internal" href="events.html">Hooks and events</a></li>
+<li class="toctree-l1"><a class="reference internal" href="miscellaneous.html">Miscellaneous libraries</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="index.html" title="previous chapter">Storm legacy</a></li>
+      <li>Next: <a href="infoheritance.html" title="next chapter">Infoheritance</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Gustavo Niemeyer.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/basic-usage.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
