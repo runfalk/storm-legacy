@@ -28,7 +28,7 @@ from datetime import datetime, date, time, timedelta
 from decimal import Decimal
 from mock import sentinel
 
-from storm.compat import buffer, bstr, iter_zip, pickle, ustr
+from storm.compat import buffer, bstr, pickle, ustr
 from storm.exceptions import NoneError
 from storm.variables import *
 from storm.event import EventSystem
@@ -36,7 +36,7 @@ from storm.expr import Column, SQLToken
 from storm.tz import tzutc, tzoffset
 from storm import Undef
 
-from tests.helper import TestHelper
+from tests.helper import assert_variables_equal, TestHelper
 
 
 class Marker(object):
@@ -44,13 +44,6 @@ class Marker(object):
 
 
 marker = Marker()
-
-
-def assert_variables_equal(checked, expected):
-    assert len(checked) == len(expected)
-    for check, expect in iter_zip(checked, expected):
-        assert check.__class__ == expect.__class__
-        assert check.get() == expect.get()
 
 
 class CustomVariable(Variable):

@@ -27,7 +27,14 @@ from storm.compat import iter_zip, StringIO
 from tests import mocker
 
 
-__all__ = ["TestHelper", "MakePath", "LogKeeper"]
+__all__ = ["assert_variables_equal", "TestHelper", "MakePath"]
+
+
+def assert_variables_equal(checked, expected):
+    assert len(checked) == len(expected)
+    for check, expect in iter_zip(checked, expected):
+        assert check.__class__ == expect.__class__
+        assert check.get() == expect.get()
 
 
 class TestHelper(mocker.MockerTestCase):
@@ -67,12 +74,6 @@ class TestHelper(mocker.MockerTestCase):
             return
         super(TestHelper, self).run(result)
 
-    def assertVariablesEqual(self, checked, expected):
-        self.assertEquals(len(checked), len(expected))
-        for check, expect in iter_zip(checked, expected):
-            self.assertEquals(check.__class__, expect.__class__)
-            self.assertEquals(check.get(), expect.get())
-
 
 class MakePath(object):
 
@@ -103,25 +104,3 @@ class MakePath(object):
             finally:
                 file.close()
         return path
-
-
-class LogKeeper(object):
-    """Record logging information.
-
-    Puts a 'logfile' attribute on your test case, which is a StringIO
-    containing all log output.
-    """
-
-    def set_up(self, test_case):
-        logger = logging.getLogger()
-        test_case.logfile = StringIO()
-        handler = logging.StreamHandler(test_case.logfile)
-        self.old_handlers = logger.handlers
-        # Sanity check; this might not be 100% what we want
-        if self.old_handlers:
-            test_case.assertEquals(len(self.old_handlers), 1)
-            test_case.assertEquals(self.old_handlers[0].stream, sys.stderr)
-        logger.handlers = [handler]
-
-    def tear_down(self, test_case):
-        logging.getLogger().handlers = self.old_handlers

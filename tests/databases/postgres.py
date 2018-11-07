@@ -48,7 +48,7 @@ from tests import has_fixtures, has_subunit
 from tests.databases.base import (
     DatabaseTest, DatabaseDisconnectionTest, UnsupportedDatabaseTest,
     TwoPhaseCommitTest, TwoPhaseCommitDisconnectionTest)
-from tests.helper import TestHelper
+from tests.helper import assert_variables_equal, TestHelper
 
 
 # Create columnN, tableN, and elemN variables.
@@ -283,7 +283,7 @@ class PostgresTest(DatabaseTest, TestHelper):
             '((SELECT 1 AS id) UNION ALL (SELECT 1)) AS "_1" '
             'ORDER BY id+? LIMIT 1 OFFSET 1'
         )
-        self.assertVariablesEqual(state.parameters, [Variable(1)])
+        assert_variables_equal(state.parameters, [Variable(1)])
 
         result = self.connection.execute(expr)
         assert result.get_one() == (1,)

@@ -24,11 +24,10 @@ import pytest
 
 from decimal import Decimal
 
-from tests.helper import TestHelper
-
-from storm.compat import is_python2, iter_range, iter_zip, long_int
+from storm.compat import is_python2, iter_range, long_int
 from storm.variables import *
 from storm.expr import *
+from tests.helper import assert_variables_equal, TestHelper
 
 
 class Func1(NamedFunc):
@@ -63,13 +62,6 @@ for i in iter_range(10):
         exec("%s%d = SQLToken('%s%d')" % (name, i, name, i))
     for name in ["table"]:
         exec("%s%d = '%s %d'" % (name, i, name, i))
-
-
-def assert_variables_equal(checked, expected):
-    assert len(checked) == len(expected)
-    for check, expect in iter_zip(checked, expected):
-        assert check.__class__ == expect.__class__
-        assert check.get() == expect.get()
 
 
 @pytest.fixture

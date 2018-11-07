@@ -27,13 +27,14 @@ from datetime import datetime, date, time, timedelta
 from decimal import Decimal as decimal
 from mock import ANY, call, Mock
 from pytest_lazyfixture import lazy_fixture
-from storm.compat import add_metaclass, iter_zip
+from storm.compat import add_metaclass
 from storm.exceptions import NoneError, PropertyPathError
 from storm.properties import PropertyPublisherMeta
 from storm.properties import *
 from storm.variables import *
 from storm.info import get_obj_info
 from storm.expr import Column, Select, compile, State, SQLRaw
+from tests.helper import assert_variables_equal
 
 
 class Wrapper(object):
@@ -50,13 +51,6 @@ class CustomVariable(Variable):
 
 class Custom(SimpleProperty):
     variable_class = CustomVariable
-
-
-def assert_variables_equal(checked, expected):
-    assert len(checked) == len(expected)
-    for check, expect in iter_zip(checked, expected):
-        assert check.__class__ == expect.__class__
-        assert check.get() == expect.get()
 
 
 @pytest.fixture
