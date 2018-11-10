@@ -298,7 +298,7 @@ class Connection(object):
             self._check_disconnect(trace, "connection_commit", self, xid)
 
     def recover(self):
-        """Return a list of L{Xid}s representing pending transactions."""
+        """Return a list of L{Xid} representing pending transactions."""
         self._ensure_connected()
         raw_xids = self._check_disconnect(self._raw_connection.tpc_recover)
         return [Xid(raw_xid[0], raw_xid[1], raw_xid[2])
@@ -343,7 +343,7 @@ class Connection(object):
         It is acceptable to override this method in subclasses, but it
         is not intended to be used externally.
 
-        This delegates conversion to any L{Variable}s in the parameter
+        This delegates conversion to any L{Variable} in the parameter
         list, and passes through all other values untouched.
         """
         for param in params:
