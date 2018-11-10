@@ -71,14 +71,14 @@
 <span class="n">EPOCHORDINAL</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcfromtimestamp</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">toordinal</span><span class="p">()</span>
 
 
-<div class="viewcode-block" id="tzutc"><a class="viewcode-back" href="../../miscellaneous.html#storm.tz.tzutc">[docs]</a><span class="k">class</span> <span class="nc">tzutc</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">tzinfo</span><span class="p">):</span>
-<div class="viewcode-block" id="tzutc.utcoffset"><a class="viewcode-back" href="../../miscellaneous.html#storm.tz.tzutc.utcoffset">[docs]</a>    <span class="k">def</span> <span class="nf">utcoffset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
+<div class="viewcode-block" id="tzutc"><a class="viewcode-back" href="../../api.html#storm.tz.tzutc">[docs]</a><span class="k">class</span> <span class="nc">tzutc</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">tzinfo</span><span class="p">):</span>
+<div class="viewcode-block" id="tzutc.utcoffset"><a class="viewcode-back" href="../../api.html#storm.tz.tzutc.utcoffset">[docs]</a>    <span class="k">def</span> <span class="nf">utcoffset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">ZERO</span></div>
 
-<div class="viewcode-block" id="tzutc.dst"><a class="viewcode-back" href="../../miscellaneous.html#storm.tz.tzutc.dst">[docs]</a>    <span class="k">def</span> <span class="nf">dst</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
+<div class="viewcode-block" id="tzutc.dst"><a class="viewcode-back" href="../../api.html#storm.tz.tzutc.dst">[docs]</a>    <span class="k">def</span> <span class="nf">dst</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">ZERO</span></div>
 
-<div class="viewcode-block" id="tzutc.tzname"><a class="viewcode-back" href="../../miscellaneous.html#storm.tz.tzutc.tzname">[docs]</a>    <span class="k">def</span> <span class="nf">tzname</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
+<div class="viewcode-block" id="tzutc.tzname"><a class="viewcode-back" href="../../api.html#storm.tz.tzutc.tzname">[docs]</a>    <span class="k">def</span> <span class="nf">tzname</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
         <span class="k">return</span> <span class="s2">&quot;UTC&quot;</span></div>
 
     <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
@@ -94,18 +94,18 @@
     <span class="n">__reduce__</span> <span class="o">=</span> <span class="nb">object</span><span class="o">.</span><span class="n">__reduce__</span></div>
 
 
-<div class="viewcode-block" id="tzoffset"><a class="viewcode-back" href="../../miscellaneous.html#storm.tz.tzoffset">[docs]</a><span class="k">class</span> <span class="nc">tzoffset</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">tzinfo</span><span class="p">):</span>
+<div class="viewcode-block" id="tzoffset"><a class="viewcode-back" href="../../api.html#storm.tz.tzoffset">[docs]</a><span class="k">class</span> <span class="nc">tzoffset</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">tzinfo</span><span class="p">):</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">offset</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_name</span> <span class="o">=</span> <span class="n">name</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_offset</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="n">offset</span><span class="p">)</span>
 
-<div class="viewcode-block" id="tzoffset.utcoffset"><a class="viewcode-back" href="../../miscellaneous.html#storm.tz.tzoffset.utcoffset">[docs]</a>    <span class="k">def</span> <span class="nf">utcoffset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
+<div class="viewcode-block" id="tzoffset.utcoffset"><a class="viewcode-back" href="../../api.html#storm.tz.tzoffset.utcoffset">[docs]</a>    <span class="k">def</span> <span class="nf">utcoffset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_offset</span></div>
 
-<div class="viewcode-block" id="tzoffset.dst"><a class="viewcode-back" href="../../miscellaneous.html#storm.tz.tzoffset.dst">[docs]</a>    <span class="k">def</span> <span class="nf">dst</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
+<div class="viewcode-block" id="tzoffset.dst"><a class="viewcode-back" href="../../api.html#storm.tz.tzoffset.dst">[docs]</a>    <span class="k">def</span> <span class="nf">dst</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">ZERO</span></div>
 
-<div class="viewcode-block" id="tzoffset.tzname"><a class="viewcode-back" href="../../miscellaneous.html#storm.tz.tzoffset.tzname">[docs]</a>    <span class="k">def</span> <span class="nf">tzname</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
+<div class="viewcode-block" id="tzoffset.tzname"><a class="viewcode-back" href="../../api.html#storm.tz.tzoffset.tzname">[docs]</a>    <span class="k">def</span> <span class="nf">tzname</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_name</span></div>
 
     <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
@@ -123,26 +123,26 @@
     <span class="n">__reduce__</span> <span class="o">=</span> <span class="nb">object</span><span class="o">.</span><span class="n">__reduce__</span></div>
 
 
-<div class="viewcode-block" id="tzlocal"><a class="viewcode-back" href="../../miscellaneous.html#storm.tz.tzlocal">[docs]</a><span class="k">class</span> <span class="nc">tzlocal</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">tzinfo</span><span class="p">):</span>
+<div class="viewcode-block" id="tzlocal"><a class="viewcode-back" href="../../api.html#storm.tz.tzlocal">[docs]</a><span class="k">class</span> <span class="nc">tzlocal</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">tzinfo</span><span class="p">):</span>
     <span class="n">_std_offset</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=-</span><span class="n">time</span><span class="o">.</span><span class="n">timezone</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">time</span><span class="o">.</span><span class="n">daylight</span><span class="p">:</span>
         <span class="n">_dst_offset</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=-</span><span class="n">time</span><span class="o">.</span><span class="n">altzone</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">_dst_offset</span> <span class="o">=</span> <span class="n">_std_offset</span>
 
-<div class="viewcode-block" id="tzlocal.utcoffset"><a class="viewcode-back" href="../../miscellaneous.html#storm.tz.tzlocal.utcoffset">[docs]</a>    <span class="k">def</span> <span class="nf">utcoffset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
+<div class="viewcode-block" id="tzlocal.utcoffset"><a class="viewcode-back" href="../../api.html#storm.tz.tzlocal.utcoffset">[docs]</a>    <span class="k">def</span> <span class="nf">utcoffset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_isdst</span><span class="p">(</span><span class="n">dt</span><span class="p">):</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dst_offset</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_std_offset</span></div>
 
-<div class="viewcode-block" id="tzlocal.dst"><a class="viewcode-back" href="../../miscellaneous.html#storm.tz.tzlocal.dst">[docs]</a>    <span class="k">def</span> <span class="nf">dst</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
+<div class="viewcode-block" id="tzlocal.dst"><a class="viewcode-back" href="../../api.html#storm.tz.tzlocal.dst">[docs]</a>    <span class="k">def</span> <span class="nf">dst</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_isdst</span><span class="p">(</span><span class="n">dt</span><span class="p">):</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dst_offset</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">_std_offset</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">ZERO</span></div>
 
-<div class="viewcode-block" id="tzlocal.tzname"><a class="viewcode-back" href="../../miscellaneous.html#storm.tz.tzlocal.tzname">[docs]</a>    <span class="k">def</span> <span class="nf">tzname</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
+<div class="viewcode-block" id="tzlocal.tzname"><a class="viewcode-back" href="../../api.html#storm.tz.tzlocal.tzname">[docs]</a>    <span class="k">def</span> <span class="nf">tzname</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">time</span><span class="o">.</span><span class="n">tzname</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_isdst</span><span class="p">(</span><span class="n">dt</span><span class="p">)]</span></div>
 
     <span class="k">def</span> <span class="nf">_isdst</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
@@ -232,7 +232,7 @@
                 <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">state</span><span class="p">[</span><span class="n">name</span><span class="p">])</span>
 
 
-<div class="viewcode-block" id="tzfile"><a class="viewcode-back" href="../../miscellaneous.html#storm.tz.tzfile">[docs]</a><span class="k">class</span> <span class="nc">tzfile</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">tzinfo</span><span class="p">):</span>
+<div class="viewcode-block" id="tzfile"><a class="viewcode-back" href="../../api.html#storm.tz.tzfile">[docs]</a><span class="k">class</span> <span class="nc">tzfile</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">tzinfo</span><span class="p">):</span>
     <span class="c1"># http://www.twinsun.com/tz/tz-link.htm</span>
     <span class="c1"># ftp://elsie.nci.nih.gov/pub/tz*.tar.gz</span>
 
@@ -467,12 +467,12 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_trans_idx</span><span class="p">[</span><span class="n">idx</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
 
-<div class="viewcode-block" id="tzfile.utcoffset"><a class="viewcode-back" href="../../miscellaneous.html#storm.tz.tzfile.utcoffset">[docs]</a>    <span class="k">def</span> <span class="nf">utcoffset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
+<div class="viewcode-block" id="tzfile.utcoffset"><a class="viewcode-back" href="../../api.html#storm.tz.tzfile.utcoffset">[docs]</a>    <span class="k">def</span> <span class="nf">utcoffset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ttinfo_std</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">ZERO</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_find_ttinfo</span><span class="p">(</span><span class="n">dt</span><span class="p">)</span><span class="o">.</span><span class="n">delta</span></div>
 
-<div class="viewcode-block" id="tzfile.dst"><a class="viewcode-back" href="../../miscellaneous.html#storm.tz.tzfile.dst">[docs]</a>    <span class="k">def</span> <span class="nf">dst</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
+<div class="viewcode-block" id="tzfile.dst"><a class="viewcode-back" href="../../api.html#storm.tz.tzfile.dst">[docs]</a>    <span class="k">def</span> <span class="nf">dst</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ttinfo_dst</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">ZERO</span>
         <span class="n">tti</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_find_ttinfo</span><span class="p">(</span><span class="n">dt</span><span class="p">)</span>
@@ -491,7 +491,7 @@
         <span class="c1"># dst offset, so I belive that this wouldn&#39;t be the right</span>
         <span class="c1"># way to implement this.</span>
 
-<div class="viewcode-block" id="tzfile.tzname"><a class="viewcode-back" href="../../miscellaneous.html#storm.tz.tzfile.tzname">[docs]</a>    <span class="k">def</span> <span class="nf">tzname</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
+<div class="viewcode-block" id="tzfile.tzname"><a class="viewcode-back" href="../../api.html#storm.tz.tzfile.tzname">[docs]</a>    <span class="k">def</span> <span class="nf">tzname</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ttinfo_std</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">None</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_find_ttinfo</span><span class="p">(</span><span class="n">dt</span><span class="p">)</span><span class="o">.</span><span class="n">abbr</span></div>
@@ -516,7 +516,7 @@
         <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_filename</span><span class="p">,))</span></div>
 
 
-<div class="viewcode-block" id="tzrange"><a class="viewcode-back" href="../../miscellaneous.html#storm.tz.tzrange">[docs]</a><span class="k">class</span> <span class="nc">tzrange</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">tzinfo</span><span class="p">):</span>
+<div class="viewcode-block" id="tzrange"><a class="viewcode-back" href="../../api.html#storm.tz.tzrange">[docs]</a><span class="k">class</span> <span class="nc">tzrange</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">tzinfo</span><span class="p">):</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stdabbr</span><span class="p">,</span> <span class="n">stdoffset</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                  <span class="n">dstabbr</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dstoffset</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                  <span class="n">start</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
@@ -546,19 +546,19 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_end_delta</span> <span class="o">=</span> <span class="n">end</span>
 
-<div class="viewcode-block" id="tzrange.utcoffset"><a class="viewcode-back" href="../../miscellaneous.html#storm.tz.tzrange.utcoffset">[docs]</a>    <span class="k">def</span> <span class="nf">utcoffset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
+<div class="viewcode-block" id="tzrange.utcoffset"><a class="viewcode-back" href="../../api.html#storm.tz.tzrange.utcoffset">[docs]</a>    <span class="k">def</span> <span class="nf">utcoffset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_isdst</span><span class="p">(</span><span class="n">dt</span><span class="p">):</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dst_offset</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_std_offset</span></div>
 
-<div class="viewcode-block" id="tzrange.dst"><a class="viewcode-back" href="../../miscellaneous.html#storm.tz.tzrange.dst">[docs]</a>    <span class="k">def</span> <span class="nf">dst</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
+<div class="viewcode-block" id="tzrange.dst"><a class="viewcode-back" href="../../api.html#storm.tz.tzrange.dst">[docs]</a>    <span class="k">def</span> <span class="nf">dst</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_isdst</span><span class="p">(</span><span class="n">dt</span><span class="p">):</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dst_offset</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">_std_offset</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">ZERO</span></div>
 
-<div class="viewcode-block" id="tzrange.tzname"><a class="viewcode-back" href="../../miscellaneous.html#storm.tz.tzrange.tzname">[docs]</a>    <span class="k">def</span> <span class="nf">tzname</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
+<div class="viewcode-block" id="tzrange.tzname"><a class="viewcode-back" href="../../api.html#storm.tz.tzrange.tzname">[docs]</a>    <span class="k">def</span> <span class="nf">tzname</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_isdst</span><span class="p">(</span><span class="n">dt</span><span class="p">):</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dst_abbr</span>
         <span class="k">else</span><span class="p">:</span>
@@ -595,7 +595,7 @@
     <span class="n">__reduce__</span> <span class="o">=</span> <span class="nb">object</span><span class="o">.</span><span class="n">__reduce__</span></div>
 
 
-<div class="viewcode-block" id="tzstr"><a class="viewcode-back" href="../../miscellaneous.html#storm.tz.tzstr">[docs]</a><span class="k">class</span> <span class="nc">tzstr</span><span class="p">(</span><span class="n">tzrange</span><span class="p">):</span>
+<div class="viewcode-block" id="tzstr"><a class="viewcode-back" href="../../api.html#storm.tz.tzstr">[docs]</a><span class="k">class</span> <span class="nc">tzstr</span><span class="p">(</span><span class="n">tzrange</span><span class="p">):</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
         <span class="k">global</span> <span class="n">parser</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">parser</span><span class="p">:</span>
@@ -735,7 +735,7 @@
     <span class="n">__reduce__</span> <span class="o">=</span> <span class="nb">object</span><span class="o">.</span><span class="n">__reduce__</span>
 
 
-<div class="viewcode-block" id="tzical"><a class="viewcode-back" href="../../miscellaneous.html#storm.tz.tzical">[docs]</a><span class="k">class</span> <span class="nc">tzical</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="tzical"><a class="viewcode-back" href="../../api.html#storm.tz.tzical">[docs]</a><span class="k">class</span> <span class="nc">tzical</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fileobj</span><span class="p">):</span>
         <span class="k">global</span> <span class="n">rrule</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">rrule</span><span class="p">:</span>
@@ -753,10 +753,10 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_parse_rfc</span><span class="p">(</span><span class="n">fileobj</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
 
-<div class="viewcode-block" id="tzical.keys"><a class="viewcode-back" href="../../miscellaneous.html#storm.tz.tzical.keys">[docs]</a>    <span class="k">def</span> <span class="nf">keys</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="tzical.keys"><a class="viewcode-back" href="../../api.html#storm.tz.tzical.keys">[docs]</a>    <span class="k">def</span> <span class="nf">keys</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">iter_keys</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_vtz</span><span class="p">))</span></div>
 
-<div class="viewcode-block" id="tzical.get"><a class="viewcode-back" href="../../miscellaneous.html#storm.tz.tzical.get">[docs]</a>    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tzid</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="tzical.get"><a class="viewcode-back" href="../../api.html#storm.tz.tzical.get">[docs]</a>    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tzid</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">tzid</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">keys</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">iter_keys</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_vtz</span><span class="p">))</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">keys</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
@@ -905,7 +905,7 @@
     <span class="n">TZPATHS</span> <span class="o">=</span> <span class="p">[]</span>
 
 
-<div class="viewcode-block" id="gettz"><a class="viewcode-back" href="../../miscellaneous.html#storm.tz.gettz">[docs]</a><span class="k">def</span> <span class="nf">gettz</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="gettz"><a class="viewcode-back" href="../../api.html#storm.tz.gettz">[docs]</a><span class="k">def</span> <span class="nf">gettz</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="n">tz</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">name</span><span class="p">:</span>
         <span class="k">try</span><span class="p">:</span>
@@ -999,12 +999,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../basic-usage.html">Basic usage</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../infoheritance.html">Infoheritance</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../store.html">Store</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../columns.html">Columns and types</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../expr.html">Expressions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../databases.html">Databases</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../events.html">Hooks and events</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../miscellaneous.html">Miscellaneous libraries</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">API</a></li>
 </ul>
 
 <div class="relations">

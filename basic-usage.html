@@ -65,7 +65,7 @@ database to play with, and a store using that database.</p>
 </pre></div>
 </div>
 <p>Two databases are supported at the moment: SQLite and PostgreSQL.
-The parameter passed to <a class="reference internal" href="databases.html#storm.database.create_database" title="storm.database.create_database"><code class="xref py py-func docutils literal notranslate"><span class="pre">create_database()</span></code></a> is an URI,
+The parameter passed to <a class="reference internal" href="api.html#storm.database.create_database" title="storm.database.create_database"><code class="xref py py-func docutils literal notranslate"><span class="pre">create_database()</span></code></a> is an URI,
 as follows:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># URI format</span>
 <span class="c1"># database = create_database(&quot;scheme://user:password@hostname:port/dbname&quot;)</span>
@@ -84,7 +84,7 @@ as follows:</p>
 <span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
-<p><a class="reference internal" href="store.html#storm.store.Store.execute" title="storm.store.Store.execute"><code class="xref py py-meth docutils literal notranslate"><span class="pre">execute()</span></code></a> returns a result, but we don’t care
+<p><a class="reference internal" href="api.html#storm.store.Store.execute" title="storm.store.Store.execute"><code class="xref py py-meth docutils literal notranslate"><span class="pre">execute()</span></code></a> returns a result, but we don’t care
 about it for now. We could also use <code class="docutils literal notranslate"><span class="pre">noresult=True</span></code> to avoid the result
 entirely.</p>
 </div>
@@ -127,7 +127,7 @@ named <em>Joe Johnes</em>?</p>
 </pre></div>
 </div>
 <p>The person is there! Yeah, ok, you were expecting it. :-)</p>
-<p>Using <a class="reference internal" href="store.html#storm.store.Store.get" title="storm.store.Store.get"><code class="xref py py-meth docutils literal notranslate"><span class="pre">get()</span></code></a> we can also retrieve the object using
+<p>Using <a class="reference internal" href="api.html#storm.store.Store.get" title="storm.store.Store.get"><code class="xref py py-meth docutils literal notranslate"><span class="pre">get()</span></code></a> we can also retrieve the object using
 its primary key.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">assert</span> <span class="n">store</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">Person</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="sa">u</span><span class="s2">&quot;Joe Johnes&quot;</span>
 </pre></div>
@@ -156,7 +156,7 @@ that the <code class="docutils literal notranslate"><span class="pre">id</span><
 object was flushed implicitly so that the operation would affect any pending
 changes as well.</p>
 <p>It is possible to manually force a flush using
-<a class="reference internal" href="store.html#storm.store.Store.flush" title="storm.store.Store.flush"><code class="xref py py-meth docutils literal notranslate"><span class="pre">flush()</span></code></a>.</p>
+<a class="reference internal" href="api.html#storm.store.Store.flush" title="storm.store.Store.flush"><code class="xref py py-meth docutils literal notranslate"><span class="pre">flush()</span></code></a>.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">mary</span> <span class="o">=</span> <span class="n">Person</span><span class="p">()</span>
 <span class="n">mary</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="sa">u</span><span class="s2">&quot;Mary Margaret&quot;</span>
 <span class="n">store</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">mary</span><span class="p">)</span>
@@ -424,7 +424,7 @@ check it if we’re really curious.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">store</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">CompanyAccountant</span><span class="p">,</span> <span class="p">(</span><span class="n">sweets</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">frank</span><span class="o">.</span><span class="n">id</span><span class="p">))</span>
 </pre></div>
 </div>
-<p>Notice that we pass a tuple for the <a class="reference internal" href="store.html#storm.store.Store.get" title="storm.store.Store.get"><code class="xref py py-meth docutils literal notranslate"><span class="pre">get()</span></code></a> method,
+<p>Notice that we pass a tuple for the <a class="reference internal" href="api.html#storm.store.Store.get" title="storm.store.Store.get"><code class="xref py py-meth docutils literal notranslate"><span class="pre">get()</span></code></a> method,
 due to the composite key.</p>
 <p>If we wanted to know for which companies accountants are working, we could
 easily define a reversed relationship:</p>
@@ -541,7 +541,7 @@ local scope, what potentially leads to circular import issues.</p>
 <p>To prevent that kind of situation, Storm supports defining these references
 using the stringified version of the class and property names.  The only
 inconvenience of doing so is that all involved classes must inherit from the
-<a class="reference internal" href="miscellaneous.html#storm.base.Storm" title="storm.base.Storm"><code class="xref py py-class docutils literal notranslate"><span class="pre">Storm</span></code></a> base class.</p>
+<a class="reference internal" href="api.html#storm.base.Storm" title="storm.base.Storm"><code class="xref py py-class docutils literal notranslate"><span class="pre">Storm</span></code></a> base class.</p>
 <p>Let’s define some new classes to show that.  To expose the point, we’ll refer
 to a class before it’s actually defined.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Country</span><span class="p">(</span><span class="n">Storm</span><span class="p">):</span>
@@ -665,7 +665,7 @@ at all.</p>
 <p>So now let’s say that we want to find every pair of people that work for the
 same company.  I have no idea about why one would <em>want</em> to do that, but that’s
 a good case for us to exercise aliases.</p>
-<p>First, we import <a class="reference internal" href="store.html#storm.info.ClassAlias" title="storm.info.ClassAlias"><code class="xref py py-class docutils literal notranslate"><span class="pre">ClassAlias</span></code></a> into the local namespace
+<p>First, we import <a class="reference internal" href="api.html#storm.info.ClassAlias" title="storm.info.ClassAlias"><code class="xref py py-class docutils literal notranslate"><span class="pre">ClassAlias</span></code></a> into the local namespace
 (<em>mental note: this should be in storm.locals as well</em>), and create a
 reference to it.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">storm.info</span> <span class="kn">import</span> <span class="n">ClassAlias</span>
@@ -762,12 +762,7 @@ default, but a custom stream may also be used.</p>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="infoheritance.html">Infoheritance</a></li>
-<li class="toctree-l1"><a class="reference internal" href="store.html">Store</a></li>
-<li class="toctree-l1"><a class="reference internal" href="columns.html">Columns and types</a></li>
-<li class="toctree-l1"><a class="reference internal" href="expr.html">Expressions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="databases.html">Databases</a></li>
-<li class="toctree-l1"><a class="reference internal" href="events.html">Hooks and events</a></li>
-<li class="toctree-l1"><a class="reference internal" href="miscellaneous.html">Miscellaneous libraries</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API</a></li>
 </ul>
 
 <div class="relations">

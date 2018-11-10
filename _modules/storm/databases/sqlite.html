@@ -82,7 +82,7 @@
 
 <span class="nb">compile</span> <span class="o">=</span> <span class="nb">compile</span><span class="o">.</span><span class="n">create_child</span><span class="p">()</span>
 
-<div class="viewcode-block" id="compile_select_sqlite"><a class="viewcode-back" href="../../../databases.html#storm.databases.sqlite.compile_select_sqlite">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Select</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_select_sqlite"><a class="viewcode-back" href="../../../api.html#storm.databases.sqlite.compile_select_sqlite">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Select</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_select_sqlite</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">select</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="k">if</span> <span class="n">select</span><span class="o">.</span><span class="n">offset</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">Undef</span> <span class="ow">and</span> <span class="n">select</span><span class="o">.</span><span class="n">limit</span> <span class="ow">is</span> <span class="n">Undef</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">maxsize</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="o">**</span><span class="mi">32</span><span class="p">:</span>
@@ -103,7 +103,7 @@
 <span class="c1"># Considering the above, selects have a greater precedence.</span>
 <span class="nb">compile</span><span class="o">.</span><span class="n">set_precedence</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Except</span><span class="p">,</span> <span class="n">Intersect</span><span class="p">)</span>
 
-<div class="viewcode-block" id="compile_insert_sqlite"><a class="viewcode-back" href="../../../databases.html#storm.databases.sqlite.compile_insert_sqlite">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Insert</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_insert_sqlite"><a class="viewcode-back" href="../../../api.html#storm.databases.sqlite.compile_insert_sqlite">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Insert</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_insert_sqlite</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">insert</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="c1"># SQLite fails with INSERT INTO table VALUES (), so we transform</span>
     <span class="c1"># that to INSERT INTO table (id) VALUES (NULL).</span>
@@ -112,12 +112,12 @@
     <span class="k">return</span> <span class="n">compile_insert</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">insert</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="SQLiteResult"><a class="viewcode-back" href="../../../databases.html#storm.databases.sqlite.SQLiteResult">[docs]</a><span class="k">class</span> <span class="nc">SQLiteResult</span><span class="p">(</span><span class="n">Result</span><span class="p">):</span>
+<div class="viewcode-block" id="SQLiteResult"><a class="viewcode-back" href="../../../api.html#storm.databases.sqlite.SQLiteResult">[docs]</a><span class="k">class</span> <span class="nc">SQLiteResult</span><span class="p">(</span><span class="n">Result</span><span class="p">):</span>
 
-<div class="viewcode-block" id="SQLiteResult.get_insert_identity"><a class="viewcode-back" href="../../../databases.html#storm.databases.sqlite.SQLiteResult.get_insert_identity">[docs]</a>    <span class="k">def</span> <span class="nf">get_insert_identity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">primary_key</span><span class="p">,</span> <span class="n">primary_variables</span><span class="p">):</span>
+<div class="viewcode-block" id="SQLiteResult.get_insert_identity"><a class="viewcode-back" href="../../../api.html#storm.databases.sqlite.SQLiteResult.get_insert_identity">[docs]</a>    <span class="k">def</span> <span class="nf">get_insert_identity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">primary_key</span><span class="p">,</span> <span class="n">primary_variables</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">SQLRaw</span><span class="p">(</span><span class="s2">&quot;(OID=</span><span class="si">%d</span><span class="s2">)&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">_raw_cursor</span><span class="o">.</span><span class="n">lastrowid</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SQLiteResult.set_variable"><a class="viewcode-back" href="../../../databases.html#storm.databases.sqlite.SQLiteResult.set_variable">[docs]</a>    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="SQLiteResult.set_variable"><a class="viewcode-back" href="../../../api.html#storm.databases.sqlite.SQLiteResult.set_variable">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">set_variable</span><span class="p">(</span><span class="n">variable</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">variable</span><span class="p">,</span> <span class="n">RawStrVariable</span><span class="p">):</span>
             <span class="c1"># On Python 3 sqlite will return unicode objects when possible</span>
@@ -128,7 +128,7 @@
                 <span class="n">value</span> <span class="o">=</span> <span class="n">bstr</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
         <span class="n">variable</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">from_db</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SQLiteResult.from_database"><a class="viewcode-back" href="../../../databases.html#storm.databases.sqlite.SQLiteResult.from_database">[docs]</a>    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="SQLiteResult.from_database"><a class="viewcode-back" href="../../../api.html#storm.databases.sqlite.SQLiteResult.from_database">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">from_database</span><span class="p">(</span><span class="n">row</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Convert SQLite-specific datatypes to &quot;normal&quot; Python types.</span>
 
@@ -142,13 +142,13 @@
                 <span class="k">yield</span> <span class="n">value</span></div></div>
 
 
-<div class="viewcode-block" id="SQLiteConnection"><a class="viewcode-back" href="../../../databases.html#storm.databases.sqlite.SQLiteConnection">[docs]</a><span class="k">class</span> <span class="nc">SQLiteConnection</span><span class="p">(</span><span class="n">Connection</span><span class="p">):</span>
+<div class="viewcode-block" id="SQLiteConnection"><a class="viewcode-back" href="../../../api.html#storm.databases.sqlite.SQLiteConnection">[docs]</a><span class="k">class</span> <span class="nc">SQLiteConnection</span><span class="p">(</span><span class="n">Connection</span><span class="p">):</span>
 
     <span class="n">result_factory</span> <span class="o">=</span> <span class="n">SQLiteResult</span>
     <span class="nb">compile</span> <span class="o">=</span> <span class="nb">compile</span>
     <span class="n">_in_transaction</span> <span class="o">=</span> <span class="kc">False</span>
 
-<div class="viewcode-block" id="SQLiteConnection.to_database"><a class="viewcode-back" href="../../../databases.html#storm.databases.sqlite.SQLiteConnection.to_database">[docs]</a>    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="SQLiteConnection.to_database"><a class="viewcode-back" href="../../../api.html#storm.databases.sqlite.SQLiteConnection.to_database">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">to_database</span><span class="p">(</span><span class="n">params</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Like L{Connection.to_database}, but this also converts</span>
@@ -165,18 +165,18 @@
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">yield</span> <span class="n">param</span></div>
 
-<div class="viewcode-block" id="SQLiteConnection.commit"><a class="viewcode-back" href="../../../databases.html#storm.databases.sqlite.SQLiteConnection.commit">[docs]</a>    <span class="k">def</span> <span class="nf">commit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="SQLiteConnection.commit"><a class="viewcode-back" href="../../../api.html#storm.databases.sqlite.SQLiteConnection.commit">[docs]</a>    <span class="k">def</span> <span class="nf">commit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_connected</span><span class="p">()</span>
         <span class="c1"># See story at the end to understand why we do COMMIT manually.</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_in_transaction</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">raw_execute</span><span class="p">(</span><span class="s2">&quot;COMMIT&quot;</span><span class="p">,</span> <span class="n">_end</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SQLiteConnection.rollback"><a class="viewcode-back" href="../../../databases.html#storm.databases.sqlite.SQLiteConnection.rollback">[docs]</a>    <span class="k">def</span> <span class="nf">rollback</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="SQLiteConnection.rollback"><a class="viewcode-back" href="../../../api.html#storm.databases.sqlite.SQLiteConnection.rollback">[docs]</a>    <span class="k">def</span> <span class="nf">rollback</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="c1"># See story at the end to understand why we do ROLLBACK manually.</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_in_transaction</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">raw_execute</span><span class="p">(</span><span class="s2">&quot;ROLLBACK&quot;</span><span class="p">,</span> <span class="n">_end</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SQLiteConnection.raw_execute"><a class="viewcode-back" href="../../../databases.html#storm.databases.sqlite.SQLiteConnection.raw_execute">[docs]</a>    <span class="k">def</span> <span class="nf">raw_execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">statement</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">_end</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<div class="viewcode-block" id="SQLiteConnection.raw_execute"><a class="viewcode-back" href="../../../api.html#storm.databases.sqlite.SQLiteConnection.raw_execute">[docs]</a>    <span class="k">def</span> <span class="nf">raw_execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">statement</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">_end</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Execute a raw statement with the given parameters.</span>
 
 <span class="sd">        This method will automatically retry on locked database errors.</span>
@@ -214,7 +214,7 @@
                     <span class="k">raise</span></div></div>
 
 
-<div class="viewcode-block" id="SQLite"><a class="viewcode-back" href="../../../databases.html#storm.databases.sqlite.SQLite">[docs]</a><span class="k">class</span> <span class="nc">SQLite</span><span class="p">(</span><span class="n">Database</span><span class="p">):</span>
+<div class="viewcode-block" id="SQLite"><a class="viewcode-back" href="../../../api.html#storm.databases.sqlite.SQLite">[docs]</a><span class="k">class</span> <span class="nc">SQLite</span><span class="p">(</span><span class="n">Database</span><span class="p">):</span>
 
     <span class="n">connection_factory</span> <span class="o">=</span> <span class="n">SQLiteConnection</span>
 
@@ -228,7 +228,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_journal_mode</span> <span class="o">=</span> <span class="n">uri</span><span class="o">.</span><span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;journal_mode&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_foreign_keys</span> <span class="o">=</span> <span class="n">uri</span><span class="o">.</span><span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;foreign_keys&quot;</span><span class="p">)</span>
 
-<div class="viewcode-block" id="SQLite.raw_connect"><a class="viewcode-back" href="../../../databases.html#storm.databases.sqlite.SQLite.raw_connect">[docs]</a>    <span class="k">def</span> <span class="nf">raw_connect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="SQLite.raw_connect"><a class="viewcode-back" href="../../../api.html#storm.databases.sqlite.SQLite.raw_connect">[docs]</a>    <span class="k">def</span> <span class="nf">raw_connect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="c1"># See the story at the end to understand why we set isolation_level.</span>
         <span class="n">raw_connection</span> <span class="o">=</span> <span class="n">sqlite</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_filename</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_timeout</span><span class="p">,</span>
                                         <span class="n">isolation_level</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
@@ -322,12 +322,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../basic-usage.html">Basic usage</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../infoheritance.html">Infoheritance</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../store.html">Store</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../columns.html">Columns and types</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../expr.html">Expressions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../databases.html">Databases</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../events.html">Hooks and events</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../miscellaneous.html">Miscellaneous libraries</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">API</a></li>
 </ul>
 
 <div class="relations">

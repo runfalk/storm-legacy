@@ -99,7 +99,7 @@
 <span class="n">PendingReferenceValue</span> <span class="o">=</span> <span class="n">PendingReferenceValue</span><span class="p">()</span>
 
 
-<div class="viewcode-block" id="Reference"><a class="viewcode-back" href="../../columns.html#storm.references.Reference">[docs]</a><span class="k">class</span> <span class="nc">Reference</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="Reference"><a class="viewcode-back" href="../../api.html#storm.references.Reference">[docs]</a><span class="k">class</span> <span class="nc">Reference</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Descriptor for one-to-one relationships.</span>
 
 <span class="sd">    This is typically used when the class that it is being defined on</span>
@@ -242,7 +242,7 @@
         <span class="k">return</span> <span class="n">Not</span><span class="p">(</span><span class="bp">self</span> <span class="o">==</span> <span class="n">other</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="ReferenceSet"><a class="viewcode-back" href="../../columns.html#storm.references.ReferenceSet">[docs]</a><span class="k">class</span> <span class="nc">ReferenceSet</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="ReferenceSet"><a class="viewcode-back" href="../../api.html#storm.references.ReferenceSet">[docs]</a><span class="k">class</span> <span class="nc">ReferenceSet</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
 
     <span class="c1"># Must initialize later because we don&#39;t want to resolve string</span>
     <span class="c1"># references at definition time, since classes refered to might</span>
@@ -421,7 +421,7 @@
         <span class="n">store</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_link_cls</span><span class="p">,</span> <span class="n">where</span><span class="p">)</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
 
 
-<div class="viewcode-block" id="Proxy"><a class="viewcode-back" href="../../columns.html#storm.references.Proxy">[docs]</a><span class="k">class</span> <span class="nc">Proxy</span><span class="p">(</span><span class="n">ComparableExpr</span><span class="p">):</span>
+<div class="viewcode-block" id="Proxy"><a class="viewcode-back" href="../../api.html#storm.references.Proxy">[docs]</a><span class="k">class</span> <span class="nc">Proxy</span><span class="p">(</span><span class="n">ComparableExpr</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Proxy exposes a referred object&#39;s column as a local column.</span>
 
 <span class="sd">    For example::</span>
@@ -435,7 +435,7 @@
 <span class="sd">    a native property of Foo.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="Proxy.RemoteProp"><a class="viewcode-back" href="../../columns.html#storm.references.Proxy.RemoteProp">[docs]</a>    <span class="k">class</span> <span class="nc">RemoteProp</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="Proxy.RemoteProp"><a class="viewcode-back" href="../../api.html#storm.references.Proxy.RemoteProp">[docs]</a>    <span class="k">class</span> <span class="nc">RemoteProp</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        This descriptor will resolve and set the _remote_prop attribute</span>
 <span class="sd">        when it&#39;s first used. It avoids having a test at every single</span>
@@ -1006,12 +1006,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../basic-usage.html">Basic usage</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../infoheritance.html">Infoheritance</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../store.html">Store</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../columns.html">Columns and types</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../expr.html">Expressions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../databases.html">Databases</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../events.html">Hooks and events</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../miscellaneous.html">Miscellaneous libraries</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">API</a></li>
 </ul>
 
 <div class="relations">

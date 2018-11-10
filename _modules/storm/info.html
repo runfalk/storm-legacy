@@ -77,11 +77,11 @@
         <span class="k">return</span> <span class="n">obj</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;__storm_object_info__&quot;</span><span class="p">,</span> <span class="n">obj_info</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="set_obj_info"><a class="viewcode-back" href="../../store.html#storm.info.set_obj_info">[docs]</a><span class="k">def</span> <span class="nf">set_obj_info</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">obj_info</span><span class="p">):</span>
+<div class="viewcode-block" id="set_obj_info"><a class="viewcode-back" href="../../api.html#storm.info.set_obj_info">[docs]</a><span class="k">def</span> <span class="nf">set_obj_info</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">obj_info</span><span class="p">):</span>
     <span class="n">obj</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="s2">&quot;__storm_object_info__&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">obj_info</span></div>
 
 
-<div class="viewcode-block" id="get_cls_info"><a class="viewcode-back" href="../../store.html#storm.info.get_cls_info">[docs]</a><span class="k">def</span> <span class="nf">get_cls_info</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+<div class="viewcode-block" id="get_cls_info"><a class="viewcode-back" href="../../api.html#storm.info.get_cls_info">[docs]</a><span class="k">def</span> <span class="nf">get_cls_info</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
     <span class="k">if</span> <span class="s2">&quot;__storm_class_info__&quot;</span> <span class="ow">in</span> <span class="bp">cls</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">:</span>
         <span class="c1"># Can&#39;t use attribute access here, otherwise subclassing won&#39;t work.</span>
         <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="s2">&quot;__storm_class_info__&quot;</span><span class="p">]</span>
@@ -90,7 +90,7 @@
         <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">__storm_class_info__</span></div>
 
 
-<div class="viewcode-block" id="ClassInfo"><a class="viewcode-back" href="../../store.html#storm.info.ClassInfo">[docs]</a><span class="k">class</span> <span class="nc">ClassInfo</span><span class="p">(</span><span class="nb">dict</span><span class="p">):</span>
+<div class="viewcode-block" id="ClassInfo"><a class="viewcode-back" href="../../api.html#storm.info.ClassInfo">[docs]</a><span class="k">class</span> <span class="nc">ClassInfo</span><span class="p">(</span><span class="nb">dict</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Persistent storm-related information of a class.</span>
 
 <span class="sd">    The following attributes are defined:</span>
@@ -183,7 +183,7 @@
         <span class="k">return</span> <span class="bp">self</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">other</span></div>
 
 
-<div class="viewcode-block" id="ObjectInfo"><a class="viewcode-back" href="../../store.html#storm.info.ObjectInfo">[docs]</a><span class="k">class</span> <span class="nc">ObjectInfo</span><span class="p">(</span><span class="nb">dict</span><span class="p">):</span>
+<div class="viewcode-block" id="ObjectInfo"><a class="viewcode-back" href="../../api.html#storm.info.ObjectInfo">[docs]</a><span class="k">class</span> <span class="nc">ObjectInfo</span><span class="p">(</span><span class="nb">dict</span><span class="p">):</span>
 
     <span class="fm">__hash__</span> <span class="o">=</span> <span class="nb">object</span><span class="o">.</span><span class="fm">__hash__</span>
 
@@ -236,7 +236,7 @@
     <span class="kn">from</span> <span class="nn">storm.cextensions</span> <span class="k">import</span> <span class="n">ObjectInfo</span><span class="p">,</span> <span class="n">get_obj_info</span>
 
 
-<div class="viewcode-block" id="ClassAlias"><a class="viewcode-back" href="../../store.html#storm.info.ClassAlias">[docs]</a><span class="k">class</span> <span class="nc">ClassAlias</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="ClassAlias"><a class="viewcode-back" href="../../api.html#storm.info.ClassAlias">[docs]</a><span class="k">class</span> <span class="nc">ClassAlias</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Create a named alias for a Storm class for use in queries.</span>
 
 <span class="sd">    This is useful basically when the SQL &#39;AS&#39; feature is desired in code using</span>
@@ -304,12 +304,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../basic-usage.html">Basic usage</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../infoheritance.html">Infoheritance</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../store.html">Store</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../columns.html">Columns and types</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../expr.html">Expressions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../databases.html">Databases</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../events.html">Hooks and events</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../miscellaneous.html">Miscellaneous libraries</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">API</a></li>
 </ul>
 
 <div class="relations">

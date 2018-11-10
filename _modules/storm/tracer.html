@@ -45,14 +45,14 @@
 <span class="kn">from</span> <span class="nn">storm.expr</span> <span class="k">import</span> <span class="n">Variable</span>
 
 
-<div class="viewcode-block" id="DebugTracer"><a class="viewcode-back" href="../../events.html#storm.tracer.DebugTracer">[docs]</a><span class="k">class</span> <span class="nc">DebugTracer</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="DebugTracer"><a class="viewcode-back" href="../../api.html#storm.tracer.DebugTracer">[docs]</a><span class="k">class</span> <span class="nc">DebugTracer</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">stream</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">stream</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span> <span class="o">=</span> <span class="n">stream</span>
 
-<div class="viewcode-block" id="DebugTracer.connection_raw_execute"><a class="viewcode-back" href="../../events.html#storm.tracer.DebugTracer.connection_raw_execute">[docs]</a>    <span class="k">def</span> <span class="nf">connection_raw_execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">raw_cursor</span><span class="p">,</span> <span class="n">statement</span><span class="p">,</span>
+<div class="viewcode-block" id="DebugTracer.connection_raw_execute"><a class="viewcode-back" href="../../api.html#storm.tracer.DebugTracer.connection_raw_execute">[docs]</a>    <span class="k">def</span> <span class="nf">connection_raw_execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">raw_cursor</span><span class="p">,</span> <span class="n">statement</span><span class="p">,</span>
                                <span class="n">params</span><span class="p">):</span>
         <span class="n">time</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()[</span><span class="mi">11</span><span class="p">:]</span>
         <span class="n">raw_params</span> <span class="o">=</span> <span class="p">[]</span>
@@ -66,33 +66,33 @@
             <span class="s2">&quot;[</span><span class="si">%s</span><span class="s2">] EXECUTE: </span><span class="si">%r</span><span class="s2">, </span><span class="si">%r</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">statement</span><span class="p">,</span> <span class="n">raw_params</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="DebugTracer.connection_raw_execute_error"><a class="viewcode-back" href="../../events.html#storm.tracer.DebugTracer.connection_raw_execute_error">[docs]</a>    <span class="k">def</span> <span class="nf">connection_raw_execute_error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">raw_cursor</span><span class="p">,</span>
+<div class="viewcode-block" id="DebugTracer.connection_raw_execute_error"><a class="viewcode-back" href="../../api.html#storm.tracer.DebugTracer.connection_raw_execute_error">[docs]</a>    <span class="k">def</span> <span class="nf">connection_raw_execute_error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">raw_cursor</span><span class="p">,</span>
                                      <span class="n">statement</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">error</span><span class="p">):</span>
         <span class="n">time</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()[</span><span class="mi">11</span><span class="p">:]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;[</span><span class="si">%s</span><span class="s2">] ERROR: </span><span class="si">%s</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">error</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="DebugTracer.connection_raw_execute_success"><a class="viewcode-back" href="../../events.html#storm.tracer.DebugTracer.connection_raw_execute_success">[docs]</a>    <span class="k">def</span> <span class="nf">connection_raw_execute_success</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">raw_cursor</span><span class="p">,</span>
+<div class="viewcode-block" id="DebugTracer.connection_raw_execute_success"><a class="viewcode-back" href="../../api.html#storm.tracer.DebugTracer.connection_raw_execute_success">[docs]</a>    <span class="k">def</span> <span class="nf">connection_raw_execute_success</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">raw_cursor</span><span class="p">,</span>
                                        <span class="n">statement</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
         <span class="n">time</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()[</span><span class="mi">11</span><span class="p">:]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;[</span><span class="si">%s</span><span class="s2">] DONE</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">time</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="DebugTracer.connection_commit"><a class="viewcode-back" href="../../events.html#storm.tracer.DebugTracer.connection_commit">[docs]</a>    <span class="k">def</span> <span class="nf">connection_commit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">xid</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="DebugTracer.connection_commit"><a class="viewcode-back" href="../../api.html#storm.tracer.DebugTracer.connection_commit">[docs]</a>    <span class="k">def</span> <span class="nf">connection_commit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">xid</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="n">time</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()[</span><span class="mi">11</span><span class="p">:]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;[</span><span class="si">%s</span><span class="s2">] COMMIT xid=</span><span class="si">%s</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">xid</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="DebugTracer.connection_rollback"><a class="viewcode-back" href="../../events.html#storm.tracer.DebugTracer.connection_rollback">[docs]</a>    <span class="k">def</span> <span class="nf">connection_rollback</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">xid</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="DebugTracer.connection_rollback"><a class="viewcode-back" href="../../api.html#storm.tracer.DebugTracer.connection_rollback">[docs]</a>    <span class="k">def</span> <span class="nf">connection_rollback</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">xid</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="n">time</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()[</span><span class="mi">11</span><span class="p">:]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;[</span><span class="si">%s</span><span class="s2">] ROLLBACK xid=</span><span class="si">%s</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">xid</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span></div></div>
 
 
-<div class="viewcode-block" id="BaseStatementTracer"><a class="viewcode-back" href="../../events.html#storm.tracer.BaseStatementTracer">[docs]</a><span class="k">class</span> <span class="nc">BaseStatementTracer</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="BaseStatementTracer"><a class="viewcode-back" href="../../api.html#storm.tracer.BaseStatementTracer">[docs]</a><span class="k">class</span> <span class="nc">BaseStatementTracer</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Storm tracer base class that does query interpolation.&quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="BaseStatementTracer.connection_raw_execute"><a class="viewcode-back" href="../../events.html#storm.tracer.BaseStatementTracer.connection_raw_execute">[docs]</a>    <span class="k">def</span> <span class="nf">connection_raw_execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">raw_cursor</span><span class="p">,</span>
+<div class="viewcode-block" id="BaseStatementTracer.connection_raw_execute"><a class="viewcode-back" href="../../api.html#storm.tracer.BaseStatementTracer.connection_raw_execute">[docs]</a>    <span class="k">def</span> <span class="nf">connection_raw_execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">raw_cursor</span><span class="p">,</span>
                                <span class="n">statement</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
         <span class="n">statement_to_log</span> <span class="o">=</span> <span class="n">statement</span>
         <span class="k">if</span> <span class="n">params</span><span class="p">:</span>
@@ -137,40 +137,40 @@
 <span class="n">_tracers</span> <span class="o">=</span> <span class="p">[]</span>
 
 
-<div class="viewcode-block" id="trace"><a class="viewcode-back" href="../../events.html#storm.tracer.trace">[docs]</a><span class="k">def</span> <span class="nf">trace</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<div class="viewcode-block" id="trace"><a class="viewcode-back" href="../../api.html#storm.tracer.trace">[docs]</a><span class="k">def</span> <span class="nf">trace</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
     <span class="k">for</span> <span class="n">tracer</span> <span class="ow">in</span> <span class="n">_tracers</span><span class="p">:</span>
         <span class="n">attr</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">tracer</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">attr</span><span class="p">:</span>
             <span class="n">attr</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="install_tracer"><a class="viewcode-back" href="../../events.html#storm.tracer.install_tracer">[docs]</a><span class="k">def</span> <span class="nf">install_tracer</span><span class="p">(</span><span class="n">tracer</span><span class="p">):</span>
+<div class="viewcode-block" id="install_tracer"><a class="viewcode-back" href="../../api.html#storm.tracer.install_tracer">[docs]</a><span class="k">def</span> <span class="nf">install_tracer</span><span class="p">(</span><span class="n">tracer</span><span class="p">):</span>
     <span class="n">_tracers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tracer</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="get_tracers"><a class="viewcode-back" href="../../events.html#storm.tracer.get_tracers">[docs]</a><span class="k">def</span> <span class="nf">get_tracers</span><span class="p">():</span>
+<div class="viewcode-block" id="get_tracers"><a class="viewcode-back" href="../../api.html#storm.tracer.get_tracers">[docs]</a><span class="k">def</span> <span class="nf">get_tracers</span><span class="p">():</span>
     <span class="k">return</span> <span class="n">_tracers</span><span class="p">[:]</span></div>
 
 
-<div class="viewcode-block" id="remove_all_tracers"><a class="viewcode-back" href="../../events.html#storm.tracer.remove_all_tracers">[docs]</a><span class="k">def</span> <span class="nf">remove_all_tracers</span><span class="p">():</span>
+<div class="viewcode-block" id="remove_all_tracers"><a class="viewcode-back" href="../../api.html#storm.tracer.remove_all_tracers">[docs]</a><span class="k">def</span> <span class="nf">remove_all_tracers</span><span class="p">():</span>
     <span class="k">del</span> <span class="n">_tracers</span><span class="p">[:]</span></div>
 
 
-<div class="viewcode-block" id="remove_tracer"><a class="viewcode-back" href="../../events.html#storm.tracer.remove_tracer">[docs]</a><span class="k">def</span> <span class="nf">remove_tracer</span><span class="p">(</span><span class="n">tracer</span><span class="p">):</span>
+<div class="viewcode-block" id="remove_tracer"><a class="viewcode-back" href="../../api.html#storm.tracer.remove_tracer">[docs]</a><span class="k">def</span> <span class="nf">remove_tracer</span><span class="p">(</span><span class="n">tracer</span><span class="p">):</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="n">_tracers</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">tracer</span><span class="p">)</span>
     <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
         <span class="k">pass</span>  <span class="c1"># The tracer is not installed, succeed gracefully</span></div>
 
 
-<div class="viewcode-block" id="remove_tracer_type"><a class="viewcode-back" href="../../events.html#storm.tracer.remove_tracer_type">[docs]</a><span class="k">def</span> <span class="nf">remove_tracer_type</span><span class="p">(</span><span class="n">tracer_type</span><span class="p">):</span>
+<div class="viewcode-block" id="remove_tracer_type"><a class="viewcode-back" href="../../api.html#storm.tracer.remove_tracer_type">[docs]</a><span class="k">def</span> <span class="nf">remove_tracer_type</span><span class="p">(</span><span class="n">tracer_type</span><span class="p">):</span>
     <span class="n">_tracers</span><span class="p">[:]</span> <span class="o">=</span> <span class="p">[</span>
         <span class="n">tracer</span> <span class="k">for</span> <span class="n">tracer</span> <span class="ow">in</span> <span class="n">_tracers</span>
         <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">tracer</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">tracer_type</span>
     <span class="p">]</span></div>
 
 
-<div class="viewcode-block" id="debug"><a class="viewcode-back" href="../../events.html#storm.tracer.debug">[docs]</a><span class="k">def</span> <span class="nf">debug</span><span class="p">(</span><span class="n">flag</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="debug"><a class="viewcode-back" href="../../api.html#storm.tracer.debug">[docs]</a><span class="k">def</span> <span class="nf">debug</span><span class="p">(</span><span class="n">flag</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="n">remove_tracer_type</span><span class="p">(</span><span class="n">DebugTracer</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">flag</span><span class="p">:</span>
         <span class="n">install_tracer</span><span class="p">(</span><span class="n">DebugTracer</span><span class="p">(</span><span class="n">stream</span><span class="o">=</span><span class="n">stream</span><span class="p">))</span></div>
@@ -200,12 +200,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../basic-usage.html">Basic usage</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../infoheritance.html">Infoheritance</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../store.html">Store</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../columns.html">Columns and types</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../expr.html">Expressions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../databases.html">Databases</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../events.html">Hooks and events</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../miscellaneous.html">Miscellaneous libraries</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">API</a></li>
 </ul>
 
 <div class="relations">

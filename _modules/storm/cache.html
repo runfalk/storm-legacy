@@ -37,13 +37,13 @@
 
 <span class="kn">from</span> <span class="nn">storm.compat</span> <span class="k">import</span> <span class="n">iter_items</span>
 
-<div class="viewcode-block" id="Cache"><a class="viewcode-back" href="../../miscellaneous.html#storm.cache.Cache">[docs]</a><span class="k">class</span> <span class="nc">Cache</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="Cache"><a class="viewcode-back" href="../../api.html#storm.cache.Cache">[docs]</a><span class="k">class</span> <span class="nc">Cache</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Prevents recently used objects from being deallocated.</span>
 
 <span class="sd">    This prevents recently used objects from being deallocated by Python</span>
 <span class="sd">    even if the user isn&#39;t holding any strong references to it.  It does</span>
 <span class="sd">    that by holding strong references to the objects referenced by the</span>
-<span class="sd">    last C{N} C{obj_info}s added to it (where C{N} is the cache size).</span>
+<span class="sd">    last C{N} C{obj_info} added to it (where C{N} is the cache size).</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">1000</span><span class="p">):</span>
@@ -51,12 +51,12 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span> <span class="o">=</span> <span class="p">{}</span> <span class="c1"># {obj_info: obj, ...}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_order</span> <span class="o">=</span> <span class="p">[]</span> <span class="c1"># [obj_info, ...]</span>
 
-<div class="viewcode-block" id="Cache.clear"><a class="viewcode-back" href="../../miscellaneous.html#storm.cache.Cache.clear">[docs]</a>    <span class="k">def</span> <span class="nf">clear</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Cache.clear"><a class="viewcode-back" href="../../api.html#storm.cache.Cache.clear">[docs]</a>    <span class="k">def</span> <span class="nf">clear</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Clear the entire cache at once.&quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
         <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_order</span><span class="p">[:]</span></div>
 
-<div class="viewcode-block" id="Cache.add"><a class="viewcode-back" href="../../miscellaneous.html#storm.cache.Cache.add">[docs]</a>    <span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj_info</span><span class="p">):</span>
+<div class="viewcode-block" id="Cache.add"><a class="viewcode-back" href="../../api.html#storm.cache.Cache.add">[docs]</a>    <span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj_info</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Add C{obj_info} as the most recent entry in the cache.</span>
 
 <span class="sd">        If the C{obj_info} is already in the cache, it remains in the</span>
@@ -72,7 +72,7 @@
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">)</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_size</span><span class="p">:</span>
                 <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_order</span><span class="o">.</span><span class="n">pop</span><span class="p">()]</span></div>
 
-<div class="viewcode-block" id="Cache.remove"><a class="viewcode-back" href="../../miscellaneous.html#storm.cache.Cache.remove">[docs]</a>    <span class="k">def</span> <span class="nf">remove</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj_info</span><span class="p">):</span>
+<div class="viewcode-block" id="Cache.remove"><a class="viewcode-back" href="../../api.html#storm.cache.Cache.remove">[docs]</a>    <span class="k">def</span> <span class="nf">remove</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj_info</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Remove C{obj_info} from the cache, if present.</span>
 
 <span class="sd">        @return: True if C{obj_info} was cached, False otherwise.</span>
@@ -83,10 +83,10 @@
             <span class="k">return</span> <span class="kc">True</span>
         <span class="k">return</span> <span class="kc">False</span></div>
 
-<div class="viewcode-block" id="Cache.set_size"><a class="viewcode-back" href="../../miscellaneous.html#storm.cache.Cache.set_size">[docs]</a>    <span class="k">def</span> <span class="nf">set_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">):</span>
+<div class="viewcode-block" id="Cache.set_size"><a class="viewcode-back" href="../../api.html#storm.cache.Cache.set_size">[docs]</a>    <span class="k">def</span> <span class="nf">set_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Set the maximum number of objects that may be held in this cache.</span>
 
-<span class="sd">        If the size is reduced, older C{obj_info}s may be dropped from</span>
+<span class="sd">        If the size is reduced, older C{obj_info} may be dropped from</span>
 <span class="sd">        the cache to respect the new size.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
@@ -97,15 +97,15 @@
                 <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_order</span><span class="o">.</span><span class="n">pop</span><span class="p">()]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_size</span> <span class="o">=</span> <span class="n">size</span></div>
 
-<div class="viewcode-block" id="Cache.get_cached"><a class="viewcode-back" href="../../miscellaneous.html#storm.cache.Cache.get_cached">[docs]</a>    <span class="k">def</span> <span class="nf">get_cached</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Return an ordered list of the currently cached C{obj_info}s.</span>
+<div class="viewcode-block" id="Cache.get_cached"><a class="viewcode-back" href="../../api.html#storm.cache.Cache.get_cached">[docs]</a>    <span class="k">def</span> <span class="nf">get_cached</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return an ordered list of the currently cached C{obj_info}.</span>
 
 <span class="sd">        The most recently added objects come first in the list.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_order</span><span class="p">)</span></div></div>
 
 
-<div class="viewcode-block" id="GenerationalCache"><a class="viewcode-back" href="../../miscellaneous.html#storm.cache.GenerationalCache">[docs]</a><span class="k">class</span> <span class="nc">GenerationalCache</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="GenerationalCache"><a class="viewcode-back" href="../../api.html#storm.cache.GenerationalCache">[docs]</a><span class="k">class</span> <span class="nc">GenerationalCache</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Generational replacement for Storm&#39;s LRU cache.</span>
 
 <span class="sd">    This cache approximates LRU without keeping exact track.  Instead,</span>
@@ -134,7 +134,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_new_cache</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_old_cache</span> <span class="o">=</span> <span class="p">{}</span>
 
-<div class="viewcode-block" id="GenerationalCache.clear"><a class="viewcode-back" href="../../miscellaneous.html#storm.cache.GenerationalCache.clear">[docs]</a>    <span class="k">def</span> <span class="nf">clear</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="GenerationalCache.clear"><a class="viewcode-back" href="../../api.html#storm.cache.GenerationalCache.clear">[docs]</a>    <span class="k">def</span> <span class="nf">clear</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;See `storm.store.Cache.clear`.</span>
 
 <span class="sd">        Clears both the primary and the secondary caches.</span>
@@ -156,20 +156,20 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_old_cache</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_new_cache</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_new_cache</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_old_cache</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_new_cache</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
 
-<div class="viewcode-block" id="GenerationalCache.add"><a class="viewcode-back" href="../../miscellaneous.html#storm.cache.GenerationalCache.add">[docs]</a>    <span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj_info</span><span class="p">):</span>
+<div class="viewcode-block" id="GenerationalCache.add"><a class="viewcode-back" href="../../api.html#storm.cache.GenerationalCache.add">[docs]</a>    <span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj_info</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;See `storm.store.Cache.add`.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_size</span> <span class="o">!=</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">obj_info</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_new_cache</span><span class="p">:</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_new_cache</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_size</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_bump_generation</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_new_cache</span><span class="p">[</span><span class="n">obj_info</span><span class="p">]</span> <span class="o">=</span> <span class="n">obj_info</span><span class="o">.</span><span class="n">get_obj</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="GenerationalCache.remove"><a class="viewcode-back" href="../../miscellaneous.html#storm.cache.GenerationalCache.remove">[docs]</a>    <span class="k">def</span> <span class="nf">remove</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj_info</span><span class="p">):</span>
+<div class="viewcode-block" id="GenerationalCache.remove"><a class="viewcode-back" href="../../api.html#storm.cache.GenerationalCache.remove">[docs]</a>    <span class="k">def</span> <span class="nf">remove</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj_info</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;See `storm.store.Cache.remove`.&quot;&quot;&quot;</span>
         <span class="n">in_new_cache</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_new_cache</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">obj_info</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
         <span class="n">in_old_cache</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_old_cache</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">obj_info</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
         <span class="k">return</span> <span class="n">in_new_cache</span> <span class="ow">or</span> <span class="n">in_old_cache</span></div>
 
-<div class="viewcode-block" id="GenerationalCache.set_size"><a class="viewcode-back" href="../../miscellaneous.html#storm.cache.GenerationalCache.set_size">[docs]</a>    <span class="k">def</span> <span class="nf">set_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">):</span>
+<div class="viewcode-block" id="GenerationalCache.set_size"><a class="viewcode-back" href="../../api.html#storm.cache.GenerationalCache.set_size">[docs]</a>    <span class="k">def</span> <span class="nf">set_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;See `storm.store.Cache.set_size`.</span>
 
 <span class="sd">        After calling this, the cache may still contain more than `size`</span>
@@ -182,7 +182,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_new_cache</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">cache</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_old_cache</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="GenerationalCache.get_cached"><a class="viewcode-back" href="../../miscellaneous.html#storm.cache.GenerationalCache.get_cached">[docs]</a>    <span class="k">def</span> <span class="nf">get_cached</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="GenerationalCache.get_cached"><a class="viewcode-back" href="../../api.html#storm.cache.GenerationalCache.get_cached">[docs]</a>    <span class="k">def</span> <span class="nf">get_cached</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;See `storm.store.Cache.get_cached`.</span>
 
 <span class="sd">        The result is a loosely-ordered list.  Any object in the primary</span>
@@ -218,12 +218,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../basic-usage.html">Basic usage</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../infoheritance.html">Infoheritance</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../store.html">Store</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../columns.html">Columns and types</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../expr.html">Expressions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../databases.html">Databases</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../events.html">Hooks and events</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../miscellaneous.html">Miscellaneous libraries</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">API</a></li>
 </ul>
 
 <div class="relations">

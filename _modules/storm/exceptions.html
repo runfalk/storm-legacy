@@ -59,127 +59,127 @@
 <span class="kn">from</span> <span class="nn">storm.compat</span> <span class="k">import</span> <span class="n">add_metaclass</span>
 
 
-<div class="viewcode-block" id="StormError"><a class="viewcode-back" href="../../miscellaneous.html#storm.exceptions.StormError">[docs]</a><span class="nd">@add_metaclass</span><span class="p">(</span><span class="n">ABCMeta</span><span class="p">)</span>
+<div class="viewcode-block" id="StormError"><a class="viewcode-back" href="../../api.html#storm.exceptions.StormError">[docs]</a><span class="nd">@add_metaclass</span><span class="p">(</span><span class="n">ABCMeta</span><span class="p">)</span>
 <span class="k">class</span> <span class="nc">StormError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
     <span class="k">pass</span></div>
 
-<div class="viewcode-block" id="CompileError"><a class="viewcode-back" href="../../miscellaneous.html#storm.exceptions.CompileError">[docs]</a><span class="k">class</span> <span class="nc">CompileError</span><span class="p">(</span><span class="n">StormError</span><span class="p">):</span>
+<div class="viewcode-block" id="CompileError"><a class="viewcode-back" href="../../api.html#storm.exceptions.CompileError">[docs]</a><span class="k">class</span> <span class="nc">CompileError</span><span class="p">(</span><span class="n">StormError</span><span class="p">):</span>
     <span class="k">pass</span></div>
 
 
-<div class="viewcode-block" id="NoTableError"><a class="viewcode-back" href="../../miscellaneous.html#storm.exceptions.NoTableError">[docs]</a><span class="k">class</span> <span class="nc">NoTableError</span><span class="p">(</span><span class="n">CompileError</span><span class="p">):</span>
+<div class="viewcode-block" id="NoTableError"><a class="viewcode-back" href="../../api.html#storm.exceptions.NoTableError">[docs]</a><span class="k">class</span> <span class="nc">NoTableError</span><span class="p">(</span><span class="n">CompileError</span><span class="p">):</span>
     <span class="k">pass</span></div>
 
 
-<div class="viewcode-block" id="ExprError"><a class="viewcode-back" href="../../miscellaneous.html#storm.exceptions.ExprError">[docs]</a><span class="k">class</span> <span class="nc">ExprError</span><span class="p">(</span><span class="n">StormError</span><span class="p">):</span>
+<div class="viewcode-block" id="ExprError"><a class="viewcode-back" href="../../api.html#storm.exceptions.ExprError">[docs]</a><span class="k">class</span> <span class="nc">ExprError</span><span class="p">(</span><span class="n">StormError</span><span class="p">):</span>
     <span class="k">pass</span></div>
 
 
-<div class="viewcode-block" id="NoneError"><a class="viewcode-back" href="../../miscellaneous.html#storm.exceptions.NoneError">[docs]</a><span class="k">class</span> <span class="nc">NoneError</span><span class="p">(</span><span class="n">StormError</span><span class="p">):</span>
+<div class="viewcode-block" id="NoneError"><a class="viewcode-back" href="../../api.html#storm.exceptions.NoneError">[docs]</a><span class="k">class</span> <span class="nc">NoneError</span><span class="p">(</span><span class="n">StormError</span><span class="p">):</span>
     <span class="k">pass</span></div>
 
 
-<div class="viewcode-block" id="PropertyPathError"><a class="viewcode-back" href="../../miscellaneous.html#storm.exceptions.PropertyPathError">[docs]</a><span class="k">class</span> <span class="nc">PropertyPathError</span><span class="p">(</span><span class="n">StormError</span><span class="p">):</span>
+<div class="viewcode-block" id="PropertyPathError"><a class="viewcode-back" href="../../api.html#storm.exceptions.PropertyPathError">[docs]</a><span class="k">class</span> <span class="nc">PropertyPathError</span><span class="p">(</span><span class="n">StormError</span><span class="p">):</span>
     <span class="k">pass</span></div>
 
 
-<div class="viewcode-block" id="ClassInfoError"><a class="viewcode-back" href="../../miscellaneous.html#storm.exceptions.ClassInfoError">[docs]</a><span class="k">class</span> <span class="nc">ClassInfoError</span><span class="p">(</span><span class="n">StormError</span><span class="p">):</span>
+<div class="viewcode-block" id="ClassInfoError"><a class="viewcode-back" href="../../api.html#storm.exceptions.ClassInfoError">[docs]</a><span class="k">class</span> <span class="nc">ClassInfoError</span><span class="p">(</span><span class="n">StormError</span><span class="p">):</span>
     <span class="k">pass</span></div>
 
 
-<div class="viewcode-block" id="URIError"><a class="viewcode-back" href="../../miscellaneous.html#storm.exceptions.URIError">[docs]</a><span class="k">class</span> <span class="nc">URIError</span><span class="p">(</span><span class="n">StormError</span><span class="p">):</span>
+<div class="viewcode-block" id="URIError"><a class="viewcode-back" href="../../api.html#storm.exceptions.URIError">[docs]</a><span class="k">class</span> <span class="nc">URIError</span><span class="p">(</span><span class="n">StormError</span><span class="p">):</span>
     <span class="k">pass</span></div>
 
 
-<div class="viewcode-block" id="ClosedError"><a class="viewcode-back" href="../../miscellaneous.html#storm.exceptions.ClosedError">[docs]</a><span class="k">class</span> <span class="nc">ClosedError</span><span class="p">(</span><span class="n">StormError</span><span class="p">):</span>
+<div class="viewcode-block" id="ClosedError"><a class="viewcode-back" href="../../api.html#storm.exceptions.ClosedError">[docs]</a><span class="k">class</span> <span class="nc">ClosedError</span><span class="p">(</span><span class="n">StormError</span><span class="p">):</span>
     <span class="k">pass</span></div>
 
 
-<div class="viewcode-block" id="FeatureError"><a class="viewcode-back" href="../../miscellaneous.html#storm.exceptions.FeatureError">[docs]</a><span class="k">class</span> <span class="nc">FeatureError</span><span class="p">(</span><span class="n">StormError</span><span class="p">):</span>
+<div class="viewcode-block" id="FeatureError"><a class="viewcode-back" href="../../api.html#storm.exceptions.FeatureError">[docs]</a><span class="k">class</span> <span class="nc">FeatureError</span><span class="p">(</span><span class="n">StormError</span><span class="p">):</span>
     <span class="k">pass</span></div>
 
 
-<div class="viewcode-block" id="DatabaseModuleError"><a class="viewcode-back" href="../../miscellaneous.html#storm.exceptions.DatabaseModuleError">[docs]</a><span class="k">class</span> <span class="nc">DatabaseModuleError</span><span class="p">(</span><span class="n">StormError</span><span class="p">):</span>
+<div class="viewcode-block" id="DatabaseModuleError"><a class="viewcode-back" href="../../api.html#storm.exceptions.DatabaseModuleError">[docs]</a><span class="k">class</span> <span class="nc">DatabaseModuleError</span><span class="p">(</span><span class="n">StormError</span><span class="p">):</span>
     <span class="k">pass</span></div>
 
 
-<div class="viewcode-block" id="StoreError"><a class="viewcode-back" href="../../miscellaneous.html#storm.exceptions.StoreError">[docs]</a><span class="k">class</span> <span class="nc">StoreError</span><span class="p">(</span><span class="n">StormError</span><span class="p">):</span>
+<div class="viewcode-block" id="StoreError"><a class="viewcode-back" href="../../api.html#storm.exceptions.StoreError">[docs]</a><span class="k">class</span> <span class="nc">StoreError</span><span class="p">(</span><span class="n">StormError</span><span class="p">):</span>
     <span class="k">pass</span></div>
 
 
-<div class="viewcode-block" id="NoStoreError"><a class="viewcode-back" href="../../miscellaneous.html#storm.exceptions.NoStoreError">[docs]</a><span class="k">class</span> <span class="nc">NoStoreError</span><span class="p">(</span><span class="n">StormError</span><span class="p">):</span>
+<div class="viewcode-block" id="NoStoreError"><a class="viewcode-back" href="../../api.html#storm.exceptions.NoStoreError">[docs]</a><span class="k">class</span> <span class="nc">NoStoreError</span><span class="p">(</span><span class="n">StormError</span><span class="p">):</span>
     <span class="k">pass</span></div>
 
 
-<div class="viewcode-block" id="WrongStoreError"><a class="viewcode-back" href="../../miscellaneous.html#storm.exceptions.WrongStoreError">[docs]</a><span class="k">class</span> <span class="nc">WrongStoreError</span><span class="p">(</span><span class="n">StoreError</span><span class="p">):</span>
+<div class="viewcode-block" id="WrongStoreError"><a class="viewcode-back" href="../../api.html#storm.exceptions.WrongStoreError">[docs]</a><span class="k">class</span> <span class="nc">WrongStoreError</span><span class="p">(</span><span class="n">StoreError</span><span class="p">):</span>
     <span class="k">pass</span></div>
 
 
-<div class="viewcode-block" id="NotFlushedError"><a class="viewcode-back" href="../../miscellaneous.html#storm.exceptions.NotFlushedError">[docs]</a><span class="k">class</span> <span class="nc">NotFlushedError</span><span class="p">(</span><span class="n">StoreError</span><span class="p">):</span>
+<div class="viewcode-block" id="NotFlushedError"><a class="viewcode-back" href="../../api.html#storm.exceptions.NotFlushedError">[docs]</a><span class="k">class</span> <span class="nc">NotFlushedError</span><span class="p">(</span><span class="n">StoreError</span><span class="p">):</span>
     <span class="k">pass</span></div>
 
 
-<div class="viewcode-block" id="OrderLoopError"><a class="viewcode-back" href="../../miscellaneous.html#storm.exceptions.OrderLoopError">[docs]</a><span class="k">class</span> <span class="nc">OrderLoopError</span><span class="p">(</span><span class="n">StoreError</span><span class="p">):</span>
+<div class="viewcode-block" id="OrderLoopError"><a class="viewcode-back" href="../../api.html#storm.exceptions.OrderLoopError">[docs]</a><span class="k">class</span> <span class="nc">OrderLoopError</span><span class="p">(</span><span class="n">StoreError</span><span class="p">):</span>
     <span class="k">pass</span></div>
 
 
-<div class="viewcode-block" id="NotOneError"><a class="viewcode-back" href="../../miscellaneous.html#storm.exceptions.NotOneError">[docs]</a><span class="k">class</span> <span class="nc">NotOneError</span><span class="p">(</span><span class="n">StoreError</span><span class="p">):</span>
+<div class="viewcode-block" id="NotOneError"><a class="viewcode-back" href="../../api.html#storm.exceptions.NotOneError">[docs]</a><span class="k">class</span> <span class="nc">NotOneError</span><span class="p">(</span><span class="n">StoreError</span><span class="p">):</span>
     <span class="k">pass</span></div>
 
 
-<div class="viewcode-block" id="UnorderedError"><a class="viewcode-back" href="../../miscellaneous.html#storm.exceptions.UnorderedError">[docs]</a><span class="k">class</span> <span class="nc">UnorderedError</span><span class="p">(</span><span class="n">StoreError</span><span class="p">):</span>
+<div class="viewcode-block" id="UnorderedError"><a class="viewcode-back" href="../../api.html#storm.exceptions.UnorderedError">[docs]</a><span class="k">class</span> <span class="nc">UnorderedError</span><span class="p">(</span><span class="n">StoreError</span><span class="p">):</span>
     <span class="k">pass</span></div>
 
 
-<div class="viewcode-block" id="LostObjectError"><a class="viewcode-back" href="../../miscellaneous.html#storm.exceptions.LostObjectError">[docs]</a><span class="k">class</span> <span class="nc">LostObjectError</span><span class="p">(</span><span class="n">StoreError</span><span class="p">):</span>
+<div class="viewcode-block" id="LostObjectError"><a class="viewcode-back" href="../../api.html#storm.exceptions.LostObjectError">[docs]</a><span class="k">class</span> <span class="nc">LostObjectError</span><span class="p">(</span><span class="n">StoreError</span><span class="p">):</span>
     <span class="k">pass</span></div>
 
 
-<div class="viewcode-block" id="Error"><a class="viewcode-back" href="../../miscellaneous.html#storm.exceptions.Error">[docs]</a><span class="k">class</span> <span class="nc">Error</span><span class="p">(</span><span class="n">StormError</span><span class="p">):</span>
+<div class="viewcode-block" id="Error"><a class="viewcode-back" href="../../api.html#storm.exceptions.Error">[docs]</a><span class="k">class</span> <span class="nc">Error</span><span class="p">(</span><span class="n">StormError</span><span class="p">):</span>
     <span class="k">pass</span></div>
 
 
-<div class="viewcode-block" id="Warning"><a class="viewcode-back" href="../../miscellaneous.html#storm.exceptions.Warning">[docs]</a><span class="k">class</span> <span class="nc">Warning</span><span class="p">(</span><span class="n">StormError</span><span class="p">):</span>
+<div class="viewcode-block" id="Warning"><a class="viewcode-back" href="../../api.html#storm.exceptions.Warning">[docs]</a><span class="k">class</span> <span class="nc">Warning</span><span class="p">(</span><span class="n">StormError</span><span class="p">):</span>
     <span class="k">pass</span></div>
 
 
-<div class="viewcode-block" id="InterfaceError"><a class="viewcode-back" href="../../miscellaneous.html#storm.exceptions.InterfaceError">[docs]</a><span class="k">class</span> <span class="nc">InterfaceError</span><span class="p">(</span><span class="n">Error</span><span class="p">):</span>
+<div class="viewcode-block" id="InterfaceError"><a class="viewcode-back" href="../../api.html#storm.exceptions.InterfaceError">[docs]</a><span class="k">class</span> <span class="nc">InterfaceError</span><span class="p">(</span><span class="n">Error</span><span class="p">):</span>
     <span class="k">pass</span></div>
 
 
-<div class="viewcode-block" id="DatabaseError"><a class="viewcode-back" href="../../miscellaneous.html#storm.exceptions.DatabaseError">[docs]</a><span class="k">class</span> <span class="nc">DatabaseError</span><span class="p">(</span><span class="n">Error</span><span class="p">):</span>
+<div class="viewcode-block" id="DatabaseError"><a class="viewcode-back" href="../../api.html#storm.exceptions.DatabaseError">[docs]</a><span class="k">class</span> <span class="nc">DatabaseError</span><span class="p">(</span><span class="n">Error</span><span class="p">):</span>
     <span class="k">pass</span></div>
 
 
-<div class="viewcode-block" id="InternalError"><a class="viewcode-back" href="../../miscellaneous.html#storm.exceptions.InternalError">[docs]</a><span class="k">class</span> <span class="nc">InternalError</span><span class="p">(</span><span class="n">DatabaseError</span><span class="p">):</span>
+<div class="viewcode-block" id="InternalError"><a class="viewcode-back" href="../../api.html#storm.exceptions.InternalError">[docs]</a><span class="k">class</span> <span class="nc">InternalError</span><span class="p">(</span><span class="n">DatabaseError</span><span class="p">):</span>
     <span class="k">pass</span></div>
 
 
-<div class="viewcode-block" id="OperationalError"><a class="viewcode-back" href="../../miscellaneous.html#storm.exceptions.OperationalError">[docs]</a><span class="k">class</span> <span class="nc">OperationalError</span><span class="p">(</span><span class="n">DatabaseError</span><span class="p">):</span>
+<div class="viewcode-block" id="OperationalError"><a class="viewcode-back" href="../../api.html#storm.exceptions.OperationalError">[docs]</a><span class="k">class</span> <span class="nc">OperationalError</span><span class="p">(</span><span class="n">DatabaseError</span><span class="p">):</span>
     <span class="k">pass</span></div>
 
 
-<div class="viewcode-block" id="ProgrammingError"><a class="viewcode-back" href="../../miscellaneous.html#storm.exceptions.ProgrammingError">[docs]</a><span class="k">class</span> <span class="nc">ProgrammingError</span><span class="p">(</span><span class="n">DatabaseError</span><span class="p">):</span>
+<div class="viewcode-block" id="ProgrammingError"><a class="viewcode-back" href="../../api.html#storm.exceptions.ProgrammingError">[docs]</a><span class="k">class</span> <span class="nc">ProgrammingError</span><span class="p">(</span><span class="n">DatabaseError</span><span class="p">):</span>
     <span class="k">pass</span></div>
 
 
-<div class="viewcode-block" id="IntegrityError"><a class="viewcode-back" href="../../miscellaneous.html#storm.exceptions.IntegrityError">[docs]</a><span class="k">class</span> <span class="nc">IntegrityError</span><span class="p">(</span><span class="n">DatabaseError</span><span class="p">):</span>
+<div class="viewcode-block" id="IntegrityError"><a class="viewcode-back" href="../../api.html#storm.exceptions.IntegrityError">[docs]</a><span class="k">class</span> <span class="nc">IntegrityError</span><span class="p">(</span><span class="n">DatabaseError</span><span class="p">):</span>
     <span class="k">pass</span></div>
 
 
-<div class="viewcode-block" id="DataError"><a class="viewcode-back" href="../../miscellaneous.html#storm.exceptions.DataError">[docs]</a><span class="k">class</span> <span class="nc">DataError</span><span class="p">(</span><span class="n">DatabaseError</span><span class="p">):</span>
+<div class="viewcode-block" id="DataError"><a class="viewcode-back" href="../../api.html#storm.exceptions.DataError">[docs]</a><span class="k">class</span> <span class="nc">DataError</span><span class="p">(</span><span class="n">DatabaseError</span><span class="p">):</span>
     <span class="k">pass</span></div>
 
 
-<div class="viewcode-block" id="NotSupportedError"><a class="viewcode-back" href="../../miscellaneous.html#storm.exceptions.NotSupportedError">[docs]</a><span class="k">class</span> <span class="nc">NotSupportedError</span><span class="p">(</span><span class="n">DatabaseError</span><span class="p">):</span>
+<div class="viewcode-block" id="NotSupportedError"><a class="viewcode-back" href="../../api.html#storm.exceptions.NotSupportedError">[docs]</a><span class="k">class</span> <span class="nc">NotSupportedError</span><span class="p">(</span><span class="n">DatabaseError</span><span class="p">):</span>
     <span class="k">pass</span></div>
 
 
-<div class="viewcode-block" id="DisconnectionError"><a class="viewcode-back" href="../../miscellaneous.html#storm.exceptions.DisconnectionError">[docs]</a><span class="k">class</span> <span class="nc">DisconnectionError</span><span class="p">(</span><span class="n">OperationalError</span><span class="p">):</span>
+<div class="viewcode-block" id="DisconnectionError"><a class="viewcode-back" href="../../api.html#storm.exceptions.DisconnectionError">[docs]</a><span class="k">class</span> <span class="nc">DisconnectionError</span><span class="p">(</span><span class="n">OperationalError</span><span class="p">):</span>
     <span class="k">pass</span></div>
 
 
-<div class="viewcode-block" id="TimeoutError"><a class="viewcode-back" href="../../miscellaneous.html#storm.exceptions.TimeoutError">[docs]</a><span class="k">class</span> <span class="nc">TimeoutError</span><span class="p">(</span><span class="n">StormError</span><span class="p">):</span>
+<div class="viewcode-block" id="TimeoutError"><a class="viewcode-back" href="../../api.html#storm.exceptions.TimeoutError">[docs]</a><span class="k">class</span> <span class="nc">TimeoutError</span><span class="p">(</span><span class="n">StormError</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Raised by timeout tracers when remining time is over.&quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">statement</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
@@ -194,11 +194,11 @@
              <span class="k">if</span> <span class="n">element</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">])</span></div>
 
 
-<div class="viewcode-block" id="ConnectionBlockedError"><a class="viewcode-back" href="../../miscellaneous.html#storm.exceptions.ConnectionBlockedError">[docs]</a><span class="k">class</span> <span class="nc">ConnectionBlockedError</span><span class="p">(</span><span class="n">StormError</span><span class="p">):</span>
+<div class="viewcode-block" id="ConnectionBlockedError"><a class="viewcode-back" href="../../api.html#storm.exceptions.ConnectionBlockedError">[docs]</a><span class="k">class</span> <span class="nc">ConnectionBlockedError</span><span class="p">(</span><span class="n">StormError</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Raised when an attempt is made to use a blocked connection.&quot;&quot;&quot;</span></div>
 
 
-<div class="viewcode-block" id="install_exceptions"><a class="viewcode-back" href="../../miscellaneous.html#storm.exceptions.install_exceptions">[docs]</a><span class="k">def</span> <span class="nf">install_exceptions</span><span class="p">(</span><span class="n">module</span><span class="p">):</span>
+<div class="viewcode-block" id="install_exceptions"><a class="viewcode-back" href="../../api.html#storm.exceptions.install_exceptions">[docs]</a><span class="k">def</span> <span class="nf">install_exceptions</span><span class="p">(</span><span class="n">module</span><span class="p">):</span>
     <span class="k">for</span> <span class="n">exception</span> <span class="ow">in</span> <span class="p">(</span><span class="n">Error</span><span class="p">,</span> <span class="ne">Warning</span><span class="p">,</span> <span class="n">DatabaseError</span><span class="p">,</span> <span class="n">InternalError</span><span class="p">,</span>
                       <span class="n">OperationalError</span><span class="p">,</span> <span class="n">ProgrammingError</span><span class="p">,</span> <span class="n">IntegrityError</span><span class="p">,</span>
                       <span class="n">DataError</span><span class="p">,</span> <span class="n">NotSupportedError</span><span class="p">,</span> <span class="n">InterfaceError</span><span class="p">):</span>
@@ -231,12 +231,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../basic-usage.html">Basic usage</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../infoheritance.html">Infoheritance</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../store.html">Store</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../columns.html">Columns and types</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../expr.html">Expressions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../databases.html">Databases</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../events.html">Hooks and events</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../miscellaneous.html">Miscellaneous libraries</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">API</a></li>
 </ul>
 
 <div class="relations">

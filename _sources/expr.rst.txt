@@ -1,4 +1,0 @@
-Expressions
-===========
-
-.. automodule:: storm.expr

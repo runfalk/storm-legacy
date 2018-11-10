@@ -8,12 +8,7 @@ This is the documentation for Storm legacy.
 
     basic-usage.rst
     infoheritance.rst
-    store.rst
-    columns.rst
-    expr.rst
-    databases.rst
-    events.rst
-    miscellaneous.rst
+    api.rst
 
 
 Indices and tables

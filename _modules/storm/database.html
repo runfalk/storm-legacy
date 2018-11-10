@@ -84,7 +84,7 @@
 <span class="n">STATE_RECONNECT</span> <span class="o">=</span> <span class="mi">3</span>
 
 
-<div class="viewcode-block" id="Result"><a class="viewcode-back" href="../../databases.html#storm.database.Result">[docs]</a><span class="k">class</span> <span class="nc">Result</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="Result"><a class="viewcode-back" href="../../api.html#storm.database.Result">[docs]</a><span class="k">class</span> <span class="nc">Result</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;A representation of the results from a single SQL statement.&quot;&quot;&quot;</span>
 
     <span class="n">_closed</span> <span class="o">=</span> <span class="kc">False</span>
@@ -103,7 +103,7 @@
         <span class="k">except</span><span class="p">:</span>
             <span class="k">pass</span>
 
-<div class="viewcode-block" id="Result.close"><a class="viewcode-back" href="../../databases.html#storm.database.Result.close">[docs]</a>    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Result.close"><a class="viewcode-back" href="../../api.html#storm.database.Result.close">[docs]</a>    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Close the underlying raw cursor, if it hasn&#39;t already been closed.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_closed</span><span class="p">:</span>
@@ -111,7 +111,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_raw_cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_raw_cursor</span> <span class="o">=</span> <span class="kc">None</span></div>
 
-<div class="viewcode-block" id="Result.get_one"><a class="viewcode-back" href="../../databases.html#storm.database.Result.get_one">[docs]</a>    <span class="k">def</span> <span class="nf">get_one</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Result.get_one"><a class="viewcode-back" href="../../api.html#storm.database.Result.get_one">[docs]</a>    <span class="k">def</span> <span class="nf">get_one</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Fetch one result from the cursor.</span>
 
 <span class="sd">        The result will be converted to an appropriate format via</span>
@@ -127,7 +127,7 @@
             <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">from_database</span><span class="p">(</span><span class="n">row</span><span class="p">))</span>
         <span class="k">return</span> <span class="kc">None</span></div>
 
-<div class="viewcode-block" id="Result.get_all"><a class="viewcode-back" href="../../databases.html#storm.database.Result.get_all">[docs]</a>    <span class="k">def</span> <span class="nf">get_all</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Result.get_all"><a class="viewcode-back" href="../../api.html#storm.database.Result.get_all">[docs]</a>    <span class="k">def</span> <span class="nf">get_all</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Fetch all results from the cursor.</span>
 
 <span class="sd">        The results will be converted to an appropriate format via</span>
@@ -171,7 +171,7 @@
             <span class="k">return</span> <span class="kc">None</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_raw_cursor</span><span class="o">.</span><span class="n">rowcount</span>
 
-<div class="viewcode-block" id="Result.get_insert_identity"><a class="viewcode-back" href="../../databases.html#storm.database.Result.get_insert_identity">[docs]</a>    <span class="k">def</span> <span class="nf">get_insert_identity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">primary_columns</span><span class="p">,</span> <span class="n">primary_variables</span><span class="p">):</span>
+<div class="viewcode-block" id="Result.get_insert_identity"><a class="viewcode-back" href="../../api.html#storm.database.Result.get_insert_identity">[docs]</a>    <span class="k">def</span> <span class="nf">get_insert_identity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">primary_columns</span><span class="p">,</span> <span class="n">primary_variables</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Get a query which will return the row that was just inserted.</span>
 
 <span class="sd">        This must be overridden in database-specific subclasses.</span>
@@ -180,12 +180,12 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
 
-<div class="viewcode-block" id="Result.set_variable"><a class="viewcode-back" href="../../databases.html#storm.database.Result.set_variable">[docs]</a>    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Result.set_variable"><a class="viewcode-back" href="../../api.html#storm.database.Result.set_variable">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">set_variable</span><span class="p">(</span><span class="n">variable</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Set the given variable&#39;s value from the database.&quot;&quot;&quot;</span>
         <span class="n">variable</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">from_db</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Result.from_database"><a class="viewcode-back" href="../../databases.html#storm.database.Result.from_database">[docs]</a>    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Result.from_database"><a class="viewcode-back" href="../../api.html#storm.database.Result.from_database">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">from_database</span><span class="p">(</span><span class="n">row</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Convert a row fetched from the database to an agnostic format.</span>
 
@@ -199,7 +199,7 @@
         <span class="k">return</span> <span class="n">row</span></div></div>
 
 
-<div class="viewcode-block" id="Connection"><a class="viewcode-back" href="../../databases.html#storm.database.Connection">[docs]</a><span class="k">class</span> <span class="nc">Connection</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="Connection"><a class="viewcode-back" href="../../api.html#storm.database.Connection">[docs]</a><span class="k">class</span> <span class="nc">Connection</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;A connection to a database.</span>
 
 <span class="sd">    @cvar result_factory: A callable which takes this L{Connection}</span>
@@ -232,7 +232,7 @@
         <span class="k">except</span><span class="p">:</span>
             <span class="k">pass</span>
 
-<div class="viewcode-block" id="Connection.block_access"><a class="viewcode-back" href="../../databases.html#storm.database.Connection.block_access">[docs]</a>    <span class="k">def</span> <span class="nf">block_access</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Connection.block_access"><a class="viewcode-back" href="../../api.html#storm.database.Connection.block_access">[docs]</a>    <span class="k">def</span> <span class="nf">block_access</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Block access to the connection.</span>
 
 <span class="sd">        Attempts to execute statements or commit a transaction will</span>
@@ -242,11 +242,11 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_blocked</span> <span class="o">=</span> <span class="kc">True</span></div>
 
-<div class="viewcode-block" id="Connection.unblock_access"><a class="viewcode-back" href="../../databases.html#storm.database.Connection.unblock_access">[docs]</a>    <span class="k">def</span> <span class="nf">unblock_access</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Connection.unblock_access"><a class="viewcode-back" href="../../api.html#storm.database.Connection.unblock_access">[docs]</a>    <span class="k">def</span> <span class="nf">unblock_access</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Unblock access to the connection.&quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_blocked</span> <span class="o">=</span> <span class="kc">False</span></div>
 
-<div class="viewcode-block" id="Connection.execute"><a class="viewcode-back" href="../../databases.html#storm.database.Connection.execute">[docs]</a>    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">statement</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">noresult</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<div class="viewcode-block" id="Connection.execute"><a class="viewcode-back" href="../../api.html#storm.database.Connection.execute">[docs]</a>    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">statement</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">noresult</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Execute a statement with the given parameters.</span>
 
 <span class="sd">        @type statement: L{Expr} or C{str}</span>
@@ -282,7 +282,7 @@
             <span class="k">return</span> <span class="kc">None</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">result_factory</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_cursor</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Connection.close"><a class="viewcode-back" href="../../databases.html#storm.database.Connection.close">[docs]</a>    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Connection.close"><a class="viewcode-back" href="../../api.html#storm.database.Connection.close">[docs]</a>    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Close the connection if it is not already closed.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_closed</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_closed</span> <span class="o">=</span> <span class="kc">True</span>
@@ -290,7 +290,7 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">_raw_connection</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_raw_connection</span> <span class="o">=</span> <span class="kc">None</span></div>
 
-<div class="viewcode-block" id="Connection.begin"><a class="viewcode-back" href="../../databases.html#storm.database.Connection.begin">[docs]</a>    <span class="k">def</span> <span class="nf">begin</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">xid</span><span class="p">):</span>
+<div class="viewcode-block" id="Connection.begin"><a class="viewcode-back" href="../../api.html#storm.database.Connection.begin">[docs]</a>    <span class="k">def</span> <span class="nf">begin</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">xid</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Begin a two-phase transaction.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_two_phase_transaction</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">ProgrammingError</span><span class="p">(</span><span class="s2">&quot;begin cannot be used inside a transaction&quot;</span><span class="p">)</span>
@@ -299,14 +299,14 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_check_disconnect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_raw_connection</span><span class="o">.</span><span class="n">tpc_begin</span><span class="p">,</span> <span class="n">raw_xid</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_two_phase_transaction</span> <span class="o">=</span> <span class="kc">True</span></div>
 
-<div class="viewcode-block" id="Connection.prepare"><a class="viewcode-back" href="../../databases.html#storm.database.Connection.prepare">[docs]</a>    <span class="k">def</span> <span class="nf">prepare</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Connection.prepare"><a class="viewcode-back" href="../../api.html#storm.database.Connection.prepare">[docs]</a>    <span class="k">def</span> <span class="nf">prepare</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Run the prepare phase of a two-phase transaction.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_two_phase_transaction</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">ProgrammingError</span><span class="p">(</span><span class="s2">&quot;prepare must be called inside a two-phase &quot;</span>
                                    <span class="s2">&quot;transaction&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_check_disconnect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_raw_connection</span><span class="o">.</span><span class="n">tpc_prepare</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Connection.commit"><a class="viewcode-back" href="../../databases.html#storm.database.Connection.commit">[docs]</a>    <span class="k">def</span> <span class="nf">commit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">xid</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Connection.commit"><a class="viewcode-back" href="../../api.html#storm.database.Connection.commit">[docs]</a>    <span class="k">def</span> <span class="nf">commit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">xid</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Commit the connection.</span>
 
 <span class="sd">        @param xid: Optionally the L{Xid} of a previously prepared</span>
@@ -332,14 +332,14 @@
         <span class="k">finally</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_check_disconnect</span><span class="p">(</span><span class="n">trace</span><span class="p">,</span> <span class="s2">&quot;connection_commit&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="n">xid</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Connection.recover"><a class="viewcode-back" href="../../databases.html#storm.database.Connection.recover">[docs]</a>    <span class="k">def</span> <span class="nf">recover</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Return a list of L{Xid}s representing pending transactions.&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="Connection.recover"><a class="viewcode-back" href="../../api.html#storm.database.Connection.recover">[docs]</a>    <span class="k">def</span> <span class="nf">recover</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return a list of L{Xid} representing pending transactions.&quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_connected</span><span class="p">()</span>
         <span class="n">raw_xids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_disconnect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_raw_connection</span><span class="o">.</span><span class="n">tpc_recover</span><span class="p">)</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">Xid</span><span class="p">(</span><span class="n">raw_xid</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">raw_xid</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">raw_xid</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
                 <span class="k">for</span> <span class="n">raw_xid</span> <span class="ow">in</span> <span class="n">raw_xids</span><span class="p">]</span></div>
 
-<div class="viewcode-block" id="Connection.rollback"><a class="viewcode-back" href="../../databases.html#storm.database.Connection.rollback">[docs]</a>    <span class="k">def</span> <span class="nf">rollback</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">xid</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Connection.rollback"><a class="viewcode-back" href="../../api.html#storm.database.Connection.rollback">[docs]</a>    <span class="k">def</span> <span class="nf">rollback</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">xid</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Rollback the connection.</span>
 
 <span class="sd">        @param xid: Optionally the L{Xid} of a previously prepared</span>
@@ -371,14 +371,14 @@
         <span class="k">finally</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_check_disconnect</span><span class="p">(</span><span class="n">trace</span><span class="p">,</span> <span class="s2">&quot;connection_rollback&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="n">xid</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Connection.to_database"><a class="viewcode-back" href="../../databases.html#storm.database.Connection.to_database">[docs]</a>    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Connection.to_database"><a class="viewcode-back" href="../../api.html#storm.database.Connection.to_database">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">to_database</span><span class="p">(</span><span class="n">params</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Convert some parameters into values acceptable to a database backend.</span>
 
 <span class="sd">        It is acceptable to override this method in subclasses, but it</span>
 <span class="sd">        is not intended to be used externally.</span>
 
-<span class="sd">        This delegates conversion to any L{Variable}s in the parameter</span>
+<span class="sd">        This delegates conversion to any L{Variable} in the parameter</span>
 <span class="sd">        list, and passes through all other values untouched.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">params</span><span class="p">:</span>
@@ -387,7 +387,7 @@
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">yield</span> <span class="n">param</span></div>
 
-<div class="viewcode-block" id="Connection.build_raw_cursor"><a class="viewcode-back" href="../../databases.html#storm.database.Connection.build_raw_cursor">[docs]</a>    <span class="k">def</span> <span class="nf">build_raw_cursor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Connection.build_raw_cursor"><a class="viewcode-back" href="../../api.html#storm.database.Connection.build_raw_cursor">[docs]</a>    <span class="k">def</span> <span class="nf">build_raw_cursor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Get a new dbapi cursor object.</span>
 
 <span class="sd">        It is acceptable to override this method in subclasses, but it</span>
@@ -395,7 +395,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_raw_connection</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="Connection.raw_execute"><a class="viewcode-back" href="../../databases.html#storm.database.Connection.raw_execute">[docs]</a>    <span class="k">def</span> <span class="nf">raw_execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">statement</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Connection.raw_execute"><a class="viewcode-back" href="../../api.html#storm.database.Connection.raw_execute">[docs]</a>    <span class="k">def</span> <span class="nf">raw_execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">statement</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Execute a raw statement with the given parameters.</span>
 
 <span class="sd">        It&#39;s acceptable to override this method in subclasses, but it</span>
@@ -468,7 +468,7 @@
             <span class="k">else</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">=</span> <span class="n">STATE_CONNECTED</span>
 
-<div class="viewcode-block" id="Connection.is_disconnection_error"><a class="viewcode-back" href="../../databases.html#storm.database.Connection.is_disconnection_error">[docs]</a>    <span class="k">def</span> <span class="nf">is_disconnection_error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exc</span><span class="p">,</span> <span class="n">extra_disconnection_errors</span><span class="o">=</span><span class="p">()):</span>
+<div class="viewcode-block" id="Connection.is_disconnection_error"><a class="viewcode-back" href="../../api.html#storm.database.Connection.is_disconnection_error">[docs]</a>    <span class="k">def</span> <span class="nf">is_disconnection_error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exc</span><span class="p">,</span> <span class="n">extra_disconnection_errors</span><span class="o">=</span><span class="p">()):</span>
         <span class="sd">&quot;&quot;&quot;Check whether an exception represents a database disconnection.</span>
 
 <span class="sd">        This should be overridden by backends to detect whichever</span>
@@ -498,7 +498,7 @@
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">raise</span>
 
-<div class="viewcode-block" id="Connection.preset_primary_key"><a class="viewcode-back" href="../../databases.html#storm.database.Connection.preset_primary_key">[docs]</a>    <span class="k">def</span> <span class="nf">preset_primary_key</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">primary_columns</span><span class="p">,</span> <span class="n">primary_variables</span><span class="p">):</span>
+<div class="viewcode-block" id="Connection.preset_primary_key"><a class="viewcode-back" href="../../api.html#storm.database.Connection.preset_primary_key">[docs]</a>    <span class="k">def</span> <span class="nf">preset_primary_key</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">primary_columns</span><span class="p">,</span> <span class="n">primary_variables</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Process primary variables before an insert happens.</span>
 
 <span class="sd">        This method may be overwritten by backends to implement custom</span>
@@ -506,7 +506,7 @@
 <span class="sd">        &quot;&quot;&quot;</span></div></div>
 
 
-<div class="viewcode-block" id="Database"><a class="viewcode-back" href="../../databases.html#storm.database.Database">[docs]</a><span class="k">class</span> <span class="nc">Database</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="Database"><a class="viewcode-back" href="../../api.html#storm.database.Database">[docs]</a><span class="k">class</span> <span class="nc">Database</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;A database that can be connected to.</span>
 
 <span class="sd">    This should be subclassed for individual database backends.</span>
@@ -520,11 +520,11 @@
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uri</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_uri</span> <span class="o">=</span> <span class="n">uri</span>
 
-<div class="viewcode-block" id="Database.get_uri"><a class="viewcode-back" href="../../databases.html#storm.database.Database.get_uri">[docs]</a>    <span class="k">def</span> <span class="nf">get_uri</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Database.get_uri"><a class="viewcode-back" href="../../api.html#storm.database.Database.get_uri">[docs]</a>    <span class="k">def</span> <span class="nf">get_uri</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Return the URI object this database was created with.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_uri</span></div>
 
-<div class="viewcode-block" id="Database.connect"><a class="viewcode-back" href="../../databases.html#storm.database.Database.connect">[docs]</a>    <span class="k">def</span> <span class="nf">connect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Database.connect"><a class="viewcode-back" href="../../api.html#storm.database.Database.connect">[docs]</a>    <span class="k">def</span> <span class="nf">connect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Create a connection to the database.</span>
 
 <span class="sd">        It calls C{self.connection_factory} to allow for ease of</span>
@@ -537,7 +537,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection_factory</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Database.raw_connect"><a class="viewcode-back" href="../../databases.html#storm.database.Database.raw_connect">[docs]</a>    <span class="k">def</span> <span class="nf">raw_connect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Database.raw_connect"><a class="viewcode-back" href="../../api.html#storm.database.Database.raw_connect">[docs]</a>    <span class="k">def</span> <span class="nf">raw_connect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Create a raw database connection.</span>
 
 <span class="sd">        This is used by L{Connection} objects to connect to the</span>
@@ -549,7 +549,7 @@
         <span class="k">raise</span> <span class="ne">NotImplementedError</span></div></div>
 
 
-<div class="viewcode-block" id="convert_param_marks"><a class="viewcode-back" href="../../databases.html#storm.database.convert_param_marks">[docs]</a><span class="k">def</span> <span class="nf">convert_param_marks</span><span class="p">(</span><span class="n">statement</span><span class="p">,</span> <span class="n">from_param_mark</span><span class="p">,</span> <span class="n">to_param_mark</span><span class="p">):</span>
+<div class="viewcode-block" id="convert_param_marks"><a class="viewcode-back" href="../../api.html#storm.database.convert_param_marks">[docs]</a><span class="k">def</span> <span class="nf">convert_param_marks</span><span class="p">(</span><span class="n">statement</span><span class="p">,</span> <span class="n">from_param_mark</span><span class="p">,</span> <span class="n">to_param_mark</span><span class="p">):</span>
     <span class="c1"># TODO: Add support for $foo$bar$foo$ literals.</span>
     <span class="k">if</span> <span class="n">from_param_mark</span> <span class="o">==</span> <span class="n">to_param_mark</span> <span class="ow">or</span> <span class="n">from_param_mark</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">statement</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">statement</span>
@@ -561,7 +561,7 @@
 
 <span class="n">_database_schemes</span> <span class="o">=</span> <span class="p">{}</span>
 
-<div class="viewcode-block" id="register_scheme"><a class="viewcode-back" href="../../databases.html#storm.database.register_scheme">[docs]</a><span class="k">def</span> <span class="nf">register_scheme</span><span class="p">(</span><span class="n">scheme</span><span class="p">,</span> <span class="n">factory</span><span class="p">):</span>
+<div class="viewcode-block" id="register_scheme"><a class="viewcode-back" href="../../api.html#storm.database.register_scheme">[docs]</a><span class="k">def</span> <span class="nf">register_scheme</span><span class="p">(</span><span class="n">scheme</span><span class="p">,</span> <span class="n">factory</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Register a handler for a new database URI scheme.</span>
 
 <span class="sd">    @param scheme: the database URI scheme</span>
@@ -570,7 +570,7 @@
     <span class="n">_database_schemes</span><span class="p">[</span><span class="n">scheme</span><span class="p">]</span> <span class="o">=</span> <span class="n">factory</span></div>
 
 
-<div class="viewcode-block" id="create_database"><a class="viewcode-back" href="../../databases.html#storm.database.create_database">[docs]</a><span class="k">def</span> <span class="nf">create_database</span><span class="p">(</span><span class="n">uri</span><span class="p">):</span>
+<div class="viewcode-block" id="create_database"><a class="viewcode-back" href="../../api.html#storm.database.create_database">[docs]</a><span class="k">def</span> <span class="nf">create_database</span><span class="p">(</span><span class="n">uri</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Create a database instance.</span>
 
 <span class="sd">    @param uri: An URI instance, or a string describing the URI. Some examples:</span>
@@ -616,12 +616,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../basic-usage.html">Basic usage</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../infoheritance.html">Infoheritance</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../store.html">Store</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../columns.html">Columns and types</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../expr.html">Expressions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../databases.html">Databases</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../events.html">Hooks and events</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../miscellaneous.html">Miscellaneous libraries</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">API</a></li>
 </ul>
 
 <div class="relations">

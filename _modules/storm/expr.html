@@ -239,9 +239,9 @@
     <span class="kn">from</span> <span class="nn">storm.cextensions</span> <span class="k">import</span> <span class="n">Compile</span>
 
 
-<div class="viewcode-block" id="CompilePython"><a class="viewcode-back" href="../../expr.html#storm.expr.CompilePython">[docs]</a><span class="k">class</span> <span class="nc">CompilePython</span><span class="p">(</span><span class="n">Compile</span><span class="p">):</span>
+<div class="viewcode-block" id="CompilePython"><a class="viewcode-back" href="../../api.html#storm.expr.CompilePython">[docs]</a><span class="k">class</span> <span class="nc">CompilePython</span><span class="p">(</span><span class="n">Compile</span><span class="p">):</span>
 
-<div class="viewcode-block" id="CompilePython.get_matcher"><a class="viewcode-back" href="../../expr.html#storm.expr.CompilePython.get_matcher">[docs]</a>    <span class="k">def</span> <span class="nf">get_matcher</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expr</span><span class="p">):</span>
+<div class="viewcode-block" id="CompilePython.get_matcher"><a class="viewcode-back" href="../../api.html#storm.expr.CompilePython.get_matcher">[docs]</a>    <span class="k">def</span> <span class="nf">get_matcher</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expr</span><span class="p">):</span>
         <span class="n">state</span> <span class="o">=</span> <span class="n">State</span><span class="p">()</span>
         <span class="n">source</span> <span class="o">=</span> <span class="bp">self</span><span class="p">(</span><span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
         <span class="n">namespace</span> <span class="o">=</span> <span class="p">{}</span>
@@ -256,7 +256,7 @@
         <span class="k">return</span> <span class="n">namespace</span><span class="p">[</span><span class="s1">&#39;closure&#39;</span><span class="p">](</span><span class="n">state</span><span class="o">.</span><span class="n">parameters</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span></div></div>
 
 
-<div class="viewcode-block" id="State"><a class="viewcode-back" href="../../expr.html#storm.expr.State">[docs]</a><span class="k">class</span> <span class="nc">State</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="State"><a class="viewcode-back" href="../../api.html#storm.expr.State">[docs]</a><span class="k">class</span> <span class="nc">State</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;All the data necessary during compilation of an expression.</span>
 
 <span class="sd">    @ivar aliases: Dict of L{Column} instances to L{Alias} instances,</span>
@@ -292,7 +292,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">context</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">aliases</span> <span class="o">=</span> <span class="kc">None</span>
 
-<div class="viewcode-block" id="State.push"><a class="viewcode-back" href="../../expr.html#storm.expr.State.push">[docs]</a>    <span class="k">def</span> <span class="nf">push</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">,</span> <span class="n">new_value</span><span class="o">=</span><span class="n">Undef</span><span class="p">):</span>
+<div class="viewcode-block" id="State.push"><a class="viewcode-back" href="../../api.html#storm.expr.State.push">[docs]</a>    <span class="k">def</span> <span class="nf">push</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">,</span> <span class="n">new_value</span><span class="o">=</span><span class="n">Undef</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Set an attribute in a way that can later be reverted with L{pop}.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">old_value</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
@@ -302,7 +302,7 @@
         <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">,</span> <span class="n">new_value</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">old_value</span></div>
 
-<div class="viewcode-block" id="State.pop"><a class="viewcode-back" href="../../expr.html#storm.expr.State.pop">[docs]</a>    <span class="k">def</span> <span class="nf">pop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="State.pop"><a class="viewcode-back" href="../../api.html#storm.expr.State.pop">[docs]</a>    <span class="k">def</span> <span class="nf">pop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Revert the topmost L{push}.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">_stack</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span></div></div>
@@ -315,7 +315,7 @@
 <span class="c1"># --------------------------------------------------------------------</span>
 <span class="c1"># Expression contexts</span>
 
-<div class="viewcode-block" id="Context"><a class="viewcode-back" href="../../expr.html#storm.expr.Context">[docs]</a><span class="k">class</span> <span class="nc">Context</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="Context"><a class="viewcode-back" href="../../api.html#storm.expr.Context">[docs]</a><span class="k">class</span> <span class="nc">Context</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    An object used to specify the nature of expected SQL expressions</span>
 <span class="sd">    being compiled in a given context.</span>
@@ -339,79 +339,79 @@
 <span class="c1"># --------------------------------------------------------------------</span>
 <span class="c1"># Builtin type support</span>
 
-<div class="viewcode-block" id="compile_str"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_str">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">bstr</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_str"><a class="viewcode-back" href="../../api.html#storm.expr.compile_str">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">bstr</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_str</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="n">state</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">RawStrVariable</span><span class="p">(</span><span class="n">expr</span><span class="p">))</span>
     <span class="k">return</span> <span class="s2">&quot;?&quot;</span></div>
 
-<div class="viewcode-block" id="compile_unicode"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_unicode">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">ustr</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_unicode"><a class="viewcode-back" href="../../api.html#storm.expr.compile_unicode">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">ustr</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_unicode</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="n">state</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">UnicodeVariable</span><span class="p">(</span><span class="n">expr</span><span class="p">))</span>
     <span class="k">return</span> <span class="s2">&quot;?&quot;</span></div>
 
-<div class="viewcode-block" id="compile_int"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_int">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">long_int</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_int"><a class="viewcode-back" href="../../api.html#storm.expr.compile_int">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">long_int</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_int</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="n">state</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">IntVariable</span><span class="p">(</span><span class="n">expr</span><span class="p">))</span>
     <span class="k">return</span> <span class="s2">&quot;?&quot;</span></div>
 
-<div class="viewcode-block" id="compile_float"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_float">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_float"><a class="viewcode-back" href="../../api.html#storm.expr.compile_float">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_float</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="n">state</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">FloatVariable</span><span class="p">(</span><span class="n">expr</span><span class="p">))</span>
     <span class="k">return</span> <span class="s2">&quot;?&quot;</span></div>
 
-<div class="viewcode-block" id="compile_decimal"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_decimal">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Decimal</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_decimal"><a class="viewcode-back" href="../../api.html#storm.expr.compile_decimal">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Decimal</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_decimal</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="n">state</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">DecimalVariable</span><span class="p">(</span><span class="n">expr</span><span class="p">))</span>
     <span class="k">return</span> <span class="s2">&quot;?&quot;</span></div>
 
-<div class="viewcode-block" id="compile_bool"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_bool">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_bool"><a class="viewcode-back" href="../../api.html#storm.expr.compile_bool">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_bool</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="n">state</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">BoolVariable</span><span class="p">(</span><span class="n">expr</span><span class="p">))</span>
     <span class="k">return</span> <span class="s2">&quot;?&quot;</span></div>
 
-<div class="viewcode-block" id="compile_datetime"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_datetime">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">datetime</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_datetime"><a class="viewcode-back" href="../../api.html#storm.expr.compile_datetime">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">datetime</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_datetime</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="n">state</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">DateTimeVariable</span><span class="p">(</span><span class="n">expr</span><span class="p">))</span>
     <span class="k">return</span> <span class="s2">&quot;?&quot;</span></div>
 
-<div class="viewcode-block" id="compile_date"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_date">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">date</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_date"><a class="viewcode-back" href="../../api.html#storm.expr.compile_date">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">date</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_date</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="n">state</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">DateVariable</span><span class="p">(</span><span class="n">expr</span><span class="p">))</span>
     <span class="k">return</span> <span class="s2">&quot;?&quot;</span></div>
 
-<div class="viewcode-block" id="compile_time"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_time">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">time</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_time"><a class="viewcode-back" href="../../api.html#storm.expr.compile_time">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">time</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_time</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="n">state</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">TimeVariable</span><span class="p">(</span><span class="n">expr</span><span class="p">))</span>
     <span class="k">return</span> <span class="s2">&quot;?&quot;</span></div>
 
-<div class="viewcode-block" id="compile_timedelta"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_timedelta">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">timedelta</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_timedelta"><a class="viewcode-back" href="../../api.html#storm.expr.compile_timedelta">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">timedelta</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_timedelta</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="n">state</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">TimeDeltaVariable</span><span class="p">(</span><span class="n">expr</span><span class="p">))</span>
     <span class="k">return</span> <span class="s2">&quot;?&quot;</span></div>
 
-<div class="viewcode-block" id="compile_none"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_none">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="kc">None</span><span class="p">))</span>
+<div class="viewcode-block" id="compile_none"><a class="viewcode-back" href="../../api.html#storm.expr.compile_none">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="kc">None</span><span class="p">))</span>
 <span class="k">def</span> <span class="nf">compile_none</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="k">return</span> <span class="s2">&quot;NULL&quot;</span></div>
 
 
-<div class="viewcode-block" id="compile_python_builtin"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_python_builtin">[docs]</a><span class="nd">@compile_python</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">bstr</span><span class="p">,</span> <span class="n">ustr</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">long_int</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="kc">None</span><span class="p">))</span>
+<div class="viewcode-block" id="compile_python_builtin"><a class="viewcode-back" href="../../api.html#storm.expr.compile_python_builtin">[docs]</a><span class="nd">@compile_python</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">bstr</span><span class="p">,</span> <span class="n">ustr</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">long_int</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="kc">None</span><span class="p">))</span>
 <span class="k">def</span> <span class="nf">compile_python_builtin</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="k">return</span> <span class="nb">repr</span><span class="p">(</span><span class="n">expr</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="compile_python_bool_and_dates"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_python_bool_and_dates">[docs]</a><span class="nd">@compile_python</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="nb">bool</span><span class="p">,</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">date</span><span class="p">,</span> <span class="n">time</span><span class="p">,</span> <span class="n">timedelta</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_python_bool_and_dates"><a class="viewcode-back" href="../../api.html#storm.expr.compile_python_bool_and_dates">[docs]</a><span class="nd">@compile_python</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="nb">bool</span><span class="p">,</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">date</span><span class="p">,</span> <span class="n">time</span><span class="p">,</span> <span class="n">timedelta</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_python_bool_and_dates</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="n">index</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">parameters</span><span class="p">)</span>
     <span class="n">state</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">expr</span><span class="p">)</span>
     <span class="k">return</span> <span class="s2">&quot;_</span><span class="si">%d</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">index</span></div>
 
 
-<div class="viewcode-block" id="compile_variable"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_variable">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Variable</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_variable"><a class="viewcode-back" href="../../api.html#storm.expr.compile_variable">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Variable</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_variable</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">variable</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="n">state</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">variable</span><span class="p">)</span>
     <span class="k">return</span> <span class="s2">&quot;?&quot;</span></div>
 
-<div class="viewcode-block" id="compile_python_variable"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_python_variable">[docs]</a><span class="nd">@compile_python</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Variable</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_python_variable"><a class="viewcode-back" href="../../api.html#storm.expr.compile_python_variable">[docs]</a><span class="nd">@compile_python</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Variable</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_python_variable</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">variable</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="n">index</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">parameters</span><span class="p">)</span>
     <span class="n">state</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">variable</span><span class="o">.</span><span class="n">get</span><span class="p">())</span>
@@ -423,10 +423,10 @@
 
 <span class="n">MAX_PRECEDENCE</span> <span class="o">=</span> <span class="mi">1000</span>
 
-<div class="viewcode-block" id="Expr"><a class="viewcode-back" href="../../expr.html#storm.expr.Expr">[docs]</a><span class="k">class</span> <span class="nc">Expr</span><span class="p">(</span><span class="n">LazyValue</span><span class="p">):</span>
+<div class="viewcode-block" id="Expr"><a class="viewcode-back" href="../../api.html#storm.expr.Expr">[docs]</a><span class="k">class</span> <span class="nc">Expr</span><span class="p">(</span><span class="n">LazyValue</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span></div>
 
-<div class="viewcode-block" id="compile_python_unsupported"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_python_unsupported">[docs]</a><span class="nd">@compile_python</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Expr</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_python_unsupported"><a class="viewcode-back" href="../../api.html#storm.expr.compile_python_unsupported">[docs]</a><span class="nd">@compile_python</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Expr</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_python_unsupported</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="k">raise</span> <span class="n">CompileError</span><span class="p">(</span><span class="s2">&quot;Can&#39;t compile python expressions with </span><span class="si">%r</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">type</span><span class="p">(</span><span class="n">expr</span><span class="p">))</span></div>
 
@@ -440,7 +440,7 @@
     <span class="p">}</span>
 
 
-<div class="viewcode-block" id="Comparable"><a class="viewcode-back" href="../../expr.html#storm.expr.Comparable">[docs]</a><span class="k">class</span> <span class="nc">Comparable</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="Comparable"><a class="viewcode-back" href="../../api.html#storm.expr.Comparable">[docs]</a><span class="k">class</span> <span class="nc">Comparable</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
@@ -525,7 +525,7 @@
     <span class="k">def</span> <span class="nf">__neg__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">Neg</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 
-<div class="viewcode-block" id="Comparable.is_in"><a class="viewcode-back" href="../../expr.html#storm.expr.Comparable.is_in">[docs]</a>    <span class="k">def</span> <span class="nf">is_in</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">others</span><span class="p">):</span>
+<div class="viewcode-block" id="Comparable.is_in"><a class="viewcode-back" href="../../api.html#storm.expr.Comparable.is_in">[docs]</a>    <span class="k">def</span> <span class="nf">is_in</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">others</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">others</span><span class="p">,</span> <span class="n">Expr</span><span class="p">):</span>
             <span class="n">others</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">others</span><span class="p">)</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">others</span><span class="p">:</span>
@@ -536,47 +536,47 @@
                     <span class="n">others</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">variable_factory</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">other</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">In</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">others</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Comparable.like"><a class="viewcode-back" href="../../expr.html#storm.expr.Comparable.like">[docs]</a>    <span class="k">def</span> <span class="nf">like</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">,</span> <span class="n">escape</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">case_sensitive</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Comparable.like"><a class="viewcode-back" href="../../api.html#storm.expr.Comparable.like">[docs]</a>    <span class="k">def</span> <span class="nf">like</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">,</span> <span class="n">escape</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">case_sensitive</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="p">(</span><span class="n">Expr</span><span class="p">,</span> <span class="n">Variable</span><span class="p">)):</span>
             <span class="n">other</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;variable_factory&quot;</span><span class="p">,</span> <span class="n">Variable</span><span class="p">)(</span><span class="n">value</span><span class="o">=</span><span class="n">other</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">Like</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">,</span> <span class="n">escape</span><span class="p">,</span> <span class="n">case_sensitive</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Comparable.lower"><a class="viewcode-back" href="../../expr.html#storm.expr.Comparable.lower">[docs]</a>    <span class="k">def</span> <span class="nf">lower</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Comparable.lower"><a class="viewcode-back" href="../../api.html#storm.expr.Comparable.lower">[docs]</a>    <span class="k">def</span> <span class="nf">lower</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">Lower</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Comparable.upper"><a class="viewcode-back" href="../../expr.html#storm.expr.Comparable.upper">[docs]</a>    <span class="k">def</span> <span class="nf">upper</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Comparable.upper"><a class="viewcode-back" href="../../api.html#storm.expr.Comparable.upper">[docs]</a>    <span class="k">def</span> <span class="nf">upper</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">Upper</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Comparable.startswith"><a class="viewcode-back" href="../../expr.html#storm.expr.Comparable.startswith">[docs]</a>    <span class="k">def</span> <span class="nf">startswith</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prefix</span><span class="p">):</span>
+<div class="viewcode-block" id="Comparable.startswith"><a class="viewcode-back" href="../../api.html#storm.expr.Comparable.startswith">[docs]</a>    <span class="k">def</span> <span class="nf">startswith</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prefix</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="n">ustr</span><span class="p">):</span>
             <span class="k">raise</span> <span class="n">ExprError</span><span class="p">(</span><span class="s2">&quot;Expected unicode argument, got </span><span class="si">%r</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">type</span><span class="p">(</span><span class="n">prefix</span><span class="p">))</span>
         <span class="n">pattern</span> <span class="o">=</span> <span class="n">prefix</span><span class="o">.</span><span class="n">translate</span><span class="p">(</span><span class="n">like_escape</span><span class="p">)</span> <span class="o">+</span> <span class="sa">u</span><span class="s2">&quot;%&quot;</span>
         <span class="k">return</span> <span class="n">Like</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pattern</span><span class="p">,</span> <span class="sa">u</span><span class="s2">&quot;!&quot;</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Comparable.endswith"><a class="viewcode-back" href="../../expr.html#storm.expr.Comparable.endswith">[docs]</a>    <span class="k">def</span> <span class="nf">endswith</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">suffix</span><span class="p">):</span>
+<div class="viewcode-block" id="Comparable.endswith"><a class="viewcode-back" href="../../api.html#storm.expr.Comparable.endswith">[docs]</a>    <span class="k">def</span> <span class="nf">endswith</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">suffix</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">suffix</span><span class="p">,</span> <span class="n">ustr</span><span class="p">):</span>
             <span class="k">raise</span> <span class="n">ExprError</span><span class="p">(</span><span class="s2">&quot;Expected unicode argument, got </span><span class="si">%r</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">type</span><span class="p">(</span><span class="n">suffix</span><span class="p">))</span>
         <span class="n">pattern</span> <span class="o">=</span> <span class="sa">u</span><span class="s2">&quot;%&quot;</span> <span class="o">+</span> <span class="n">suffix</span><span class="o">.</span><span class="n">translate</span><span class="p">(</span><span class="n">like_escape</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">Like</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pattern</span><span class="p">,</span> <span class="sa">u</span><span class="s2">&quot;!&quot;</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Comparable.contains_string"><a class="viewcode-back" href="../../expr.html#storm.expr.Comparable.contains_string">[docs]</a>    <span class="k">def</span> <span class="nf">contains_string</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">substring</span><span class="p">):</span>
+<div class="viewcode-block" id="Comparable.contains_string"><a class="viewcode-back" href="../../api.html#storm.expr.Comparable.contains_string">[docs]</a>    <span class="k">def</span> <span class="nf">contains_string</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">substring</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">substring</span><span class="p">,</span> <span class="n">ustr</span><span class="p">):</span>
             <span class="k">raise</span> <span class="n">ExprError</span><span class="p">(</span><span class="s2">&quot;Expected unicode argument, got </span><span class="si">%r</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">type</span><span class="p">(</span><span class="n">substring</span><span class="p">))</span>
         <span class="n">pattern</span> <span class="o">=</span> <span class="sa">u</span><span class="s2">&quot;%&quot;</span> <span class="o">+</span> <span class="n">substring</span><span class="o">.</span><span class="n">translate</span><span class="p">(</span><span class="n">like_escape</span><span class="p">)</span> <span class="o">+</span> <span class="sa">u</span><span class="s2">&quot;%&quot;</span>
         <span class="k">return</span> <span class="n">Like</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pattern</span><span class="p">,</span> <span class="sa">u</span><span class="s2">&quot;!&quot;</span><span class="p">)</span></div></div>
 
 
-<div class="viewcode-block" id="ComparableExpr"><a class="viewcode-back" href="../../expr.html#storm.expr.ComparableExpr">[docs]</a><span class="k">class</span> <span class="nc">ComparableExpr</span><span class="p">(</span><span class="n">Expr</span><span class="p">,</span> <span class="n">Comparable</span><span class="p">):</span>
+<div class="viewcode-block" id="ComparableExpr"><a class="viewcode-back" href="../../api.html#storm.expr.ComparableExpr">[docs]</a><span class="k">class</span> <span class="nc">ComparableExpr</span><span class="p">(</span><span class="n">Expr</span><span class="p">,</span> <span class="n">Comparable</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span></div>
 
-<div class="viewcode-block" id="BinaryExpr"><a class="viewcode-back" href="../../expr.html#storm.expr.BinaryExpr">[docs]</a><span class="k">class</span> <span class="nc">BinaryExpr</span><span class="p">(</span><span class="n">ComparableExpr</span><span class="p">):</span>
+<div class="viewcode-block" id="BinaryExpr"><a class="viewcode-back" href="../../api.html#storm.expr.BinaryExpr">[docs]</a><span class="k">class</span> <span class="nc">BinaryExpr</span><span class="p">(</span><span class="n">ComparableExpr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;expr1&quot;</span><span class="p">,</span> <span class="s2">&quot;expr2&quot;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expr1</span><span class="p">,</span> <span class="n">expr2</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">expr1</span> <span class="o">=</span> <span class="n">expr1</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">expr2</span> <span class="o">=</span> <span class="n">expr2</span></div>
 
-<div class="viewcode-block" id="CompoundExpr"><a class="viewcode-back" href="../../expr.html#storm.expr.CompoundExpr">[docs]</a><span class="k">class</span> <span class="nc">CompoundExpr</span><span class="p">(</span><span class="n">ComparableExpr</span><span class="p">):</span>
+<div class="viewcode-block" id="CompoundExpr"><a class="viewcode-back" href="../../api.html#storm.expr.CompoundExpr">[docs]</a><span class="k">class</span> <span class="nc">CompoundExpr</span><span class="p">(</span><span class="n">ComparableExpr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;exprs&quot;</span><span class="p">,)</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">exprs</span><span class="p">):</span>
@@ -586,12 +586,12 @@
 <span class="c1"># --------------------------------------------------------------------</span>
 <span class="c1"># Statement expressions</span>
 
-<div class="viewcode-block" id="has_tables"><a class="viewcode-back" href="../../expr.html#storm.expr.has_tables">[docs]</a><span class="k">def</span> <span class="nf">has_tables</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">expr</span><span class="p">):</span>
+<div class="viewcode-block" id="has_tables"><a class="viewcode-back" href="../../api.html#storm.expr.has_tables">[docs]</a><span class="k">def</span> <span class="nf">has_tables</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">expr</span><span class="p">):</span>
     <span class="k">return</span> <span class="p">(</span><span class="n">expr</span><span class="o">.</span><span class="n">tables</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">Undef</span> <span class="ow">or</span>
             <span class="n">expr</span><span class="o">.</span><span class="n">default_tables</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">Undef</span> <span class="ow">or</span>
             <span class="n">state</span><span class="o">.</span><span class="n">auto_tables</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="build_tables"><a class="viewcode-back" href="../../expr.html#storm.expr.build_tables">[docs]</a><span class="k">def</span> <span class="nf">build_tables</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">tables</span><span class="p">,</span> <span class="n">default_tables</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+<div class="viewcode-block" id="build_tables"><a class="viewcode-back" href="../../api.html#storm.expr.build_tables">[docs]</a><span class="k">def</span> <span class="nf">build_tables</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">tables</span><span class="p">,</span> <span class="n">default_tables</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Compile provided tables.</span>
 
 <span class="sd">    Tables will be built from either C{tables}, C{state.auto_tables}, or</span>
@@ -674,7 +674,7 @@
     <span class="k">return</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="Select"><a class="viewcode-back" href="../../expr.html#storm.expr.Select">[docs]</a><span class="k">class</span> <span class="nc">Select</span><span class="p">(</span><span class="n">Expr</span><span class="p">):</span>
+<div class="viewcode-block" id="Select"><a class="viewcode-back" href="../../api.html#storm.expr.Select">[docs]</a><span class="k">class</span> <span class="nc">Select</span><span class="p">(</span><span class="n">Expr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;columns&quot;</span><span class="p">,</span> <span class="s2">&quot;where&quot;</span><span class="p">,</span> <span class="s2">&quot;tables&quot;</span><span class="p">,</span> <span class="s2">&quot;default_tables&quot;</span><span class="p">,</span> <span class="s2">&quot;order_by&quot;</span><span class="p">,</span>
                  <span class="s2">&quot;group_by&quot;</span><span class="p">,</span> <span class="s2">&quot;limit&quot;</span><span class="p">,</span> <span class="s2">&quot;offset&quot;</span><span class="p">,</span> <span class="s2">&quot;distinct&quot;</span><span class="p">,</span> <span class="s2">&quot;having&quot;</span><span class="p">)</span>
 
@@ -693,7 +693,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">distinct</span> <span class="o">=</span> <span class="n">distinct</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">having</span> <span class="o">=</span> <span class="n">having</span></div>
 
-<div class="viewcode-block" id="compile_select"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_select">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Select</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_select"><a class="viewcode-back" href="../../api.html#storm.expr.compile_select">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Select</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_select</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">select</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="n">tokens</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;SELECT &quot;</span><span class="p">]</span>
     <span class="n">state</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="s2">&quot;auto_tables&quot;</span><span class="p">,</span> <span class="p">[])</span>
@@ -737,7 +737,7 @@
     <span class="k">return</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tokens</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="Insert"><a class="viewcode-back" href="../../expr.html#storm.expr.Insert">[docs]</a><span class="k">class</span> <span class="nc">Insert</span><span class="p">(</span><span class="n">Expr</span><span class="p">):</span>
+<div class="viewcode-block" id="Insert"><a class="viewcode-back" href="../../api.html#storm.expr.Insert">[docs]</a><span class="k">class</span> <span class="nc">Insert</span><span class="p">(</span><span class="n">Expr</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Expression representing an insert statement.</span>
 
 <span class="sd">    @ivar map: Dictionary mapping columns to values, or a sequence of columns</span>
@@ -767,7 +767,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">primary_variables</span> <span class="o">=</span> <span class="n">primary_variables</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">values</span> <span class="o">=</span> <span class="n">values</span></div>
 
-<div class="viewcode-block" id="compile_insert"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_insert">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Insert</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_insert"><a class="viewcode-back" href="../../api.html#storm.expr.compile_insert">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Insert</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_insert</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">insert</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="n">state</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="s2">&quot;context&quot;</span><span class="p">,</span> <span class="n">COLUMN_NAME</span><span class="p">)</span>
     <span class="n">columns</span> <span class="o">=</span> <span class="nb">compile</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">insert</span><span class="o">.</span><span class="n">map</span><span class="p">),</span> <span class="n">state</span><span class="p">,</span> <span class="n">token</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -788,7 +788,7 @@
         <span class="p">[</span><span class="s2">&quot;INSERT INTO &quot;</span><span class="p">,</span> <span class="n">table</span><span class="p">,</span> <span class="s2">&quot; (&quot;</span><span class="p">,</span> <span class="n">columns</span><span class="p">,</span> <span class="s2">&quot;) &quot;</span><span class="p">,</span> <span class="n">compiled_values</span><span class="p">])</span></div>
 
 
-<div class="viewcode-block" id="Update"><a class="viewcode-back" href="../../expr.html#storm.expr.Update">[docs]</a><span class="k">class</span> <span class="nc">Update</span><span class="p">(</span><span class="n">Expr</span><span class="p">):</span>
+<div class="viewcode-block" id="Update"><a class="viewcode-back" href="../../api.html#storm.expr.Update">[docs]</a><span class="k">class</span> <span class="nc">Update</span><span class="p">(</span><span class="n">Expr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;map&quot;</span><span class="p">,</span> <span class="s2">&quot;where&quot;</span><span class="p">,</span> <span class="s2">&quot;table&quot;</span><span class="p">,</span> <span class="s2">&quot;default_table&quot;</span><span class="p">,</span> <span class="s2">&quot;primary_columns&quot;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">map</span><span class="p">,</span> <span class="n">where</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">table</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">default_table</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span>
@@ -799,7 +799,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">default_table</span> <span class="o">=</span> <span class="n">default_table</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">primary_columns</span> <span class="o">=</span> <span class="n">primary_columns</span></div>
 
-<div class="viewcode-block" id="compile_update"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_update">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Update</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_update"><a class="viewcode-back" href="../../api.html#storm.expr.compile_update">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Update</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_update</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">update</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="nb">map</span> <span class="o">=</span> <span class="n">update</span><span class="o">.</span><span class="n">map</span>
     <span class="n">state</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="s2">&quot;context&quot;</span><span class="p">,</span> <span class="n">COLUMN_NAME</span><span class="p">)</span>
@@ -818,7 +818,7 @@
     <span class="k">return</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tokens</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="Delete"><a class="viewcode-back" href="../../expr.html#storm.expr.Delete">[docs]</a><span class="k">class</span> <span class="nc">Delete</span><span class="p">(</span><span class="n">Expr</span><span class="p">):</span>
+<div class="viewcode-block" id="Delete"><a class="viewcode-back" href="../../api.html#storm.expr.Delete">[docs]</a><span class="k">class</span> <span class="nc">Delete</span><span class="p">(</span><span class="n">Expr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;where&quot;</span><span class="p">,</span> <span class="s2">&quot;table&quot;</span><span class="p">,</span> <span class="s2">&quot;default_table&quot;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">where</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">table</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">default_table</span><span class="o">=</span><span class="n">Undef</span><span class="p">):</span>
@@ -826,7 +826,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">table</span> <span class="o">=</span> <span class="n">table</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">default_table</span> <span class="o">=</span> <span class="n">default_table</span></div>
 
-<div class="viewcode-block" id="compile_delete"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_delete">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Delete</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_delete"><a class="viewcode-back" href="../../api.html#storm.expr.compile_delete">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Delete</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_delete</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">delete</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="n">tokens</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;DELETE FROM &quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
     <span class="n">state</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="s2">&quot;context&quot;</span><span class="p">,</span> <span class="n">EXPR</span><span class="p">)</span>
@@ -844,7 +844,7 @@
 <span class="c1"># --------------------------------------------------------------------</span>
 <span class="c1"># Columns</span>
 
-<div class="viewcode-block" id="Column"><a class="viewcode-back" href="../../expr.html#storm.expr.Column">[docs]</a><span class="k">class</span> <span class="nc">Column</span><span class="p">(</span><span class="n">ComparableExpr</span><span class="p">):</span>
+<div class="viewcode-block" id="Column"><a class="viewcode-back" href="../../api.html#storm.expr.Column">[docs]</a><span class="k">class</span> <span class="nc">Column</span><span class="p">(</span><span class="n">ComparableExpr</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Representation of a column in some table.</span>
 
 <span class="sd">    @ivar name: Column name.</span>
@@ -871,7 +871,7 @@
         <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
             <span class="k">return</span> <span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="compile_column"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_column">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Column</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_column"><a class="viewcode-back" href="../../api.html#storm.expr.compile_column">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Column</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_column</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">column</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="k">if</span> <span class="n">column</span><span class="o">.</span><span class="n">table</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">Undef</span><span class="p">:</span>
         <span class="n">state</span><span class="o">.</span><span class="n">auto_tables</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">column</span><span class="o">.</span><span class="n">table</span><span class="p">)</span>
@@ -893,7 +893,7 @@
         <span class="n">column</span><span class="o">.</span><span class="n">compile_id</span> <span class="o">=</span> <span class="nb">id</span><span class="p">(</span><span class="nb">compile</span><span class="p">)</span>
     <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">.</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">column</span><span class="o">.</span><span class="n">compile_cache</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="compile_python_column"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_python_column">[docs]</a><span class="nd">@compile_python</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Column</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_python_column"><a class="viewcode-back" href="../../api.html#storm.expr.compile_python_column">[docs]</a><span class="nd">@compile_python</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Column</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_python_column</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">column</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="n">index</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">parameters</span><span class="p">)</span>
     <span class="n">state</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">column</span><span class="p">)</span>
@@ -903,7 +903,7 @@
 <span class="c1"># --------------------------------------------------------------------</span>
 <span class="c1"># Alias expressions</span>
 
-<div class="viewcode-block" id="Alias"><a class="viewcode-back" href="../../expr.html#storm.expr.Alias">[docs]</a><span class="k">class</span> <span class="nc">Alias</span><span class="p">(</span><span class="n">ComparableExpr</span><span class="p">):</span>
+<div class="viewcode-block" id="Alias"><a class="viewcode-back" href="../../api.html#storm.expr.Alias">[docs]</a><span class="k">class</span> <span class="nc">Alias</span><span class="p">(</span><span class="n">ComparableExpr</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;A representation of &quot;AS&quot; alias clauses. e.g., SELECT foo AS bar.&quot;&quot;&quot;</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;expr&quot;</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">)</span>
 
@@ -926,7 +926,7 @@
             <span class="k">return</span> <span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="compile_alias"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_alias">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Alias</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_alias"><a class="viewcode-back" href="../../api.html#storm.expr.compile_alias">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Alias</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_alias</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">alias</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="n">name</span> <span class="o">=</span> <span class="nb">compile</span><span class="p">(</span><span class="n">alias</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">token</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">state</span><span class="o">.</span><span class="n">context</span> <span class="ow">is</span> <span class="n">COLUMN</span> <span class="ow">or</span> <span class="n">state</span><span class="o">.</span><span class="n">context</span> <span class="ow">is</span> <span class="n">TABLE</span><span class="p">:</span>
@@ -937,11 +937,11 @@
 <span class="c1"># --------------------------------------------------------------------</span>
 <span class="c1"># From expressions</span>
 
-<div class="viewcode-block" id="FromExpr"><a class="viewcode-back" href="../../expr.html#storm.expr.FromExpr">[docs]</a><span class="k">class</span> <span class="nc">FromExpr</span><span class="p">(</span><span class="n">Expr</span><span class="p">):</span>
+<div class="viewcode-block" id="FromExpr"><a class="viewcode-back" href="../../api.html#storm.expr.FromExpr">[docs]</a><span class="k">class</span> <span class="nc">FromExpr</span><span class="p">(</span><span class="n">Expr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span></div>
 
 
-<div class="viewcode-block" id="Table"><a class="viewcode-back" href="../../expr.html#storm.expr.Table">[docs]</a><span class="k">class</span> <span class="nc">Table</span><span class="p">(</span><span class="n">FromExpr</span><span class="p">):</span>
+<div class="viewcode-block" id="Table"><a class="viewcode-back" href="../../api.html#storm.expr.Table">[docs]</a><span class="k">class</span> <span class="nc">Table</span><span class="p">(</span><span class="n">FromExpr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;compile_cache&quot;</span><span class="p">,</span> <span class="s2">&quot;compile_id&quot;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
@@ -950,7 +950,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">compile_id</span> <span class="o">=</span> <span class="kc">None</span></div>
 
 
-<div class="viewcode-block" id="compile_table"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_table">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Table</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_table"><a class="viewcode-back" href="../../api.html#storm.expr.compile_table">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Table</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_table</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">table</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="k">if</span> <span class="n">table</span><span class="o">.</span><span class="n">compile_id</span> <span class="o">!=</span> <span class="nb">id</span><span class="p">(</span><span class="nb">compile</span><span class="p">):</span>
         <span class="n">table</span><span class="o">.</span><span class="n">compile_cache</span> <span class="o">=</span> <span class="nb">compile</span><span class="p">(</span><span class="n">table</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">token</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -958,7 +958,7 @@
     <span class="k">return</span> <span class="n">table</span><span class="o">.</span><span class="n">compile_cache</span></div>
 
 
-<div class="viewcode-block" id="JoinExpr"><a class="viewcode-back" href="../../expr.html#storm.expr.JoinExpr">[docs]</a><span class="k">class</span> <span class="nc">JoinExpr</span><span class="p">(</span><span class="n">FromExpr</span><span class="p">):</span>
+<div class="viewcode-block" id="JoinExpr"><a class="viewcode-back" href="../../api.html#storm.expr.JoinExpr">[docs]</a><span class="k">class</span> <span class="nc">JoinExpr</span><span class="p">(</span><span class="n">FromExpr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;left&quot;</span><span class="p">,</span> <span class="s2">&quot;right&quot;</span><span class="p">,</span> <span class="s2">&quot;on&quot;</span><span class="p">)</span>
 
     <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot;(unknown)&quot;</span>
@@ -981,7 +981,7 @@
                 <span class="k">raise</span> <span class="n">ExprError</span><span class="p">(</span><span class="s2">&quot;Improper join arguments: (</span><span class="si">%r</span><span class="s2">, </span><span class="si">%r</span><span class="s2">, </span><span class="si">%r</span><span class="s2">)&quot;</span> <span class="o">%</span>
                                 <span class="p">(</span><span class="n">arg1</span><span class="p">,</span> <span class="n">arg2</span><span class="p">,</span> <span class="n">on</span><span class="p">))</span></div>
 
-<div class="viewcode-block" id="compile_join"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_join">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">JoinExpr</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_join"><a class="viewcode-back" href="../../api.html#storm.expr.compile_join">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">JoinExpr</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_join</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">join</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">if</span> <span class="n">join</span><span class="o">.</span><span class="n">left</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">Undef</span><span class="p">:</span>
@@ -1005,27 +1005,27 @@
     <span class="k">return</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="Join"><a class="viewcode-back" href="../../expr.html#storm.expr.Join">[docs]</a><span class="k">class</span> <span class="nc">Join</span><span class="p">(</span><span class="n">JoinExpr</span><span class="p">):</span>
+<div class="viewcode-block" id="Join"><a class="viewcode-back" href="../../api.html#storm.expr.Join">[docs]</a><span class="k">class</span> <span class="nc">Join</span><span class="p">(</span><span class="n">JoinExpr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot;JOIN&quot;</span></div>
 
-<div class="viewcode-block" id="LeftJoin"><a class="viewcode-back" href="../../expr.html#storm.expr.LeftJoin">[docs]</a><span class="k">class</span> <span class="nc">LeftJoin</span><span class="p">(</span><span class="n">JoinExpr</span><span class="p">):</span>
+<div class="viewcode-block" id="LeftJoin"><a class="viewcode-back" href="../../api.html#storm.expr.LeftJoin">[docs]</a><span class="k">class</span> <span class="nc">LeftJoin</span><span class="p">(</span><span class="n">JoinExpr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot;LEFT JOIN&quot;</span></div>
 
-<div class="viewcode-block" id="RightJoin"><a class="viewcode-back" href="../../expr.html#storm.expr.RightJoin">[docs]</a><span class="k">class</span> <span class="nc">RightJoin</span><span class="p">(</span><span class="n">JoinExpr</span><span class="p">):</span>
+<div class="viewcode-block" id="RightJoin"><a class="viewcode-back" href="../../api.html#storm.expr.RightJoin">[docs]</a><span class="k">class</span> <span class="nc">RightJoin</span><span class="p">(</span><span class="n">JoinExpr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot;RIGHT JOIN&quot;</span></div>
 
-<div class="viewcode-block" id="NaturalJoin"><a class="viewcode-back" href="../../expr.html#storm.expr.NaturalJoin">[docs]</a><span class="k">class</span> <span class="nc">NaturalJoin</span><span class="p">(</span><span class="n">JoinExpr</span><span class="p">):</span>
+<div class="viewcode-block" id="NaturalJoin"><a class="viewcode-back" href="../../api.html#storm.expr.NaturalJoin">[docs]</a><span class="k">class</span> <span class="nc">NaturalJoin</span><span class="p">(</span><span class="n">JoinExpr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot;NATURAL JOIN&quot;</span></div>
 
-<div class="viewcode-block" id="NaturalLeftJoin"><a class="viewcode-back" href="../../expr.html#storm.expr.NaturalLeftJoin">[docs]</a><span class="k">class</span> <span class="nc">NaturalLeftJoin</span><span class="p">(</span><span class="n">JoinExpr</span><span class="p">):</span>
+<div class="viewcode-block" id="NaturalLeftJoin"><a class="viewcode-back" href="../../api.html#storm.expr.NaturalLeftJoin">[docs]</a><span class="k">class</span> <span class="nc">NaturalLeftJoin</span><span class="p">(</span><span class="n">JoinExpr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot;NATURAL LEFT JOIN&quot;</span></div>
 
-<div class="viewcode-block" id="NaturalRightJoin"><a class="viewcode-back" href="../../expr.html#storm.expr.NaturalRightJoin">[docs]</a><span class="k">class</span> <span class="nc">NaturalRightJoin</span><span class="p">(</span><span class="n">JoinExpr</span><span class="p">):</span>
+<div class="viewcode-block" id="NaturalRightJoin"><a class="viewcode-back" href="../../api.html#storm.expr.NaturalRightJoin">[docs]</a><span class="k">class</span> <span class="nc">NaturalRightJoin</span><span class="p">(</span><span class="n">JoinExpr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot;NATURAL RIGHT JOIN&quot;</span></div>
 
@@ -1033,14 +1033,14 @@
 <span class="c1"># --------------------------------------------------------------------</span>
 <span class="c1"># Distinct expressions</span>
 
-<div class="viewcode-block" id="Distinct"><a class="viewcode-back" href="../../expr.html#storm.expr.Distinct">[docs]</a><span class="k">class</span> <span class="nc">Distinct</span><span class="p">(</span><span class="n">Expr</span><span class="p">):</span>
+<div class="viewcode-block" id="Distinct"><a class="viewcode-back" href="../../api.html#storm.expr.Distinct">[docs]</a><span class="k">class</span> <span class="nc">Distinct</span><span class="p">(</span><span class="n">Expr</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Add the &#39;DISTINCT&#39; prefix to an expression.&quot;&quot;&quot;</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;expr&quot;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expr</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">expr</span> <span class="o">=</span> <span class="n">expr</span></div>
 
-<div class="viewcode-block" id="compile_distinct"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_distinct">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Distinct</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_distinct"><a class="viewcode-back" href="../../api.html#storm.expr.compile_distinct">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Distinct</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_distinct</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">distinct</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="k">return</span> <span class="s2">&quot;DISTINCT </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">compile</span><span class="p">(</span><span class="n">distinct</span><span class="o">.</span><span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span></div>
 
@@ -1048,22 +1048,22 @@
 <span class="c1"># --------------------------------------------------------------------</span>
 <span class="c1"># Operators</span>
 
-<div class="viewcode-block" id="BinaryOper"><a class="viewcode-back" href="../../expr.html#storm.expr.BinaryOper">[docs]</a><span class="k">class</span> <span class="nc">BinaryOper</span><span class="p">(</span><span class="n">BinaryExpr</span><span class="p">):</span>
+<div class="viewcode-block" id="BinaryOper"><a class="viewcode-back" href="../../api.html#storm.expr.BinaryOper">[docs]</a><span class="k">class</span> <span class="nc">BinaryOper</span><span class="p">(</span><span class="n">BinaryExpr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot; (unknown) &quot;</span></div>
 
-<div class="viewcode-block" id="compile_binary_oper"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_binary_oper">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">BinaryOper</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_binary_oper"><a class="viewcode-back" href="../../api.html#storm.expr.compile_binary_oper">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">BinaryOper</span><span class="p">)</span>
 <span class="nd">@compile_python</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">BinaryOper</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_binary_oper</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%s%s%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">compile</span><span class="p">(</span><span class="n">expr</span><span class="o">.</span><span class="n">expr1</span><span class="p">,</span> <span class="n">state</span><span class="p">),</span> <span class="n">expr</span><span class="o">.</span><span class="n">oper</span><span class="p">,</span>
                        <span class="nb">compile</span><span class="p">(</span><span class="n">expr</span><span class="o">.</span><span class="n">expr2</span><span class="p">,</span> <span class="n">state</span><span class="p">))</span></div>
 
 
-<div class="viewcode-block" id="NonAssocBinaryOper"><a class="viewcode-back" href="../../expr.html#storm.expr.NonAssocBinaryOper">[docs]</a><span class="k">class</span> <span class="nc">NonAssocBinaryOper</span><span class="p">(</span><span class="n">BinaryOper</span><span class="p">):</span>
+<div class="viewcode-block" id="NonAssocBinaryOper"><a class="viewcode-back" href="../../api.html#storm.expr.NonAssocBinaryOper">[docs]</a><span class="k">class</span> <span class="nc">NonAssocBinaryOper</span><span class="p">(</span><span class="n">BinaryOper</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot; (unknown) &quot;</span></div>
 
-<div class="viewcode-block" id="compile_non_assoc_binary_oper"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_non_assoc_binary_oper">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">NonAssocBinaryOper</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_non_assoc_binary_oper"><a class="viewcode-back" href="../../api.html#storm.expr.compile_non_assoc_binary_oper">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">NonAssocBinaryOper</span><span class="p">)</span>
 <span class="nd">@compile_python</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">NonAssocBinaryOper</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_non_assoc_binary_oper</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="n">expr1</span> <span class="o">=</span> <span class="nb">compile</span><span class="p">(</span><span class="n">expr</span><span class="o">.</span><span class="n">expr1</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
@@ -1072,7 +1072,7 @@
     <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%s%s%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">expr1</span><span class="p">,</span> <span class="n">expr</span><span class="o">.</span><span class="n">oper</span><span class="p">,</span> <span class="n">expr2</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="CompoundOper"><a class="viewcode-back" href="../../expr.html#storm.expr.CompoundOper">[docs]</a><span class="k">class</span> <span class="nc">CompoundOper</span><span class="p">(</span><span class="n">CompoundExpr</span><span class="p">):</span>
+<div class="viewcode-block" id="CompoundOper"><a class="viewcode-back" href="../../api.html#storm.expr.CompoundOper">[docs]</a><span class="k">class</span> <span class="nc">CompoundOper</span><span class="p">(</span><span class="n">CompoundExpr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot; (unknown) &quot;</span></div>
 
@@ -1085,7 +1085,7 @@
     <span class="k">return</span> <span class="nb">compile</span><span class="p">(</span><span class="n">expr</span><span class="o">.</span><span class="n">exprs</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">join</span><span class="o">=</span><span class="n">expr</span><span class="o">.</span><span class="n">oper</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
 
 
-<div class="viewcode-block" id="Eq"><a class="viewcode-back" href="../../expr.html#storm.expr.Eq">[docs]</a><span class="k">class</span> <span class="nc">Eq</span><span class="p">(</span><span class="n">BinaryOper</span><span class="p">):</span>
+<div class="viewcode-block" id="Eq"><a class="viewcode-back" href="../../api.html#storm.expr.Eq">[docs]</a><span class="k">class</span> <span class="nc">Eq</span><span class="p">(</span><span class="n">BinaryOper</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot; = &quot;</span></div>
 
@@ -1095,48 +1095,48 @@
         <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> IS NULL&quot;</span> <span class="o">%</span> <span class="nb">compile</span><span class="p">(</span><span class="n">eq</span><span class="o">.</span><span class="n">expr1</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
     <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> = </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">compile</span><span class="p">(</span><span class="n">eq</span><span class="o">.</span><span class="n">expr1</span><span class="p">,</span> <span class="n">state</span><span class="p">),</span> <span class="nb">compile</span><span class="p">(</span><span class="n">eq</span><span class="o">.</span><span class="n">expr2</span><span class="p">,</span> <span class="n">state</span><span class="p">))</span>
 
-<div class="viewcode-block" id="compile_eq"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_eq">[docs]</a><span class="nd">@compile_python</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Eq</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_eq"><a class="viewcode-back" href="../../api.html#storm.expr.compile_eq">[docs]</a><span class="nd">@compile_python</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Eq</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_eq</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">eq</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> == </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">compile</span><span class="p">(</span><span class="n">eq</span><span class="o">.</span><span class="n">expr1</span><span class="p">,</span> <span class="n">state</span><span class="p">),</span> <span class="nb">compile</span><span class="p">(</span><span class="n">eq</span><span class="o">.</span><span class="n">expr2</span><span class="p">,</span> <span class="n">state</span><span class="p">))</span></div>
 
 
-<div class="viewcode-block" id="Ne"><a class="viewcode-back" href="../../expr.html#storm.expr.Ne">[docs]</a><span class="k">class</span> <span class="nc">Ne</span><span class="p">(</span><span class="n">BinaryOper</span><span class="p">):</span>
+<div class="viewcode-block" id="Ne"><a class="viewcode-back" href="../../api.html#storm.expr.Ne">[docs]</a><span class="k">class</span> <span class="nc">Ne</span><span class="p">(</span><span class="n">BinaryOper</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot; != &quot;</span></div>
 
-<div class="viewcode-block" id="compile_ne"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_ne">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Ne</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_ne"><a class="viewcode-back" href="../../api.html#storm.expr.compile_ne">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Ne</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_ne</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">ne</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="k">if</span> <span class="n">ne</span><span class="o">.</span><span class="n">expr2</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> IS NOT NULL&quot;</span> <span class="o">%</span> <span class="nb">compile</span><span class="p">(</span><span class="n">ne</span><span class="o">.</span><span class="n">expr1</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
     <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> != </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">compile</span><span class="p">(</span><span class="n">ne</span><span class="o">.</span><span class="n">expr1</span><span class="p">,</span> <span class="n">state</span><span class="p">),</span> <span class="nb">compile</span><span class="p">(</span><span class="n">ne</span><span class="o">.</span><span class="n">expr2</span><span class="p">,</span> <span class="n">state</span><span class="p">))</span></div>
 
 
-<div class="viewcode-block" id="Gt"><a class="viewcode-back" href="../../expr.html#storm.expr.Gt">[docs]</a><span class="k">class</span> <span class="nc">Gt</span><span class="p">(</span><span class="n">BinaryOper</span><span class="p">):</span>
+<div class="viewcode-block" id="Gt"><a class="viewcode-back" href="../../api.html#storm.expr.Gt">[docs]</a><span class="k">class</span> <span class="nc">Gt</span><span class="p">(</span><span class="n">BinaryOper</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot; &gt; &quot;</span></div>
 
-<div class="viewcode-block" id="Ge"><a class="viewcode-back" href="../../expr.html#storm.expr.Ge">[docs]</a><span class="k">class</span> <span class="nc">Ge</span><span class="p">(</span><span class="n">BinaryOper</span><span class="p">):</span>
+<div class="viewcode-block" id="Ge"><a class="viewcode-back" href="../../api.html#storm.expr.Ge">[docs]</a><span class="k">class</span> <span class="nc">Ge</span><span class="p">(</span><span class="n">BinaryOper</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot; &gt;= &quot;</span></div>
 
-<div class="viewcode-block" id="Lt"><a class="viewcode-back" href="../../expr.html#storm.expr.Lt">[docs]</a><span class="k">class</span> <span class="nc">Lt</span><span class="p">(</span><span class="n">BinaryOper</span><span class="p">):</span>
+<div class="viewcode-block" id="Lt"><a class="viewcode-back" href="../../api.html#storm.expr.Lt">[docs]</a><span class="k">class</span> <span class="nc">Lt</span><span class="p">(</span><span class="n">BinaryOper</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot; &lt; &quot;</span></div>
 
-<div class="viewcode-block" id="Le"><a class="viewcode-back" href="../../expr.html#storm.expr.Le">[docs]</a><span class="k">class</span> <span class="nc">Le</span><span class="p">(</span><span class="n">BinaryOper</span><span class="p">):</span>
+<div class="viewcode-block" id="Le"><a class="viewcode-back" href="../../api.html#storm.expr.Le">[docs]</a><span class="k">class</span> <span class="nc">Le</span><span class="p">(</span><span class="n">BinaryOper</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot; &lt;= &quot;</span></div>
 
-<div class="viewcode-block" id="RShift"><a class="viewcode-back" href="../../expr.html#storm.expr.RShift">[docs]</a><span class="k">class</span> <span class="nc">RShift</span><span class="p">(</span><span class="n">BinaryOper</span><span class="p">):</span>
+<div class="viewcode-block" id="RShift"><a class="viewcode-back" href="../../api.html#storm.expr.RShift">[docs]</a><span class="k">class</span> <span class="nc">RShift</span><span class="p">(</span><span class="n">BinaryOper</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot;&gt;&gt;&quot;</span></div>
 
-<div class="viewcode-block" id="LShift"><a class="viewcode-back" href="../../expr.html#storm.expr.LShift">[docs]</a><span class="k">class</span> <span class="nc">LShift</span><span class="p">(</span><span class="n">BinaryOper</span><span class="p">):</span>
+<div class="viewcode-block" id="LShift"><a class="viewcode-back" href="../../api.html#storm.expr.LShift">[docs]</a><span class="k">class</span> <span class="nc">LShift</span><span class="p">(</span><span class="n">BinaryOper</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot;&lt;&lt;&quot;</span></div>
 
 
-<div class="viewcode-block" id="Like"><a class="viewcode-back" href="../../expr.html#storm.expr.Like">[docs]</a><span class="k">class</span> <span class="nc">Like</span><span class="p">(</span><span class="n">BinaryOper</span><span class="p">):</span>
+<div class="viewcode-block" id="Like"><a class="viewcode-back" href="../../api.html#storm.expr.Like">[docs]</a><span class="k">class</span> <span class="nc">Like</span><span class="p">(</span><span class="n">BinaryOper</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;escape&quot;</span><span class="p">,</span> <span class="s2">&quot;case_sensitive&quot;</span><span class="p">)</span>
     <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot; LIKE &quot;</span>
 
@@ -1146,7 +1146,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">escape</span> <span class="o">=</span> <span class="n">escape</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">case_sensitive</span> <span class="o">=</span> <span class="n">case_sensitive</span></div>
 
-<div class="viewcode-block" id="compile_like"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_like">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Like</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_like"><a class="viewcode-back" href="../../api.html#storm.expr.compile_like">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Like</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_like</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">like</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">oper</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="n">statement</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s%s%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">compile</span><span class="p">(</span><span class="n">like</span><span class="o">.</span><span class="n">expr1</span><span class="p">,</span> <span class="n">state</span><span class="p">),</span> <span class="n">oper</span> <span class="ow">or</span> <span class="n">like</span><span class="o">.</span><span class="n">oper</span><span class="p">,</span>
                             <span class="nb">compile</span><span class="p">(</span><span class="n">like</span><span class="o">.</span><span class="n">expr2</span><span class="p">,</span> <span class="n">state</span><span class="p">))</span>
@@ -1158,7 +1158,7 @@
 <span class="n">compile_python</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Like</span><span class="p">)(</span><span class="n">compile_python_unsupported</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="In"><a class="viewcode-back" href="../../expr.html#storm.expr.In">[docs]</a><span class="k">class</span> <span class="nc">In</span><span class="p">(</span><span class="n">BinaryOper</span><span class="p">):</span>
+<div class="viewcode-block" id="In"><a class="viewcode-back" href="../../api.html#storm.expr.In">[docs]</a><span class="k">class</span> <span class="nc">In</span><span class="p">(</span><span class="n">BinaryOper</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot; IN &quot;</span></div>
 
@@ -1168,43 +1168,43 @@
     <span class="n">state</span><span class="o">.</span><span class="n">precedence</span> <span class="o">=</span> <span class="mi">0</span> <span class="c1"># We&#39;re forcing parenthesis here.</span>
     <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> IN (</span><span class="si">%s</span><span class="s2">)&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">expr1</span><span class="p">,</span> <span class="nb">compile</span><span class="p">(</span><span class="n">expr</span><span class="o">.</span><span class="n">expr2</span><span class="p">,</span> <span class="n">state</span><span class="p">))</span>
 
-<div class="viewcode-block" id="compile_in"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_in">[docs]</a><span class="nd">@compile_python</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">In</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_in"><a class="viewcode-back" href="../../api.html#storm.expr.compile_in">[docs]</a><span class="nd">@compile_python</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">In</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_in</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="n">expr1</span> <span class="o">=</span> <span class="nb">compile</span><span class="p">(</span><span class="n">expr</span><span class="o">.</span><span class="n">expr1</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
     <span class="n">state</span><span class="o">.</span><span class="n">precedence</span> <span class="o">=</span> <span class="mi">0</span> <span class="c1"># We&#39;re forcing parenthesis here.</span>
     <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> in (</span><span class="si">%s</span><span class="s2">,)&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">expr1</span><span class="p">,</span> <span class="nb">compile</span><span class="p">(</span><span class="n">expr</span><span class="o">.</span><span class="n">expr2</span><span class="p">,</span> <span class="n">state</span><span class="p">))</span></div>
 
 
-<div class="viewcode-block" id="Add"><a class="viewcode-back" href="../../expr.html#storm.expr.Add">[docs]</a><span class="k">class</span> <span class="nc">Add</span><span class="p">(</span><span class="n">CompoundOper</span><span class="p">):</span>
+<div class="viewcode-block" id="Add"><a class="viewcode-back" href="../../api.html#storm.expr.Add">[docs]</a><span class="k">class</span> <span class="nc">Add</span><span class="p">(</span><span class="n">CompoundOper</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot;+&quot;</span></div>
 
-<div class="viewcode-block" id="Sub"><a class="viewcode-back" href="../../expr.html#storm.expr.Sub">[docs]</a><span class="k">class</span> <span class="nc">Sub</span><span class="p">(</span><span class="n">NonAssocBinaryOper</span><span class="p">):</span>
+<div class="viewcode-block" id="Sub"><a class="viewcode-back" href="../../api.html#storm.expr.Sub">[docs]</a><span class="k">class</span> <span class="nc">Sub</span><span class="p">(</span><span class="n">NonAssocBinaryOper</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot;-&quot;</span></div>
 
-<div class="viewcode-block" id="Mul"><a class="viewcode-back" href="../../expr.html#storm.expr.Mul">[docs]</a><span class="k">class</span> <span class="nc">Mul</span><span class="p">(</span><span class="n">CompoundOper</span><span class="p">):</span>
+<div class="viewcode-block" id="Mul"><a class="viewcode-back" href="../../api.html#storm.expr.Mul">[docs]</a><span class="k">class</span> <span class="nc">Mul</span><span class="p">(</span><span class="n">CompoundOper</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot;*&quot;</span></div>
 
-<div class="viewcode-block" id="Div"><a class="viewcode-back" href="../../expr.html#storm.expr.Div">[docs]</a><span class="k">class</span> <span class="nc">Div</span><span class="p">(</span><span class="n">NonAssocBinaryOper</span><span class="p">):</span>
+<div class="viewcode-block" id="Div"><a class="viewcode-back" href="../../api.html#storm.expr.Div">[docs]</a><span class="k">class</span> <span class="nc">Div</span><span class="p">(</span><span class="n">NonAssocBinaryOper</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot;/&quot;</span></div>
 
-<div class="viewcode-block" id="Mod"><a class="viewcode-back" href="../../expr.html#storm.expr.Mod">[docs]</a><span class="k">class</span> <span class="nc">Mod</span><span class="p">(</span><span class="n">NonAssocBinaryOper</span><span class="p">):</span>
+<div class="viewcode-block" id="Mod"><a class="viewcode-back" href="../../api.html#storm.expr.Mod">[docs]</a><span class="k">class</span> <span class="nc">Mod</span><span class="p">(</span><span class="n">NonAssocBinaryOper</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot;%&quot;</span></div>
 
 
-<div class="viewcode-block" id="And"><a class="viewcode-back" href="../../expr.html#storm.expr.And">[docs]</a><span class="k">class</span> <span class="nc">And</span><span class="p">(</span><span class="n">CompoundOper</span><span class="p">):</span>
+<div class="viewcode-block" id="And"><a class="viewcode-back" href="../../api.html#storm.expr.And">[docs]</a><span class="k">class</span> <span class="nc">And</span><span class="p">(</span><span class="n">CompoundOper</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot; AND &quot;</span></div>
 
-<div class="viewcode-block" id="Or"><a class="viewcode-back" href="../../expr.html#storm.expr.Or">[docs]</a><span class="k">class</span> <span class="nc">Or</span><span class="p">(</span><span class="n">CompoundOper</span><span class="p">):</span>
+<div class="viewcode-block" id="Or"><a class="viewcode-back" href="../../api.html#storm.expr.Or">[docs]</a><span class="k">class</span> <span class="nc">Or</span><span class="p">(</span><span class="n">CompoundOper</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot; OR &quot;</span></div>
 
-<div class="viewcode-block" id="compile_compound_oper"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_compound_oper">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">And</span><span class="p">,</span> <span class="n">Or</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_compound_oper"><a class="viewcode-back" href="../../api.html#storm.expr.compile_compound_oper">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">And</span><span class="p">,</span> <span class="n">Or</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_compound_oper</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="k">return</span> <span class="nb">compile</span><span class="p">(</span><span class="n">expr</span><span class="o">.</span><span class="n">exprs</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">join</span><span class="o">=</span><span class="n">expr</span><span class="o">.</span><span class="n">oper</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
 
@@ -1212,7 +1212,7 @@
 <span class="c1"># --------------------------------------------------------------------</span>
 <span class="c1"># Set expressions.</span>
 
-<div class="viewcode-block" id="SetExpr"><a class="viewcode-back" href="../../expr.html#storm.expr.SetExpr">[docs]</a><span class="k">class</span> <span class="nc">SetExpr</span><span class="p">(</span><span class="n">Expr</span><span class="p">):</span>
+<div class="viewcode-block" id="SetExpr"><a class="viewcode-back" href="../../api.html#storm.expr.SetExpr">[docs]</a><span class="k">class</span> <span class="nc">SetExpr</span><span class="p">(</span><span class="n">Expr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;exprs&quot;</span><span class="p">,</span> <span class="s2">&quot;all&quot;</span><span class="p">,</span> <span class="s2">&quot;order_by&quot;</span><span class="p">,</span> <span class="s2">&quot;limit&quot;</span><span class="p">,</span> <span class="s2">&quot;offset&quot;</span><span class="p">)</span>
     <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot; (unknown) &quot;</span>
 
@@ -1233,7 +1233,7 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">exprs</span> <span class="o">=</span> <span class="n">first</span><span class="o">.</span><span class="n">exprs</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">exprs</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span></div>
 
 
-<div class="viewcode-block" id="compile_set_expr"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_set_expr">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">SetExpr</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_set_expr"><a class="viewcode-back" href="../../api.html#storm.expr.compile_set_expr">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">SetExpr</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_set_expr</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="k">if</span> <span class="n">expr</span><span class="o">.</span><span class="n">order_by</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">Undef</span><span class="p">:</span>
         <span class="c1"># When ORDER BY is present, databases usually have trouble using</span>
@@ -1287,15 +1287,15 @@
     <span class="k">return</span> <span class="n">statement</span></div>
 
 
-<div class="viewcode-block" id="Union"><a class="viewcode-back" href="../../expr.html#storm.expr.Union">[docs]</a><span class="k">class</span> <span class="nc">Union</span><span class="p">(</span><span class="n">SetExpr</span><span class="p">):</span>
+<div class="viewcode-block" id="Union"><a class="viewcode-back" href="../../api.html#storm.expr.Union">[docs]</a><span class="k">class</span> <span class="nc">Union</span><span class="p">(</span><span class="n">SetExpr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot; UNION &quot;</span></div>
 
-<div class="viewcode-block" id="Except"><a class="viewcode-back" href="../../expr.html#storm.expr.Except">[docs]</a><span class="k">class</span> <span class="nc">Except</span><span class="p">(</span><span class="n">SetExpr</span><span class="p">):</span>
+<div class="viewcode-block" id="Except"><a class="viewcode-back" href="../../api.html#storm.expr.Except">[docs]</a><span class="k">class</span> <span class="nc">Except</span><span class="p">(</span><span class="n">SetExpr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot; EXCEPT &quot;</span></div>
 
-<div class="viewcode-block" id="Intersect"><a class="viewcode-back" href="../../expr.html#storm.expr.Intersect">[docs]</a><span class="k">class</span> <span class="nc">Intersect</span><span class="p">(</span><span class="n">SetExpr</span><span class="p">):</span>
+<div class="viewcode-block" id="Intersect"><a class="viewcode-back" href="../../api.html#storm.expr.Intersect">[docs]</a><span class="k">class</span> <span class="nc">Intersect</span><span class="p">(</span><span class="n">SetExpr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot; INTERSECT &quot;</span></div>
 
@@ -1303,12 +1303,12 @@
 <span class="c1"># --------------------------------------------------------------------</span>
 <span class="c1"># Functions</span>
 
-<div class="viewcode-block" id="FuncExpr"><a class="viewcode-back" href="../../expr.html#storm.expr.FuncExpr">[docs]</a><span class="k">class</span> <span class="nc">FuncExpr</span><span class="p">(</span><span class="n">ComparableExpr</span><span class="p">):</span>
+<div class="viewcode-block" id="FuncExpr"><a class="viewcode-back" href="../../api.html#storm.expr.FuncExpr">[docs]</a><span class="k">class</span> <span class="nc">FuncExpr</span><span class="p">(</span><span class="n">ComparableExpr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;(unknown)&quot;</span></div>
 
 
-<div class="viewcode-block" id="Count"><a class="viewcode-back" href="../../expr.html#storm.expr.Count">[docs]</a><span class="k">class</span> <span class="nc">Count</span><span class="p">(</span><span class="n">FuncExpr</span><span class="p">):</span>
+<div class="viewcode-block" id="Count"><a class="viewcode-back" href="../../api.html#storm.expr.Count">[docs]</a><span class="k">class</span> <span class="nc">Count</span><span class="p">(</span><span class="n">FuncExpr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;column&quot;</span><span class="p">,</span> <span class="s2">&quot;distinct&quot;</span><span class="p">)</span>
     <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;COUNT&quot;</span>
 
@@ -1318,7 +1318,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">column</span> <span class="o">=</span> <span class="n">column</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">distinct</span> <span class="o">=</span> <span class="n">distinct</span></div>
 
-<div class="viewcode-block" id="compile_count"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_count">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Count</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_count"><a class="viewcode-back" href="../../api.html#storm.expr.compile_count">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Count</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_count</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">count</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="k">if</span> <span class="n">count</span><span class="o">.</span><span class="n">column</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">Undef</span><span class="p">:</span>
         <span class="n">state</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="s2">&quot;context&quot;</span><span class="p">,</span> <span class="n">EXPR</span><span class="p">)</span>
@@ -1330,20 +1330,20 @@
     <span class="k">return</span> <span class="s2">&quot;COUNT(*)&quot;</span></div>
 
 
-<div class="viewcode-block" id="Func"><a class="viewcode-back" href="../../expr.html#storm.expr.Func">[docs]</a><span class="k">class</span> <span class="nc">Func</span><span class="p">(</span><span class="n">FuncExpr</span><span class="p">):</span>
+<div class="viewcode-block" id="Func"><a class="viewcode-back" href="../../api.html#storm.expr.Func">[docs]</a><span class="k">class</span> <span class="nc">Func</span><span class="p">(</span><span class="n">FuncExpr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;args&quot;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="n">args</span></div>
 
-<div class="viewcode-block" id="NamedFunc"><a class="viewcode-back" href="../../expr.html#storm.expr.NamedFunc">[docs]</a><span class="k">class</span> <span class="nc">NamedFunc</span><span class="p">(</span><span class="n">FuncExpr</span><span class="p">):</span>
+<div class="viewcode-block" id="NamedFunc"><a class="viewcode-back" href="../../api.html#storm.expr.NamedFunc">[docs]</a><span class="k">class</span> <span class="nc">NamedFunc</span><span class="p">(</span><span class="n">FuncExpr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;args&quot;</span><span class="p">,)</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="n">args</span></div>
 
-<div class="viewcode-block" id="compile_func"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_func">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Func</span><span class="p">,</span> <span class="n">NamedFunc</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_func"><a class="viewcode-back" href="../../api.html#storm.expr.compile_func">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Func</span><span class="p">,</span> <span class="n">NamedFunc</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_func</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">func</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="n">state</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="s2">&quot;context&quot;</span><span class="p">,</span> <span class="n">EXPR</span><span class="p">)</span>
     <span class="n">args</span> <span class="o">=</span> <span class="nb">compile</span><span class="p">(</span><span class="n">func</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
@@ -1351,43 +1351,43 @@
     <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">(</span><span class="si">%s</span><span class="s2">)&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">func</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="Max"><a class="viewcode-back" href="../../expr.html#storm.expr.Max">[docs]</a><span class="k">class</span> <span class="nc">Max</span><span class="p">(</span><span class="n">NamedFunc</span><span class="p">):</span>
+<div class="viewcode-block" id="Max"><a class="viewcode-back" href="../../api.html#storm.expr.Max">[docs]</a><span class="k">class</span> <span class="nc">Max</span><span class="p">(</span><span class="n">NamedFunc</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;MAX&quot;</span></div>
 
-<div class="viewcode-block" id="Min"><a class="viewcode-back" href="../../expr.html#storm.expr.Min">[docs]</a><span class="k">class</span> <span class="nc">Min</span><span class="p">(</span><span class="n">NamedFunc</span><span class="p">):</span>
+<div class="viewcode-block" id="Min"><a class="viewcode-back" href="../../api.html#storm.expr.Min">[docs]</a><span class="k">class</span> <span class="nc">Min</span><span class="p">(</span><span class="n">NamedFunc</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;MIN&quot;</span></div>
 
-<div class="viewcode-block" id="Avg"><a class="viewcode-back" href="../../expr.html#storm.expr.Avg">[docs]</a><span class="k">class</span> <span class="nc">Avg</span><span class="p">(</span><span class="n">NamedFunc</span><span class="p">):</span>
+<div class="viewcode-block" id="Avg"><a class="viewcode-back" href="../../api.html#storm.expr.Avg">[docs]</a><span class="k">class</span> <span class="nc">Avg</span><span class="p">(</span><span class="n">NamedFunc</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;AVG&quot;</span></div>
 
-<div class="viewcode-block" id="Sum"><a class="viewcode-back" href="../../expr.html#storm.expr.Sum">[docs]</a><span class="k">class</span> <span class="nc">Sum</span><span class="p">(</span><span class="n">NamedFunc</span><span class="p">):</span>
+<div class="viewcode-block" id="Sum"><a class="viewcode-back" href="../../api.html#storm.expr.Sum">[docs]</a><span class="k">class</span> <span class="nc">Sum</span><span class="p">(</span><span class="n">NamedFunc</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;SUM&quot;</span></div>
 
 
-<div class="viewcode-block" id="Lower"><a class="viewcode-back" href="../../expr.html#storm.expr.Lower">[docs]</a><span class="k">class</span> <span class="nc">Lower</span><span class="p">(</span><span class="n">NamedFunc</span><span class="p">):</span>
+<div class="viewcode-block" id="Lower"><a class="viewcode-back" href="../../api.html#storm.expr.Lower">[docs]</a><span class="k">class</span> <span class="nc">Lower</span><span class="p">(</span><span class="n">NamedFunc</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;LOWER&quot;</span></div>
 
-<div class="viewcode-block" id="Upper"><a class="viewcode-back" href="../../expr.html#storm.expr.Upper">[docs]</a><span class="k">class</span> <span class="nc">Upper</span><span class="p">(</span><span class="n">NamedFunc</span><span class="p">):</span>
+<div class="viewcode-block" id="Upper"><a class="viewcode-back" href="../../api.html#storm.expr.Upper">[docs]</a><span class="k">class</span> <span class="nc">Upper</span><span class="p">(</span><span class="n">NamedFunc</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;UPPER&quot;</span></div>
 
 
-<div class="viewcode-block" id="Coalesce"><a class="viewcode-back" href="../../expr.html#storm.expr.Coalesce">[docs]</a><span class="k">class</span> <span class="nc">Coalesce</span><span class="p">(</span><span class="n">NamedFunc</span><span class="p">):</span>
+<div class="viewcode-block" id="Coalesce"><a class="viewcode-back" href="../../api.html#storm.expr.Coalesce">[docs]</a><span class="k">class</span> <span class="nc">Coalesce</span><span class="p">(</span><span class="n">NamedFunc</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;COALESCE&quot;</span></div>
 
 
-<div class="viewcode-block" id="Row"><a class="viewcode-back" href="../../expr.html#storm.expr.Row">[docs]</a><span class="k">class</span> <span class="nc">Row</span><span class="p">(</span><span class="n">NamedFunc</span><span class="p">):</span>
+<div class="viewcode-block" id="Row"><a class="viewcode-back" href="../../api.html#storm.expr.Row">[docs]</a><span class="k">class</span> <span class="nc">Row</span><span class="p">(</span><span class="n">NamedFunc</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;ROW&quot;</span></div>
 
 
-<div class="viewcode-block" id="Cast"><a class="viewcode-back" href="../../expr.html#storm.expr.Cast">[docs]</a><span class="k">class</span> <span class="nc">Cast</span><span class="p">(</span><span class="n">FuncExpr</span><span class="p">):</span>
+<div class="viewcode-block" id="Cast"><a class="viewcode-back" href="../../api.html#storm.expr.Cast">[docs]</a><span class="k">class</span> <span class="nc">Cast</span><span class="p">(</span><span class="n">FuncExpr</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;A representation of C{CAST} clauses. e.g., C{CAST(bar AS TEXT)}.&quot;&quot;&quot;</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;column&quot;</span><span class="p">,</span> <span class="s2">&quot;type&quot;</span><span class="p">)</span>
     <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;CAST&quot;</span>
@@ -1398,7 +1398,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">type</span></div>
 
 
-<div class="viewcode-block" id="compile_cast"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_cast">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Cast</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_cast"><a class="viewcode-back" href="../../api.html#storm.expr.compile_cast">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Cast</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_cast</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">cast</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Compile L{Cast} expressions.&quot;&quot;&quot;</span>
     <span class="n">state</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="s2">&quot;context&quot;</span><span class="p">,</span> <span class="n">EXPR</span><span class="p">)</span>
@@ -1410,51 +1410,51 @@
 <span class="c1"># --------------------------------------------------------------------</span>
 <span class="c1"># Prefix and suffix expressions</span>
 
-<div class="viewcode-block" id="PrefixExpr"><a class="viewcode-back" href="../../expr.html#storm.expr.PrefixExpr">[docs]</a><span class="k">class</span> <span class="nc">PrefixExpr</span><span class="p">(</span><span class="n">Expr</span><span class="p">):</span>
+<div class="viewcode-block" id="PrefixExpr"><a class="viewcode-back" href="../../api.html#storm.expr.PrefixExpr">[docs]</a><span class="k">class</span> <span class="nc">PrefixExpr</span><span class="p">(</span><span class="n">Expr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;expr&quot;</span><span class="p">,)</span>
     <span class="n">prefix</span> <span class="o">=</span> <span class="s2">&quot;(unknown)&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expr</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">expr</span> <span class="o">=</span> <span class="n">expr</span></div>
 
-<div class="viewcode-block" id="compile_prefix_expr"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_prefix_expr">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">PrefixExpr</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_prefix_expr"><a class="viewcode-back" href="../../api.html#storm.expr.compile_prefix_expr">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">PrefixExpr</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_prefix_expr</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">expr</span><span class="o">.</span><span class="n">prefix</span><span class="p">,</span> <span class="nb">compile</span><span class="p">(</span><span class="n">expr</span><span class="o">.</span><span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">))</span></div>
 
 
-<div class="viewcode-block" id="SuffixExpr"><a class="viewcode-back" href="../../expr.html#storm.expr.SuffixExpr">[docs]</a><span class="k">class</span> <span class="nc">SuffixExpr</span><span class="p">(</span><span class="n">Expr</span><span class="p">):</span>
+<div class="viewcode-block" id="SuffixExpr"><a class="viewcode-back" href="../../api.html#storm.expr.SuffixExpr">[docs]</a><span class="k">class</span> <span class="nc">SuffixExpr</span><span class="p">(</span><span class="n">Expr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;expr&quot;</span><span class="p">,)</span>
     <span class="n">suffix</span> <span class="o">=</span> <span class="s2">&quot;(unknown)&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expr</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">expr</span> <span class="o">=</span> <span class="n">expr</span></div>
 
-<div class="viewcode-block" id="compile_suffix_expr"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_suffix_expr">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">SuffixExpr</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_suffix_expr"><a class="viewcode-back" href="../../api.html#storm.expr.compile_suffix_expr">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">SuffixExpr</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_suffix_expr</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">compile</span><span class="p">(</span><span class="n">expr</span><span class="o">.</span><span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="n">expr</span><span class="o">.</span><span class="n">suffix</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="Not"><a class="viewcode-back" href="../../expr.html#storm.expr.Not">[docs]</a><span class="k">class</span> <span class="nc">Not</span><span class="p">(</span><span class="n">PrefixExpr</span><span class="p">):</span>
+<div class="viewcode-block" id="Not"><a class="viewcode-back" href="../../api.html#storm.expr.Not">[docs]</a><span class="k">class</span> <span class="nc">Not</span><span class="p">(</span><span class="n">PrefixExpr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">prefix</span> <span class="o">=</span> <span class="s2">&quot;NOT&quot;</span></div>
 
-<div class="viewcode-block" id="Exists"><a class="viewcode-back" href="../../expr.html#storm.expr.Exists">[docs]</a><span class="k">class</span> <span class="nc">Exists</span><span class="p">(</span><span class="n">PrefixExpr</span><span class="p">):</span>
+<div class="viewcode-block" id="Exists"><a class="viewcode-back" href="../../api.html#storm.expr.Exists">[docs]</a><span class="k">class</span> <span class="nc">Exists</span><span class="p">(</span><span class="n">PrefixExpr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">prefix</span> <span class="o">=</span> <span class="s2">&quot;EXISTS&quot;</span></div>
 
-<div class="viewcode-block" id="Neg"><a class="viewcode-back" href="../../expr.html#storm.expr.Neg">[docs]</a><span class="k">class</span> <span class="nc">Neg</span><span class="p">(</span><span class="n">PrefixExpr</span><span class="p">):</span>
+<div class="viewcode-block" id="Neg"><a class="viewcode-back" href="../../api.html#storm.expr.Neg">[docs]</a><span class="k">class</span> <span class="nc">Neg</span><span class="p">(</span><span class="n">PrefixExpr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">prefix</span> <span class="o">=</span> <span class="s2">&quot;-&quot;</span></div>
 
-<div class="viewcode-block" id="compile_neg_expr"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_neg_expr">[docs]</a><span class="nd">@compile_python</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Neg</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_neg_expr"><a class="viewcode-back" href="../../api.html#storm.expr.compile_neg_expr">[docs]</a><span class="nd">@compile_python</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Neg</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_neg_expr</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="k">return</span> <span class="s2">&quot;-</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">compile</span><span class="p">(</span><span class="n">expr</span><span class="o">.</span><span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Asc"><a class="viewcode-back" href="../../expr.html#storm.expr.Asc">[docs]</a><span class="k">class</span> <span class="nc">Asc</span><span class="p">(</span><span class="n">SuffixExpr</span><span class="p">):</span>
+<div class="viewcode-block" id="Asc"><a class="viewcode-back" href="../../api.html#storm.expr.Asc">[docs]</a><span class="k">class</span> <span class="nc">Asc</span><span class="p">(</span><span class="n">SuffixExpr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">suffix</span> <span class="o">=</span> <span class="s2">&quot;ASC&quot;</span></div>
 
-<div class="viewcode-block" id="Desc"><a class="viewcode-back" href="../../expr.html#storm.expr.Desc">[docs]</a><span class="k">class</span> <span class="nc">Desc</span><span class="p">(</span><span class="n">SuffixExpr</span><span class="p">):</span>
+<div class="viewcode-block" id="Desc"><a class="viewcode-back" href="../../api.html#storm.expr.Desc">[docs]</a><span class="k">class</span> <span class="nc">Desc</span><span class="p">(</span><span class="n">SuffixExpr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
     <span class="n">suffix</span> <span class="o">=</span> <span class="s2">&quot;DESC&quot;</span></div>
 
@@ -1462,7 +1462,7 @@
 <span class="c1"># --------------------------------------------------------------------</span>
 <span class="c1"># Plain SQL expressions.</span>
 
-<div class="viewcode-block" id="SQLRaw"><a class="viewcode-back" href="../../expr.html#storm.expr.SQLRaw">[docs]</a><span class="k">class</span> <span class="nc">SQLRaw</span><span class="p">(</span><span class="nb">str</span><span class="p">):</span>
+<div class="viewcode-block" id="SQLRaw"><a class="viewcode-back" href="../../api.html#storm.expr.SQLRaw">[docs]</a><span class="k">class</span> <span class="nc">SQLRaw</span><span class="p">(</span><span class="nb">str</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Subtype to mark a string as something that shouldn&#39;t be compiled.</span>
 
 <span class="sd">    This is handled internally by the compiler.</span>
@@ -1470,7 +1470,7 @@
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span></div>
 
 
-<div class="viewcode-block" id="SQLToken"><a class="viewcode-back" href="../../expr.html#storm.expr.SQLToken">[docs]</a><span class="k">class</span> <span class="nc">SQLToken</span><span class="p">(</span><span class="nb">str</span><span class="p">):</span>
+<div class="viewcode-block" id="SQLToken"><a class="viewcode-back" href="../../api.html#storm.expr.SQLToken">[docs]</a><span class="k">class</span> <span class="nc">SQLToken</span><span class="p">(</span><span class="nb">str</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Marker for strings that should be considered as a single SQL token.</span>
 
 <span class="sd">    These strings will be quoted, when needed.</span>
@@ -1479,18 +1479,18 @@
 
 <span class="n">is_safe_token</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s2">&quot;^[a-zA-Z][a-zA-Z0-9_]*$&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">match</span>
 
-<div class="viewcode-block" id="compile_sql_token"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_sql_token">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">SQLToken</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_sql_token"><a class="viewcode-back" href="../../api.html#storm.expr.compile_sql_token">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">SQLToken</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_sql_token</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="k">if</span> <span class="n">is_safe_token</span><span class="p">(</span><span class="n">expr</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">compile</span><span class="o">.</span><span class="n">is_reserved_word</span><span class="p">(</span><span class="n">expr</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">expr</span>
     <span class="k">return</span> <span class="s1">&#39;&quot;</span><span class="si">%s</span><span class="s1">&quot;&#39;</span> <span class="o">%</span> <span class="n">expr</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;&quot;&quot;&#39;</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="compile_python_sql_token"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_python_sql_token">[docs]</a><span class="nd">@compile_python</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">SQLToken</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_python_sql_token"><a class="viewcode-back" href="../../api.html#storm.expr.compile_python_sql_token">[docs]</a><span class="nd">@compile_python</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">SQLToken</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_python_sql_token</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="k">return</span> <span class="n">expr</span></div>
 
 
-<div class="viewcode-block" id="SQL"><a class="viewcode-back" href="../../expr.html#storm.expr.SQL">[docs]</a><span class="k">class</span> <span class="nc">SQL</span><span class="p">(</span><span class="n">ComparableExpr</span><span class="p">):</span>
+<div class="viewcode-block" id="SQL"><a class="viewcode-back" href="../../api.html#storm.expr.SQL">[docs]</a><span class="k">class</span> <span class="nc">SQL</span><span class="p">(</span><span class="n">ComparableExpr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;expr&quot;</span><span class="p">,</span> <span class="s2">&quot;params&quot;</span><span class="p">,</span> <span class="s2">&quot;tables&quot;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">tables</span><span class="o">=</span><span class="n">Undef</span><span class="p">):</span>
@@ -1498,7 +1498,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">params</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tables</span> <span class="o">=</span> <span class="n">tables</span></div>
 
-<div class="viewcode-block" id="compile_sql"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_sql">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">SQL</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_sql"><a class="viewcode-back" href="../../api.html#storm.expr.compile_sql">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">SQL</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_sql</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="k">if</span> <span class="n">expr</span><span class="o">.</span><span class="n">params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">Undef</span><span class="p">:</span>
         <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">expr</span><span class="o">.</span><span class="n">params</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
@@ -1514,7 +1514,7 @@
 <span class="c1"># --------------------------------------------------------------------</span>
 <span class="c1"># Sequences.</span>
 
-<div class="viewcode-block" id="Sequence"><a class="viewcode-back" href="../../expr.html#storm.expr.Sequence">[docs]</a><span class="k">class</span> <span class="nc">Sequence</span><span class="p">(</span><span class="n">Expr</span><span class="p">):</span>
+<div class="viewcode-block" id="Sequence"><a class="viewcode-back" href="../../api.html#storm.expr.Sequence">[docs]</a><span class="k">class</span> <span class="nc">Sequence</span><span class="p">(</span><span class="n">Expr</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Expression representing auto-incrementing support from the database.</span>
 
 <span class="sd">    This should be translated into the *next* value of the named</span>
@@ -1536,7 +1536,7 @@
 <span class="c1"># --------------------------------------------------------------------</span>
 <span class="c1"># Utility functions.</span>
 
-<div class="viewcode-block" id="compare_columns"><a class="viewcode-back" href="../../expr.html#storm.expr.compare_columns">[docs]</a><span class="k">def</span> <span class="nf">compare_columns</span><span class="p">(</span><span class="n">columns</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+<div class="viewcode-block" id="compare_columns"><a class="viewcode-back" href="../../api.html#storm.expr.compare_columns">[docs]</a><span class="k">def</span> <span class="nf">compare_columns</span><span class="p">(</span><span class="n">columns</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">columns</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">Undef</span>
     <span class="n">equals</span> <span class="o">=</span> <span class="p">[]</span>
@@ -1556,7 +1556,7 @@
 <span class="c1"># --------------------------------------------------------------------</span>
 <span class="c1"># Auto table</span>
 
-<div class="viewcode-block" id="AutoTables"><a class="viewcode-back" href="../../expr.html#storm.expr.AutoTables">[docs]</a><span class="k">class</span> <span class="nc">AutoTables</span><span class="p">(</span><span class="n">Expr</span><span class="p">):</span>
+<div class="viewcode-block" id="AutoTables"><a class="viewcode-back" href="../../api.html#storm.expr.AutoTables">[docs]</a><span class="k">class</span> <span class="nc">AutoTables</span><span class="p">(</span><span class="n">Expr</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;This class will inject one or more entries in state.auto_tables.</span>
 
 <span class="sd">    If the constructor is passed replace=True, it will also discard any</span>
@@ -1570,7 +1570,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">tables</span> <span class="o">=</span> <span class="n">tables</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">replace</span> <span class="o">=</span> <span class="n">replace</span></div>
 
-<div class="viewcode-block" id="compile_auto_tables"><a class="viewcode-back" href="../../expr.html#storm.expr.compile_auto_tables">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">AutoTables</span><span class="p">)</span>
+<div class="viewcode-block" id="compile_auto_tables"><a class="viewcode-back" href="../../api.html#storm.expr.compile_auto_tables">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">AutoTables</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">compile_auto_tables</span><span class="p">(</span><span class="nb">compile</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
     <span class="k">if</span> <span class="n">expr</span><span class="o">.</span><span class="n">replace</span><span class="p">:</span>
         <span class="n">state</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="s2">&quot;auto_tables&quot;</span><span class="p">,</span> <span class="p">[])</span>
@@ -1656,12 +1656,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../basic-usage.html">Basic usage</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../infoheritance.html">Infoheritance</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../store.html">Store</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../columns.html">Columns and types</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../expr.html">Expressions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../databases.html">Databases</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../events.html">Hooks and events</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../miscellaneous.html">Miscellaneous libraries</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">API</a></li>
 </ul>
 
 <div class="relations">

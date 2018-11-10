@@ -86,7 +86,7 @@
 <span class="n">PENDING_REMOVE</span> <span class="o">=</span> <span class="mi">2</span>
 
 
-<div class="viewcode-block" id="Store"><a class="viewcode-back" href="../../store.html#storm.store.Store">[docs]</a><span class="k">class</span> <span class="nc">Store</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="Store"><a class="viewcode-back" href="../../api.html#storm.store.Store">[docs]</a><span class="k">class</span> <span class="nc">Store</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;The Storm Store.</span>
 
 <span class="sd">    This is the highest-level interface to a database. It manages</span>
@@ -118,11 +118,11 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_implicit_flush_block_count</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_sequence</span> <span class="o">=</span> <span class="mi">0</span> <span class="c1"># Advisory ordering.</span>
 
-<div class="viewcode-block" id="Store.get_database"><a class="viewcode-back" href="../../store.html#storm.store.Store.get_database">[docs]</a>    <span class="k">def</span> <span class="nf">get_database</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Store.get_database"><a class="viewcode-back" href="../../api.html#storm.store.Store.get_database">[docs]</a>    <span class="k">def</span> <span class="nf">get_database</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Return this Store&#39;s Database object.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_database</span></div>
 
-<div class="viewcode-block" id="Store.of"><a class="viewcode-back" href="../../store.html#storm.store.Store.of">[docs]</a>    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Store.of"><a class="viewcode-back" href="../../api.html#storm.store.Store.of">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">of</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Get the Store that the object is associated with.</span>
 
@@ -134,7 +134,7 @@
         <span class="k">except</span> <span class="p">(</span><span class="ne">AttributeError</span><span class="p">,</span> <span class="n">ClassInfoError</span><span class="p">):</span>
             <span class="k">return</span> <span class="kc">None</span></div>
 
-<div class="viewcode-block" id="Store.execute"><a class="viewcode-back" href="../../store.html#storm.store.Store.execute">[docs]</a>    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">statement</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">noresult</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<div class="viewcode-block" id="Store.execute"><a class="viewcode-back" href="../../api.html#storm.store.Store.execute">[docs]</a>    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">statement</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">noresult</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Execute a basic query.</span>
 
 <span class="sd">        This is just like L{storm.database.Database.execute}, except</span>
@@ -144,11 +144,11 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">statement</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">noresult</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Store.close"><a class="viewcode-back" href="../../store.html#storm.store.Store.close">[docs]</a>    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Store.close"><a class="viewcode-back" href="../../api.html#storm.store.Store.close">[docs]</a>    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Close the connection.&quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="Store.begin"><a class="viewcode-back" href="../../store.html#storm.store.Store.begin">[docs]</a>    <span class="k">def</span> <span class="nf">begin</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">xid</span><span class="p">):</span>
+<div class="viewcode-block" id="Store.begin"><a class="viewcode-back" href="../../api.html#storm.store.Store.begin">[docs]</a>    <span class="k">def</span> <span class="nf">begin</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">xid</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Start a new two-phase transaction.</span>
 
 <span class="sd">        @param xid: A L{Xid} instance holding identification data for the</span>
@@ -156,7 +156,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="o">.</span><span class="n">begin</span><span class="p">(</span><span class="n">xid</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Store.prepare"><a class="viewcode-back" href="../../store.html#storm.store.Store.prepare">[docs]</a>    <span class="k">def</span> <span class="nf">prepare</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Store.prepare"><a class="viewcode-back" href="../../api.html#storm.store.Store.prepare">[docs]</a>    <span class="k">def</span> <span class="nf">prepare</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Prepare a two-phase transaction for the final commit.</span>
 
 <span class="sd">        @note: It must be call inside a two-phase transaction started</span>
@@ -164,7 +164,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="o">.</span><span class="n">prepare</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="Store.commit"><a class="viewcode-back" href="../../store.html#storm.store.Store.commit">[docs]</a>    <span class="k">def</span> <span class="nf">commit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Store.commit"><a class="viewcode-back" href="../../api.html#storm.store.Store.commit">[docs]</a>    <span class="k">def</span> <span class="nf">commit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Commit all changes to the database.</span>
 
 <span class="sd">        This invalidates the cache, so all live objects will have data</span>
@@ -174,7 +174,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">invalidate</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="Store.rollback"><a class="viewcode-back" href="../../store.html#storm.store.Store.rollback">[docs]</a>    <span class="k">def</span> <span class="nf">rollback</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Store.rollback"><a class="viewcode-back" href="../../api.html#storm.store.Store.rollback">[docs]</a>    <span class="k">def</span> <span class="nf">rollback</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Roll back all outstanding changes, reverting to database state.&quot;&quot;&quot;</span>
         <span class="k">for</span> <span class="n">obj_info</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dirty</span><span class="p">:</span>
             <span class="n">pending</span> <span class="o">=</span> <span class="n">obj_info</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;pending&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
@@ -190,7 +190,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">invalidate</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="Store.get"><a class="viewcode-back" href="../../store.html#storm.store.Store.get">[docs]</a>    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="bp">cls</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+<div class="viewcode-block" id="Store.get"><a class="viewcode-back" href="../../api.html#storm.store.Store.get">[docs]</a>    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="bp">cls</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Get object of type cls with the given primary key from the database.</span>
 
 <span class="sd">        If the object is alive the database won&#39;t be touched.</span>
@@ -234,7 +234,7 @@
             <span class="k">return</span> <span class="kc">None</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_object</span><span class="p">(</span><span class="n">cls_info</span><span class="p">,</span> <span class="n">result</span><span class="p">,</span> <span class="n">values</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Store.find"><a class="viewcode-back" href="../../store.html#storm.store.Store.find">[docs]</a>    <span class="k">def</span> <span class="nf">find</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cls_spec</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<div class="viewcode-block" id="Store.find"><a class="viewcode-back" href="../../api.html#storm.store.Store.find">[docs]</a>    <span class="k">def</span> <span class="nf">find</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cls_spec</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Perform a query.</span>
 
 <span class="sd">        Some examples::</span>
@@ -260,7 +260,7 @@
         <span class="n">where</span> <span class="o">=</span> <span class="n">get_where_for_args</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">find_spec</span><span class="o">.</span><span class="n">default_cls</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_result_set_factory</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">find_spec</span><span class="p">,</span> <span class="n">where</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Store.using"><a class="viewcode-back" href="../../store.html#storm.store.Store.using">[docs]</a>    <span class="k">def</span> <span class="nf">using</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">tables</span><span class="p">):</span>
+<div class="viewcode-block" id="Store.using"><a class="viewcode-back" href="../../api.html#storm.store.Store.using">[docs]</a>    <span class="k">def</span> <span class="nf">using</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">tables</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Specify tables to use explicitly.</span>
 
 <span class="sd">        The L{find} method generally does a good job at figuring out</span>
@@ -285,7 +285,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_table_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tables</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Store.add"><a class="viewcode-back" href="../../store.html#storm.store.Store.add">[docs]</a>    <span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+<div class="viewcode-block" id="Store.add"><a class="viewcode-back" href="../../api.html#storm.store.Store.add">[docs]</a>    <span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Add the given object to the store.</span>
 
 <span class="sd">        The object will be inserted into the database if it has not</span>
@@ -317,7 +317,7 @@
 
         <span class="k">return</span> <span class="n">obj</span></div>
 
-<div class="viewcode-block" id="Store.remove"><a class="viewcode-back" href="../../store.html#storm.store.Store.remove">[docs]</a>    <span class="k">def</span> <span class="nf">remove</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+<div class="viewcode-block" id="Store.remove"><a class="viewcode-back" href="../../api.html#storm.store.Store.remove">[docs]</a>    <span class="k">def</span> <span class="nf">remove</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Remove the given object from the store.</span>
 
 <span class="sd">        The associated row will be deleted from the database.</span>
@@ -344,7 +344,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_disable_lazy_resolving</span><span class="p">(</span><span class="n">obj_info</span><span class="p">)</span>
             <span class="n">obj_info</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="s2">&quot;removed&quot;</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Store.reload"><a class="viewcode-back" href="../../store.html#storm.store.Store.reload">[docs]</a>    <span class="k">def</span> <span class="nf">reload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+<div class="viewcode-block" id="Store.reload"><a class="viewcode-back" href="../../api.html#storm.store.Store.reload">[docs]</a>    <span class="k">def</span> <span class="nf">reload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Reload the given object.</span>
 
 <span class="sd">        The object will immediately have all of its data reset from</span>
@@ -366,7 +366,7 @@
                          <span class="n">replace_unknown_lazy</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_set_clean</span><span class="p">(</span><span class="n">obj_info</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Store.autoreload"><a class="viewcode-back" href="../../store.html#storm.store.Store.autoreload">[docs]</a>    <span class="k">def</span> <span class="nf">autoreload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Store.autoreload"><a class="viewcode-back" href="../../api.html#storm.store.Store.autoreload">[docs]</a>    <span class="k">def</span> <span class="nf">autoreload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Set an object or all objects to be reloaded automatically on access.</span>
 
 <span class="sd">        When a database-backed attribute of one of the objects is</span>
@@ -378,7 +378,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_mark_autoreload</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Store.invalidate"><a class="viewcode-back" href="../../store.html#storm.store.Store.invalidate">[docs]</a>    <span class="k">def</span> <span class="nf">invalidate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Store.invalidate"><a class="viewcode-back" href="../../api.html#storm.store.Store.invalidate">[docs]</a>    <span class="k">def</span> <span class="nf">invalidate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Set an object or all objects to be invalidated.</span>
 
 <span class="sd">        This prevents Storm from returning the cached object without</span>
@@ -399,7 +399,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">get_obj_info</span><span class="p">(</span><span class="n">obj</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_mark_autoreload</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Store.reset"><a class="viewcode-back" href="../../store.html#storm.store.Store.reset">[docs]</a>    <span class="k">def</span> <span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Store.reset"><a class="viewcode-back" href="../../api.html#storm.store.Store.reset">[docs]</a>    <span class="k">def</span> <span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Reset this store, causing all future queries to return new objects.</span>
 
 <span class="sd">        Beware this method: it breaks the assumption that there will never be</span>
@@ -446,7 +446,7 @@
             <span class="k">for</span> <span class="n">obj_info</span> <span class="ow">in</span> <span class="n">obj_infos</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_run_hook</span><span class="p">(</span><span class="n">obj_info</span><span class="p">,</span> <span class="s2">&quot;__storm_invalidated__&quot;</span><span class="p">)</span>
 
-<div class="viewcode-block" id="Store.add_flush_order"><a class="viewcode-back" href="../../store.html#storm.store.Store.add_flush_order">[docs]</a>    <span class="k">def</span> <span class="nf">add_flush_order</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">before</span><span class="p">,</span> <span class="n">after</span><span class="p">):</span>
+<div class="viewcode-block" id="Store.add_flush_order"><a class="viewcode-back" href="../../api.html#storm.store.Store.add_flush_order">[docs]</a>    <span class="k">def</span> <span class="nf">add_flush_order</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">before</span><span class="p">,</span> <span class="n">after</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Explicitly specify the order of flushing two objects.</span>
 
 <span class="sd">        When the next database flush occurs, the order of data</span>
@@ -461,7 +461,7 @@
         <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_order</span><span class="p">[</span><span class="n">pair</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span></div>
 
-<div class="viewcode-block" id="Store.remove_flush_order"><a class="viewcode-back" href="../../store.html#storm.store.Store.remove_flush_order">[docs]</a>    <span class="k">def</span> <span class="nf">remove_flush_order</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">before</span><span class="p">,</span> <span class="n">after</span><span class="p">):</span>
+<div class="viewcode-block" id="Store.remove_flush_order"><a class="viewcode-back" href="../../api.html#storm.store.Store.remove_flush_order">[docs]</a>    <span class="k">def</span> <span class="nf">remove_flush_order</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">before</span><span class="p">,</span> <span class="n">after</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Cancel an explicit flush order specified with L{add_flush_order}.</span>
 
 <span class="sd">        @param before: The C{before} object previously specified in a</span>
@@ -472,7 +472,7 @@
         <span class="n">pair</span> <span class="o">=</span> <span class="p">(</span><span class="n">get_obj_info</span><span class="p">(</span><span class="n">before</span><span class="p">),</span> <span class="n">get_obj_info</span><span class="p">(</span><span class="n">after</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_order</span><span class="p">[</span><span class="n">pair</span><span class="p">]</span> <span class="o">-=</span> <span class="mi">1</span></div>
 
-<div class="viewcode-block" id="Store.flush"><a class="viewcode-back" href="../../store.html#storm.store.Store.flush">[docs]</a>    <span class="k">def</span> <span class="nf">flush</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Store.flush"><a class="viewcode-back" href="../../api.html#storm.store.Store.flush">[docs]</a>    <span class="k">def</span> <span class="nf">flush</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Flush all dirty objects in cache to database.</span>
 
 <span class="sd">        This method will first call the __storm_pre_flush__ hook of all dirty</span>
@@ -602,20 +602,20 @@
 
         <span class="n">obj_info</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="s2">&quot;flushed&quot;</span><span class="p">)</span>
 
-<div class="viewcode-block" id="Store.block_implicit_flushes"><a class="viewcode-back" href="../../store.html#storm.store.Store.block_implicit_flushes">[docs]</a>    <span class="k">def</span> <span class="nf">block_implicit_flushes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Store.block_implicit_flushes"><a class="viewcode-back" href="../../api.html#storm.store.Store.block_implicit_flushes">[docs]</a>    <span class="k">def</span> <span class="nf">block_implicit_flushes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Block implicit flushes from operations like execute().&quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_implicit_flush_block_count</span> <span class="o">+=</span> <span class="mi">1</span></div>
 
-<div class="viewcode-block" id="Store.unblock_implicit_flushes"><a class="viewcode-back" href="../../store.html#storm.store.Store.unblock_implicit_flushes">[docs]</a>    <span class="k">def</span> <span class="nf">unblock_implicit_flushes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Store.unblock_implicit_flushes"><a class="viewcode-back" href="../../api.html#storm.store.Store.unblock_implicit_flushes">[docs]</a>    <span class="k">def</span> <span class="nf">unblock_implicit_flushes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Unblock implicit flushes from operations like execute().&quot;&quot;&quot;</span>
         <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">_implicit_flush_block_count</span> <span class="o">&gt;</span> <span class="mi">0</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_implicit_flush_block_count</span> <span class="o">-=</span> <span class="mi">1</span></div>
 
-<div class="viewcode-block" id="Store.block_access"><a class="viewcode-back" href="../../store.html#storm.store.Store.block_access">[docs]</a>    <span class="k">def</span> <span class="nf">block_access</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Store.block_access"><a class="viewcode-back" href="../../api.html#storm.store.Store.block_access">[docs]</a>    <span class="k">def</span> <span class="nf">block_access</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Block access to the underlying database connection.&quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="o">.</span><span class="n">block_access</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="Store.unblock_access"><a class="viewcode-back" href="../../store.html#storm.store.Store.unblock_access">[docs]</a>    <span class="k">def</span> <span class="nf">unblock_access</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Store.unblock_access"><a class="viewcode-back" href="../../api.html#storm.store.Store.unblock_access">[docs]</a>    <span class="k">def</span> <span class="nf">unblock_access</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Unblock access to the underlying database connection.&quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="o">.</span><span class="n">unblock_access</span><span class="p">()</span></div>
 
@@ -1551,7 +1551,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_set_expr</span><span class="p">(</span><span class="n">Intersect</span><span class="p">,</span> <span class="n">other</span><span class="p">,</span> <span class="nb">all</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="EmptyResultSet"><a class="viewcode-back" href="../../store.html#storm.store.EmptyResultSet">[docs]</a><span class="k">class</span> <span class="nc">EmptyResultSet</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="EmptyResultSet"><a class="viewcode-back" href="../../api.html#storm.store.EmptyResultSet">[docs]</a><span class="k">class</span> <span class="nc">EmptyResultSet</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;An object that looks like a L{ResultSet} but represents no rows.</span>
 
 <span class="sd">    This is convenient for application developers who want to provide</span>
@@ -1571,11 +1571,11 @@
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ordered</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_order_by</span> <span class="o">=</span> <span class="n">ordered</span>
 
-<div class="viewcode-block" id="EmptyResultSet.copy"><a class="viewcode-back" href="../../store.html#storm.store.EmptyResultSet.copy">[docs]</a>    <span class="k">def</span> <span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="EmptyResultSet.copy"><a class="viewcode-back" href="../../api.html#storm.store.EmptyResultSet.copy">[docs]</a>    <span class="k">def</span> <span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">result</span> <span class="o">=</span> <span class="n">EmptyResultSet</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_order_by</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">result</span></div>
 
-<div class="viewcode-block" id="EmptyResultSet.config"><a class="viewcode-back" href="../../store.html#storm.store.EmptyResultSet.config">[docs]</a>    <span class="k">def</span> <span class="nf">config</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">distinct</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="EmptyResultSet.config"><a class="viewcode-back" href="../../api.html#storm.store.EmptyResultSet.config">[docs]</a>    <span class="k">def</span> <span class="nf">config</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">distinct</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="k">pass</span></div>
 
     <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -1588,51 +1588,51 @@
     <span class="k">def</span> <span class="nf">__contains__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">):</span>
         <span class="k">return</span> <span class="kc">False</span>
 
-<div class="viewcode-block" id="EmptyResultSet.is_empty"><a class="viewcode-back" href="../../store.html#storm.store.EmptyResultSet.is_empty">[docs]</a>    <span class="k">def</span> <span class="nf">is_empty</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="EmptyResultSet.is_empty"><a class="viewcode-back" href="../../api.html#storm.store.EmptyResultSet.is_empty">[docs]</a>    <span class="k">def</span> <span class="nf">is_empty</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="kc">True</span></div>
 
-<div class="viewcode-block" id="EmptyResultSet.any"><a class="viewcode-back" href="../../store.html#storm.store.EmptyResultSet.any">[docs]</a>    <span class="k">def</span> <span class="nf">any</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="EmptyResultSet.any"><a class="viewcode-back" href="../../api.html#storm.store.EmptyResultSet.any">[docs]</a>    <span class="k">def</span> <span class="nf">any</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="kc">None</span></div>
 
-<div class="viewcode-block" id="EmptyResultSet.first"><a class="viewcode-back" href="../../store.html#storm.store.EmptyResultSet.first">[docs]</a>    <span class="k">def</span> <span class="nf">first</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="EmptyResultSet.first"><a class="viewcode-back" href="../../api.html#storm.store.EmptyResultSet.first">[docs]</a>    <span class="k">def</span> <span class="nf">first</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_order_by</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">None</span>
         <span class="k">raise</span> <span class="n">UnorderedError</span><span class="p">(</span><span class="s2">&quot;Can&#39;t use first() on unordered result set&quot;</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="EmptyResultSet.last"><a class="viewcode-back" href="../../store.html#storm.store.EmptyResultSet.last">[docs]</a>    <span class="k">def</span> <span class="nf">last</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="EmptyResultSet.last"><a class="viewcode-back" href="../../api.html#storm.store.EmptyResultSet.last">[docs]</a>    <span class="k">def</span> <span class="nf">last</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_order_by</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">None</span>
         <span class="k">raise</span> <span class="n">UnorderedError</span><span class="p">(</span><span class="s2">&quot;Can&#39;t use last() on unordered result set&quot;</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="EmptyResultSet.one"><a class="viewcode-back" href="../../store.html#storm.store.EmptyResultSet.one">[docs]</a>    <span class="k">def</span> <span class="nf">one</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="EmptyResultSet.one"><a class="viewcode-back" href="../../api.html#storm.store.EmptyResultSet.one">[docs]</a>    <span class="k">def</span> <span class="nf">one</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="kc">None</span></div>
 
-<div class="viewcode-block" id="EmptyResultSet.order_by"><a class="viewcode-back" href="../../store.html#storm.store.EmptyResultSet.order_by">[docs]</a>    <span class="k">def</span> <span class="nf">order_by</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+<div class="viewcode-block" id="EmptyResultSet.order_by"><a class="viewcode-back" href="../../api.html#storm.store.EmptyResultSet.order_by">[docs]</a>    <span class="k">def</span> <span class="nf">order_by</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_order_by</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="k">return</span> <span class="bp">self</span></div>
 
-<div class="viewcode-block" id="EmptyResultSet.group_by"><a class="viewcode-back" href="../../store.html#storm.store.EmptyResultSet.group_by">[docs]</a>    <span class="k">def</span> <span class="nf">group_by</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">expr</span><span class="p">):</span>
+<div class="viewcode-block" id="EmptyResultSet.group_by"><a class="viewcode-back" href="../../api.html#storm.store.EmptyResultSet.group_by">[docs]</a>    <span class="k">def</span> <span class="nf">group_by</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">expr</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span></div>
 
-<div class="viewcode-block" id="EmptyResultSet.remove"><a class="viewcode-back" href="../../store.html#storm.store.EmptyResultSet.remove">[docs]</a>    <span class="k">def</span> <span class="nf">remove</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="EmptyResultSet.remove"><a class="viewcode-back" href="../../api.html#storm.store.EmptyResultSet.remove">[docs]</a>    <span class="k">def</span> <span class="nf">remove</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="mi">0</span></div>
 
-<div class="viewcode-block" id="EmptyResultSet.count"><a class="viewcode-back" href="../../store.html#storm.store.EmptyResultSet.count">[docs]</a>    <span class="k">def</span> <span class="nf">count</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expr</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">distinct</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<div class="viewcode-block" id="EmptyResultSet.count"><a class="viewcode-back" href="../../api.html#storm.store.EmptyResultSet.count">[docs]</a>    <span class="k">def</span> <span class="nf">count</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expr</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">distinct</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="k">return</span> <span class="mi">0</span></div>
 
-<div class="viewcode-block" id="EmptyResultSet.max"><a class="viewcode-back" href="../../store.html#storm.store.EmptyResultSet.max">[docs]</a>    <span class="k">def</span> <span class="nf">max</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">column</span><span class="p">):</span>
+<div class="viewcode-block" id="EmptyResultSet.max"><a class="viewcode-back" href="../../api.html#storm.store.EmptyResultSet.max">[docs]</a>    <span class="k">def</span> <span class="nf">max</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">column</span><span class="p">):</span>
         <span class="k">return</span> <span class="kc">None</span></div>
 
-<div class="viewcode-block" id="EmptyResultSet.min"><a class="viewcode-back" href="../../store.html#storm.store.EmptyResultSet.min">[docs]</a>    <span class="k">def</span> <span class="nf">min</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">column</span><span class="p">):</span>
+<div class="viewcode-block" id="EmptyResultSet.min"><a class="viewcode-back" href="../../api.html#storm.store.EmptyResultSet.min">[docs]</a>    <span class="k">def</span> <span class="nf">min</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">column</span><span class="p">):</span>
         <span class="k">return</span> <span class="kc">None</span></div>
 
-<div class="viewcode-block" id="EmptyResultSet.avg"><a class="viewcode-back" href="../../store.html#storm.store.EmptyResultSet.avg">[docs]</a>    <span class="k">def</span> <span class="nf">avg</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">column</span><span class="p">):</span>
+<div class="viewcode-block" id="EmptyResultSet.avg"><a class="viewcode-back" href="../../api.html#storm.store.EmptyResultSet.avg">[docs]</a>    <span class="k">def</span> <span class="nf">avg</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">column</span><span class="p">):</span>
         <span class="k">return</span> <span class="kc">None</span></div>
 
-<div class="viewcode-block" id="EmptyResultSet.sum"><a class="viewcode-back" href="../../store.html#storm.store.EmptyResultSet.sum">[docs]</a>    <span class="k">def</span> <span class="nf">sum</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">column</span><span class="p">):</span>
+<div class="viewcode-block" id="EmptyResultSet.sum"><a class="viewcode-back" href="../../api.html#storm.store.EmptyResultSet.sum">[docs]</a>    <span class="k">def</span> <span class="nf">sum</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">column</span><span class="p">):</span>
         <span class="k">return</span> <span class="kc">None</span></div>
 
-<div class="viewcode-block" id="EmptyResultSet.get_select_expr"><a class="viewcode-back" href="../../store.html#storm.store.EmptyResultSet.get_select_expr">[docs]</a>    <span class="k">def</span> <span class="nf">get_select_expr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">columns</span><span class="p">):</span>
+<div class="viewcode-block" id="EmptyResultSet.get_select_expr"><a class="viewcode-back" href="../../api.html#storm.store.EmptyResultSet.get_select_expr">[docs]</a>    <span class="k">def</span> <span class="nf">get_select_expr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">columns</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Get a L{Select} expression to retrieve only the specified columns.</span>
 
 <span class="sd">        @param columns: One or more L{storm.expr.Column} objects whose values</span>
@@ -1647,31 +1647,31 @@
                                <span class="s2">&quot;as argument&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">Select</span><span class="p">(</span><span class="n">columns</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="EmptyResultSet.values"><a class="viewcode-back" href="../../store.html#storm.store.EmptyResultSet.values">[docs]</a>    <span class="k">def</span> <span class="nf">values</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">columns</span><span class="p">):</span>
+<div class="viewcode-block" id="EmptyResultSet.values"><a class="viewcode-back" href="../../api.html#storm.store.EmptyResultSet.values">[docs]</a>    <span class="k">def</span> <span class="nf">values</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">columns</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">columns</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">FeatureError</span><span class="p">(</span><span class="s2">&quot;values() takes at least one column &quot;</span>
                                <span class="s2">&quot;as argument&quot;</span><span class="p">)</span>
         <span class="k">return</span>
         <span class="k">yield</span> <span class="kc">None</span></div>
 
-<div class="viewcode-block" id="EmptyResultSet.set"><a class="viewcode-back" href="../../store.html#storm.store.EmptyResultSet.set">[docs]</a>    <span class="k">def</span> <span class="nf">set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<div class="viewcode-block" id="EmptyResultSet.set"><a class="viewcode-back" href="../../api.html#storm.store.EmptyResultSet.set">[docs]</a>    <span class="k">def</span> <span class="nf">set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="k">pass</span></div>
 
-<div class="viewcode-block" id="EmptyResultSet.cached"><a class="viewcode-back" href="../../store.html#storm.store.EmptyResultSet.cached">[docs]</a>    <span class="k">def</span> <span class="nf">cached</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="EmptyResultSet.cached"><a class="viewcode-back" href="../../api.html#storm.store.EmptyResultSet.cached">[docs]</a>    <span class="k">def</span> <span class="nf">cached</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="p">[]</span></div>
 
-<div class="viewcode-block" id="EmptyResultSet.find"><a class="viewcode-back" href="../../store.html#storm.store.EmptyResultSet.find">[docs]</a>    <span class="k">def</span> <span class="nf">find</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<div class="viewcode-block" id="EmptyResultSet.find"><a class="viewcode-back" href="../../api.html#storm.store.EmptyResultSet.find">[docs]</a>    <span class="k">def</span> <span class="nf">find</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span></div>
 
-<div class="viewcode-block" id="EmptyResultSet.union"><a class="viewcode-back" href="../../store.html#storm.store.EmptyResultSet.union">[docs]</a>    <span class="k">def</span> <span class="nf">union</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+<div class="viewcode-block" id="EmptyResultSet.union"><a class="viewcode-back" href="../../api.html#storm.store.EmptyResultSet.union">[docs]</a>    <span class="k">def</span> <span class="nf">union</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">EmptyResultSet</span><span class="p">):</span>
             <span class="k">return</span> <span class="bp">self</span>
         <span class="k">return</span> <span class="n">other</span><span class="o">.</span><span class="n">union</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="EmptyResultSet.difference"><a class="viewcode-back" href="../../store.html#storm.store.EmptyResultSet.difference">[docs]</a>    <span class="k">def</span> <span class="nf">difference</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+<div class="viewcode-block" id="EmptyResultSet.difference"><a class="viewcode-back" href="../../api.html#storm.store.EmptyResultSet.difference">[docs]</a>    <span class="k">def</span> <span class="nf">difference</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span></div>
 
-<div class="viewcode-block" id="EmptyResultSet.intersection"><a class="viewcode-back" href="../../store.html#storm.store.EmptyResultSet.intersection">[docs]</a>    <span class="k">def</span> <span class="nf">intersection</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+<div class="viewcode-block" id="EmptyResultSet.intersection"><a class="viewcode-back" href="../../api.html#storm.store.EmptyResultSet.intersection">[docs]</a>    <span class="k">def</span> <span class="nf">intersection</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span></div></div>
 
 
@@ -1909,12 +1909,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../basic-usage.html">Basic usage</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../infoheritance.html">Infoheritance</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../store.html">Store</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../columns.html">Columns and types</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../expr.html">Expressions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../databases.html">Databases</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../events.html">Hooks and events</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../miscellaneous.html">Miscellaneous libraries</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">API</a></li>
 </ul>
 
 <div class="relations">

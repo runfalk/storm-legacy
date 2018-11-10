@@ -65,7 +65,7 @@
 <span class="kn">from</span> <span class="nn">storm.exceptions</span> <span class="k">import</span> <span class="n">URIError</span>
 
 
-<div class="viewcode-block" id="URI"><a class="viewcode-back" href="../../miscellaneous.html#storm.uri.URI">[docs]</a><span class="k">class</span> <span class="nc">URI</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="URI"><a class="viewcode-back" href="../../api.html#storm.uri.URI">[docs]</a><span class="k">class</span> <span class="nc">URI</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="n">username</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">password</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">host</span> <span class="o">=</span> <span class="kc">None</span>
@@ -114,7 +114,7 @@
                     <span class="k">else</span><span class="p">:</span>
                         <span class="bp">self</span><span class="o">.</span><span class="n">username</span> <span class="o">=</span> <span class="n">unescape</span><span class="p">(</span><span class="n">userpass</span><span class="p">)</span>
 
-<div class="viewcode-block" id="URI.copy"><a class="viewcode-back" href="../../miscellaneous.html#storm.uri.URI.copy">[docs]</a>    <span class="k">def</span> <span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="URI.copy"><a class="viewcode-back" href="../../api.html#storm.uri.URI.copy">[docs]</a>    <span class="k">def</span> <span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">uri</span> <span class="o">=</span> <span class="nb">object</span><span class="o">.</span><span class="fm">__new__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">)</span>
         <span class="n">uri</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">)</span>
         <span class="n">uri</span><span class="o">.</span><span class="n">options</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">options</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
@@ -151,11 +151,11 @@
     <span class="n">__unicode__</span> <span class="o">=</span> <span class="fm">__str__</span></div>
 
 
-<div class="viewcode-block" id="escape"><a class="viewcode-back" href="../../miscellaneous.html#storm.uri.escape">[docs]</a><span class="k">def</span> <span class="nf">escape</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">safe</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">):</span>
+<div class="viewcode-block" id="escape"><a class="viewcode-back" href="../../api.html#storm.uri.escape">[docs]</a><span class="k">def</span> <span class="nf">escape</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">safe</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">):</span>
     <span class="k">return</span> <span class="n">quote</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">safe</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="unescape"><a class="viewcode-back" href="../../miscellaneous.html#storm.uri.unescape">[docs]</a><span class="k">def</span> <span class="nf">unescape</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+<div class="viewcode-block" id="unescape"><a class="viewcode-back" href="../../api.html#storm.uri.unescape">[docs]</a><span class="k">def</span> <span class="nf">unescape</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
     <span class="k">return</span> <span class="n">unquote</span><span class="p">(</span><span class="n">s</span><span class="p">)</span></div>
 </pre></div>
 
@@ -179,12 +179,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../basic-usage.html">Basic usage</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../infoheritance.html">Infoheritance</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../store.html">Store</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../columns.html">Columns and types</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../expr.html">Expressions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../databases.html">Databases</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../events.html">Hooks and events</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../miscellaneous.html">Miscellaneous libraries</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">API</a></li>
 </ul>
 
 <div class="relations">
