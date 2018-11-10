@@ -39,14 +39,24 @@ Released on (unreleased)
 Released on 8th October 2018
 
 This release mostly removes features. The release is mostly a test
-of how well it works with other applications.
+of how well it works with other applications. This release comes
+after storm 0.20.
 
+ * Added `Database.get_uri()` method
+ * Added `ResultSet` support to be used as subquery
  * Added support for Python 3.3
  * Added support for Python 3.4
  * Added support for Python 3.5
  * Added support for Python 3.6
  * Added support for Python 3.7
+ * Added support for Postgresql `CASE` statement
+ * Added support for Union of different classes as long as the columns
+   are of the same type
+ * Changed psycopg2 requirement to `>=2.5`
  * Changed test runner to pytest
+ * Fixed storm accidentally installing `tests` directory in `site-packages`
+ * Fixed `psycopg2>=2.5` support using ABCMeta base class injection for
+   exceptions
  * Removed MySQL support
  * Removed Pickle column type (use JSON or re-implement it yourself)
  * Removed Python 2.6 and earlier support
