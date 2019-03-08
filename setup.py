@@ -13,7 +13,7 @@ with open("README.md") as f:
 
 setup(
     name="storm-legacy",
-    version="0.1.3",
+    version="0.2.0",
     description=(
         "Storm is an object-relational mapper (ORM) for Python developed at "
         "Canonical. This is a fork maintained by Andreas Runfalk"),

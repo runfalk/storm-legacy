@@ -34,6 +34,16 @@ class UndefType(object):
 Undef = UndefType()
 
 
+# This is here for libraries that have specific Storm version requirements, or
+# enforces a minimum version. Since a lot of features have been removed it is
+# slightly misleading to call this 0.21.0 since there is no such release, but
+# it's probably the best compromise to make.
+#
+# This will never reflect the storm-legacy version.
+version = "0.21.0"
+version_info = tuple([int(x) for x in version.split(".")])
+
+
 # C extensions are enabled by default.  They are not used if the
 # STORM_CEXTENSIONS environment variable is set to '0'.  If they can't be
 # imported Storm will automatically use Python versions of the optimized code

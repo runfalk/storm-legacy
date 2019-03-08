@@ -26,9 +26,13 @@ version. I've decided to restart the version numbering.
 
 
 ### Version 0.2.0 (alpha)
-Released on (unreleased)
+Released on 8th Mars 2019
 
  * Made `PropertyRegistry.add_class` optionally work as a decorator
+ * Re-added `storm.version` and `storm.version_info` for libraries and
+   applications that have specific Storm version requirements. The version
+   is specified as `0.21.0` (issue
+   [#1](https://github.com/runfalk/storm-legacy/issues/1)).
  * Removed `CaptureTracer` support
  * Removed `TimeoutTracer` support
  * Refactored test suite to use pytest. This solves a lot of
