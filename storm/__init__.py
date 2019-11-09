@@ -36,8 +36,8 @@ Undef = UndefType()
 
 # This is here for libraries that have specific Storm version requirements, or
 # enforces a minimum version. Since a lot of features have been removed it is
-# slightly misleading to call this 0.21.0 since there is no such release, but
-# it's probably the best compromise to make.
+# slightly misleading to call this 0.21.0, but it's probably the best
+# compromise to make.
 #
 # This will never reflect the storm-legacy version.
 version = "0.21.0"

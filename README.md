@@ -12,11 +12,17 @@ with that approach for now.
 I'll maintain this fork until I've replaced Storm, which likely
 won't happen for years.
 
-The reason for forking is that Storm hasn't seen a release in
+The reason for forking was that Storm had not seen a release in
 almost five years; the last release was 0.20 2013-06-28. I forked
 the current trunk on 2018-05-04 which had quite a few fixes for
-things that are broken in 0.20. The trunk revision at the time
+things that were broken in 0.20. The trunk revision at the time
 was [#484](http://bazaar.launchpad.net/~storm/storm/trunk/files/484?start_revid=484).
+
+On September 20th, 2019 version 0.21 of Storm
+[was released](https://www.chiark.greenend.org.uk/~cjwatson/blog/storm-py3.html).
+The main differences seems to be that more features remain and that
+the exception handling was fixed propery for Python 3. In my fork
+it is not really possible to backend-agnostically catch exceptions.
 
 
 Changelog
