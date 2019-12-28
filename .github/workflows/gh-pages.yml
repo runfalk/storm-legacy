@@ -23,12 +23,12 @@ jobs:
           sphinx-build doc/ doc-build/
           touch doc-build/.nojekyll
       - name: Deploy
-        uses: peaceiris/actions-gh-pages@v2
+        uses: crazy-max/ghaction-github-pages@v1
         with:
-          emptyCommits: false
-          username: Andreas Runfalk
-          useremail: andreas@runfalk.se
+          allow_empty_commit: false
+          build_dir: doc-build/
+          committer_name: Andreas Runfalk
+          committer_email: andreas@runfalk.se
+          keep_history: true
         env:
-          PERSONAL_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
-          PUBLISH_BRANCH: gh-pages
-          PUBLISH_DIR: ./doc-build/
+          GITHUB_PAT: ${{ secrets.PERSONAL_TOKEN }}
