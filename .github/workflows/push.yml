@@ -1,0 +1,38 @@
+name: Python package
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [2.7, 3.5, 3.6, 3.7, 3.8]
+        use-c-extensions: [0, 1]
+
+    services:
+      postgres:
+        image: postgres:11
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v1
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools
+          pip install -e .[dev,doc]
+      - name: Unit tests (STORM_CEXTENSIONS=${{ matrix.use-c-extensions }})
+        env:
+          STORM_POSTGRES_URI: 'postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/postgres'
+          STORM_CEXTENSIONS: ${{ matrix.use-c-extensions }}
+        run: pytest -vv
