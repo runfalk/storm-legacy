@@ -1,11 +1,9 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
-    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
     <title>Infoheritance &#8212; Storm  documentation</title>
     <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -81,7 +79,7 @@ subclass. Following is the design from above converted to use the pattern.</p>
 
 <span class="k">def</span> <span class="nf">register_person_info_type</span><span class="p">(</span><span class="n">info_type</span><span class="p">,</span> <span class="n">info_class</span><span class="p">):</span>
     <span class="n">existing_info_class</span> <span class="o">=</span> <span class="n">person_info_types</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">info_type</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">existing_info_class</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">existing_info_class</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%r</span><span class="s2"> has the same info_type of </span><span class="si">%r</span><span class="s2">&quot;</span> <span class="o">%</span>
                            <span class="p">(</span><span class="n">info_class</span><span class="p">,</span> <span class="n">existing_info_class</span><span class="p">))</span>
     <span class="n">person_info_types</span><span class="p">[</span><span class="n">info_type</span><span class="p">]</span> <span class="o">=</span> <span class="n">info_class</span>
@@ -91,10 +89,10 @@ subclass. Following is the design from above converted to use the pattern.</p>
 <span class="k">class</span> <span class="nc">Person</span><span class="p">(</span><span class="n">Storm</span><span class="p">):</span>
     <span class="n">__storm_table__</span> <span class="o">=</span> <span class="s2">&quot;person&quot;</span>
 
-    <span class="nb">id</span> <span class="o">=</span> <span class="n">Int</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">primary</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
-    <span class="n">name</span> <span class="o">=</span> <span class="n">Unicode</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
-    <span class="n">info_type</span> <span class="o">=</span> <span class="n">Int</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
-    <span class="n">_info</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="nb">id</span> <span class="o">=</span> <span class="n">Int</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">primary</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">Unicode</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">info_type</span> <span class="o">=</span> <span class="n">Int</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">_info</span> <span class="o">=</span> <span class="kc">None</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">store</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">info_class</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
@@ -104,9 +102,9 @@ subclass. Following is the design from above converted to use the pattern.</p>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">info</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_info</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_info</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_info</span>
-        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
         <span class="n">info_class</span> <span class="o">=</span> <span class="n">person_info_types</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">info_type</span><span class="p">]</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">info_class</span><span class="p">,</span> <span class="s2">&quot;__storm_table__&quot;</span><span class="p">):</span>
             <span class="n">info</span> <span class="o">=</span> <span class="n">info_class</span><span class="o">.</span><span class="fm">__new__</span><span class="p">(</span><span class="n">info_class</span><span class="p">)</span>
@@ -123,16 +121,16 @@ subclass. Following is the design from above converted to use the pattern.</p>
 
 
 <span class="k">class</span> <span class="nc">StoredPersonInfo</span><span class="p">(</span><span class="n">PersonInfo</span><span class="p">):</span>
-    <span class="n">person_id</span> <span class="o">=</span> <span class="n">Int</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">primary</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">person_id</span> <span class="o">=</span> <span class="n">Int</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">primary</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="n">person</span> <span class="o">=</span> <span class="n">Reference</span><span class="p">(</span><span class="n">person_id</span><span class="p">,</span> <span class="n">Person</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
 
 
 <span class="k">class</span> <span class="nc">SecretAgent</span><span class="p">(</span><span class="n">StoredPersonInfo</span><span class="p">):</span>
     <span class="n">__storm_table__</span> <span class="o">=</span> <span class="s2">&quot;secret_agent&quot;</span>
 
-    <span class="n">passcode</span> <span class="o">=</span> <span class="n">Unicode</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+    <span class="n">passcode</span> <span class="o">=</span> <span class="n">Unicode</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">person</span><span class="p">,</span> <span class="n">passcode</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">person</span><span class="p">,</span> <span class="n">passcode</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">SecretAgent</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">person</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">passcode</span> <span class="o">=</span> <span class="n">passcode</span>
 
@@ -140,9 +138,9 @@ subclass. Following is the design from above converted to use the pattern.</p>
 <span class="k">class</span> <span class="nc">Teacher</span><span class="p">(</span><span class="n">StoredPersonInfo</span><span class="p">):</span>
     <span class="n">__storm_table__</span> <span class="o">=</span> <span class="s2">&quot;teacher&quot;</span>
 
-    <span class="n">school</span> <span class="o">=</span> <span class="n">Unicode</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+    <span class="n">school</span> <span class="o">=</span> <span class="n">Unicode</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">person</span><span class="p">,</span> <span class="n">school</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">person</span><span class="p">,</span> <span class="n">school</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">Teacher</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">person</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">school</span> <span class="o">=</span> <span class="n">school</span>
 </pre></div>
@@ -212,7 +210,7 @@ value.</p>
 <p>Now that we have our basic hierarchy in place we’re going to want to retrieve
 objects by info type.  Let’s implement a function to make finding <cite>Person</cite>
 objects easier.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">get_persons</span><span class="p">(</span><span class="n">store</span><span class="p">,</span> <span class="n">info_classes</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">get_persons</span><span class="p">(</span><span class="n">store</span><span class="p">,</span> <span class="n">info_classes</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="n">where</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">if</span> <span class="n">info_classes</span><span class="p">:</span>
         <span class="n">info_types</span> <span class="o">=</span> <span class="p">[</span><span class="n">info_class</span><span class="o">.</span><span class="n">info_type</span> <span class="k">for</span> <span class="n">info_class</span> <span class="ow">in</span> <span class="n">info_classes</span><span class="p">]</span>
@@ -237,7 +235,7 @@ objects easier.</p>
 <p>This design also allows for in-memory info objects.  Let’s add one to our
 hierarchy.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Ghost</span><span class="p">(</span><span class="n">PersonInfo</span><span class="p">):</span>
-    <span class="n">friendly</span> <span class="o">=</span> <span class="bp">True</span>
+    <span class="n">friendly</span> <span class="o">=</span> <span class="kc">True</span>
 
 <span class="n">register_person_info_type</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="n">Ghost</span><span class="p">)</span>
 </pre></div>
@@ -300,13 +298,11 @@ implemented using inheritance.</p>
 </ul>
 </div>
 <div id="searchbox" style="display: none" role="search">
-  <h3>Quick search</h3>
+  <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="search.html" method="get">
-      <input type="text" name="q" />
+      <input type="text" name="q" aria-labelledby="searchlabel" />
       <input type="submit" value="Go" />
-      <input type="hidden" name="check_keywords" value="yes" />
-      <input type="hidden" name="area" value="default" />
     </form>
     </div>
 </div>
@@ -327,7 +323,7 @@ implemented using inheritance.</p>
       &copy;2018, Gustavo Niemeyer.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.4</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.3.1</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |

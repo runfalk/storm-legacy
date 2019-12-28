@@ -1,11 +1,9 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
-    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
     <title>storm.expr &#8212; Storm  documentation</title>
     <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
@@ -53,19 +51,19 @@
 <span class="c1"># You should have received a copy of the GNU Lesser General Public License</span>
 <span class="c1"># along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
 <span class="c1">#</span>
-<span class="kn">from</span> <span class="nn">decimal</span> <span class="k">import</span> <span class="n">Decimal</span>
-<span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">date</span><span class="p">,</span> <span class="n">time</span><span class="p">,</span> <span class="n">timedelta</span>
-<span class="kn">from</span> <span class="nn">weakref</span> <span class="k">import</span> <span class="n">WeakKeyDictionary</span>
-<span class="kn">from</span> <span class="nn">copy</span> <span class="k">import</span> <span class="n">copy</span>
+<span class="kn">from</span> <span class="nn">decimal</span> <span class="kn">import</span> <span class="n">Decimal</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">date</span><span class="p">,</span> <span class="n">time</span><span class="p">,</span> <span class="n">timedelta</span>
+<span class="kn">from</span> <span class="nn">weakref</span> <span class="kn">import</span> <span class="n">WeakKeyDictionary</span>
+<span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">copy</span>
 <span class="kn">import</span> <span class="nn">re</span>
 
-<span class="kn">from</span> <span class="nn">storm.compat</span> <span class="k">import</span> <span class="n">bstr</span><span class="p">,</span> <span class="n">is_python2</span><span class="p">,</span> <span class="n">long_int</span><span class="p">,</span> <span class="n">ustr</span>
-<span class="kn">from</span> <span class="nn">storm.exceptions</span> <span class="k">import</span> <span class="n">CompileError</span><span class="p">,</span> <span class="n">NoTableError</span><span class="p">,</span> <span class="n">ExprError</span>
-<span class="kn">from</span> <span class="nn">storm.variables</span> <span class="k">import</span> <span class="p">(</span>
+<span class="kn">from</span> <span class="nn">storm.compat</span> <span class="kn">import</span> <span class="n">bstr</span><span class="p">,</span> <span class="n">is_python2</span><span class="p">,</span> <span class="n">long_int</span><span class="p">,</span> <span class="n">ustr</span>
+<span class="kn">from</span> <span class="nn">storm.exceptions</span> <span class="kn">import</span> <span class="n">CompileError</span><span class="p">,</span> <span class="n">NoTableError</span><span class="p">,</span> <span class="n">ExprError</span>
+<span class="kn">from</span> <span class="nn">storm.variables</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">Variable</span><span class="p">,</span> <span class="n">RawStrVariable</span><span class="p">,</span> <span class="n">UnicodeVariable</span><span class="p">,</span> <span class="n">LazyValue</span><span class="p">,</span>
     <span class="n">DateTimeVariable</span><span class="p">,</span> <span class="n">DateVariable</span><span class="p">,</span> <span class="n">TimeVariable</span><span class="p">,</span> <span class="n">TimeDeltaVariable</span><span class="p">,</span>
     <span class="n">BoolVariable</span><span class="p">,</span> <span class="n">IntVariable</span><span class="p">,</span> <span class="n">FloatVariable</span><span class="p">,</span> <span class="n">DecimalVariable</span><span class="p">)</span>
-<span class="kn">from</span> <span class="nn">storm</span> <span class="k">import</span> <span class="n">Undef</span><span class="p">,</span> <span class="n">has_cextensions</span>
+<span class="kn">from</span> <span class="nn">storm</span> <span class="kn">import</span> <span class="n">Undef</span><span class="p">,</span> <span class="n">has_cextensions</span>
 
 
 <span class="c1"># --------------------------------------------------------------------</span>
@@ -84,7 +82,7 @@
 <span class="k">class</span> <span class="nc">Compile</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Compiler based on the concept of generic functions.&quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_local_dispatch_table</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_local_precedence</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_local_reserved_words</span> <span class="o">=</span> <span class="p">{}</span>
@@ -181,7 +179,7 @@
             <span class="k">return</span> <span class="s2">&quot;(</span><span class="si">%s</span><span class="s2">)&quot;</span> <span class="o">%</span> <span class="n">statement</span>
         <span class="k">return</span> <span class="n">statement</span>
 
-    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">join</span><span class="o">=</span><span class="sa">u</span><span class="s2">&quot;, &quot;</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">token</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">state</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">join</span><span class="o">=</span><span class="sa">u</span><span class="s2">&quot;, &quot;</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">token</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Compile the given expression into a SQL statement.</span>
 
 <span class="sd">        @param expr: The expression to compile.</span>
@@ -236,7 +234,7 @@
 
 
 <span class="k">if</span> <span class="n">has_cextensions</span><span class="p">:</span>
-    <span class="kn">from</span> <span class="nn">storm.cextensions</span> <span class="k">import</span> <span class="n">Compile</span>
+    <span class="kn">from</span> <span class="nn">storm.cextensions</span> <span class="kn">import</span> <span class="n">Compile</span>
 
 
 <div class="viewcode-block" id="CompilePython"><a class="viewcode-back" href="../../api.html#storm.expr.CompilePython">[docs]</a><span class="k">class</span> <span class="nc">CompilePython</span><span class="p">(</span><span class="n">Compile</span><span class="p">):</span>
@@ -283,7 +281,7 @@
 <span class="sd">        automatically emitted.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">precedence</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span> <span class="o">=</span> <span class="p">[]</span>
@@ -321,10 +319,10 @@
 <span class="sd">    being compiled in a given context.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_name</span> <span class="o">=</span> <span class="n">name</span>
 
-    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">(</span><span class="si">%r</span><span class="s2">)&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_name</span><span class="p">)</span></div>
 
 
@@ -443,73 +441,73 @@
 <div class="viewcode-block" id="Comparable"><a class="viewcode-back" href="../../api.html#storm.expr.Comparable">[docs]</a><span class="k">class</span> <span class="nc">Comparable</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">()</span>
 
-    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">other</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="p">(</span><span class="n">Expr</span><span class="p">,</span> <span class="n">Variable</span><span class="p">)):</span>
             <span class="n">other</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;variable_factory&quot;</span><span class="p">,</span> <span class="n">Variable</span><span class="p">)(</span><span class="n">value</span><span class="o">=</span><span class="n">other</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">Eq</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__ne__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__ne__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">other</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="p">(</span><span class="n">Expr</span><span class="p">,</span> <span class="n">Variable</span><span class="p">)):</span>
             <span class="n">other</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;variable_factory&quot;</span><span class="p">,</span> <span class="n">Variable</span><span class="p">)(</span><span class="n">value</span><span class="o">=</span><span class="n">other</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">Ne</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__gt__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__gt__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="p">(</span><span class="n">Expr</span><span class="p">,</span> <span class="n">Variable</span><span class="p">)):</span>
             <span class="n">other</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;variable_factory&quot;</span><span class="p">,</span> <span class="n">Variable</span><span class="p">)(</span><span class="n">value</span><span class="o">=</span><span class="n">other</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">Gt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__ge__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__ge__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="p">(</span><span class="n">Expr</span><span class="p">,</span> <span class="n">Variable</span><span class="p">)):</span>
             <span class="n">other</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;variable_factory&quot;</span><span class="p">,</span> <span class="n">Variable</span><span class="p">)(</span><span class="n">value</span><span class="o">=</span><span class="n">other</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">Ge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__lt__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__lt__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="p">(</span><span class="n">Expr</span><span class="p">,</span> <span class="n">Variable</span><span class="p">)):</span>
             <span class="n">other</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;variable_factory&quot;</span><span class="p">,</span> <span class="n">Variable</span><span class="p">)(</span><span class="n">value</span><span class="o">=</span><span class="n">other</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">Lt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__le__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__le__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="p">(</span><span class="n">Expr</span><span class="p">,</span> <span class="n">Variable</span><span class="p">)):</span>
             <span class="n">other</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;variable_factory&quot;</span><span class="p">,</span> <span class="n">Variable</span><span class="p">)(</span><span class="n">value</span><span class="o">=</span><span class="n">other</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">Le</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__rshift__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__rshift__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="p">(</span><span class="n">Expr</span><span class="p">,</span> <span class="n">Variable</span><span class="p">)):</span>
             <span class="n">other</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;variable_factory&quot;</span><span class="p">,</span> <span class="n">Variable</span><span class="p">)(</span><span class="n">value</span><span class="o">=</span><span class="n">other</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">RShift</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__lshift__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__lshift__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="p">(</span><span class="n">Expr</span><span class="p">,</span> <span class="n">Variable</span><span class="p">)):</span>
             <span class="n">other</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;variable_factory&quot;</span><span class="p">,</span> <span class="n">Variable</span><span class="p">)(</span><span class="n">value</span><span class="o">=</span><span class="n">other</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">LShift</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__and__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__and__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="p">(</span><span class="n">Expr</span><span class="p">,</span> <span class="n">Variable</span><span class="p">)):</span>
             <span class="n">other</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;variable_factory&quot;</span><span class="p">,</span> <span class="n">Variable</span><span class="p">)(</span><span class="n">value</span><span class="o">=</span><span class="n">other</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">And</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__or__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__or__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="p">(</span><span class="n">Expr</span><span class="p">,</span> <span class="n">Variable</span><span class="p">)):</span>
             <span class="n">other</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;variable_factory&quot;</span><span class="p">,</span> <span class="n">Variable</span><span class="p">)(</span><span class="n">value</span><span class="o">=</span><span class="n">other</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">Or</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__add__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__add__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="p">(</span><span class="n">Expr</span><span class="p">,</span> <span class="n">Variable</span><span class="p">)):</span>
             <span class="n">other</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;variable_factory&quot;</span><span class="p">,</span> <span class="n">Variable</span><span class="p">)(</span><span class="n">value</span><span class="o">=</span><span class="n">other</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">Add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__sub__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__sub__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="p">(</span><span class="n">Expr</span><span class="p">,</span> <span class="n">Variable</span><span class="p">)):</span>
             <span class="n">other</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;variable_factory&quot;</span><span class="p">,</span> <span class="n">Variable</span><span class="p">)(</span><span class="n">value</span><span class="o">=</span><span class="n">other</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">Sub</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__mul__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__mul__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="p">(</span><span class="n">Expr</span><span class="p">,</span> <span class="n">Variable</span><span class="p">)):</span>
             <span class="n">other</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;variable_factory&quot;</span><span class="p">,</span> <span class="n">Variable</span><span class="p">)(</span><span class="n">value</span><span class="o">=</span><span class="n">other</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">Mul</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
 
     <span class="c1"># TODO: This should technically be floordiv</span>
-    <span class="k">def</span> <span class="nf">__truediv__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__truediv__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="p">(</span><span class="n">Expr</span><span class="p">,</span> <span class="n">Variable</span><span class="p">)):</span>
             <span class="n">other</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;variable_factory&quot;</span><span class="p">,</span> <span class="n">Variable</span><span class="p">)(</span><span class="n">value</span><span class="o">=</span><span class="n">other</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">Div</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
@@ -517,12 +515,12 @@
     <span class="c1"># Python 2 compatibility</span>
     <span class="n">__div__</span> <span class="o">=</span> <span class="fm">__truediv__</span>
 
-    <span class="k">def</span> <span class="nf">__mod__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__mod__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="p">(</span><span class="n">Expr</span><span class="p">,</span> <span class="n">Variable</span><span class="p">)):</span>
             <span class="n">other</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;variable_factory&quot;</span><span class="p">,</span> <span class="n">Variable</span><span class="p">)(</span><span class="n">value</span><span class="o">=</span><span class="n">other</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">Mod</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__neg__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__neg__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">Neg</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 
 <div class="viewcode-block" id="Comparable.is_in"><a class="viewcode-back" href="../../api.html#storm.expr.Comparable.is_in">[docs]</a>    <span class="k">def</span> <span class="nf">is_in</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">others</span><span class="p">):</span>
@@ -572,14 +570,14 @@
 <div class="viewcode-block" id="BinaryExpr"><a class="viewcode-back" href="../../api.html#storm.expr.BinaryExpr">[docs]</a><span class="k">class</span> <span class="nc">BinaryExpr</span><span class="p">(</span><span class="n">ComparableExpr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;expr1&quot;</span><span class="p">,</span> <span class="s2">&quot;expr2&quot;</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expr1</span><span class="p">,</span> <span class="n">expr2</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expr1</span><span class="p">,</span> <span class="n">expr2</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">expr1</span> <span class="o">=</span> <span class="n">expr1</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">expr2</span> <span class="o">=</span> <span class="n">expr2</span></div>
 
 <div class="viewcode-block" id="CompoundExpr"><a class="viewcode-back" href="../../api.html#storm.expr.CompoundExpr">[docs]</a><span class="k">class</span> <span class="nc">CompoundExpr</span><span class="p">(</span><span class="n">ComparableExpr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;exprs&quot;</span><span class="p">,)</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">exprs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">exprs</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">exprs</span> <span class="o">=</span> <span class="n">exprs</span></div>
 
 
@@ -678,7 +676,7 @@
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;columns&quot;</span><span class="p">,</span> <span class="s2">&quot;where&quot;</span><span class="p">,</span> <span class="s2">&quot;tables&quot;</span><span class="p">,</span> <span class="s2">&quot;default_tables&quot;</span><span class="p">,</span> <span class="s2">&quot;order_by&quot;</span><span class="p">,</span>
                  <span class="s2">&quot;group_by&quot;</span><span class="p">,</span> <span class="s2">&quot;limit&quot;</span><span class="p">,</span> <span class="s2">&quot;offset&quot;</span><span class="p">,</span> <span class="s2">&quot;distinct&quot;</span><span class="p">,</span> <span class="s2">&quot;having&quot;</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">columns</span><span class="p">,</span> <span class="n">where</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">columns</span><span class="p">,</span> <span class="n">where</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span>
                  <span class="n">tables</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">default_tables</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span>
                  <span class="n">order_by</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">group_by</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span>
                  <span class="n">limit</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">distinct</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">having</span><span class="o">=</span><span class="n">Undef</span><span class="p">):</span>
@@ -757,7 +755,7 @@
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;map&quot;</span><span class="p">,</span> <span class="s2">&quot;table&quot;</span><span class="p">,</span> <span class="s2">&quot;default_table&quot;</span><span class="p">,</span> <span class="s2">&quot;primary_columns&quot;</span><span class="p">,</span>
                  <span class="s2">&quot;primary_variables&quot;</span><span class="p">,</span> <span class="s2">&quot;values&quot;</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">map</span><span class="p">,</span> <span class="n">table</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">default_table</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">map</span><span class="p">,</span> <span class="n">table</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">default_table</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span>
                  <span class="n">primary_columns</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">primary_variables</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span>
                  <span class="n">values</span><span class="o">=</span><span class="n">Undef</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">map</span> <span class="o">=</span> <span class="nb">map</span>
@@ -791,7 +789,7 @@
 <div class="viewcode-block" id="Update"><a class="viewcode-back" href="../../api.html#storm.expr.Update">[docs]</a><span class="k">class</span> <span class="nc">Update</span><span class="p">(</span><span class="n">Expr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;map&quot;</span><span class="p">,</span> <span class="s2">&quot;where&quot;</span><span class="p">,</span> <span class="s2">&quot;table&quot;</span><span class="p">,</span> <span class="s2">&quot;default_table&quot;</span><span class="p">,</span> <span class="s2">&quot;primary_columns&quot;</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">map</span><span class="p">,</span> <span class="n">where</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">table</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">default_table</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">map</span><span class="p">,</span> <span class="n">where</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">table</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">default_table</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span>
                  <span class="n">primary_columns</span><span class="o">=</span><span class="n">Undef</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">map</span> <span class="o">=</span> <span class="nb">map</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">where</span> <span class="o">=</span> <span class="n">where</span>
@@ -821,7 +819,7 @@
 <div class="viewcode-block" id="Delete"><a class="viewcode-back" href="../../api.html#storm.expr.Delete">[docs]</a><span class="k">class</span> <span class="nc">Delete</span><span class="p">(</span><span class="n">Expr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;where&quot;</span><span class="p">,</span> <span class="s2">&quot;table&quot;</span><span class="p">,</span> <span class="s2">&quot;default_table&quot;</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">where</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">table</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">default_table</span><span class="o">=</span><span class="n">Undef</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">where</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">table</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">default_table</span><span class="o">=</span><span class="n">Undef</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">where</span> <span class="o">=</span> <span class="n">where</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">table</span> <span class="o">=</span> <span class="n">table</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">default_table</span> <span class="o">=</span> <span class="n">default_table</span></div>
@@ -858,7 +856,7 @@
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;table&quot;</span><span class="p">,</span> <span class="s2">&quot;primary&quot;</span><span class="p">,</span> <span class="s2">&quot;variable_factory&quot;</span><span class="p">,</span>
                  <span class="s2">&quot;compile_cache&quot;</span><span class="p">,</span> <span class="s2">&quot;compile_id&quot;</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">table</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">primary</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">table</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">primary</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                  <span class="n">variable_factory</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">table</span> <span class="o">=</span> <span class="n">table</span>
@@ -868,7 +866,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">compile_id</span> <span class="o">=</span> <span class="kc">None</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">is_python2</span><span class="p">:</span>
-        <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">def</span> <span class="fm">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
             <span class="k">return</span> <span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="compile_column"><a class="viewcode-back" href="../../api.html#storm.expr.compile_column">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Column</span><span class="p">)</span>
@@ -909,7 +907,7 @@
 
     <span class="n">auto_counter</span> <span class="o">=</span> <span class="mi">0</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">Undef</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">Undef</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Create alias of C{expr} AS C{name}.</span>
 
 <span class="sd">        If C{name} is not given, then a name will automatically be</span>
@@ -922,7 +920,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">is_python2</span><span class="p">:</span>
-        <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">def</span> <span class="fm">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
             <span class="k">return</span> <span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
 
 
@@ -944,7 +942,7 @@
 <div class="viewcode-block" id="Table"><a class="viewcode-back" href="../../api.html#storm.expr.Table">[docs]</a><span class="k">class</span> <span class="nc">Table</span><span class="p">(</span><span class="n">FromExpr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;compile_cache&quot;</span><span class="p">,</span> <span class="s2">&quot;compile_id&quot;</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">compile_cache</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">compile_id</span> <span class="o">=</span> <span class="kc">None</span></div>
@@ -963,7 +961,7 @@
 
     <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot;(unknown)&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg1</span><span class="p">,</span> <span class="n">arg2</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">Undef</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg1</span><span class="p">,</span> <span class="n">arg2</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">Undef</span><span class="p">):</span>
         <span class="c1"># http://www.postgresql.org/docs/8.1/interactive/explicit-joins.html</span>
         <span class="k">if</span> <span class="n">arg2</span> <span class="ow">is</span> <span class="n">Undef</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">left</span> <span class="o">=</span> <span class="n">Undef</span>
@@ -1037,7 +1035,7 @@
     <span class="sd">&quot;&quot;&quot;Add the &#39;DISTINCT&#39; prefix to an expression.&quot;&quot;&quot;</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;expr&quot;</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expr</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expr</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">expr</span> <span class="o">=</span> <span class="n">expr</span></div>
 
 <div class="viewcode-block" id="compile_distinct"><a class="viewcode-back" href="../../api.html#storm.expr.compile_distinct">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Distinct</span><span class="p">)</span>
@@ -1140,7 +1138,7 @@
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;escape&quot;</span><span class="p">,</span> <span class="s2">&quot;case_sensitive&quot;</span><span class="p">)</span>
     <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot; LIKE &quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expr1</span><span class="p">,</span> <span class="n">expr2</span><span class="p">,</span> <span class="n">escape</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">case_sensitive</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expr1</span><span class="p">,</span> <span class="n">expr2</span><span class="p">,</span> <span class="n">escape</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">case_sensitive</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">expr1</span> <span class="o">=</span> <span class="n">expr1</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">expr2</span> <span class="o">=</span> <span class="n">expr2</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">escape</span> <span class="o">=</span> <span class="n">escape</span>
@@ -1216,7 +1214,7 @@
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;exprs&quot;</span><span class="p">,</span> <span class="s2">&quot;all&quot;</span><span class="p">,</span> <span class="s2">&quot;order_by&quot;</span><span class="p">,</span> <span class="s2">&quot;limit&quot;</span><span class="p">,</span> <span class="s2">&quot;offset&quot;</span><span class="p">)</span>
     <span class="n">oper</span> <span class="o">=</span> <span class="s2">&quot; (unknown) &quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">exprs</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">exprs</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">exprs</span> <span class="o">=</span> <span class="n">exprs</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">all</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;all&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">order_by</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;order_by&quot;</span><span class="p">,</span> <span class="n">Undef</span><span class="p">)</span>
@@ -1312,7 +1310,7 @@
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;column&quot;</span><span class="p">,</span> <span class="s2">&quot;distinct&quot;</span><span class="p">)</span>
     <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;COUNT&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">column</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">distinct</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">column</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">distinct</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">distinct</span> <span class="ow">and</span> <span class="n">column</span> <span class="ow">is</span> <span class="n">Undef</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Must specify column when using distinct count&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">column</span> <span class="o">=</span> <span class="n">column</span>
@@ -1333,14 +1331,14 @@
 <div class="viewcode-block" id="Func"><a class="viewcode-back" href="../../api.html#storm.expr.Func">[docs]</a><span class="k">class</span> <span class="nc">Func</span><span class="p">(</span><span class="n">FuncExpr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;args&quot;</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="n">args</span></div>
 
 <div class="viewcode-block" id="NamedFunc"><a class="viewcode-back" href="../../api.html#storm.expr.NamedFunc">[docs]</a><span class="k">class</span> <span class="nc">NamedFunc</span><span class="p">(</span><span class="n">FuncExpr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;args&quot;</span><span class="p">,)</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="n">args</span></div>
 
 <div class="viewcode-block" id="compile_func"><a class="viewcode-back" href="../../api.html#storm.expr.compile_func">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">Func</span><span class="p">,</span> <span class="n">NamedFunc</span><span class="p">)</span>
@@ -1392,7 +1390,7 @@
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;column&quot;</span><span class="p">,</span> <span class="s2">&quot;type&quot;</span><span class="p">)</span>
     <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;CAST&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">column</span><span class="p">,</span> <span class="nb">type</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">column</span><span class="p">,</span> <span class="nb">type</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Create a cast of C{column} as C{type}.&quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">column</span> <span class="o">=</span> <span class="n">column</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">type</span></div>
@@ -1414,7 +1412,7 @@
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;expr&quot;</span><span class="p">,)</span>
     <span class="n">prefix</span> <span class="o">=</span> <span class="s2">&quot;(unknown)&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expr</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expr</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">expr</span> <span class="o">=</span> <span class="n">expr</span></div>
 
 <div class="viewcode-block" id="compile_prefix_expr"><a class="viewcode-back" href="../../api.html#storm.expr.compile_prefix_expr">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">PrefixExpr</span><span class="p">)</span>
@@ -1426,7 +1424,7 @@
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;expr&quot;</span><span class="p">,)</span>
     <span class="n">suffix</span> <span class="o">=</span> <span class="s2">&quot;(unknown)&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expr</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expr</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">expr</span> <span class="o">=</span> <span class="n">expr</span></div>
 
 <div class="viewcode-block" id="compile_suffix_expr"><a class="viewcode-back" href="../../api.html#storm.expr.compile_suffix_expr">[docs]</a><span class="nd">@compile</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">SuffixExpr</span><span class="p">)</span>
@@ -1493,7 +1491,7 @@
 <div class="viewcode-block" id="SQL"><a class="viewcode-back" href="../../api.html#storm.expr.SQL">[docs]</a><span class="k">class</span> <span class="nc">SQL</span><span class="p">(</span><span class="n">ComparableExpr</span><span class="p">):</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;expr&quot;</span><span class="p">,</span> <span class="s2">&quot;params&quot;</span><span class="p">,</span> <span class="s2">&quot;tables&quot;</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">tables</span><span class="o">=</span><span class="n">Undef</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">tables</span><span class="o">=</span><span class="n">Undef</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">expr</span> <span class="o">=</span> <span class="n">expr</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">params</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tables</span> <span class="o">=</span> <span class="n">tables</span></div>
@@ -1529,7 +1527,7 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,)</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span></div>
 
 
@@ -1564,7 +1562,7 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;expr&quot;</span><span class="p">,</span> <span class="s2">&quot;tables&quot;</span><span class="p">,</span> <span class="s2">&quot;replace&quot;</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">tables</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">tables</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="k">assert</span> <span class="nb">type</span><span class="p">(</span><span class="n">tables</span><span class="p">)</span> <span class="ow">in</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">expr</span> <span class="o">=</span> <span class="n">expr</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tables</span> <span class="o">=</span> <span class="n">tables</span>
@@ -1669,13 +1667,11 @@
 </ul>
 </div>
 <div id="searchbox" style="display: none" role="search">
-  <h3>Quick search</h3>
+  <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="../../search.html" method="get">
-      <input type="text" name="q" />
+      <input type="text" name="q" aria-labelledby="searchlabel" />
       <input type="submit" value="Go" />
-      <input type="hidden" name="check_keywords" value="yes" />
-      <input type="hidden" name="area" value="default" />
     </form>
     </div>
 </div>
@@ -1696,7 +1692,7 @@
       &copy;2018, Gustavo Niemeyer.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.4</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.3.1</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
     </div>

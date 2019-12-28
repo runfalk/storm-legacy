@@ -1,11 +1,9 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
-    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
     <title>storm.references &#8212; Storm  documentation</title>
     <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
@@ -55,15 +53,15 @@
 <span class="c1">#</span>
 <span class="kn">import</span> <span class="nn">weakref</span>
 
-<span class="kn">from</span> <span class="nn">storm.compat</span> <span class="k">import</span> <span class="n">iter_items</span><span class="p">,</span> <span class="n">iter_zip</span><span class="p">,</span> <span class="n">string_types</span>
-<span class="kn">from</span> <span class="nn">storm.exceptions</span> <span class="k">import</span> <span class="p">(</span>
+<span class="kn">from</span> <span class="nn">storm.compat</span> <span class="kn">import</span> <span class="n">iter_items</span><span class="p">,</span> <span class="n">iter_zip</span><span class="p">,</span> <span class="n">string_types</span>
+<span class="kn">from</span> <span class="nn">storm.exceptions</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">ClassInfoError</span><span class="p">,</span> <span class="n">FeatureError</span><span class="p">,</span> <span class="n">NoStoreError</span><span class="p">,</span> <span class="n">WrongStoreError</span><span class="p">)</span>
-<span class="kn">from</span> <span class="nn">storm.store</span> <span class="k">import</span> <span class="n">Store</span><span class="p">,</span> <span class="n">get_where_for_args</span><span class="p">,</span> <span class="n">LostObjectError</span>
-<span class="kn">from</span> <span class="nn">storm.variables</span> <span class="k">import</span> <span class="n">LazyValue</span>
-<span class="kn">from</span> <span class="nn">storm.expr</span> <span class="k">import</span> <span class="p">(</span>
+<span class="kn">from</span> <span class="nn">storm.store</span> <span class="kn">import</span> <span class="n">Store</span><span class="p">,</span> <span class="n">get_where_for_args</span><span class="p">,</span> <span class="n">LostObjectError</span>
+<span class="kn">from</span> <span class="nn">storm.variables</span> <span class="kn">import</span> <span class="n">LazyValue</span>
+<span class="kn">from</span> <span class="nn">storm.expr</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">Select</span><span class="p">,</span> <span class="n">Column</span><span class="p">,</span> <span class="n">Exists</span><span class="p">,</span> <span class="n">ComparableExpr</span><span class="p">,</span> <span class="n">SuffixExpr</span><span class="p">,</span> <span class="n">LeftJoin</span><span class="p">,</span> <span class="n">Not</span><span class="p">,</span> <span class="n">SQLRaw</span><span class="p">,</span>
     <span class="n">compare_columns</span><span class="p">,</span> <span class="nb">compile</span><span class="p">)</span>
-<span class="kn">from</span> <span class="nn">storm.info</span> <span class="k">import</span> <span class="n">get_cls_info</span><span class="p">,</span> <span class="n">get_obj_info</span>
+<span class="kn">from</span> <span class="nn">storm.info</span> <span class="kn">import</span> <span class="n">get_cls_info</span><span class="p">,</span> <span class="n">get_obj_info</span>
 
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Reference&quot;</span><span class="p">,</span> <span class="s2">&quot;ReferenceSet&quot;</span><span class="p">,</span> <span class="s2">&quot;Proxy&quot;</span><span class="p">]</span>
@@ -79,11 +77,11 @@
 <span class="sd">    seldomly instantiated (the case of references).</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">,</span> <span class="n">attr_builder</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">,</span> <span class="n">attr_builder</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_attr</span> <span class="o">=</span> <span class="n">attr</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_attr_builder</span> <span class="o">=</span> <span class="n">attr_builder</span>
 
-    <span class="k">def</span> <span class="nf">__get__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__get__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attr_builder</span><span class="p">)()</span>
         <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attr</span><span class="p">)</span>
 
@@ -146,7 +144,7 @@
     <span class="c1"># public API of Storm (we&#39;ll modify it without warnings!).</span>
     <span class="n">_relation</span> <span class="o">=</span> <span class="n">LazyAttribute</span><span class="p">(</span><span class="s2">&quot;_relation&quot;</span><span class="p">,</span> <span class="s2">&quot;_build_relation&quot;</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local_key</span><span class="p">,</span> <span class="n">remote_key</span><span class="p">,</span> <span class="n">on_remote</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local_key</span><span class="p">,</span> <span class="n">remote_key</span><span class="p">,</span> <span class="n">on_remote</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Create a Reference property.</span>
 
@@ -165,7 +163,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_on_remote</span> <span class="o">=</span> <span class="n">on_remote</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_cls</span> <span class="o">=</span> <span class="kc">None</span>
 
-    <span class="k">def</span> <span class="nf">__get__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__get__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">local</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="c1"># Don&#39;t use local here, as it might be security proxied.</span>
             <span class="n">local</span> <span class="o">=</span> <span class="n">get_obj_info</span><span class="p">(</span><span class="n">local</span><span class="p">)</span><span class="o">.</span><span class="n">get_obj</span><span class="p">()</span>
@@ -200,7 +198,7 @@
 
         <span class="k">return</span> <span class="n">remote</span>
 
-    <span class="k">def</span> <span class="nf">__set__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local</span><span class="p">,</span> <span class="n">remote</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__set__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local</span><span class="p">,</span> <span class="n">remote</span><span class="p">):</span>
         <span class="c1"># Don&#39;t use local here, as it might be security proxied or something.</span>
         <span class="n">local</span> <span class="o">=</span> <span class="n">get_obj_info</span><span class="p">(</span><span class="n">local</span><span class="p">)</span><span class="o">.</span><span class="n">get_obj</span><span class="p">()</span>
 
@@ -235,10 +233,10 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_relation</span> <span class="o">=</span> <span class="n">Relation</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_local_key</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_remote_key</span><span class="p">,</span>
                                   <span class="kc">False</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_on_remote</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_relation</span><span class="o">.</span><span class="n">get_where_for_local</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__ne__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__ne__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">Not</span><span class="p">(</span><span class="bp">self</span> <span class="o">==</span> <span class="n">other</span><span class="p">)</span></div>
 
 
@@ -251,7 +249,7 @@
     <span class="n">_relation2</span> <span class="o">=</span> <span class="n">LazyAttribute</span><span class="p">(</span><span class="s2">&quot;_relation2&quot;</span><span class="p">,</span> <span class="s2">&quot;_build_relations&quot;</span><span class="p">)</span>
     <span class="n">_order_by</span> <span class="o">=</span> <span class="n">LazyAttribute</span><span class="p">(</span><span class="s2">&quot;_order_by&quot;</span><span class="p">,</span> <span class="s2">&quot;_build_relations&quot;</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local_key1</span><span class="p">,</span> <span class="n">remote_key1</span><span class="p">,</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local_key1</span><span class="p">,</span> <span class="n">remote_key1</span><span class="p">,</span>
                  <span class="n">remote_key2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">local_key2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">order_by</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_local_key1</span> <span class="o">=</span> <span class="n">local_key1</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_remote_key1</span> <span class="o">=</span> <span class="n">remote_key1</span>
@@ -260,7 +258,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_default_order_by</span> <span class="o">=</span> <span class="n">order_by</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_cls</span> <span class="o">=</span> <span class="kc">None</span>
 
-    <span class="k">def</span> <span class="nf">__get__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__get__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">local</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="c1"># Don&#39;t use local here, as it might be security proxied.</span>
             <span class="n">local</span> <span class="o">=</span> <span class="n">get_obj_info</span><span class="p">(</span><span class="n">local</span><span class="p">)</span><span class="o">.</span><span class="n">get_obj</span><span class="p">()</span>
@@ -282,7 +280,7 @@
                                              <span class="bp">self</span><span class="o">.</span><span class="n">_relation2</span><span class="p">,</span> <span class="n">local</span><span class="p">,</span>
                                              <span class="bp">self</span><span class="o">.</span><span class="n">_order_by</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__set__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__set__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="k">raise</span> <span class="n">FeatureError</span><span class="p">(</span><span class="s2">&quot;Assigning to ResultSets not supported&quot;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_build_relations</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -319,10 +317,10 @@
             <span class="n">result</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">_order_by</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">result</span>
 
-    <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">find</span><span class="p">()</span><span class="o">.</span><span class="fm">__iter__</span><span class="p">()</span>
 
-    <span class="k">def</span> <span class="nf">__contains__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__contains__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">find</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">first</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -349,7 +347,7 @@
 
 <span class="k">class</span> <span class="nc">BoundReferenceSet</span><span class="p">(</span><span class="n">BoundReferenceSetBase</span><span class="p">):</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">relation</span><span class="p">,</span> <span class="n">local</span><span class="p">,</span> <span class="n">order_by</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">relation</span><span class="p">,</span> <span class="n">local</span><span class="p">,</span> <span class="n">order_by</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_relation</span> <span class="o">=</span> <span class="n">relation</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_local</span> <span class="o">=</span> <span class="n">local</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_target_cls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_relation</span><span class="o">.</span><span class="n">remote_cls</span>
@@ -378,7 +376,7 @@
 
 <span class="k">class</span> <span class="nc">BoundIndirectReferenceSet</span><span class="p">(</span><span class="n">BoundReferenceSetBase</span><span class="p">):</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">relation1</span><span class="p">,</span> <span class="n">relation2</span><span class="p">,</span> <span class="n">local</span><span class="p">,</span> <span class="n">order_by</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">relation1</span><span class="p">,</span> <span class="n">relation2</span><span class="p">,</span> <span class="n">local</span><span class="p">,</span> <span class="n">order_by</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_relation1</span> <span class="o">=</span> <span class="n">relation1</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_relation2</span> <span class="o">=</span> <span class="n">relation2</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_local</span> <span class="o">=</span> <span class="n">local</span>
@@ -441,19 +439,19 @@
 <span class="sd">        when it&#39;s first used. It avoids having a test at every single</span>
 <span class="sd">        place where the attribute is touched.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">def</span> <span class="nf">__get__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">def</span> <span class="fm">__get__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
             <span class="n">resolver</span> <span class="o">=</span> <span class="n">PropertyResolver</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">obj</span><span class="o">.</span><span class="n">_cls</span><span class="p">)</span>
             <span class="n">obj</span><span class="o">.</span><span class="n">_remote_prop</span> <span class="o">=</span> <span class="n">resolver</span><span class="o">.</span><span class="n">resolve_one</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">_unresolved_prop</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">obj</span><span class="o">.</span><span class="n">_remote_prop</span></div>
 
     <span class="n">_remote_prop</span> <span class="o">=</span> <span class="n">RemoteProp</span><span class="p">()</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reference</span><span class="p">,</span> <span class="n">remote_prop</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reference</span><span class="p">,</span> <span class="n">remote_prop</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_reference</span> <span class="o">=</span> <span class="n">reference</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_unresolved_prop</span> <span class="o">=</span> <span class="n">remote_prop</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_cls</span> <span class="o">=</span> <span class="kc">None</span>
 
-    <span class="k">def</span> <span class="nf">__get__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__get__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cls</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_cls</span> <span class="o">=</span> <span class="n">_find_descriptor_class</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">obj</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -461,7 +459,7 @@
         <span class="c1"># Have you counted how many descriptors we&#39;re dealing with here? ;-)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_remote_prop</span><span class="o">.</span><span class="fm">__get__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_reference</span><span class="o">.</span><span class="fm">__get__</span><span class="p">(</span><span class="n">obj</span><span class="p">))</span>
 
-    <span class="k">def</span> <span class="nf">__set__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__set__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_remote_prop</span><span class="o">.</span><span class="fm">__set__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_reference</span><span class="o">.</span><span class="fm">__get__</span><span class="p">(</span><span class="n">obj</span><span class="p">),</span> <span class="n">value</span><span class="p">)</span>
 
     <span class="nd">@property</span>
@@ -483,7 +481,7 @@
 
 <span class="k">class</span> <span class="nc">Relation</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local_key</span><span class="p">,</span> <span class="n">remote_key</span><span class="p">,</span> <span class="n">many</span><span class="p">,</span> <span class="n">on_remote</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local_key</span><span class="p">,</span> <span class="n">remote_key</span><span class="p">,</span> <span class="n">many</span><span class="p">,</span> <span class="n">on_remote</span><span class="p">):</span>
         <span class="k">assert</span> <span class="nb">type</span><span class="p">(</span><span class="n">local_key</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">tuple</span> <span class="ow">and</span> <span class="nb">type</span><span class="p">(</span><span class="n">remote_key</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">tuple</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">local_key</span> <span class="o">=</span> <span class="n">local_key</span>
@@ -930,7 +928,7 @@
 <span class="k">class</span> <span class="nc">PropertyResolver</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Transform strings and pure properties (non-columns) into columns.&quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reference</span><span class="p">,</span> <span class="n">used_cls</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reference</span><span class="p">,</span> <span class="n">used_cls</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_reference</span> <span class="o">=</span> <span class="n">reference</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_used_cls</span> <span class="o">=</span> <span class="n">used_cls</span>
 
@@ -1019,13 +1017,11 @@
 </ul>
 </div>
 <div id="searchbox" style="display: none" role="search">
-  <h3>Quick search</h3>
+  <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="../../search.html" method="get">
-      <input type="text" name="q" />
+      <input type="text" name="q" aria-labelledby="searchlabel" />
       <input type="submit" value="Go" />
-      <input type="hidden" name="check_keywords" value="yes" />
-      <input type="hidden" name="area" value="default" />
     </form>
     </div>
 </div>
@@ -1046,7 +1042,7 @@
       &copy;2018, Gustavo Niemeyer.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.4</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.3.1</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
     </div>

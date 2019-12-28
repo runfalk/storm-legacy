@@ -1,11 +1,9 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
-    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
     <title>storm.store &#8212; Storm  documentation</title>
     <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
@@ -59,24 +57,24 @@
 <span class="sd">This module contains the highest-level ORM interface in Storm.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
-<span class="kn">from</span> <span class="nn">copy</span> <span class="k">import</span> <span class="n">copy</span>
-<span class="kn">from</span> <span class="nn">weakref</span> <span class="k">import</span> <span class="n">WeakValueDictionary</span>
-<span class="kn">from</span> <span class="nn">operator</span> <span class="k">import</span> <span class="n">itemgetter</span>
+<span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">copy</span>
+<span class="kn">from</span> <span class="nn">weakref</span> <span class="kn">import</span> <span class="n">WeakValueDictionary</span>
+<span class="kn">from</span> <span class="nn">operator</span> <span class="kn">import</span> <span class="n">itemgetter</span>
 
-<span class="kn">from</span> <span class="nn">storm.compat</span> <span class="k">import</span> <span class="n">iter_items</span><span class="p">,</span> <span class="n">iter_values</span><span class="p">,</span> <span class="n">iter_zip</span><span class="p">,</span> <span class="n">long_int</span>
-<span class="kn">from</span> <span class="nn">storm.info</span> <span class="k">import</span> <span class="n">get_cls_info</span><span class="p">,</span> <span class="n">get_obj_info</span><span class="p">,</span> <span class="n">set_obj_info</span>
-<span class="kn">from</span> <span class="nn">storm.variables</span> <span class="k">import</span> <span class="n">Variable</span><span class="p">,</span> <span class="n">LazyValue</span>
-<span class="kn">from</span> <span class="nn">storm.expr</span> <span class="k">import</span> <span class="p">(</span>
+<span class="kn">from</span> <span class="nn">storm.compat</span> <span class="kn">import</span> <span class="n">iter_items</span><span class="p">,</span> <span class="n">iter_values</span><span class="p">,</span> <span class="n">iter_zip</span><span class="p">,</span> <span class="n">long_int</span>
+<span class="kn">from</span> <span class="nn">storm.info</span> <span class="kn">import</span> <span class="n">get_cls_info</span><span class="p">,</span> <span class="n">get_obj_info</span><span class="p">,</span> <span class="n">set_obj_info</span>
+<span class="kn">from</span> <span class="nn">storm.variables</span> <span class="kn">import</span> <span class="n">Variable</span><span class="p">,</span> <span class="n">LazyValue</span>
+<span class="kn">from</span> <span class="nn">storm.expr</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">Expr</span><span class="p">,</span> <span class="n">Select</span><span class="p">,</span> <span class="n">Insert</span><span class="p">,</span> <span class="n">Update</span><span class="p">,</span> <span class="n">Delete</span><span class="p">,</span> <span class="n">Column</span><span class="p">,</span> <span class="n">Count</span><span class="p">,</span> <span class="n">Max</span><span class="p">,</span> <span class="n">Min</span><span class="p">,</span>
     <span class="n">Avg</span><span class="p">,</span> <span class="n">Sum</span><span class="p">,</span> <span class="n">Eq</span><span class="p">,</span> <span class="n">And</span><span class="p">,</span> <span class="n">Asc</span><span class="p">,</span> <span class="n">Desc</span><span class="p">,</span> <span class="n">compile_python</span><span class="p">,</span> <span class="n">compare_columns</span><span class="p">,</span> <span class="n">SQLRaw</span><span class="p">,</span>
     <span class="n">Union</span><span class="p">,</span> <span class="n">Except</span><span class="p">,</span> <span class="n">Intersect</span><span class="p">,</span> <span class="n">Alias</span><span class="p">,</span> <span class="n">SetExpr</span><span class="p">)</span>
-<span class="kn">from</span> <span class="nn">storm.exceptions</span> <span class="k">import</span> <span class="p">(</span>
+<span class="kn">from</span> <span class="nn">storm.exceptions</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">WrongStoreError</span><span class="p">,</span> <span class="n">NotFlushedError</span><span class="p">,</span> <span class="n">OrderLoopError</span><span class="p">,</span> <span class="n">UnorderedError</span><span class="p">,</span>
     <span class="n">NotOneError</span><span class="p">,</span> <span class="n">FeatureError</span><span class="p">,</span> <span class="n">CompileError</span><span class="p">,</span> <span class="n">LostObjectError</span><span class="p">,</span> <span class="n">ClassInfoError</span><span class="p">)</span>
-<span class="kn">from</span> <span class="nn">storm.properties</span> <span class="k">import</span> <span class="n">PropertyColumn</span>
-<span class="kn">from</span> <span class="nn">storm</span> <span class="k">import</span> <span class="n">Undef</span>
-<span class="kn">from</span> <span class="nn">storm.cache</span> <span class="k">import</span> <span class="n">Cache</span>
-<span class="kn">from</span> <span class="nn">storm.event</span> <span class="k">import</span> <span class="n">EventSystem</span>
+<span class="kn">from</span> <span class="nn">storm.properties</span> <span class="kn">import</span> <span class="n">PropertyColumn</span>
+<span class="kn">from</span> <span class="nn">storm</span> <span class="kn">import</span> <span class="n">Undef</span>
+<span class="kn">from</span> <span class="nn">storm.cache</span> <span class="kn">import</span> <span class="n">Cache</span>
+<span class="kn">from</span> <span class="nn">storm.event</span> <span class="kn">import</span> <span class="n">EventSystem</span>
 
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Store&quot;</span><span class="p">,</span> <span class="s2">&quot;AutoReload&quot;</span><span class="p">,</span> <span class="s2">&quot;EmptyResultSet&quot;</span><span class="p">]</span>
@@ -100,7 +98,7 @@
 
     <span class="n">_result_set_factory</span> <span class="o">=</span> <span class="kc">None</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">database</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">database</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        @param database: The L{storm.database.Database} instance to use.</span>
 <span class="sd">        @param cache: The cache to use.  Defaults to a L{Cache} instance.</span>
@@ -961,7 +959,7 @@
 <span class="sd">    retrieved from calls to L{Store.find}.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">store</span><span class="p">,</span> <span class="n">find_spec</span><span class="p">,</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">store</span><span class="p">,</span> <span class="n">find_spec</span><span class="p">,</span>
                  <span class="n">where</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">tables</span><span class="o">=</span><span class="n">Undef</span><span class="p">,</span> <span class="n">select</span><span class="o">=</span><span class="n">Undef</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_store</span> <span class="o">=</span> <span class="n">store</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_find_spec</span> <span class="o">=</span> <span class="n">find_spec</span>
@@ -1026,14 +1024,14 @@
     <span class="k">def</span> <span class="nf">_load_objects</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_find_spec</span><span class="o">.</span><span class="n">load_objects</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_store</span><span class="p">,</span> <span class="n">result</span><span class="p">,</span> <span class="n">values</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Iterate the results of the query.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_store</span><span class="o">.</span><span class="n">_connection</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_select</span><span class="p">())</span>
         <span class="k">for</span> <span class="n">values</span> <span class="ow">in</span> <span class="n">result</span><span class="p">:</span>
             <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_objects</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">values</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Get an individual item by offset, or a range of items by slice.</span>
 
 <span class="sd">        @return: The matching object or, if a slice is used, a new</span>
@@ -1080,7 +1078,7 @@
 
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span><span class="o">.</span><span class="n">config</span><span class="p">(</span><span class="n">offset</span><span class="o">=</span><span class="n">offset</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="n">limit</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__contains__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__contains__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Check if an item is contained within the result set.&quot;&quot;&quot;</span>
         <span class="n">columns</span><span class="p">,</span> <span class="n">values</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_find_spec</span><span class="o">.</span><span class="n">get_columns_and_values_for_item</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
 
@@ -1568,7 +1566,7 @@
 <span class="sd">    are meant to emulate a L{ResultSet} which has matched no rows.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ordered</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ordered</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_order_by</span> <span class="o">=</span> <span class="n">ordered</span>
 
 <div class="viewcode-block" id="EmptyResultSet.copy"><a class="viewcode-back" href="../../api.html#storm.store.EmptyResultSet.copy">[docs]</a>    <span class="k">def</span> <span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -1578,14 +1576,14 @@
 <div class="viewcode-block" id="EmptyResultSet.config"><a class="viewcode-back" href="../../api.html#storm.store.EmptyResultSet.config">[docs]</a>    <span class="k">def</span> <span class="nf">config</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">distinct</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="k">pass</span></div>
 
-    <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span>
         <span class="k">yield</span> <span class="kc">None</span>
 
-    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
 
-    <span class="k">def</span> <span class="nf">__contains__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__contains__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">):</span>
         <span class="k">return</span> <span class="kc">False</span>
 
 <div class="viewcode-block" id="EmptyResultSet.is_empty"><a class="viewcode-back" href="../../api.html#storm.store.EmptyResultSet.is_empty">[docs]</a>    <span class="k">def</span> <span class="nf">is_empty</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -1681,7 +1679,7 @@
 <span class="sd">    This will typically be constructed by a call to L{Store.using}.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">store</span><span class="p">,</span> <span class="n">tables</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">store</span><span class="p">,</span> <span class="n">tables</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_store</span> <span class="o">=</span> <span class="n">store</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_tables</span> <span class="o">=</span> <span class="n">tables</span>
 
@@ -1708,7 +1706,7 @@
 <span class="k">class</span> <span class="nc">FindSpec</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;The set of tables or expressions in the result of L{Store.find}.&quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cls_spec</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cls_spec</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">is_tuple</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">cls_spec</span><span class="p">)</span> <span class="o">==</span> <span class="nb">tuple</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_tuple</span><span class="p">:</span>
             <span class="n">cls_spec</span> <span class="o">=</span> <span class="p">(</span><span class="n">cls_spec</span><span class="p">,)</span>
@@ -1922,13 +1920,11 @@
 </ul>
 </div>
 <div id="searchbox" style="display: none" role="search">
-  <h3>Quick search</h3>
+  <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="../../search.html" method="get">
-      <input type="text" name="q" />
+      <input type="text" name="q" aria-labelledby="searchlabel" />
       <input type="submit" value="Go" />
-      <input type="hidden" name="check_keywords" value="yes" />
-      <input type="hidden" name="area" value="default" />
     </form>
     </div>
 </div>
@@ -1949,7 +1945,7 @@
       &copy;2018, Gustavo Niemeyer.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.4</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.3.1</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
     </div>

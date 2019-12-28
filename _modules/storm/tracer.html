@@ -1,11 +1,9 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
-    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
     <title>storm.tracer &#8212; Storm  documentation</title>
     <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
@@ -33,21 +31,21 @@
           <div class="body" role="main">
             
   <h1>Source code for storm.tracer</h1><div class="highlight"><pre>
-<span></span><span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span>
+<span></span><span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
 <span class="kn">import</span> <span class="nn">re</span>
 <span class="kn">import</span> <span class="nn">sys</span>
 <span class="kn">import</span> <span class="nn">threading</span>
 
 <span class="c1"># Circular import: imported at the end of the module.</span>
 <span class="c1"># from storm.database import convert_param_marks</span>
-<span class="kn">from</span> <span class="nn">storm.compat</span> <span class="k">import</span> <span class="n">iter_range</span><span class="p">,</span> <span class="n">ustr</span>
-<span class="kn">from</span> <span class="nn">storm.exceptions</span> <span class="k">import</span> <span class="ne">TimeoutError</span>
-<span class="kn">from</span> <span class="nn">storm.expr</span> <span class="k">import</span> <span class="n">Variable</span>
+<span class="kn">from</span> <span class="nn">storm.compat</span> <span class="kn">import</span> <span class="n">iter_range</span><span class="p">,</span> <span class="n">ustr</span>
+<span class="kn">from</span> <span class="nn">storm.exceptions</span> <span class="kn">import</span> <span class="ne">TimeoutError</span>
+<span class="kn">from</span> <span class="nn">storm.expr</span> <span class="kn">import</span> <span class="n">Variable</span>
 
 
 <div class="viewcode-block" id="DebugTracer"><a class="viewcode-back" href="../../api.html#storm.tracer.DebugTracer">[docs]</a><span class="k">class</span> <span class="nc">DebugTracer</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">stream</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">stream</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span> <span class="o">=</span> <span class="n">stream</span>
@@ -177,7 +175,7 @@
 
 
 <span class="c1"># Deal with circular import.</span>
-<span class="kn">from</span> <span class="nn">storm.database</span> <span class="k">import</span> <span class="n">convert_param_marks</span>
+<span class="kn">from</span> <span class="nn">storm.database</span> <span class="kn">import</span> <span class="n">convert_param_marks</span>
 </pre></div>
 
           </div>
@@ -213,13 +211,11 @@
 </ul>
 </div>
 <div id="searchbox" style="display: none" role="search">
-  <h3>Quick search</h3>
+  <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="../../search.html" method="get">
-      <input type="text" name="q" />
+      <input type="text" name="q" aria-labelledby="searchlabel" />
       <input type="submit" value="Go" />
-      <input type="hidden" name="check_keywords" value="yes" />
-      <input type="hidden" name="area" value="default" />
     </form>
     </div>
 </div>
@@ -240,7 +236,7 @@
       &copy;2018, Gustavo Niemeyer.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.4</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.3.1</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
     </div>

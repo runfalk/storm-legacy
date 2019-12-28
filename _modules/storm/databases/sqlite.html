@@ -1,11 +1,9 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
-    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
     <title>storm.databases.sqlite &#8212; Storm  documentation</title>
     <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -53,26 +51,26 @@
 <span class="c1"># You should have received a copy of the GNU Lesser General Public License</span>
 <span class="c1"># along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
 <span class="c1">#</span>
-<span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">date</span><span class="p">,</span> <span class="n">time</span><span class="p">,</span> <span class="n">timedelta</span>
-<span class="kn">from</span> <span class="nn">time</span> <span class="k">import</span> <span class="n">sleep</span><span class="p">,</span> <span class="n">time</span> <span class="k">as</span> <span class="n">now</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">date</span><span class="p">,</span> <span class="n">time</span><span class="p">,</span> <span class="n">timedelta</span>
+<span class="kn">from</span> <span class="nn">time</span> <span class="kn">import</span> <span class="n">sleep</span><span class="p">,</span> <span class="n">time</span> <span class="k">as</span> <span class="n">now</span>
 <span class="kn">import</span> <span class="nn">sys</span>
 
-<span class="kn">from</span> <span class="nn">storm.compat</span> <span class="k">import</span> <span class="n">buffer</span>
-<span class="kn">from</span> <span class="nn">storm.databases</span> <span class="k">import</span> <span class="n">dummy</span>
+<span class="kn">from</span> <span class="nn">storm.compat</span> <span class="kn">import</span> <span class="n">buffer</span>
+<span class="kn">from</span> <span class="nn">storm.databases</span> <span class="kn">import</span> <span class="n">dummy</span>
 
 <span class="k">try</span><span class="p">:</span>
-    <span class="kn">from</span> <span class="nn">pysqlite2</span> <span class="k">import</span> <span class="n">dbapi2</span> <span class="k">as</span> <span class="n">sqlite</span>
+    <span class="kn">from</span> <span class="nn">pysqlite2</span> <span class="kn">import</span> <span class="n">dbapi2</span> <span class="k">as</span> <span class="n">sqlite</span>
 <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="kn">from</span> <span class="nn">sqlite3</span> <span class="k">import</span> <span class="n">dbapi2</span> <span class="k">as</span> <span class="n">sqlite</span>
+        <span class="kn">from</span> <span class="nn">sqlite3</span> <span class="kn">import</span> <span class="n">dbapi2</span> <span class="k">as</span> <span class="n">sqlite</span>
     <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
         <span class="n">sqlite</span> <span class="o">=</span> <span class="n">dummy</span>
 
-<span class="kn">from</span> <span class="nn">storm.compat</span> <span class="k">import</span> <span class="n">bstr</span><span class="p">,</span> <span class="n">ustr</span>
-<span class="kn">from</span> <span class="nn">storm.variables</span> <span class="k">import</span> <span class="n">Variable</span><span class="p">,</span> <span class="n">RawStrVariable</span>
-<span class="kn">from</span> <span class="nn">storm.database</span> <span class="k">import</span> <span class="n">Database</span><span class="p">,</span> <span class="n">Connection</span><span class="p">,</span> <span class="n">Result</span>
-<span class="kn">from</span> <span class="nn">storm.exceptions</span> <span class="k">import</span> <span class="n">install_exceptions</span><span class="p">,</span> <span class="n">DatabaseModuleError</span>
-<span class="kn">from</span> <span class="nn">storm.expr</span> <span class="k">import</span> <span class="p">(</span>
+<span class="kn">from</span> <span class="nn">storm.compat</span> <span class="kn">import</span> <span class="n">bstr</span><span class="p">,</span> <span class="n">ustr</span>
+<span class="kn">from</span> <span class="nn">storm.variables</span> <span class="kn">import</span> <span class="n">Variable</span><span class="p">,</span> <span class="n">RawStrVariable</span>
+<span class="kn">from</span> <span class="nn">storm.database</span> <span class="kn">import</span> <span class="n">Database</span><span class="p">,</span> <span class="n">Connection</span><span class="p">,</span> <span class="n">Result</span>
+<span class="kn">from</span> <span class="nn">storm.exceptions</span> <span class="kn">import</span> <span class="n">install_exceptions</span><span class="p">,</span> <span class="n">DatabaseModuleError</span>
+<span class="kn">from</span> <span class="nn">storm.expr</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">Insert</span><span class="p">,</span> <span class="n">Select</span><span class="p">,</span> <span class="n">SELECT</span><span class="p">,</span> <span class="n">Undef</span><span class="p">,</span> <span class="n">SQLRaw</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Except</span><span class="p">,</span> <span class="n">Intersect</span><span class="p">,</span>
     <span class="nb">compile</span><span class="p">,</span> <span class="n">compile_insert</span><span class="p">,</span> <span class="n">compile_select</span><span class="p">)</span>
 
@@ -218,7 +216,7 @@
 
     <span class="n">connection_factory</span> <span class="o">=</span> <span class="n">SQLiteConnection</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uri</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uri</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">SQLite</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">uri</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">sqlite</span> <span class="ow">is</span> <span class="n">dummy</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">DatabaseModuleError</span><span class="p">(</span><span class="s2">&quot;&#39;pysqlite2&#39; module not found&quot;</span><span class="p">)</span>
@@ -335,13 +333,11 @@
 </ul>
 </div>
 <div id="searchbox" style="display: none" role="search">
-  <h3>Quick search</h3>
+  <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="../../../search.html" method="get">
-      <input type="text" name="q" />
+      <input type="text" name="q" aria-labelledby="searchlabel" />
       <input type="submit" value="Go" />
-      <input type="hidden" name="check_keywords" value="yes" />
-      <input type="hidden" name="area" value="default" />
     </form>
     </div>
 </div>
@@ -362,7 +358,7 @@
       &copy;2018, Gustavo Niemeyer.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.4</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.3.1</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
     </div>

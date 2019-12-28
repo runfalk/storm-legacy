@@ -1,11 +1,9 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
-    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
     <title>storm.database &#8212; Storm  documentation</title>
     <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
@@ -60,18 +58,18 @@
 <span class="sd">supported in modules in L{storm.databases}.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
-<span class="kn">from</span> <span class="nn">importlib</span> <span class="k">import</span> <span class="n">import_module</span>
+<span class="kn">from</span> <span class="nn">importlib</span> <span class="kn">import</span> <span class="n">import_module</span>
 
-<span class="kn">from</span> <span class="nn">storm.compat</span> <span class="k">import</span> <span class="n">iter_range</span><span class="p">,</span> <span class="n">string_types</span><span class="p">,</span> <span class="n">ustr</span>
-<span class="kn">from</span> <span class="nn">storm.expr</span> <span class="k">import</span> <span class="n">Expr</span><span class="p">,</span> <span class="n">State</span><span class="p">,</span> <span class="nb">compile</span>
+<span class="kn">from</span> <span class="nn">storm.compat</span> <span class="kn">import</span> <span class="n">iter_range</span><span class="p">,</span> <span class="n">string_types</span><span class="p">,</span> <span class="n">ustr</span>
+<span class="kn">from</span> <span class="nn">storm.expr</span> <span class="kn">import</span> <span class="n">Expr</span><span class="p">,</span> <span class="n">State</span><span class="p">,</span> <span class="nb">compile</span>
 <span class="c1"># Circular import: imported at the end of the module.</span>
 <span class="c1"># from storm.tracer import trace</span>
-<span class="kn">from</span> <span class="nn">storm.variables</span> <span class="k">import</span> <span class="n">Variable</span>
-<span class="kn">from</span> <span class="nn">storm.xid</span> <span class="k">import</span> <span class="n">Xid</span>
-<span class="kn">from</span> <span class="nn">storm.exceptions</span> <span class="k">import</span> <span class="p">(</span>
+<span class="kn">from</span> <span class="nn">storm.variables</span> <span class="kn">import</span> <span class="n">Variable</span>
+<span class="kn">from</span> <span class="nn">storm.xid</span> <span class="kn">import</span> <span class="n">Xid</span>
+<span class="kn">from</span> <span class="nn">storm.exceptions</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">ClosedError</span><span class="p">,</span> <span class="n">ConnectionBlockedError</span><span class="p">,</span> <span class="n">DatabaseError</span><span class="p">,</span> <span class="n">DisconnectionError</span><span class="p">,</span>
     <span class="n">Error</span><span class="p">,</span> <span class="n">ProgrammingError</span><span class="p">)</span>
-<span class="kn">from</span> <span class="nn">storm.uri</span> <span class="k">import</span> <span class="n">URI</span>
+<span class="kn">from</span> <span class="nn">storm.uri</span> <span class="kn">import</span> <span class="n">URI</span>
 <span class="kn">import</span> <span class="nn">storm</span>
 
 
@@ -89,14 +87,14 @@
 
     <span class="n">_closed</span> <span class="o">=</span> <span class="kc">False</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">raw_cursor</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">raw_cursor</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="o">=</span> <span class="n">connection</span> <span class="c1"># Ensures deallocation order.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_raw_cursor</span> <span class="o">=</span> <span class="n">raw_cursor</span>
         <span class="k">if</span> <span class="n">raw_cursor</span><span class="o">.</span><span class="n">arraysize</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
             <span class="c1"># Default of 1 is silly.</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_raw_cursor</span><span class="o">.</span><span class="n">arraysize</span> <span class="o">=</span> <span class="mi">10</span>
 
-    <span class="k">def</span> <span class="nf">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Close the cursor.&quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
@@ -141,7 +139,7 @@
             <span class="k">return</span> <span class="p">[</span><span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">from_database</span><span class="p">(</span><span class="n">row</span><span class="p">))</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">result</span><span class="p">]</span>
         <span class="k">return</span> <span class="n">result</span></div>
 
-    <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Yield all results, one at a time.</span>
 
 <span class="sd">        The results will be converted to an appropriate format via</span>
@@ -220,12 +218,12 @@
                                     <span class="c1"># been started with begin()</span>
     <span class="n">_state</span> <span class="o">=</span> <span class="n">STATE_CONNECTED</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">database</span><span class="p">,</span> <span class="n">event</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">database</span><span class="p">,</span> <span class="n">event</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_database</span> <span class="o">=</span> <span class="n">database</span> <span class="c1"># Ensures deallocation order.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_event</span> <span class="o">=</span> <span class="n">event</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_raw_connection</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_database</span><span class="o">.</span><span class="n">raw_connect</span><span class="p">()</span>
 
-    <span class="k">def</span> <span class="nf">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Close the connection.&quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
@@ -517,7 +515,7 @@
 
     <span class="n">connection_factory</span> <span class="o">=</span> <span class="n">Connection</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uri</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uri</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_uri</span> <span class="o">=</span> <span class="n">uri</span>
 
 <div class="viewcode-block" id="Database.get_uri"><a class="viewcode-back" href="../../api.html#storm.database.Database.get_uri">[docs]</a>    <span class="k">def</span> <span class="nf">get_uri</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -593,7 +591,7 @@
     <span class="k">return</span> <span class="n">factory</span><span class="p">(</span><span class="n">uri</span><span class="p">)</span></div>
 
 <span class="c1"># Deal with circular import.</span>
-<span class="kn">from</span> <span class="nn">storm.tracer</span> <span class="k">import</span> <span class="n">trace</span>
+<span class="kn">from</span> <span class="nn">storm.tracer</span> <span class="kn">import</span> <span class="n">trace</span>
 </pre></div>
 
           </div>
@@ -629,13 +627,11 @@
 </ul>
 </div>
 <div id="searchbox" style="display: none" role="search">
-  <h3>Quick search</h3>
+  <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="../../search.html" method="get">
-      <input type="text" name="q" />
+      <input type="text" name="q" aria-labelledby="searchlabel" />
       <input type="submit" value="Go" />
-      <input type="hidden" name="check_keywords" value="yes" />
-      <input type="hidden" name="area" value="default" />
     </form>
     </div>
 </div>
@@ -656,7 +652,7 @@
       &copy;2018, Gustavo Niemeyer.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.4</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.3.1</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
     </div>

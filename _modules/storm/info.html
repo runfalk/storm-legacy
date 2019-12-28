@@ -1,11 +1,9 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
-    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
     <title>storm.info &#8212; Storm  documentation</title>
     <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
@@ -53,14 +51,14 @@
 <span class="c1"># You should have received a copy of the GNU Lesser General Public License</span>
 <span class="c1"># along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
 <span class="c1">#</span>
-<span class="kn">from</span> <span class="nn">weakref</span> <span class="k">import</span> <span class="n">ref</span>
+<span class="kn">from</span> <span class="nn">weakref</span> <span class="kn">import</span> <span class="n">ref</span>
 
-<span class="kn">from</span> <span class="nn">storm.compat</span> <span class="k">import</span> <span class="n">iter_values</span><span class="p">,</span> <span class="n">string_types</span>
-<span class="kn">from</span> <span class="nn">storm.exceptions</span> <span class="k">import</span> <span class="n">ClassInfoError</span>
-<span class="kn">from</span> <span class="nn">storm.expr</span> <span class="k">import</span> <span class="n">Column</span><span class="p">,</span> <span class="n">Desc</span><span class="p">,</span> <span class="n">TABLE</span>
-<span class="kn">from</span> <span class="nn">storm.expr</span> <span class="k">import</span> <span class="nb">compile</span><span class="p">,</span> <span class="n">Table</span>
-<span class="kn">from</span> <span class="nn">storm.event</span> <span class="k">import</span> <span class="n">EventSystem</span>
-<span class="kn">from</span> <span class="nn">storm</span> <span class="k">import</span> <span class="n">Undef</span><span class="p">,</span> <span class="n">has_cextensions</span>
+<span class="kn">from</span> <span class="nn">storm.compat</span> <span class="kn">import</span> <span class="n">iter_values</span><span class="p">,</span> <span class="n">string_types</span>
+<span class="kn">from</span> <span class="nn">storm.exceptions</span> <span class="kn">import</span> <span class="n">ClassInfoError</span>
+<span class="kn">from</span> <span class="nn">storm.expr</span> <span class="kn">import</span> <span class="n">Column</span><span class="p">,</span> <span class="n">Desc</span><span class="p">,</span> <span class="n">TABLE</span>
+<span class="kn">from</span> <span class="nn">storm.expr</span> <span class="kn">import</span> <span class="nb">compile</span><span class="p">,</span> <span class="n">Table</span>
+<span class="kn">from</span> <span class="nn">storm.event</span> <span class="kn">import</span> <span class="n">EventSystem</span>
+<span class="kn">from</span> <span class="nn">storm</span> <span class="kn">import</span> <span class="n">Undef</span><span class="p">,</span> <span class="n">has_cextensions</span>
 
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;get_obj_info&quot;</span><span class="p">,</span> <span class="s2">&quot;set_obj_info&quot;</span><span class="p">,</span> <span class="s2">&quot;get_cls_info&quot;</span><span class="p">,</span>
@@ -102,7 +100,7 @@
 <span class="sd">    @ivar primary_key_pos: Position of primary_key items in the columns tuple.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="bp">cls</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="bp">cls</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">table</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="s2">&quot;__storm_table__&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">table</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">ClassInfoError</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">.__storm_table__ missing&quot;</span> <span class="o">%</span> <span class="nb">repr</span><span class="p">(</span><span class="bp">cls</span><span class="p">))</span>
@@ -176,10 +174,10 @@
                     <span class="n">prop</span> <span class="o">=</span> <span class="n">item</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">default_order</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">prop</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span> <span class="ow">is</span> <span class="n">other</span>
 
-    <span class="k">def</span> <span class="nf">__ne__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__ne__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">other</span></div>
 
 
@@ -190,7 +188,7 @@
     <span class="c1"># For get_obj_info(), an ObjectInfo is its own obj_info.</span>
     <span class="n">__storm_object_info__</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="bp">self</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
         <span class="c1"># FASTPATH This method is part of the fast path.  Be careful when</span>
         <span class="c1">#          changing it (try to profile any changes).</span>
 
@@ -212,10 +210,10 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">primary_vars</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">variables</span><span class="p">[</span><span class="n">column</span><span class="p">]</span>
                                   <span class="k">for</span> <span class="n">column</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls_info</span><span class="o">.</span><span class="n">primary_key</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span> <span class="ow">is</span> <span class="n">other</span>
 
-    <span class="k">def</span> <span class="nf">__ne__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__ne__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">other</span>
 
     <span class="k">def</span> <span class="nf">set_obj</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
@@ -233,7 +231,7 @@
 
 
 <span class="k">if</span> <span class="n">has_cextensions</span><span class="p">:</span>
-    <span class="kn">from</span> <span class="nn">storm.cextensions</span> <span class="k">import</span> <span class="n">ObjectInfo</span><span class="p">,</span> <span class="n">get_obj_info</span>
+    <span class="kn">from</span> <span class="nn">storm.cextensions</span> <span class="kn">import</span> <span class="n">ObjectInfo</span><span class="p">,</span> <span class="n">get_obj_info</span>
 
 
 <div class="viewcode-block" id="ClassAlias"><a class="viewcode-back" href="../../api.html#storm.info.ClassAlias">[docs]</a><span class="k">class</span> <span class="nc">ClassAlias</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
@@ -253,7 +251,7 @@
 
     <span class="n">alias_count</span> <span class="o">=</span> <span class="mi">0</span>
 
-    <span class="k">def</span> <span class="nf">__new__</span><span class="p">(</span><span class="n">self_cls</span><span class="p">,</span> <span class="bp">cls</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">Undef</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__new__</span><span class="p">(</span><span class="n">self_cls</span><span class="p">,</span> <span class="bp">cls</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">Undef</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">name</span> <span class="ow">is</span> <span class="n">Undef</span><span class="p">:</span>
             <span class="n">use_cache</span> <span class="o">=</span> <span class="kc">False</span>
             <span class="n">ClassAlias</span><span class="o">.</span><span class="n">alias_count</span> <span class="o">+=</span> <span class="mi">1</span>
@@ -317,13 +315,11 @@
 </ul>
 </div>
 <div id="searchbox" style="display: none" role="search">
-  <h3>Quick search</h3>
+  <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="../../search.html" method="get">
-      <input type="text" name="q" />
+      <input type="text" name="q" aria-labelledby="searchlabel" />
       <input type="submit" value="Go" />
-      <input type="hidden" name="check_keywords" value="yes" />
-      <input type="hidden" name="area" value="default" />
     </form>
     </div>
 </div>
@@ -344,7 +340,7 @@
       &copy;2018, Gustavo Niemeyer.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.4</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.3.1</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
     </div>
