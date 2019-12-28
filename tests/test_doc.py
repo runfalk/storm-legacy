@@ -1,7 +1,8 @@
 import ast
 import pytest
+import sys
 
-from _pytest.assertion.rewrite import AssertionRewriter
+from _pytest.assertion.rewrite import rewrite_asserts
 from docutils.core import publish_doctree
 
 
@@ -16,7 +17,8 @@ def is_code_block(node):
 ])
 def test_rst(path):
     with open(path) as f:
-        doctree = publish_doctree(f.read())
+        rst = f.read()
+        doctree = publish_doctree(rst)
 
     ast_parts = []
     for block in doctree.traverse(condition=is_code_block):
@@ -26,6 +28,9 @@ def test_rst(path):
         ast.increment_lineno(node, block.line - num_lines - 1)
         ast_parts.extend(node.body)
 
-    mod = ast.Module(body=ast_parts)
-    AssertionRewriter(path, None).run(mod)
+    if sys.version_info >= (3, 8):
+        mod = ast.Module(body=ast_parts, type_ignores=[])
+    else:
+        mod = ast.Module(body=ast_parts)
+    rewrite_asserts(mod, rst)
     exec(compile(mod, path, "exec"), {})
