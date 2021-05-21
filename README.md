@@ -1,5 +1,15 @@
+Archived 2021-05-22
+===================
+On September 20th, 2019 version 0.21 of Storm
+[was released](https://www.chiark.greenend.org.uk/~cjwatson/blog/storm-py3.html).
+Upstream has had multiple releases since then which means that
+this fork has outlived its purpose. Switching back to Storm
+should be as simple as changing the package.
+
+
 What is this fork?
 ==================
+<s>
 I use Storm in a big private project and due to Storm I have
 been stuck with Python 2.7. This forks fixes that by adding
 support for Python 3.3 and later. To do that I removed
@@ -17,12 +27,7 @@ almost five years; the last release was 0.20 2013-06-28. I forked
 the current trunk on 2018-05-04 which had quite a few fixes for
 things that were broken in 0.20. The trunk revision at the time
 was [#484](http://bazaar.launchpad.net/~storm/storm/trunk/files/484?start_revid=484).
-
-On September 20th, 2019 version 0.21 of Storm
-[was released](https://www.chiark.greenend.org.uk/~cjwatson/blog/storm-py3.html).
-The main differences seems to be that more features remain and that
-the exception handling was fixed propery for Python 3. In my fork
-it is not really possible to backend-agnostically catch exceptions.
+</s>
 
 
 Changelog
